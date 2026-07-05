@@ -1,27 +1,29 @@
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import type * as schemaType from "./schema";
+import type * as pgSchemaType from "./pg";
 
-type DbType = BetterSQLite3Database<typeof schemaType>;
+type LocalDb = BetterSQLite3Database<typeof schemaType>;
+type CloudDb = NeonHttpDatabase<typeof pgSchemaType>;
 
-function initDb(): { db: DbType; schema: typeof schemaType } {
-  if (process.env.DATABASE_URL) {
-    const { neon } = require("@neondatabase/serverless");
-    const { drizzle } = require("drizzle-orm/neon-http");
-    const pgSchema: typeof schemaType = require("./pg");
-    const sql = neon(process.env.DATABASE_URL);
-    return { db: drizzle(sql, { schema: pgSchema }) as unknown as DbType, schema: pgSchema };
-  }
+let _db: LocalDb | CloudDb;
+let _schema: typeof schemaType | typeof pgSchemaType;
 
+if (process.env.DATABASE_URL) {
+  const { neon } = require("@neondatabase/serverless");
+  const { drizzle } = require("drizzle-orm/neon-http");
+  _schema = require("./pg");
+  const sql = neon(process.env.DATABASE_URL);
+  _db = drizzle(sql, { schema: _schema });
+} else {
   const Database = require("better-sqlite3");
   const { drizzle } = require("drizzle-orm/better-sqlite3");
-  const sqliteSchema: typeof schemaType = require("./schema");
+  _schema = require("./schema");
   const sqlite = new Database("data.db");
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
-  return { db: drizzle(sqlite, { schema: sqliteSchema }) as unknown as DbType, schema: sqliteSchema };
+  _db = drizzle(sqlite, { schema: _schema });
 }
 
-const { db: _db, schema: _schema } = initDb();
-
-export const db: DbType = _db;
-export const schema: typeof schemaType = _schema;
+export const db = _db;
+export const schema = _schema;
