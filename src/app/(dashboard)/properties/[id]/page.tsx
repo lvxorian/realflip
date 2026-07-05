@@ -1,407 +1,436 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { db } from "@/db";
+import { properties, priceHistory, propertyAnalysis } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { TiltCard } from "@/components/ui/tilt-card";
-import { motion } from "framer-motion";
+import { ScoreGauge } from "@/components/ui/score-gauge";
+import { PriceTag } from "@/components/ui/price-tag";
+import { PropertyMap } from "@/components/ui/property-map";
+import { ImageGallery } from "@/components/ui/image-gallery";
+import { FlipCalculator } from "@/components/ui/flip-calculator";
 import {
-  Building2,
-  MapPin,
-  DollarSign,
-  TrendingUp,
-  Target,
   ArrowLeft,
+  ArrowUpRight,
   Phone,
-  BarChart3,
-  AlertTriangle,
-  CheckCircle2,
-  FileText,
-  Share2,
+  ShareNetwork,
   Star,
+  MapPin,
   Clock,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  CurrencyDollar,
+  FileText,
+  WarningCircle,
+  CheckCircle,
+  Buildings,
+} from "@phosphor-icons/react/ssr";
 
-export default function PropertyDetailPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const [calcOpen, setCalcOpen] = useState(true);
-  const [purchasePrice, setPurchasePrice] = useState(4890000);
-  const [renoLevel, setRenoLevel] = useState<"light" | "medium" | "full">("medium");
+export const dynamic = "force-dynamic";
 
-  const property = {
-    id: params.id,
-    title: "Byt 3+kk, Praha 8 – Karlín",
-    price: 4890000,
-    pricePerSqm: 97800,
-    area: 50,
-    rooms: "3+kk",
-    floor: 4,
-    condition: "původní",
-    yearBuilt: 1985,
-    address: "Sokolovská 123, Praha 8",
-    lat: 50.092,
-    lng: 14.455,
-    description:
-      "Byt v osobním vlastnictví v cihlovém domě v Karlíně. Původní stav, nutná rekonstrukce. Dům po kompletní revitalizaci včetně nové fasády, oken a výtahu. Vytápění dálkové. V okolí veškerá občanská vybavenost, MHD 2 minuty.",
-    contactName: "Jan Novák",
-    contactPhone: "+420 777 123 456",
-    contactEmail: "jan.novak@reality.cz",
-    contactType: "agent",
-    publishedAt: "2026-06-21",
-    portalName: "sreality",
-    imageUrls: [],
-    priceHistory: [
-      { price: 5250000, date: "2026-05-15" },
-      { price: 5100000, date: "2026-05-28" },
-      { price: 4890000, date: "2026-06-10" },
-    ],
-  };
+function fmt(p: number) {
+  return `${(p / 1000000).toFixed(1)} mil. Kč`;
+}
 
-  const analysis = {
-    marketValue: 5850000,
-    undervaluationPct: 16.4,
-    investmentScore: 82,
-    arv: 7450000,
-    renovationCost: 1100000,
-    totalCost: 4990000 + 1100000 + 200000 + 150000,
-    netProfit: 1010000,
-    roi: 15.7,
-    annualizedRoi: 31.4,
-    cashOnCash: 22.3,
-    breakEvenPrice: 4100000,
-    recommendation: "buy" as const,
-    aiReport: {
-      summary:
-        "Nemovitost vykazuje výrazný investiční potenciál díky podhodnocení o 16.4% oproti tržní ceně. Lokalita Karlín je jednou z nejžádanějších v Praze s rostoucím trendem cen. Dům je po revitalizaci, což eliminuje riziko velkých investic do společných prostor.",
-      sentiment: "urgent",
-      maxBid: 5200000,
-      negotiationTips: [
-        "Cena již byla snížena 2x – signalizuje motivaci prodejce",
-        "Poukažte na nutnost kompletní rekonstrukce (odhad 1.1 mil.)",
-        "Navrhněte rychlé uzavření (do 14 dní) za nižší cenu",
-        "Zmiňte srovnatelné byty v okolí za 5.5–6 mil.",
-      ],
-      redFlags: [],
-      hiddenInfo: [
-        "Prodejce řeší dědictví – motivovaný k rychlému prodeji",
-        "V domě je plánovaná výměna výtahu v roce 2027 (možná mimořádná platba)",
-      ],
-      comparableNotes: "Srovnatelné byty v okolí: 52m² za 5.8 mil., 48m² za 5.5 mil., 55m² za 6.2 mil.",
-    },
-  };
+function formatDays(firstSeen: Date) {
+  const days = Math.floor((Date.now() - new Date(firstSeen).getTime()) / 86400000);
+  if (days <= 0) return "dnes";
+  if (days === 1) return "1 den";
+  if (days < 5) return `${days} dny`;
+  return `${days} dní`;
+}
 
-  function formatPrice(p: number) {
-    return `${(p / 1000000).toFixed(1)} mil. Kč`;
+function formatDate(d: Date) {
+  return new Date(d).toLocaleDateString("cs-CZ", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+const PORTAL_LABELS: Record<string, string> = {
+  sreality: "Sreality.cz",
+  bezrealitky: "Bezrealitky.cz",
+  bazos: "Bazos.cz",
+  remax: "RE/MAX",
+  century21: "Century 21",
+  "reality-cz": "Reality.cz",
+  "idnes-reality": "Reality iDnes",
+  hyperreality: "Hyperreality",
+  mmreality: "MM Reality",
+  annonce: "Annonce",
+};
+
+export default async function PropertyDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
+  const property = await db
+    .select()
+    .from(properties)
+    .where(eq(properties.id, id))
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (!property) {
+    notFound();
   }
+
+  const history = await db
+    .select()
+    .from(priceHistory)
+    .where(eq(priceHistory.propertyId, id))
+    .orderBy(desc(priceHistory.recordedAt));
+
+  const analysis = await db
+    .select()
+    .from(propertyAnalysis)
+    .where(eq(propertyAnalysis.propertyId, id))
+    .limit(1)
+    .then((r) => r[0]);
+
+  const imageUrls: string[] = property.imageUrls ? JSON.parse(property.imageUrls) : [];
+  const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
+  const hasRealUrl = property.url && property.url.startsWith("http");
+
+  let aiReport: {
+    summary: string;
+    negotiationTips: string[];
+    hiddenInfo: string[];
+  } | null = null;
+  if (analysis?.aiReport) {
+    try {
+      aiReport = JSON.parse(analysis.aiReport);
+    } catch {
+      aiReport = null;
+    }
+  }
+
+  const recommendationLabel =
+    analysis?.recommendation === "buy"
+      ? "DOPORUČENO K INVESTICI"
+      : analysis?.recommendation === "consider"
+      ? "ZVAŽIT"
+      : analysis?.recommendation === "skip"
+      ? "NEDOPORUČENO"
+      : null;
+  const recommendationVariant =
+    analysis?.recommendation === "buy"
+      ? "success"
+      : analysis?.recommendation === "consider"
+      ? "warning"
+      : "danger";
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
-      <button
-        onClick={() => router.push("/properties")}
-        className="flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
+      <Link
+        href="/properties"
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
       >
-        <ArrowLeft size={16} />
+        <ArrowLeft size={14} weight="bold" />
         Zpět na přehled
-      </button>
+      </Link>
 
-      {/* Hero section */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left - Main info */}
         <div className="lg:col-span-2 space-y-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card glass borderGradient>
-              <div className="relative h-56 rounded-t-xl bg-gradient-to-br from-accent/15 via-transparent to-secondary/10 flex items-center justify-center">
-                <Building2 size={60} className="text-muted/20" />
-                <Badge
-                  variant="score"
-                  size="lg"
-                  className="absolute top-4 right-4"
-                  style={{
-                    borderColor: "rgba(16, 185, 129, 0.3)",
-                    color: "#10b981",
-                    fontSize: "1rem",
-                    padding: "0.5rem 1rem",
-                  }}
-                >
-                  {analysis.investmentScore}
-                </Badge>
-                <div className="absolute bottom-4 left-4 flex gap-2">
-                  <Button size="sm" variant="glass">
-                    <Phone size={14} />
+          {/* Hero with gallery */}
+          <div className="rounded-[2.5rem] border border-border/50 bg-card overflow-hidden">
+            <div className="relative">
+              <ImageGallery
+                images={imageUrls}
+                alt={property.title}
+                score={analysis?.investmentScore}
+              />
+              <div className="absolute top-4 right-4 flex gap-2 z-10">
+                {property.contactPhone && (
+                  <a
+                    href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
+                    className="glass h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-medium hover:bg-card-hover transition-colors"
+                  >
+                    <Phone size={14} weight="fill" />
                     Zavolat
-                  </Button>
-                  <Button size="sm" variant="glass">
-                    <Share2 size={14} />
-                  </Button>
-                  <Button size="sm" variant="glass">
-                    <Star size={14} />
-                  </Button>
+                  </a>
+                )}
+                <button className="glass h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
+                  <ShareNetwork size={14} weight="bold" />
+                </button>
+                <button className="glass h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
+                  <Star size={14} weight="bold" />
+                </button>
+              </div>
+              {analysis?.investmentScore !== undefined && (
+                <div className="absolute top-4 left-4 z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">
+                  <ScoreGauge score={analysis.investmentScore} size={36} strokeWidth={3} />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-muted font-mono">skóre</span>
+                    <span className="text-sm font-semibold">{analysis.investmentScore}/100</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">{property.title}</h1>
+                <div className="flex items-center gap-2 mt-1 text-sm text-muted flex-wrap">
+                  <MapPin size={14} weight="bold" />
+                  {property.address || "Neznámá adresa"}
+                  <span className="w-1 h-1 rounded-full bg-border" />
+                  <Clock size={14} weight="bold" />
+                  {formatDays(property.firstSeen)} na trhu
                 </div>
               </div>
-              <CardContent className="p-6 space-y-4">
-                <div>
-                  <h1 className="text-xl font-bold">{property.title}</h1>
-                  <div className="flex items-center gap-2 mt-1 text-sm text-muted">
-                    <MapPin size={14} />
-                    {property.address}
-                    <span>·</span>
-                    <Clock size={14} />
-                    14 dní na trhu
-                  </div>
-                </div>
 
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2">
-                    <DollarSign size={18} className="text-secondary" />
-                    <div>
-                      <p className="text-2xl font-bold">{formatPrice(property.price)}</p>
-                      <p className="text-xs text-muted">
-                        {property.pricePerSqm.toLocaleString()} Kč/m²
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="text-center">
-                      <p className="font-semibold">{property.rooms}</p>
-                      <p className="text-xs text-muted">dispozice</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold">{property.area}</p>
-                      <p className="text-xs text-muted">m²</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold">{property.floor}.</p>
-                      <p className="text-xs text-muted">patro</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold">{property.condition}</p>
-                      <p className="text-xs text-muted">stav</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold">{property.yearBuilt}</p>
-                      <p className="text-xs text-muted">rok</p>
-                    </div>
-                  </div>
-                </div>
+              <PriceTag
+                price={property.price}
+                perSqm={property.pricePerSqm ?? undefined}
+                size="lg"
+              />
 
-                <div className="flex items-center gap-2">
-                  <Badge variant="info">{property.portalName}</Badge>
-                  <Badge variant="outline">ID: {property.id}</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { label: "dispozice", value: property.rooms ?? "—" },
+                  { label: "m²", value: property.area ? `${property.area} m²` : "—" },
+                  { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
+                  { label: "stav", value: property.condition ?? "—" },
+                  { label: "rok", value: property.yearBuilt ?? "—" },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="rounded-xl bg-white/[0.02] border border-white/5 px-4 py-2.5 text-center min-w-[72px]"
+                  >
+                    <p className="font-semibold text-sm">{s.value}</p>
+                    <p className="text-[10px] text-muted">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="info" size="sm">
+                  {portalLabel}
+                </Badge>
+                <Badge variant="outline" size="sm">
+                  ID: {property.id.slice(0, 12)}
+                </Badge>
+                {hasRealUrl && (
+                  <a
+                    href={property.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-accent/30 bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                  >
+                    Otevřít inzerát na {portalLabel}
+                    <ArrowUpRight size={12} weight="bold" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Description */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card glass>
-              <CardHeader>
-                <CardTitle className="text-base">Popis</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm leading-relaxed text-muted">{property.description}</p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <h2 className="font-semibold tracking-tight text-sm mb-3 flex items-center gap-2">
+              <Buildings size={14} weight="duotone" className="text-accent" />
+              Popis
+            </h2>
+            <p className="text-sm text-muted leading-relaxed">
+              {property.description || "Popis není k dispozici."}
+            </p>
+          </div>
 
           {/* Price History */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-            <Card glass>
-              <CardHeader>
-                <CardTitle className="text-base">Historie cen</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {property.priceHistory.map((ph, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-card-hover">
-                      <span className="text-sm">{ph.date}</span>
-                      <span className="font-semibold">{formatPrice(ph.price)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {history.length > 0 && (
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
+              <h2 className="font-semibold tracking-tight text-sm mb-3">Historie cen</h2>
+              <div className="space-y-2">
+                {history.map((ph) => (
+                  <div
+                    key={ph.id}
+                    className="flex items-center justify-between rounded-lg bg-white/[0.02] border border-white/5 px-4 py-3"
+                  >
+                    <span className="text-sm text-muted">{formatDate(ph.recordedAt)}</span>
+                    <span className="text-sm font-mono font-medium">{fmt(ph.price)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Map */}
+          <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <h2 className="font-semibold tracking-tight text-sm mb-3 flex items-center gap-2">
+              <MapPin size={14} weight="duotone" className="text-accent" />
+              Lokalita
+            </h2>
+            <PropertyMap
+              address={property.address ?? "Neznámá adresa"}
+              lat={property.lat ?? undefined}
+              lng={property.lng ?? undefined}
+            />
+          </div>
         </div>
 
-        {/* Right - Analysis & Calculator */}
-        <div className="space-y-6">
-          {/* Investment Score */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <Card glass borderGradient>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Target size={16} className="text-accent" />
-                  Investiční analýza
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted">Tržní hodnota</span>
-                  <span className="font-semibold">{formatPrice(analysis.marketValue)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted">Podhodnocení</span>
-                  <span className="font-semibold text-success">
-                    {analysis.undervaluationPct.toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted">ARV (po rekonstrukci)</span>
-                  <span className="font-semibold">{formatPrice(analysis.arv)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted">Odhadovaný zisk</span>
-                  <span className="font-semibold text-secondary">
-                    {formatPrice(analysis.netProfit)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted">ROI</span>
-                  <span className="font-semibold text-success">{analysis.roi.toFixed(1)}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted">Annualized ROI</span>
-                  <span className="font-semibold">{analysis.annualizedRoi.toFixed(1)}%</span>
-                </div>
-
-                <div className="pt-2">
+        {/* Sidebar */}
+        <div className="space-y-4">
+          {analysis && (
+            <div className="rounded-2xl border border-border/50 card-gradient-accent p-5">
+              <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-4">
+                <CurrencyDollar size={16} className="text-accent" weight="duotone" />
+                Investiční analýza
+              </h2>
+              <div className="space-y-2.5 text-sm">
+                {[
+                  { label: "Tržní hodnota", value: fmt(analysis.marketValue), color: "" },
+                  {
+                    label: "Podhodnocení",
+                    value: `${analysis.undervaluationPct.toFixed(1)}%`,
+                    color: "text-emerald-400",
+                  },
+                  { label: "ARV", value: fmt(analysis.arv ?? 0), color: "" },
+                  {
+                    label: "Zisk",
+                    value: fmt(analysis.netProfit ?? 0),
+                    color: "text-emerald-400",
+                  },
+                  {
+                    label: "ROI",
+                    value: `${(analysis.roi ?? 0).toFixed(1)}%`,
+                    color: "text-emerald-400",
+                  },
+                  {
+                    label: "Annualized ROI",
+                    value: `${(analysis.annualizedRoi ?? 0).toFixed(1)}%`,
+                    color: "",
+                  },
+                ].map((r) => (
+                  <div key={r.label} className="flex items-center justify-between">
+                    <span className="text-muted">{r.label}</span>
+                    <span className={`font-mono font-medium ${r.color}`}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+              {recommendationLabel && (
+                <div className="mt-4 pt-4 border-t border-border/30">
                   <Badge
-                    variant="success"
+                    variant={recommendationVariant as "success" | "warning" | "danger"}
                     size="lg"
-                    className="w-full justify-center py-1.5 text-sm"
+                    className="w-full justify-center py-2 text-sm gap-1.5"
                   >
-                    <CheckCircle2 size={14} className="mr-1" />
-                    DOPORUČENO K INVESTICI
+                    {recommendationVariant === "success" && <CheckCircle size={14} weight="fill" />}
+                    {recommendationLabel}
                   </Badge>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Flip Calculator */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-            <Card glass>
-              <CardHeader
-                className="cursor-pointer flex flex-row items-center justify-between"
-                onClick={() => setCalcOpen(!calcOpen)}
-              >
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 size={16} className="text-secondary" />
-                  Kalkulátor
-                </CardTitle>
-                {calcOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </CardHeader>
-              {calcOpen && (
-                <CardContent className="space-y-3">
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">Kupní cena</label>
-                    <Input
-                      type="number"
-                      value={purchasePrice}
-                      onChange={(e) => setPurchasePrice(Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">Rozsah rekonstrukce</label>
-                    <div className="flex gap-1">
-                      {(["light", "medium", "full"] as const).map((level) => (
-                        <button
-                          key={level}
-                          onClick={() => setRenoLevel(level)}
-                          className={`flex-1 py-2 text-xs rounded-lg border transition-all ${
-                            renoLevel === level
-                              ? "border-accent bg-accent/20 text-accent"
-                              : "border-border text-muted hover:border-accent/30"
-                          }`}
-                        >
-                          {level === "light"
-                            ? "Lehká"
-                            : level === "medium"
-                              ? "Střední"
-                              : "Kompletní"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-1.5 pt-2 text-sm">
-                    <div className="flex justify-between text-muted">
-                      <span>Rekonstrukce</span>
-                      <span>{formatPrice(analysis.renovationCost)}</span>
-                    </div>
-                    <div className="flex justify-between text-muted">
-                      <span>Právní + daň (8 %)</span>
-                      <span>{formatPrice(Math.round(purchasePrice * 0.08))}</span>
-                    </div>
-                    <div className="flex justify-between text-muted">
-                      <span>Rezerva (10 %)</span>
-                      <span>{formatPrice(Math.round(analysis.renovationCost * 0.1))}</span>
-                    </div>
-                    <div className="border-t border-border pt-1.5 flex justify-between font-semibold">
-                      <span>Celkové náklady</span>
-                      <span>
-                        {formatPrice(
-                          purchasePrice +
-                            analysis.renovationCost +
-                            Math.round(purchasePrice * 0.08) +
-                            Math.round(analysis.renovationCost * 0.1)
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
               )}
-            </Card>
-          </motion.div>
+            </div>
+          )}
 
-          {/* AI Report */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-            <Card glass>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText size={16} className="text-warning" />
-                  AI Report
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <p className="text-muted leading-relaxed">{analysis.aiReport.summary}</p>
+          <FlipCalculator
+            initialPrice={property.price}
+            renovationCost={analysis?.renovationCost ?? Math.round((property.area ?? 50) * 10000)}
+          />
 
-                {analysis.aiReport.negotiationTips.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-secondary mb-1">Vyjednávací tipy</p>
-                    <ul className="space-y-1">
-                      {analysis.aiReport.negotiationTips.map((tip, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-muted">
-                          <CheckCircle2 size={12} className="text-success mt-0.5 shrink-0" />
-                          {tip}
-                        </li>
-                      ))}
-                    </ul>
+          {(aiReport || analysis) && (
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-4">
+                <FileText size={16} className="text-accent" weight="duotone" />
+                AI Report
+              </h2>
+              {aiReport ? (
+                <>
+                  <p className="text-sm text-muted leading-relaxed mb-4">
+                    {aiReport.summary}
+                  </p>
+                  {aiReport.negotiationTips?.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-medium text-emerald-400 mb-1.5">
+                        Vyjednávací tipy
+                      </p>
+                      <ul className="space-y-1">
+                        {aiReport.negotiationTips.map((tip, i) => (
+                          <li
+                            key={i}
+                            className="flex items-start gap-2 text-xs text-muted"
+                          >
+                            <CheckCircle
+                              size={12}
+                              className="text-emerald-400 mt-0.5 shrink-0"
+                              weight="fill"
+                            />
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiReport.hiddenInfo?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-amber-400 mb-1.5">
+                        Skryté informace
+                      </p>
+                      <ul className="space-y-1">
+                        {aiReport.hiddenInfo.map((info, i) => (
+                          <li
+                            key={i}
+                            className="flex items-start gap-2 text-xs text-muted"
+                          >
+                            <WarningCircle
+                              size={12}
+                              className="text-amber-400 mt-0.5 shrink-0"
+                              weight="fill"
+                            />
+                            {info}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted leading-relaxed">
+                  AI analýza ještě nebyla vygenerována. Spusťte analyzátor pro tuto
+                  nemovitost.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Contact info */}
+          {(property.contactName || property.contactPhone || property.contactEmail) && (
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <h2 className="font-semibold tracking-tight text-sm mb-3">Kontakt</h2>
+              <div className="space-y-2 text-sm">
+                {property.contactName && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Jméno</span>
+                    <span>{property.contactName}</span>
                   </div>
                 )}
-
-                {analysis.aiReport.hiddenInfo.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-warning mb-1">Skryté informace</p>
-                    <ul className="space-y-1">
-                      {analysis.aiReport.hiddenInfo.map((info, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-muted">
-                          <AlertTriangle size={12} className="text-warning mt-0.5 shrink-0" />
-                          {info}
-                        </li>
-                      ))}
-                    </ul>
+                {property.contactPhone && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Telefon</span>
+                    <a
+                      href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
+                      className="font-mono text-accent hover:underline"
+                    >
+                      {property.contactPhone}
+                    </a>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </motion.div>
+                {property.contactEmail && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">E-mail</span>
+                    <a
+                      href={`mailto:${property.contactEmail}`}
+                      className="text-accent hover:underline"
+                    >
+                      {property.contactEmail}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

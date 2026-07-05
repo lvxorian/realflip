@@ -20,6 +20,28 @@ function dt(offset = 0) {
   return new Date(Date.now() - offset);
 }
 
+function portalUrl(portal: string, id: string): string {
+  const map: Record<string, string> = {
+    sreality: `https://www.sreality.cz/detail/prodej/byt/${id}`,
+    bezrealitky: `https://www.bezrealitky.cz/nemovitosti-byty-domy/${id}`,
+    bazos: `https://reality.bazos.cz/predam/byt/${id}.html`,
+    remax: `https://www.remax.cz/nemovitosti/${id}`,
+    century21: `https://www.century21.cz/nemovitost/${id}`,
+    "reality-cz": `https://www.reality.cz/nemovitost/${id}`,
+    "idnes-reality": `https://reality.idnes.cz/nemovitost/${id}`,
+    hyperreality: `https://www.hyperreality.cz/nemovitost/${id}`,
+    mmreality: `https://www.mmreality.cz/nemovitost/${id}`,
+    annonce: `https://www.annonce.cz/reality/${id}`,
+  };
+  return map[portal] || `https://example.com/${portal}/${id}`;
+}
+
+function imageUrls(id: string, count = 5): string {
+  return JSON.stringify(
+    Array.from({ length: count }, (_, i) => `https://picsum.photos/seed/${id}-${i + 1}/1200/800`)
+  );
+}
+
 async function seed() {
   console.log("Seeding database...");
 
@@ -82,7 +104,7 @@ async function seed() {
       id: p.id,
       portalId: `${p.portal}_${p.id}`,
       portalName: p.portal,
-      url: `https://example.com/${p.portal}/${p.id}`,
+      url: portalUrl(p.portal, p.id),
       title: p.title,
       price: p.price,
       pricePerSqm: Math.round(p.price / p.area),
@@ -93,6 +115,7 @@ async function seed() {
       lng: p.lng,
       condition: p.condition,
       description: p.desc,
+      imageUrls: imageUrls(p.id),
       status: "active",
       isActive: true,
       firstSeen: dt(30 * day),

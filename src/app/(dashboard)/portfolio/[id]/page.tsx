@@ -1,21 +1,20 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { ScoreGauge } from "@/components/ui/score-gauge";
 import { motion } from "framer-motion";
 import {
-  MapPin,
-  DollarSign,
-  Clock,
-  CheckCircle2,
   ArrowLeft,
-  Edit3,
-  Upload,
-  Trash2,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
+  MapPin,
+  CheckCircle,
+  Clock,
+  Pencil,
+  UploadSimple,
+  Trash,
+  CurrencyDollar,
+} from "@phosphor-icons/react";
 
 export default function PortfolioDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -25,14 +24,12 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
     title: "Byt 2+1, Praha 10 – Vršovice",
     address: "Krymská 45, Praha 10",
     purchasePrice: 4200000,
-    purchaseDate: "2026-05-20",
     estimatedArv: 6200000,
-    sellPrice: null,
     renovationBudget: 1200000,
     renovationActual: 850000,
     status: "renovating",
-    daysOwned: 45,
     progress: 70,
+    score: 78,
     renovationItems: [
       { category: "Bourání", planned: 80000, actual: 75000, notes: "Hotovo" },
       { category: "Elektrika", planned: 180000, actual: 165000, notes: "Hotovo" },
@@ -55,79 +52,64 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
         onClick={() => router.push("/portfolio")}
         className="flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
       >
-        <ArrowLeft size={16} />
+        <ArrowLeft size={14} weight="bold" />
         Zpět na portfolio
       </button>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left - Main info */}
         <div className="lg:col-span-2 space-y-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card glass borderGradient>
-              <CardHeader>
-                <div className="flex items-start justify-between">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="rounded-[2.5rem] border border-border/50 bg-card overflow-hidden">
+              <div className="relative h-48 property-image-shimmer flex items-center justify-center">
+                <ScoreGauge score={project.score} size={48} strokeWidth={3.5} />
+                <Badge variant="warning" size="md" className="absolute top-4 right-4">Rekonstrukce</Badge>
+              </div>
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
                   <div>
-                    <CardTitle className="text-xl">{project.title}</CardTitle>
+                    <h1 className="text-xl font-semibold tracking-tight">{project.title}</h1>
                     <div className="flex items-center gap-1 text-sm text-muted mt-1">
-                      <MapPin size={14} />
+                      <MapPin size={14} weight="bold" />
                       {project.address}
                     </div>
                   </div>
-                  <Badge variant="warning" size="lg">
-                    Rekonstrukce
-                  </Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
+
                 {/* Timeline */}
-                <div className="flex items-center gap-4 py-3">
+                <div className="flex items-center gap-4 py-4 mb-4">
                   {[
                     { label: "Koupeno", date: "20. 5. 2026", done: true },
                     { label: "Rekonstrukce", date: "Probíhá", done: true },
                     { label: "Prodej", date: "Q3 2026", done: false },
-                  ].map((phase, idx) => (
-                    <div key={idx} className="flex items-center gap-2 flex-1">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full border ${
-                          phase.done
-                            ? "bg-success/20 border-success/30 text-success"
-                            : "bg-card-hover border-border text-muted"
-                        }`}
-                      >
-                        {phase.done ? (
-                          <CheckCircle2 size={16} />
-                        ) : (
-                          <Clock size={16} />
-                        )}
+                  ].map((phase, i) => (
+                    <div key={i} className="flex items-center gap-2 flex-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full border ${
+                        phase.done ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-card text-muted border-border/50"
+                      }`}>
+                        {phase.done ? <CheckCircle size={16} weight="fill" /> : <Clock size={16} weight="fill" />}
                       </div>
                       <div>
                         <p className="text-xs font-medium">{phase.label}</p>
                         <p className="text-[10px] text-muted">{phase.date}</p>
                       </div>
-                      {idx < 2 && (
-                        <div className="flex-1 h-px bg-border mx-2" />
-                      )}
+                      {i < 2 && <div className="flex-1 h-px bg-border/50 mx-1" />}
                     </div>
                   ))}
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-3 rounded-lg bg-card-hover">
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
                     <p className="text-xs text-muted">Kupní cena</p>
-                    <p className="text-lg font-bold">
-                      {(project.purchasePrice / 1000000).toFixed(1)} mil.
-                    </p>
+                    <p className="text-lg font-semibold font-mono">{(project.purchasePrice / 1000000).toFixed(1)} mil.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-card-hover">
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
                     <p className="text-xs text-muted">ARV</p>
-                    <p className="text-lg font-bold text-secondary">
-                      {(project.estimatedArv / 1000000).toFixed(1)} mil.
-                    </p>
+                    <p className="text-lg font-semibold font-mono text-accent">{(project.estimatedArv / 1000000).toFixed(1)} mil.</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-card-hover">
+                  <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
                     <p className="text-xs text-muted">Očekávaný zisk</p>
-                    <p className="text-lg font-bold text-success">
+                    <p className="text-lg font-semibold font-mono text-emerald-400">
                       {((project.estimatedArv - project.purchasePrice - project.renovationBudget) / 1000000).toFixed(1)} mil.
                     </p>
                   </div>
@@ -135,126 +117,116 @@ export default function PortfolioDetailPage({ params }: { params: { id: string }
 
                 {/* Progress */}
                 <div>
-                  <div className="flex justify-between text-sm mb-1">
+                  <div className="flex justify-between text-sm mb-1.5">
                     <span className="text-muted">Celkový průběh</span>
-                    <span className="font-semibold">{project.progress}%</span>
+                    <span className="font-semibold font-mono">{project.progress}%</span>
                   </div>
-                  <div className="h-3 rounded-full bg-card-hover overflow-hidden">
+                  <div className="h-2 rounded-full bg-border/30 overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${project.progress}%` }}
-                      transition={{ duration: 1.5, ease: "easeOut" }}
-                      className="h-full rounded-full bg-gradient-to-r from-accent to-secondary"
+                      transition={{ duration: 1.5, ease: [0.16, 1, 0.3, 1] }}
+                      className="h-full rounded-full bg-gradient-to-r from-accent to-emerald-400"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </motion.div>
 
-          {/* Budget Breakdown */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card glass>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Rozpočet rekonstrukce</span>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-success">{((totalActual / totalPlanned) * 100).toFixed(0)}% čerpáno</span>
-                    <Badge variant="warning">{remaining.toLocaleString()} Kč zbývá</Badge>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {project.renovationItems.map((item, idx) => {
+          {/* Budget */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold tracking-tight text-sm">Rozpočet rekonstrukce</h2>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-emerald-400 font-mono">{((totalActual / totalPlanned) * 100).toFixed(0)}%</span>
+                  <Badge variant="warning" size="sm">{remaining.toLocaleString()} Kč zbývá</Badge>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {project.renovationItems.map((item, i) => {
                   const pct = item.actual ? (item.actual / item.planned) * 100 : 0;
                   return (
-                    <div key={idx} className="p-3 rounded-lg bg-card-hover space-y-1.5">
+                    <div key={i} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{item.category}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-card border border-border text-muted">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-card border border-border/30 text-muted">
                             {item.notes}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs">
-                          <span className="text-muted">Plán: {(item.planned / 1000).toFixed(0)}k</span>
-                          <span className={item.actual && item.actual <= item.planned ? "text-success" : "text-danger"}>
-                            {(item.actual || 0) > 0 ? `Aktuálně: ${(item.actual / 1000).toFixed(0)}k` : "—"}
+                        <div className="flex items-center gap-3 text-xs font-mono">
+                          <span className="text-muted">{item.planned.toLocaleString()} Kč</span>
+                          <span className={item.actual && item.actual <= item.planned ? "text-emerald-400" : "text-red-400"}>
+                            {item.actual ? `${item.actual.toLocaleString()} Kč` : "—"}
                           </span>
                         </div>
                       </div>
-                      <div className="h-1.5 rounded-full bg-card overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-border/30 overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(pct, 100)}%` }}
-                          transition={{ duration: 0.8, delay: idx * 0.05 }}
-                          className={`h-full rounded-full ${
-                            pct <= 100 ? "bg-accent" : "bg-danger"
-                          }`}
+                          transition={{ duration: 0.8, delay: i * 0.03 }}
+                          className={`h-full rounded-full ${pct <= 100 ? "bg-accent" : "bg-red-500"}`}
                         />
                       </div>
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </motion.div>
         </div>
 
-        {/* Right - Actions */}
-        <div className="space-y-6">
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <Card glass>
-              <CardHeader>
-                <CardTitle className="text-base">Akce</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="glass" className="w-full justify-start" size="sm">
-                  <Edit3 size={14} />
+        {/* Sidebar */}
+        <div className="space-y-4">
+          <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <h2 className="font-semibold tracking-tight text-sm mb-4">Akce</h2>
+              <div className="space-y-2">
+                <Button variant="glass" className="w-full justify-start gap-2" size="sm">
+                  <Pencil size={14} weight="bold" />
                   Upravit projekt
                 </Button>
-                <Button variant="glass" className="w-full justify-start" size="sm">
-                  <Upload size={14} />
+                <Button variant="glass" className="w-full justify-start gap-2" size="sm">
+                  <UploadSimple size={14} weight="bold" />
                   Nahrát dokument
                 </Button>
-                <Button variant="danger" className="w-full justify-start" size="sm">
-                  <Trash2 size={14} />
+                <Button variant="danger" className="w-full justify-start gap-2" size="sm">
+                  <Trash size={14} weight="bold" />
                   Smazat projekt
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-            <Card glass>
-              <CardHeader>
-                <CardTitle className="text-base">Finance</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted">Nákup</span>
-                  <span className="font-semibold">{(project.purchasePrice / 1000000).toFixed(1)} mil.</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Rekonstrukce (plán)</span>
-                  <span className="font-semibold">{(project.renovationBudget / 1000000).toFixed(1)} mil.</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Rekonstrukce (aktuál)</span>
-                  <span className="font-semibold">{(project.renovationActual / 1000000).toFixed(1)} mil.</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">ARV</span>
-                  <span className="font-semibold text-secondary">{(project.estimatedArv / 1000000).toFixed(1)} mil.</span>
-                </div>
-                <div className="border-t border-border pt-2 flex justify-between font-bold">
+          <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+            <div className="rounded-2xl border border-border/50 card-gradient-accent p-5">
+              <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-4">
+                <CurrencyDollar size={16} className="text-accent" weight="duotone" />
+                Finance
+              </h2>
+              <div className="space-y-2 text-sm">
+                {[
+                  { label: "Nákup", value: `${(project.purchasePrice / 1000000).toFixed(1)} mil.` },
+                  { label: "Rekonstrukce (plán)", value: `${(project.renovationBudget / 1000000).toFixed(1)} mil.` },
+                  { label: "Rekonstrukce (aktuál)", value: `${(project.renovationActual / 1000000).toFixed(1)} mil.` },
+                  { label: "ARV", value: `${(project.estimatedArv / 1000000).toFixed(1)} mil.`, color: "text-accent" },
+                ].map((r) => (
+                  <div key={r.label} className="flex justify-between">
+                    <span className="text-muted">{r.label}</span>
+                    <span className={`font-mono font-medium ${r.color || ""}`}>{r.value}</span>
+                  </div>
+                ))}
+                <div className="border-t border-border/30 pt-2 flex justify-between font-semibold">
                   <span>Očekávaný zisk</span>
-                  <span className="text-success">
+                  <span className="text-emerald-400 font-mono">
                     {((project.estimatedArv - project.purchasePrice - project.renovationBudget) / 1000000).toFixed(1)} mil.
                   </span>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>

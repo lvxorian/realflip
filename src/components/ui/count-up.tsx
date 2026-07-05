@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion, useInView, useAnimation } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, useInView } from "framer-motion";
 
 interface CountUpProps {
   end: number;
@@ -9,66 +9,55 @@ interface CountUpProps {
   prefix?: string;
   suffix?: string;
   decimals?: number;
-  className?: string;
   formatter?: (value: number) => string;
 }
 
 export function CountUp({
   end,
-  duration = 2,
+  duration = 1.5,
   prefix = "",
   suffix = "",
   decimals = 0,
-  className,
   formatter,
 }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-  const controls = useAnimation();
-  const hasAnimated = useRef(false);
+  const inView = useInView(ref, { once: true });
+  const [displayed, setDisplayed] = useState(0);
+  const startTime = useRef<number>(0);
+  const raf = useRef<number>(0);
 
   useEffect(() => {
-    if (isInView && !hasAnimated.current) {
-      hasAnimated.current = true;
-      controls.start({
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.5 },
-      });
+    if (!inView) return;
 
-      if (ref.current) {
-        const startTime = Date.now();
-        const startValue = 0;
+    function animate(time: number) {
+      if (!startTime.current) startTime.current = time;
+      const elapsed = (time - startTime.current) / 1000;
+      const progress = Math.min(elapsed / duration, 1);
+      // cubic ease-out
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayed(eased * end);
 
-        const animate = () => {
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min(elapsed / (duration * 1000), 1);
-          const eased = 1 - Math.pow(1 - progress, 3);
-          const current = startValue + (end - startValue) * eased;
-
-          if (ref.current) {
-            const value = formatter ? formatter(current) : current.toFixed(decimals);
-            ref.current.textContent = `${prefix}${value}${suffix}`;
-          }
-
-          if (progress < 1) {
-            requestAnimationFrame(animate);
-          }
-        };
-
-        animate();
+      if (progress < 1) {
+        raf.current = requestAnimationFrame(animate);
       }
     }
-  }, [isInView, end, duration, prefix, suffix, decimals, controls, formatter]);
+
+    raf.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf.current);
+  }, [inView, end, duration]);
+
+  const formatted = formatter
+    ? formatter(displayed)
+    : displayed.toFixed(decimals);
 
   return (
     <motion.span
       ref={ref}
-      initial={{ opacity: 0, y: 10 }}
-      animate={controls}
-      className={className}
+      initial={{ opacity: 0, y: 8 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      {prefix}0{suffix}
+      {prefix}{formatted}{suffix}
     </motion.span>
   );
 }

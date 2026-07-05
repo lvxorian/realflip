@@ -1,166 +1,327 @@
+"use client";
+
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Building2, TrendingUp, BarChart3, Phone, Zap, Shield } from "lucide-react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { ScoreGauge } from "@/components/ui/score-gauge";
+import {
+  MagnifyingGlass,
+  ChartLineUp,
+  Bell,
+  Phone,
+  GitBranch,
+  Calculator,
+  ArrowRight,
+  House,
+} from "@phosphor-icons/react";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 100, damping: 20 } },
+};
+
+function MagneticButton({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const xSpring = useSpring(x, { stiffness: 100, damping: 15 });
+  const ySpring = useSpring(y, { stiffness: 100, damping: 15 });
+
+  const handleMouse = (e: React.MouseEvent) => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = e.clientX - rect.left - rect.width / 2;
+    const dy = e.clientY - rect.top - rect.height / 2;
+    x.set(dx * 0.2);
+    y.set(dy * 0.2);
+  };
+
+  const reset = () => { x.set(0); y.set(0); };
+
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={handleMouse}
+      onMouseLeave={reset}
+      style={{ x: xSpring, y: ySpring }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 const features = [
   {
-    icon: Building2,
+    icon: MagnifyingGlass,
     title: "Scraping 10+ portálů",
-    desc: "Automatický sběr dat z největších realitních portálů v ČR v reálném čase.",
-    color: "text-accent",
+    desc: "Sledujeme Sreality, Bezrealitky, Remax, Century21 a další. Nové inzeráty máte v minutách.",
+    size: "lg",
   },
   {
-    icon: TrendingUp,
+    icon: ChartLineUp,
     title: "AI analýza",
-    desc: "GPT-4o vyhodnocuje investiční potenciál, odhaluje skryté informace a navrhuje strategii.",
-    color: "text-secondary",
+    desc: "GPT-4o vyhodnotí podhodnocení, ARV, ziskovost a rizika.",
+    size: "sm",
   },
   {
-    icon: BarChart3,
-    title: "Tržní intelligence",
-    desc: "Cenové trendy, comparables, sezónnost a heatmapy příležitostí.",
-    color: "text-info",
+    icon: GitBranch,
+    title: "Pipeline management",
+    desc: "Kanban board pro celý proces od nového leadu po uzavřený deal.",
+    size: "sm",
   },
   {
     icon: Phone,
     title: "Call Mode",
-    desc: "Automatický dialer s vyjednávacími scénáři a sledováním konverzí.",
-    color: "text-success",
+    desc: "Rozhraní pro telefonování s detailem, scriptem a SMS šablonami.",
+    size: "md",
   },
   {
-    icon: Zap,
-    title: "Pipeline management",
-    desc: "Kanban board, CRM kontaktů a automatické alerty na price dropy.",
-    color: "text-warning",
+    icon: Bell,
+    title: "Chytré alerty",
+    desc: "Upozornění na cenové skoky a podhodnocené nabídky v reálném čase.",
+    size: "sm",
   },
   {
-    icon: Shield,
-    title: "Flip kalkulátor",
-    desc: "Detailní výpočet ARV, ROI, break-even ceny a cash-on-cash return.",
-    color: "text-accent",
+    icon: Calculator,
+    title: "Flip kalkulačka",
+    desc: "Spočítejte marži, cash-on-cash, annualizované ROI a break-even.",
+    size: "md",
   },
 ];
 
+const sizeClasses: Record<string, string> = {
+  lg: "col-span-2 row-span-2 min-h-[320px]",
+  md: "col-span-2 min-h-[240px]",
+  sm: "min-h-[240px]",
+};
+
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Noise overlay */}
-      <div className="fixed inset-0 noise-overlay pointer-events-none" />
-
-      {/* Navigation */}
-      <nav className="relative z-10 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/20 border border-accent/30">
-            <svg viewBox="0 0 24 24" className="h-5 w-5 text-accent" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </div>
-          <span className="text-lg font-bold bg-gradient-to-r from-accent to-secondary bg-clip-text text-transparent">
-            RealFlip Pro
-          </span>
+    <div className="min-h-[100dvh]">
+      {/* Nav */}
+      <motion.header
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-6 lg:px-10 h-16"
+      >
+        <div className="glass-strong rounded-full px-4 py-2 flex items-center gap-3">
+          <House size={20} weight="fill" className="text-accent" />
+          <span className="font-semibold text-sm tracking-tight">RealFlip</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost">Přihlásit se</Button>
+          <Link
+            href="/login"
+            className="text-sm text-muted hover:text-foreground transition-colors px-4 py-2"
+          >
+            Přihlásit
           </Link>
-          <Link href="/register">
-            <Button variant="default">Zdarma vyzkoušet</Button>
+          <Link
+            href="/register"
+            className="relative inline-flex items-center justify-center whitespace-nowrap rounded-full bg-accent text-white text-sm font-medium h-9 px-5 hover:bg-accent-hover active:scale-[0.98] transition-all duration-200"
+          >
+            Zdarma
           </Link>
         </div>
-      </nav>
+      </motion.header>
 
       {/* Hero */}
-      <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-24 pb-16 text-center">
-        <div className="absolute inset-0 bg-gradient-to-b from-accent/10 via-transparent to-transparent pointer-events-none" />
+      <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-28 overflow-hidden">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                className="inline-flex items-center gap-2 rounded-full bg-accent/10 border border-accent/20 px-4 py-1.5 mb-6"
+              >
+                <span className="w-2 h-2 rounded-full bg-accent pulse-dot" />
+                <span className="text-xs text-accent font-medium">
+                  10+ napojených realitních portálů
+                </span>
+              </motion.div>
 
-        <div className="max-w-3xl space-y-8">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/30 bg-accent/10 text-sm text-accent">
-            <Zap size={14} />
-            Profesionální nástroj pro realitní investory
-          </div>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tighter leading-none mb-6">
+                Najdete podhodnocené
+                <br />
+                <span className="text-accent">nemovitosti</span> dřív
+                <br />
+                než konkurence
+              </h1>
+              <p className="text-base text-muted leading-relaxed max-w-[65ch] mb-8">
+                RealFlip Pro sleduje české realitní portály v reálném čase, analyzuje
+                každý inzerát pomocí AI a ukáže vám jen ty nejziskovější příležitosti
+                k investici.
+              </p>
+              <div className="flex items-center gap-4">
+                <MagneticButton>
+                  <Link
+                    href="/register"
+                    className="relative inline-flex items-center justify-center whitespace-nowrap rounded-full bg-accent text-white font-medium h-12 px-7 text-base hover:bg-accent-hover active:scale-[0.98] transition-all duration-200 gap-2"
+                  >
+                    Vyzkoušet zdarma
+                    <ArrowRight size={16} weight="bold" />
+                  </Link>
+                </MagneticButton>
+                <Link
+                  href="/login"
+                  className="text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  Ukázkový účet
+                </Link>
+              </div>
+            </motion.div>
 
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight tracking-tight">
-            Najděte{" "}
-            <span className="bg-gradient-to-r from-accent to-secondary bg-clip-text text-transparent">
-              podhodnocené
-            </span>{" "}
-            nemovitosti dřív než konkurence
-          </h1>
-
-          <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
-            RealFlip Pro automaticky scrapuje 10+ realitních portálů, analyzuje investiční potenciál pomocí AI
-            a pomáhá vám řídit celý flip proces od nálezu po prodej.
-          </p>
-
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/register">
-              <Button size="xl" variant="default">
-                Začít zdarma
-                <svg className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </Button>
-            </Link>
-            <Button size="xl" variant="glass">
-              Podívat se na video
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-center gap-8 pt-4 text-sm text-muted">
-            <span>🔒 Zdarma po dobu 14 dní</span>
-            <span>⚡ Bez platební karty</span>
-            <span>🇨🇿 České portály</span>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+              className="relative"
+            >
+              <div className="glass-strong rounded-[2.5rem] p-8 lg:p-10 relative overflow-hidden">
+                <div className="absolute -top-20 -right-20 w-60 h-60 bg-accent/10 rounded-full blur-3xl" />
+                <div className="space-y-4 relative">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                      <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                      <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                    </div>
+                    <span className="text-xs text-muted font-mono">dashboard</span>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      { label: "Byt 3+kk, Praha 8", price: "4.890.000 Kč", score: 82, change: "+19%" },
+                      { label: "Byt 2+kk, Ostrava", price: "2.890.000 Kč", score: 91, change: "+33%" },
+                      { label: "RD, Brno", price: "7.250.000 Kč", score: 74, change: "+12%" },
+                    ].map((item, i) => (
+                      <motion.div
+                        key={item.label}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 + i * 0.1 }}
+                        className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 p-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <ScoreGauge score={item.score} size={28} strokeWidth={2.5} />
+                          <div>
+                            <p className="text-sm font-medium">{item.label}</p>
+                            <p className="text-xs text-muted">{item.price}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-accent font-mono">{item.change}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pb-24">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="group rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6 hover:border-accent/30 transition-all duration-300 hover:shadow-lg hover:shadow-accent/5"
+      {/* Features Bento */}
+      <section className="py-20 lg:py-28">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="mb-12"
+          >
+            <span className="text-xs text-accent font-medium uppercase tracking-wider">Funkce</span>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-2">
+              Vše, co investor potřebuje
+            </h2>
+            <p className="text-muted mt-2 max-w-[65ch]">
+              Od scrapování po prodej — jeden nástroj pokryje celý životní cyklus realitní investice.
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true }}
+            className="grid grid-cols-1 md:grid-cols-4 gap-4"
+          >
+            {features.map((f) => (
+              <motion.div
+                key={f.title}
+                variants={itemVariants}
+                className={`${sizeClasses[f.size]} rounded-[2rem] border border-white/5 bg-card p-8 hover:bg-card-hover transition-colors duration-300 flex flex-col`}
               >
-                <div className={`flex h-12 w-12 items-center justify-center rounded-lg bg-card-hover border border-border mb-4 group-hover:border-accent/30 transition-colors`}>
-                  <Icon size={22} className={feature.color} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/20 mb-5">
+                  <f.icon size={20} className="text-accent" weight="duotone" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-sm text-muted leading-relaxed">{feature.desc}</p>
-              </div>
-            );
-          })}
+                <h3 className="font-semibold tracking-tight mb-2">{f.title}</h3>
+                <p className="text-sm text-muted leading-relaxed flex-1">{f.desc}</p>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="relative z-10 max-w-4xl mx-auto px-6 pb-24 text-center">
-        <div className="rounded-2xl border border-accent/30 bg-gradient-to-br from-accent/10 to-secondary/5 p-12">
-          <h2 className="text-3xl font-bold mb-4">
-            Připraveni najít váš další flip?
-          </h2>
-          <p className="text-muted mb-8 max-w-lg mx-auto">
-            Začněte zdarma ještě dnes. Žádná platební karta, žádné závazky.
-          </p>
-          <Link href="/register">
-            <Button size="xl" variant="secondary">
-              Vytvořit účet zdarma
-            </Button>
-          </Link>
+      <section className="py-20 lg:py-28">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="glass-strong rounded-[2.5rem] p-10 lg:p-16 text-center relative overflow-hidden"
+          >
+            <div className="absolute -top-40 -left-40 w-80 h-80 bg-accent/5 rounded-full blur-3xl" />
+            <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
+            <div className="relative">
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-4">
+                Začněte investovat chytřeji
+              </h2>
+              <p className="text-muted max-w-[60ch] mx-auto mb-8">
+                14 dní zdarma, žádná kreditní karta. Během pár minut máte přehled o
+                všech podhodnocených nemovitostech na trhu.
+              </p>
+              <MagneticButton>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center justify-center rounded-full bg-accent text-white font-medium h-12 px-8 text-base hover:bg-accent-hover active:scale-[0.98] transition-all duration-200 gap-2"
+                >
+                  Vytvořit účet zdarma
+                  <ArrowRight size={16} weight="bold" />
+                </Link>
+              </MagneticButton>
+            </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border py-8 px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between text-sm text-muted">
-          <p>© 2026 RealFlip Pro. Všechna práva vyhrazena.</p>
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="hover:text-foreground transition-colors">Přihlásit</Link>
-            <Link href="/register" className="hover:text-foreground transition-colors">Registrovat</Link>
+      <footer className="border-t border-border/50 py-8">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <House size={16} weight="fill" className="text-accent" />
+            <span className="text-sm text-muted">RealFlip Pro</span>
           </div>
+          <p className="text-xs text-muted">
+            &copy; {new Date().getFullYear()} RealFlip Pro. Všechna práva vyhrazena.
+          </p>
         </div>
       </footer>
     </div>

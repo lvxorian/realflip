@@ -2,269 +2,267 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, ArrowRight, ArrowLeft, MapPin, DollarSign, Target } from "lucide-react";
+import { House, ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 
-const steps = [
-  { title: "Investiční profil", subtitle: "Jaký typ investor jste?", icon: Target },
-  { title: "Cílové lokality", subtitle: "Kde hledáte příležitosti?", icon: MapPin },
-  { title: "Rozpočet a cíle", subtitle: "Jaký je váš investiční horizont?", icon: DollarSign },
+const steps = ["Profil", "Lokality", "Rozpočet"];
+
+const experiences = [
+  { id: "beginner", label: "Začátečník", desc: "Nový v realitních investicích" },
+  { id: "intermediate", label: "Pokročilý", desc: "Mám 1–3 flipy za sebou" },
+  { id: "pro", label: "Profesionál", desc: "Více než 5 flipů" },
+];
+
+const strategies = [
+  { id: "quick", label: "Rychlý flip", desc: "Koupit, renovovat, prodat do 6 měsíců" },
+  { id: "mid", label: "Střednědobý", desc: "Držet 1–3 roky s renovací" },
+  { id: "long", label: "Dlouhodobý", desc: "Pronájem a čekání na zhodnocení" },
+  { id: "hold", label: "Koupě a držení", desc: "Dlouhodobý pronájem bez renovace" },
+];
+
+const localities = [
+  "Praha", "Brno", "Ostrava", "Plzeň", "Liberec",
+  "Olomouc", "Č. Budějovice", "Hradec Králové",
+  "Ústí n. Labem", "Pardubice", "Zlín", "Jihlava",
+];
+
+const propertyTypes = [
+  "Byt", "Rodinný dům", "Cihlový dům",
+  "Pozemek", "Kancelář", "Objekt k demolici",
 ];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState({
-    experience: "",
-    strategy: "",
-    targetLocalities: [] as string[],
-    budgetMin: 2000000,
-    budgetMax: 10000000,
-    minRoi: 15,
-    propertyTypes: [] as string[],
-  });
+  const [loading, setLoading] = useState(false);
 
-  const updateProfile = (key: string, value: any) => {
-    setProfile((prev) => ({ ...prev, [key]: value }));
-  };
+  const [selectedExperience, setSelectedExperience] = useState("");
+  const [selectedStrategy, setSelectedStrategy] = useState("");
+  const [selectedLocalities, setSelectedLocalities] = useState<string[]>([]);
+  const [budgetMin, setBudgetMin] = useState("");
+  const [budgetMax, setBudgetMax] = useState("");
+  const [minRoi, setMinRoi] = useState("15");
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
-  const toggleArrayItem = (key: "targetLocalities" | "propertyTypes", item: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      [key]: prev[key].includes(item)
-        ? prev[key].filter((i) => i !== item)
-        : [...prev[key], item],
-    }));
-  };
+  function toggleLocality(loc: string) {
+    setSelectedLocalities((prev) =>
+      prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
+    );
+  }
 
-  async function handleComplete() {
-    // Save preferences to DB
-    const res = await fetch("/api/settings/onboarding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
-    });
-    if (res.ok) {
+  function toggleType(t: string) {
+    setSelectedTypes((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+    );
+  }
+
+  async function complete() {
+    setLoading(true);
+    try {
+      await fetch("/api/settings/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetLocalities: selectedLocalities,
+          budgetMin: budgetMin ? Number(budgetMin) : null,
+          budgetMax: budgetMax ? Number(budgetMax) : null,
+          minRoi: Number(minRoi),
+          propertyTypes: selectedTypes,
+        }),
+      });
       router.push("/dashboard");
+    } catch {
+      setLoading(false);
     }
   }
 
-  const canProceed = () => {
-    if (step === 0) return profile.experience !== "" && profile.strategy !== "";
-    if (step === 1) return profile.targetLocalities.length > 0;
-    return true;
-  };
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-grid p-4">
-      <div className="fixed inset-0 bg-gradient-to-br from-accent/5 via-transparent to-secondary/5 pointer-events-none" />
-
-      <div className="w-full max-w-2xl">
-        {/* Progress */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          {steps.map((s, idx) => (
-            <div key={idx} className="flex items-center gap-3">
-              <div
-                className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
-                  idx < step
-                    ? "bg-success/20 border-success/30 text-success"
-                    : idx === step
-                      ? "bg-accent/20 border-accent/30 text-accent"
-                      : "bg-card border-border text-muted"
-                }`}
-              >
-                {idx < step ? (
-                  <CheckCircle2 size={18} />
-                ) : (
-                  <s.icon size={18} />
-                )}
-              </div>
-              {idx < steps.length - 1 && (
-                <div
-                  className={`h-0.5 w-12 transition-colors ${
-                    idx < step ? "bg-accent" : "bg-border"
-                  }`}
-                />
-              )}
-            </div>
-          ))}
+    <div className="flex min-h-[100dvh]">
+      {/* Left decorative panel */}
+      <div className="hidden lg:flex lg:w-1/3 relative overflow-hidden bg-gradient-to-br from-accent/20 via-background to-emerald-500/10 items-center justify-center p-8">
+        <div className="absolute inset-0 property-image-shimmer opacity-30" />
+        <div className="relative text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/20 border border-accent/30">
+            <House size={32} weight="fill" className="text-accent" />
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight mb-2">Nastavení profilu</h2>
+          <p className="text-sm text-muted leading-relaxed">
+            Pomůže nám to přizpůsobit dashboard vašim investičním cílům
+          </p>
         </div>
+      </div>
 
-        <Card glass borderGradient>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">{steps[step].title}</CardTitle>
-            <CardDescription>{steps[step].subtitle}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {step === 0 && (
-                  <div className="space-y-6">
-                    <div>
-                      <p className="text-sm font-medium mb-3">Zkušenosti s flipováním</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {["Začátečník", "Pokročilý", "Profesionál"].map((opt) => (
-                          <button
-                            key={opt}
-                            onClick={() => updateProfile("experience", opt)}
-                            className={`p-3 rounded-lg border text-sm transition-all ${
-                              profile.experience === opt
-                                ? "border-accent bg-accent/20 text-accent"
-                                : "border-border text-muted hover:border-accent/30"
-                            }`}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium mb-3">Preferovaná strategie</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { key: "quick", label: "Rychlý flip", desc: "Do 6 měsíců" },
-                          { key: "medium", label: "Střednědobý", desc: "6–12 měsíců" },
-                          { key: "long", label: "Dlouhodobý", desc: "12+ měsíců" },
-                          { key: "buy_hold", label: "Koupě a držení", desc: "Nájem +升值" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.key}
-                            onClick={() => updateProfile("strategy", opt.key)}
-                            className={`p-3 rounded-lg border text-sm transition-all ${
-                              profile.strategy === opt.key
-                                ? "border-accent bg-accent/20 text-accent"
-                                : "border-border text-muted hover:border-accent/30"
-                            }`}
-                          >
-                            <p className="font-medium">{opt.label}</p>
-                            <p className="text-xs text-muted mt-0.5">{opt.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+      {/* Right */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-grid">
+        <div className="w-full max-w-lg">
+          {/* Steps indicator */}
+          <div className="flex items-center justify-center gap-2 mb-8">
+            {steps.map((s, i) => (
+              <div key={s} className="flex items-center gap-2">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition-all ${
+                  i <= step ? "bg-accent text-white" : "bg-card text-muted border border-border/50"
+                }`}>
+                  {i < step ? <Check size={12} weight="bold" /> : i + 1}
+                </div>
+                <span className={`text-xs ${i <= step ? "text-foreground" : "text-muted"} hidden sm:block`}>{s}</span>
+                {i < steps.length - 1 && <div className="w-6 h-px bg-border/50" />}
+              </div>
+            ))}
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ type: "spring" as const, stiffness: 100, damping: 20 }}
+              className="rounded-[2.5rem] border border-border/50 bg-card p-8"
+            >
+              {step === 0 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-semibold tracking-tight">Vítejte v RealFlip</h2>
+                    <p className="text-sm text-muted mt-1">Nejprve pár otázek pro lepší nastavení</p>
                   </div>
-                )}
 
-                {step === 1 && (
-                  <div className="space-y-6">
-                    <p className="text-sm font-medium mb-3">Kde hledáte nemovitosti?</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        "Praha",
-                        "Brno",
-                        "Ostrava",
-                        "Plzeň",
-                        "Liberec",
-                        "Olomouc",
-                        "České Budějovice",
-                        "Hradec Králové",
-                        "Pardubice",
-                        "Ústí nad Labem",
-                        "Zlín",
-                        "Celá Česká republika",
-                      ].map((city) => (
+                  <div>
+                    <label className="text-sm font-medium text-foreground/80 block mb-3">Zkušenosti</label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {experiences.map((e) => (
                         <button
-                          key={city}
-                          onClick={() => toggleArrayItem("targetLocalities", city)}
-                          className={`p-3 rounded-lg border text-sm transition-all ${
-                            profile.targetLocalities.includes(city)
-                              ? "border-accent bg-accent/20 text-accent"
-                              : "border-border text-muted hover:border-accent/30"
+                          key={e.id}
+                          onClick={() => setSelectedExperience(e.id)}
+                          className={`text-left p-4 rounded-xl border transition-all ${
+                            selectedExperience === e.id
+                              ? "border-accent/50 bg-accent/5"
+                              : "border-border/50 hover:bg-card-hover"
                           }`}
                         >
-                          {city}
+                          <p className="text-sm font-medium">{e.label}</p>
+                          <p className="text-xs text-muted">{e.desc}</p>
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
 
-                {step === 2 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input
-                        label="Minimální rozpočet"
-                        type="number"
-                        value={profile.budgetMin}
-                        onChange={(e) => updateProfile("budgetMin", Number(e.target.value))}
-                      />
-                      <Input
-                        label="Maximální rozpočet"
-                        type="number"
-                        value={profile.budgetMax}
-                        onChange={(e) => updateProfile("budgetMax", Number(e.target.value))}
-                      />
-                    </div>
-                    <Input
-                      label="Minimální ROI (%)"
-                      type="number"
-                      value={profile.minRoi}
-                      onChange={(e) => updateProfile("minRoi", Number(e.target.value))}
-                    />
-                    <div>
-                      <p className="text-sm font-medium mb-3">Typy nemovitostí</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          "Byt",
-                          "Rodinný dům",
-                          "Činžovní dům",
-                          "Rekreační objekt",
-                          "Komerční",
-                          "Pozemek",
-                        ].map((type) => (
-                          <button
-                            key={type}
-                            onClick={() => toggleArrayItem("propertyTypes", type)}
-                            className={`p-3 rounded-lg border text-sm transition-all ${
-                              profile.propertyTypes.includes(type)
-                                ? "border-accent bg-accent/20 text-accent"
-                                : "border-border text-muted hover:border-accent/30"
-                            }`}
-                          >
-                            {type}
-                          </button>
-                        ))}
-                      </div>
+                  <div>
+                    <label className="text-sm font-medium text-foreground/80 block mb-3">Strategie</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {strategies.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setSelectedStrategy(s.id)}
+                          className={`text-left p-4 rounded-xl border transition-all ${
+                            selectedStrategy === s.id
+                              ? "border-accent/50 bg-accent/5"
+                              : "border-border/50 hover:bg-card-hover"
+                          }`}
+                        >
+                          <p className="text-sm font-medium">{s.label}</p>
+                          <p className="text-xs text-muted">{s.desc}</p>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-              <Button
-                variant="ghost"
-                onClick={() => step > 0 && setStep(step - 1)}
-                disabled={step === 0}
-              >
-                <ArrowLeft size={16} />
-                Zpět
-              </Button>
-
-              {step < 2 ? (
-                <Button onClick={() => setStep(step + 1)} disabled={!canProceed()}>
-                  Pokračovat
-                  <ArrowRight size={16} />
-                </Button>
-              ) : (
-                <Button onClick={handleComplete} variant="secondary">
-                  <CheckCircle2 size={16} />
-                  Dokončit nastavení
-                </Button>
+                </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+
+              {step === 1 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-semibold tracking-tight">Cílové lokality</h2>
+                    <p className="text-sm text-muted mt-1">Vyberte města, která vás zajímají</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {localities.map((loc) => (
+                      <button
+                        key={loc}
+                        onClick={() => toggleLocality(loc)}
+                        className={`p-3 rounded-xl border text-sm text-center transition-all ${
+                          selectedLocalities.includes(loc)
+                            ? "border-accent/50 bg-accent/5 text-accent"
+                            : "border-border/50 hover:bg-card-hover text-muted"
+                        }`}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-semibold tracking-tight">Rozpočet a parametry</h2>
+                    <p className="text-sm text-muted mt-1">Nastavte si investiční limity</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Min. rozpočet" type="number" placeholder="2 000 000" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} />
+                    <Input label="Max. rozpočet" type="number" placeholder="15 000 000" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} />
+                  </div>
+
+                  <Input label="Minimální ROI" type="number" helper="%" value={minRoi} onChange={(e) => setMinRoi(e.target.value)} />
+
+                  <div>
+                    <label className="text-sm font-medium text-foreground/80 block mb-3">Typy nemovitostí</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {propertyTypes.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => toggleType(t)}
+                          className={`p-3 rounded-xl border text-sm transition-all ${
+                            selectedTypes.includes(t)
+                              ? "border-accent/50 bg-accent/5 text-accent"
+                              : "border-border/50 hover:bg-card-hover text-muted"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between mt-8 pt-6 border-t border-border/30">
+                <button
+                  onClick={() => step > 0 && setStep(step - 1)}
+                  className={`flex items-center gap-1.5 text-sm transition-colors ${
+                    step > 0 ? "text-muted hover:text-foreground" : "text-transparent pointer-events-none"
+                  }`}
+                >
+                  <ArrowLeft size={14} weight="bold" />
+                  Zpět
+                </button>
+
+                {step < steps.length - 1 ? (
+                  <Button
+                    onClick={() => setStep(step + 1)}
+                    className="gap-1.5"
+                  >
+                    Pokračovat
+                    <ArrowRight size={14} weight="bold" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={complete}
+                    loading={loading}
+                    className="gap-1.5"
+                  >
+                    Dokončit
+                    <Check size={14} weight="bold" />
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

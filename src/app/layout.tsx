@@ -1,13 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { Providers } from "@/components/shared/providers";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "RealFlip Pro – Inteligentní investice do nemovitostí",
@@ -25,11 +20,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="cs" className={`${inter.variable} h-full antialiased dark`}>
+    <html
+      lang="cs"
+      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased dark`}
+    >
       <body className="min-h-full bg-background text-foreground noise-overlay">
         <Providers>{children}</Providers>
       </body>

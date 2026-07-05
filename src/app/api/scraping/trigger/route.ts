@@ -9,7 +9,15 @@ export async function POST() {
 
   try {
     const { ScrapingOrchestrator } = await import("@/lib/scraping/orchestrator");
-    const orchestrator = new ScrapingOrchestrator();
+    const { MockAdapter } = await import("@/lib/scraping/adapters/mock");
+    const { BazosAdapter } = await import("@/lib/scraping/adapters/bazos");
+
+    const orchestrator = new ScrapingOrchestrator((portal, found, errors) => {
+      console.log(`[scraping] ${portal}: ${found} listings, ${errors.length} errors`);
+    });
+
+    orchestrator.registerAdapter("bazos", new BazosAdapter());
+    orchestrator.registerAdapter("annonce", new MockAdapter("annonce"));
 
     const result = await orchestrator.crawlAll();
 
@@ -17,11 +25,12 @@ export async function POST() {
       success: true,
       total: result.total,
       errors: result.errors.length,
+      errorDetails: result.errors,
     });
   } catch (error) {
     console.error("Scraping trigger error:", error);
     return NextResponse.json(
-      { error: "Scraping failed" },
+      { error: "Scraping failed", detail: String(error) },
       { status: 500 }
     );
   }

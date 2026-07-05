@@ -1,22 +1,22 @@
+import { type VariantProps, cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+  "inline-flex items-center rounded-md font-medium transition-colors",
   {
     variants: {
       variant: {
-        default: "bg-accent/20 text-accent border border-accent/30",
-        secondary: "bg-secondary/20 text-secondary border border-secondary/30",
-        success: "bg-success/20 text-success border border-success/30",
-        warning: "bg-warning/20 text-warning border border-warning/30",
-        danger: "bg-danger/20 text-danger border border-danger/30",
-        info: "bg-info/20 text-info border border-info/30",
-        outline: "border border-border text-muted",
-        score: "border score-pulse",
+        default: "bg-accent-soft text-accent border border-accent/20",
+        secondary: "bg-card text-muted border border-border/50",
+        success: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+        warning: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
+        danger: "bg-red-500/10 text-red-400 border border-red-500/20",
+        info: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
+        outline: "bg-transparent text-muted border border-border",
+        score: "bg-card text-foreground border border-border/50 font-mono",
       },
       size: {
-        sm: "px-1.5 py-0 text-[10px]",
+        sm: "px-2 py-0.5 text-[10px]",
         md: "px-2.5 py-0.5 text-xs",
         lg: "px-3 py-1 text-sm",
       },
@@ -28,13 +28,31 @@ const badgeVariants = cva(
   }
 );
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {
+  score?: number;
+}
 
-function Badge({ className, variant, size, ...props }: BadgeProps) {
+function Badge({ className, variant, size, score, ...props }: BadgeProps) {
+  if (variant === "score" && score !== undefined) {
+    let colorClass = "text-red-400 border-red-500/20 bg-red-500/10";
+    if (score >= 80) colorClass = "text-emerald-400 border-emerald-500/20 bg-emerald-500/10";
+    else if (score >= 60) colorClass = "text-emerald-400 border-emerald-500/20 bg-emerald-500/10";
+    else if (score >= 40) colorClass = "text-amber-400 border-amber-500/20 bg-amber-500/10";
+
+    return (
+      <span
+        className={cn(badgeVariants({ variant: "score", size }), colorClass, className)}
+        {...props}
+      >
+        {score}
+      </span>
+    );
+  }
+
   return (
-    <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
+    <span className={cn(badgeVariants({ variant, size }), className)} {...props} />
   );
 }
 

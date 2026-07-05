@@ -1,168 +1,137 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { motion } from "framer-motion";
-import {
-  Phone,
-  MapPin,
-  DollarSign,
-  Plus,
-  Filter,
-  MoreHorizontal,
-} from "lucide-react";
+import { ScoreGauge } from "@/components/ui/score-gauge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowsLeftRight } from "@phosphor-icons/react";
 
-interface Lead {
-  id: string;
-  title: string;
-  address: string;
-  price: number;
-  score: number;
-  contact: string;
-  lastActivity: string;
-  stage: LeadStage;
-}
-
-type LeadStage = "new" | "contacted" | "meeting" | "offer" | "negotiation" | "won" | "lost";
-
-const stages: { key: LeadStage; label: string; color: string }[] = [
+const stages = [
   { key: "new", label: "Nový", color: "border-l-accent" },
-  { key: "contacted", label: "Kontaktován", color: "border-l-info" },
-  { key: "meeting", label: "Schůzka", color: "border-l-secondary" },
-  { key: "offer", label: "Nabídka", color: "border-l-warning" },
-  { key: "negotiation", label: "Vyjednávání", color: "border-l-orange-500" },
-  { key: "won", label: "Uzavřeno", color: "border-l-success" },
-  { key: "lost", label: "Ztraceno", color: "border-l-danger" },
+  { key: "contacted", label: "Kontaktován", color: "border-l-blue-500" },
+  { key: "meeting", label: "Schůzka", color: "border-l-amber-500" },
+  { key: "offer", label: "Nabídka", color: "border-l-emerald-500" },
+  { key: "negotiation", label: "Vyjednávání", color: "border-l-emerald-400" },
+  { key: "closed", label: "Uzavřeno", color: "border-l-emerald-600" },
+  { key: "lost", label: "Ztraceno", color: "border-l-red-500" },
 ];
 
-const sampleLeads: Record<LeadStage, Lead[]> = {
+const initialLeads: Record<string, any[]> = {
   new: [
-    { id: "1", title: "Byt 3+kk, Praha 8 – Karlín", address: "Sokolovská 123", price: 4890000, score: 82, contact: "Jan Novák", lastActivity: "před 2 h", stage: "new" },
-    { id: "2", title: "Byt 2+kk, Ostrava – Poruba", address: "Hlavní 789", price: 2890000, score: 91, contact: "Petr Svoboda", lastActivity: "před 5 h", stage: "new" },
+    { id: "l1", title: "Byt 3+kk, Praha 8", price: "4.890.000 Kč", score: 82, contact: "Jan Novák", last: "před 2 h" },
+    { id: "l2", title: "RD, Liberec", price: "4.980.000 Kč", score: 78, contact: "Petr Svoboda", last: "před 5 h" },
   ],
   contacted: [
-    { id: "3", title: "Rodinný dům, Brno – Královo Pole", address: "Božetěchova 45", price: 7250000, score: 74, contact: "Marie Dvořáková", lastActivity: "včera", stage: "contacted" },
+    { id: "l3", title: "Byt 2+kk, Ostrava", price: "2.890.000 Kč", score: 91, contact: "Marie Dvořáková", last: "před 1 d" },
   ],
   meeting: [
-    { id: "4", title: "Byt 1+kk, Praha 5 – Smíchov", address: "Radlická 55", price: 3450000, score: 68, contact: "Tomáš Černý", lastActivity: "před 3 dny", stage: "meeting" },
+    { id: "l4", title: "Byt 3+kk, Praha 8", price: "4.890.000 Kč", score: 82, contact: "Jan Novák", last: "před 3 d" },
   ],
   offer: [],
   negotiation: [],
-  won: [],
+  closed: [],
   lost: [],
 };
 
 export default function LeadsPage() {
-  const [dragOver, setDragOver] = useState<LeadStage | null>(null);
+  const [leads, setLeads] = useState(initialLeads);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+
+  function handleDragStart(e: React.DragEvent, leadId: string, fromStage: string) {
+    e.dataTransfer.setData("leadId", leadId);
+    e.dataTransfer.setData("fromStage", fromStage);
+  }
+
+  function handleDrop(e: React.DragEvent, toStage: string) {
+    e.preventDefault();
+    const leadId = e.dataTransfer.getData("leadId");
+    const fromStage = e.dataTransfer.getData("fromStage");
+    setDragOver(null);
+
+    if (fromStage === toStage) return;
+
+    const lead = leads[fromStage].find((l: any) => l.id === leadId);
+    if (!lead) return;
+
+    setLeads((prev) => ({
+      ...prev,
+      [fromStage]: prev[fromStage].filter((l: any) => l.id !== leadId),
+      [toStage]: [...prev[toStage], lead],
+    }));
+  }
+
+  const totalLeads = Object.values(leads).reduce((s, arr) => s + arr.length, 0);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Pipeline</h1>
-          <p className="text-muted text-sm mt-1">
-            {Object.values(sampleLeads).flat().length} aktivních leadů
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Filter size={14} />
-            Filtry
-          </Button>
-          <Button variant="glass" size="sm">
-            <Plus size={14} />
-            Přidat lead
-          </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
+          <p className="text-sm text-muted mt-1">{totalLeads} leadů napříč {stages.length} fázemi</p>
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7 gap-3 min-h-[70dvh]">
         {stages.map((stage) => {
-          const leads = sampleLeads[stage.key];
+          const stageLeads = leads[stage.key];
+          const stageTotal = Object.values(leads).reduce((s, arr) => s + arr.length, 0);
+          const pct = stageTotal > 0 ? Math.round((stageLeads.length / stageTotal) * 100) : 0;
+
           return (
             <div
               key={stage.key}
-              className={`flex-shrink-0 w-72 rounded-xl border border-border bg-card/50 backdrop-blur-sm ${
-                dragOver === stage.key ? "border-accent/50 bg-accent/5" : ""
-              } transition-all duration-200`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(stage.key); }}
               onDragLeave={() => setDragOver(null)}
+              onDrop={(e) => handleDrop(e, stage.key)}
+              className={`rounded-2xl border border-border/50 bg-card/50 flex flex-col transition-all duration-200 ${
+                dragOver === stage.key ? "border-accent/40 bg-accent/5" : ""
+              }`}
             >
-              {/* Stage Header */}
-              <div className={`p-3 border-b border-border ${stage.color} border-l-4 rounded-t-xl`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">{stage.label}</h3>
-                  <Badge variant="outline" size="sm">{leads.length}</Badge>
+              {/* Stage header */}
+              <div className="p-3 border-b border-border/30">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold tracking-tight">{stage.label}</span>
+                  <span className="text-xs font-mono text-muted">{stageLeads.length}</span>
+                </div>
+                <div className="h-1 rounded-full bg-border/30 overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    className={`h-full rounded-full ${stage.key === "lost" ? "bg-red-500/50" : "bg-accent/50"}`}
+                  />
                 </div>
               </div>
 
               {/* Cards */}
-              <div className="p-2 space-y-2 min-h-[200px]">
-                {leads.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted">
-                    <p className="text-xs">Přetáhněte lead sem</p>
-                  </div>
-                ) : (
-                  leads.map((lead) => (
-                    <motion.div
-                      key={lead.id}
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      draggable
-                      className="cursor-grab active:cursor-grabbing"
-                    >
-                      <Card glass className="hover:border-accent/30 transition-all duration-200">
-                        <CardContent className="p-3 space-y-2">
-                          <div className="flex items-start justify-between">
-                            <p className="text-sm font-medium leading-tight">{lead.title}</p>
-                            <button className="text-muted hover:text-foreground">
-                              <MoreHorizontal size={14} />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted">
-                            <MapPin size={12} />
-                            <span>{lead.address}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1 text-sm">
-                              <DollarSign size={14} className="text-secondary" />
-                              <span className="font-semibold">
-                                {(lead.price / 1000000).toFixed(1)} mil.
-                              </span>
-                            </div>
-                            <Badge
-                              variant="score"
-                              style={{
-                                borderColor:
-                                  lead.score >= 70
-                                    ? "rgba(16, 185, 129, 0.3)"
-                                    : lead.score >= 40
-                                      ? "rgba(245, 158, 11, 0.3)"
-                                      : "rgba(239, 68, 68, 0.3)",
-                                color:
-                                  lead.score >= 70
-                                    ? "#10b981"
-                                    : lead.score >= 40
-                                      ? "#f59e0b"
-                                      : "#ef4444",
-                              }}
-                            >
-                              {lead.score}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-muted pt-1 border-t border-border">
-                            <span>{lead.contact}</span>
-                            <span>{lead.lastActivity}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))
-                )}
+              <div className="flex-1 p-2 space-y-2 overflow-y-auto">
+                <AnimatePresence>
+                  {stageLeads.length === 0 ? (
+                    <EmptyState
+                      icon={<ArrowsLeftRight size={18} weight="duotone" />}
+                      title="Prázdná fáze"
+                      description="Přetáhněte lead sem"
+                      className="py-8"
+                    />
+                  ) : (
+                    stageLeads.map((lead: any, i: number) => (
+                      <div
+                        key={lead.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, lead.id, stage.key)}
+                        className="rounded-xl border border-border/50 bg-card p-3 cursor-grab active:cursor-grabbing hover:bg-card-hover hover:border-accent/20 transition-all"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium truncate">{lead.title}</span>
+                          <ScoreGauge score={lead.score} size={28} strokeWidth={2.5} showLabel={false} />
+                        </div>
+                        <p className="text-xs text-muted">{lead.price}</p>
+                        <p className="text-xs text-muted mt-1">{lead.contact}</p>
+                        <p className="text-[10px] text-muted/50 mt-1">{lead.last}</p>
+                      </div>
+                    ))
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           );

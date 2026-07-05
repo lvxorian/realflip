@@ -1,60 +1,60 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   User,
-  Bell,
-  Shield,
-  CreditCard,
+  MagnifyingGlass,
+  Calculator,
   Key,
-  PaintBucket,
-  Sliders,
-  Save,
-  Globe,
-} from "lucide-react";
+  Bell,
+  CreditCard,
+} from "@phosphor-icons/react";
 
-type SettingsTab = "profile" | "scraping" | "calculator" | "api" | "notifications" | "billing";
+const tabs = [
+  { key: "profile", label: "Profil", icon: User },
+  { key: "scraping", label: "Scraping", icon: MagnifyingGlass },
+  { key: "calculator", label: "Kalkulátor", icon: Calculator },
+  { key: "api", label: "API klíče", icon: Key },
+  { key: "notifications", label: "Notifikace", icon: Bell },
+  { key: "billing", label: "Předplatné", icon: CreditCard },
+];
+
+const portals = [
+  "Sreality.cz", "Bezrealitky.cz", "RE/MAX", "Century21",
+  "Reality.cz", "Annonce", "iDnes Reality", "Hyperreality",
+  "MMreality", "Bazos",
+];
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
-
-  const tabs: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
-    { key: "profile", label: "Profil", icon: User },
-    { key: "scraping", label: "Scraping", icon: Globe },
-    { key: "calculator", label: "Kalkulátor", icon: PaintBucket },
-    { key: "api", label: "API klíče", icon: Key },
-    { key: "notifications", label: "Notifikace", icon: Bell },
-    { key: "billing", label: "Předplatné", icon: CreditCard },
-  ];
+  const [activeTab, setActiveTab] = useState("profile");
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Nastavení</h1>
-        <p className="text-muted text-sm mt-1">Správa účtu a konfigurace aplikace</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Nastavení</h1>
+        <p className="text-sm text-muted mt-1">Spravujte svůj účet a preference</p>
       </div>
 
-      <div className="flex gap-6">
-        {/* Sidebar tabs */}
-        <div className="w-48 space-y-1 shrink-0">
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Tab sidebar */}
+        <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 overflow-x-auto">
           {tabs.map((tab) => {
-            const Icon = tab.icon;
+            const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab.key
-                    ? "bg-accent/15 text-accent border border-accent/30"
-                    : "text-muted hover:bg-card-hover hover:text-foreground"
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-accent/10 text-accent border border-accent/20"
+                    : "text-muted hover:text-foreground hover:bg-card"
                 }`}
               >
-                <Icon size={16} />
+                <tab.icon size={16} weight={isActive ? "fill" : "regular"} />
                 {tab.label}
               </button>
             );
@@ -62,192 +62,149 @@ export default function SettingsPage() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 space-y-6">
-          {activeTab === "profile" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">Osobní údaje</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 max-w-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/20 border border-accent/30 text-xl font-bold text-accent">
-                      JN
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Změnit avatar
-                    </Button>
+        <div className="flex-1 min-w-0">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="rounded-2xl border border-border/50 bg-card p-6 space-y-6"
+          >
+            {activeTab === "profile" && (
+              <>
+                <h2 className="font-semibold tracking-tight">Profil</h2>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent text-lg font-mono font-medium">
+                    CA
                   </div>
-                  <Input label="Jméno" defaultValue="Jan Novák" />
-                  <Input label="Email" type="email" defaultValue="jan@realflip.cz" />
-                  <Input label="Telefon" defaultValue="+420 777 123 456" />
-                  <Button variant="glass">
-                    <Save size={14} />
-                    Uložit změny
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                  <div>
+                    <p className="font-medium">Cakmak</p>
+                    <p className="text-sm text-muted">cakmak@tuta.com</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input label="Jméno" defaultValue="Cakmak" />
+                  <Input label="Email" defaultValue="cakmak@tuta.com" />
+                  <Input label="Telefon" placeholder="+420 ..." />
+                </div>
+                <Button size="sm">Uložit změny</Button>
+              </>
+            )}
 
-          {activeTab === "scraping" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">Portály</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 max-w-lg">
-                  {[
-                    "sreality.cz",
-                    "bezrealitky.cz",
-                    "bazos.cz",
-                    "annonce.cz",
-                    "reality.cz",
-                    "hyperreality.cz",
-                    "remax.cz",
-                    "century21.cz",
-                    "idnes.cz/reality",
-                    "mmreality.cz",
-                  ].map((portal) => (
-                    <div key={portal} className="flex items-center justify-between py-2">
-                      <span className="text-sm">{portal}</span>
-                      <Badge variant="success">Aktivní</Badge>
-                    </div>
+            {activeTab === "scraping" && (
+              <>
+                <h2 className="font-semibold tracking-tight">Sledované portály</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {portals.map((p) => (
+                    <label key={p} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 hover:bg-card-hover transition-colors cursor-pointer">
+                      <input type="checkbox" defaultChecked className="rounded border-border text-accent focus:ring-accent/20" />
+                      <span className="text-sm">{p}</span>
+                    </label>
                   ))}
-                </CardContent>
-              </Card>
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">Interval scrapingu</CardTitle>
-                </CardHeader>
-                <CardContent className="max-w-lg">
-                  <div className="flex gap-2">
-                    {["Každou hodinu", "Každé 3h", "Každých 6h", "Denně"].map((interval) => (
-                      <button
-                        key={interval}
-                        className={`flex-1 py-2 text-xs rounded-lg border transition-all ${
-                          interval === "Každých 6h"
-                            ? "border-accent bg-accent/20 text-accent"
-                            : "border-border text-muted hover:border-accent/30"
-                        }`}
-                      >
-                        {interval}
-                      </button>
-                    ))}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground/80">Interval scrapování</label>
+                  <select className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                    <option>Každou hodinu</option>
+                    <option>Každé 3 hodiny</option>
+                    <option>Každých 6 hodin</option>
+                    <option selected>Denně</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {activeTab === "calculator" && (
+              <>
+                <h2 className="font-semibold tracking-tight">Výchozí hodnoty kalkulačky</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input label="Provize makléře" type="number" defaultValue="4" helper="%" />
+                  <Input label="Daň z převodu" type="number" defaultValue="4" helper="%" />
+                  <Input label="Právní služby" type="number" defaultValue="4" helper="%" />
+                  <Input label="Rezerva" type="number" defaultValue="10" helper="%" />
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-foreground/80 block mb-3">Náklady na rekonstrukci</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Input label="Lehká" type="number" defaultValue="8000" helper="Kč/m²" />
+                    <Input label="Střední" type="number" defaultValue="12000" helper="Kč/m²" />
+                    <Input label="Kompletní" type="number" defaultValue="18000" helper="Kč/m²" />
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                </div>
+              </>
+            )}
 
-          {activeTab === "calculator" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">Výchozí hodnoty kalkulátoru</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 max-w-lg">
-                  <Input label="Provize RK (%)" type="number" defaultValue="4" />
-                  <Input label="Daň z nabytí (%)" type="number" defaultValue="4" />
-                  <Input label="Právní poplatky (%)" type="number" defaultValue="4" />
-                  <Input label="Rezerva (%)" type="number" defaultValue="10" />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Náklady na rekonstrukci (Kč/m²)</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Input label="Lehká" type="number" defaultValue="8000" />
-                      <Input label="Střední" type="number" defaultValue="12000" />
-                      <Input label="Kompletní" type="number" defaultValue="18000" />
-                    </div>
-                  </div>
-                  <Button variant="glass">
-                    <Save size={14} />
-                    Uložit výchozí hodnoty
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+            {activeTab === "api" && (
+              <>
+                <h2 className="font-semibold tracking-tight">API klíče</h2>
+                <Input label="OpenAI API klíč" type="password" placeholder="sk-..." helper="Pro AI analýzu inzerátů" />
+                <Input label="Mapbox token" type="password" placeholder="pk...." helper="Pro mapové podklady" />
+                <Button size="sm">Uložit klíče</Button>
+              </>
+            )}
 
-          {activeTab === "api" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">API klíče</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 max-w-lg">
-                  <Input label="OpenAI API klíč" type="password" placeholder="sk-..." />
-                  <Input label="Mapbox token" type="password" placeholder="pk...." />
-                  <Button variant="glass">
-                    <Save size={14} />
-                    Uložit klíče
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {activeTab === "notifications" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">Notifikace</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 max-w-lg">
+            {activeTab === "notifications" && (
+              <>
+                <h2 className="font-semibold tracking-tight">Notifikace</h2>
+                <div className="space-y-3">
                   {[
-                    "Nové nemovitosti dle kritérií",
-                    "Snížení ceny sledované nemovitosti",
-                    "Denní digest nových příležitostí",
-                    "Výsledek scrapovacího jobu",
-                  ].map((opt) => (
-                    <div key={opt} className="flex items-center justify-between py-2">
-                      <span className="text-sm">{opt}</span>
-                      <div className="flex gap-1">
+                    { label: "Nový podhodnocený inzerát", desc: "Když AI najde skóre 80+" },
+                    { label: "Cenový drop", desc: "Snížení ceny o více než 10 %" },
+                    { label: "Dokončení scrapování", desc: "Po každém scrapování portálů" },
+                    { label: "Týdenní report", desc: "Souhrn aktivit za týden" },
+                  ].map((n) => (
+                    <div key={n.label} className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                      <div>
+                        <p className="text-sm font-medium">{n.label}</p>
+                        <p className="text-xs text-muted">{n.desc}</p>
+                      </div>
+                      <div className="flex gap-2">
                         {["Email", "Push", "SMS"].map((ch) => (
-                          <button
-                            key={ch}
-                            className={`px-2 py-1 text-[10px] rounded-md border transition-all ${
-                              ch === "Email"
-                                ? "border-accent bg-accent/20 text-accent"
-                                : "border-border text-muted hover:border-accent/30"
-                            }`}
-                          >
+                          <label key={ch} className="flex items-center gap-1.5 text-xs text-muted">
+                            <input type="checkbox" defaultChecked={ch === "Push"} className="rounded border-border text-accent" />
                             {ch}
-                          </button>
+                          </label>
                         ))}
                       </div>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                </div>
+              </>
+            )}
 
-          {activeTab === "billing" && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Card glass>
-                <CardHeader>
-                  <CardTitle className="text-base">Předplatné</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 max-w-lg">
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-card-hover">
+            {activeTab === "billing" && (
+              <>
+                <h2 className="font-semibold tracking-tight">Předplatné</h2>
+                <div className="rounded-2xl border border-border/50 bg-card p-6">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="font-semibold">Free plán</p>
-                      <p className="text-xs text-muted">500 scrapingů / měsíc</p>
+                      <p className="text-lg font-semibold">Free</p>
+                      <p className="text-sm text-muted">0 Kč / měsíc</p>
                     </div>
-                    <Badge variant="success">Aktivní</Badge>
+                    <Badge variant="default" size="md">Aktivní</Badge>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted">Využití tento měsíc:</p>
-                    <div className="h-2 rounded-full bg-card-hover overflow-hidden">
-                      <div className="h-full w-[23%] rounded-full bg-gradient-to-r from-accent to-secondary" />
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted">Využití scrapování</span>
+                      <span className="font-mono">47 / 500</span>
                     </div>
-                    <p className="text-xs text-muted">47 / 500 scrapingů (9%)</p>
+                    <div className="w-full h-2 rounded-full bg-border/50 overflow-hidden">
+                      <div className="h-full w-[9.4%] rounded-full bg-accent" />
+                    </div>
                   </div>
-                  <Button variant="outline" size="sm">Upgradovat na Pro</Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                  <ul className="space-y-2 mb-6 text-sm">
+                    {["500 inzerátů / měsíc", "10 portálů", "AI analýza", "Pipeline management"].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-muted">
+                        <span className="text-accent">✓</span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button variant="default">Upgrade na Pro</Button>
+                </div>
+              </>
+            )}
+          </motion.div>
         </div>
       </div>
     </div>

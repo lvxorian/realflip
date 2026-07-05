@@ -1,356 +1,203 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Phone,
-  PhoneOff,
-  MapPin,
-  DollarSign,
-  Target,
-  Building2,
-  ChevronRight,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  MessageSquare,
-  FileText,
-  User,
-  SkipForward,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScoreGauge } from "@/components/ui/score-gauge";
+import { StatusDot } from "@/components/ui/status-dot";
+import { PriceTag } from "@/components/ui/price-tag";
+import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin } from "@phosphor-icons/react";
 
-interface CallItem {
-  id: string;
-  title: string;
-  address: string;
-  price: number;
-  score: number;
-  contactName: string;
-  contactPhone: string;
-  contactType: string;
-  rooms: string;
-  area: number;
-  condition: string;
-  notes: string;
-}
-
-const callQueue: CallItem[] = [
-  {
-    id: "1",
-    title: "Byt 3+kk, Praha 8 – Karlín",
-    address: "Sokolovská 123, Praha 8",
-    price: 4890000,
-    score: 82,
-    contactName: "Jan Novák",
-    contactPhone: "+420 777 123 456",
-    contactType: "Makléř (RE/MAX)",
-    rooms: "3+kk",
-    area: 50,
-    condition: "Původní stav",
-    notes: "Cena již 2x snížena. Prodejce motivovaný – dědictví. Možnost rychlého uzavření.",
-  },
-  {
-    id: "2",
-    title: "Byt 2+kk, Ostrava – Poruba",
-    address: "Hlavní třída 789, Ostrava",
-    price: 2890000,
-    score: 91,
-    contactName: "Petr Svoboda",
-    contactPhone: "+420 602 987 654",
-    contactType: "Majitel",
-    rooms: "2+kk",
-    area: 45,
-    condition: "Po rekonstrukci",
-    notes: "Nízká cena oproti trhu. Majitel prodává kvůli stěhování do důchodu.",
-  },
-  {
-    id: "3",
-    title: "Rodinný dům, Brno – Královo Pole",
-    address: "Božetěchova 45, Brno",
-    price: 7250000,
-    score: 74,
-    contactName: "Marie Dvořáková",
-    contactPhone: "+420 731 456 789",
-    contactType: "Makléř (Century21)",
-    rooms: "4+1",
-    area: 100,
-    condition: "Dobrý stav",
-    notes: "Dům po částečné rekonstrukci. Lokalita s rostoucím trendem.",
-  },
+const calls = [
+  { id: 1, name: "Jan Novák", phone: "+420 777 123 456", property: "Byt 3+kk, Praha 8 – Karlín", price: 4890000, pricePerSqm: 97800, score: 82, address: "Sokolovská 123, Praha 8", area: "50 m²", rooms: "3+kk", condition: "původní" },
+  { id: 2, name: "Marie Dvořáková", phone: "+420 731 456 789", property: "Byt 2+kk, Ostrava – Poruba", price: 2890000, pricePerSqm: 64222, score: 91, address: "Hlavní třída 789, Ostrava", area: "45 m²", rooms: "2+kk", condition: "po rekonstrukci" },
+  { id: 3, name: "Petr Svoboda", phone: "+420 602 987 654", property: "RD, Brno – Královo Pole", price: 7250000, pricePerSqm: 72500, score: 74, address: "Božetěchova 45, Brno", area: "100 m²", rooms: "4+1", condition: "dobrý" },
 ];
 
-const callScript = `1. Představení
-"Dobrý den, jmenuji se [Vaše jméno] z RealFlip Investments. Volám ohledně inzerátu na [adresa]."
+const outcomes = [
+  { label: "Nezvedá", color: "border-red-500/30 text-red-400 hover:bg-red-500/10" },
+  { label: "Volat znovu", color: "border-amber-500/30 text-amber-400 hover:bg-amber-500/10" },
+  { label: "Nezájem", color: "border-red-500/30 text-red-400 hover:bg-red-500/10" },
+  { label: "Zájem", color: "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" },
+];
 
-2. Kvalifikace
-"Je nemovitost stále k dispozici?"
-"Jaká je Vaše časová preference prodeje?"
-"Jednáte s někým dalším?"
+const scriptSteps = [
+  "Dobrý den, jmenuji se [jméno] z RealFlip Investments.",
+  "Viděl jsem Váš inzerát na [portálu] ohledně prodeje [adresa].",
+  "Mám zájemce, kterého by tato nemovitost mohla zajímat. Mohl bych Vám nabídnout rychlý prodej bez provize?",
+  "Kdy bychom se mohli domluvit na prohlídce?",
+];
 
-3. Vyjednávání
-"Cena byla nedávno snížena, jaká je Vaše nejnižší možná cena?"
-"Jsme připraveni jednat rychle – hotovost, bez hypotéky."
-
-4. Uzavření
-"Můžeme se domluvit na prohlídce tento týden?"
-"Kdy Vám to nejvíce vyhovuje?"`;
-
-const smsTemplate = "Dobrý den, volal jsem ohledně Vašeho inzerátu na [adresa]. Mám zájem o prohlídku. Kdy by Vám to vyhovovalo? Děkuji, [Jméno]";
+const smsTemplate = "Dobrý den, jsem investor z RealFlip a měl bych zájem o Vaši nemovitost. Mohl bych se přijít podívat? Děkuji. [jméno]";
 
 export default function CallModePage() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [callActive, setCallActive] = useState(false);
-  const [showOutcome, setShowOutcome] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [calling, setCalling] = useState(false);
+  const [scriptStep, setScriptStep] = useState(0);
   const [copied, setCopied] = useState(false);
+  const call = calls[current];
 
-  const current = callQueue[currentIndex];
-  const hasNext = currentIndex < callQueue.length - 1;
-
-  function handleCall() {
-    setCallActive(true);
-    // In production: window.location.href = `tel:${current.contactPhone}`;
-    setTimeout(() => {
-      setCallActive(false);
-      setShowOutcome(true);
-    }, 3000);
+  function next() {
+    if (current < calls.length - 1) setCurrent(current + 1);
+    setScriptStep(0);
   }
 
-  function handleOutcome(outcome: string) {
-    setShowOutcome(false);
-    if (hasNext) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  }
-
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  function copySms() {
+    navigator.clipboard.writeText(smsTemplate).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   return (
-    <div className="h-[calc(100vh-5rem)] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Call Mode</h1>
-          <p className="text-muted text-sm mt-1">
-            {currentIndex + 1} z {callQueue.length} ve frontě
+          <h1 className="text-2xl font-semibold tracking-tight">Call Mode</h1>
+          <p className="text-sm text-muted mt-1">
+            {current + 1} z {calls.length} ve frontě
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">Dnes: 5 hovorů</Badge>
-          <Badge variant="success">67% conversion</Badge>
+          <StatusDot status={calling ? "active" : "idle"} />
+          <span className="text-xs text-muted">{calling ? "Hovor aktivní" : "Připraveno"}</span>
         </div>
       </div>
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={current.id}
-          initial={{ opacity: 0, x: 100 }}
+          key={call.id}
+          initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -100 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="flex-1 grid gap-4 lg:grid-cols-3"
+          exit={{ opacity: 0, x: -40 }}
+          transition={{ type: "spring" as const, stiffness: 100, damping: 20 }}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-4"
         >
-          {/* Left - Property Details */}
-          <Card glass className="overflow-y-auto">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 size={16} className="text-accent" />
-                Detail nemovitosti
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="h-32 rounded-lg bg-gradient-to-br from-accent/10 to-secondary/5 flex items-center justify-center">
-                <Building2 size={40} className="text-muted/30" />
-              </div>
+          {/* Left — Property */}
+          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden lg:col-span-1">
+            <div className="relative h-36 property-image-shimmer flex items-center justify-center">
+              <ScoreGauge score={call.score} size={40} strokeWidth={3} />
+            </div>
+            <div className="p-5 space-y-4">
               <div>
-                <h3 className="font-semibold">{current.title}</h3>
-                <div className="flex items-center gap-1 text-xs text-muted mt-1">
-                  <MapPin size={12} />
-                  {current.address}
+                <h2 className="font-semibold tracking-tight mb-1">{call.property}</h2>
+                <div className="flex items-center gap-1 text-xs text-muted">
+                  <MapPin size={12} weight="bold" />
+                  {call.address}
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  <DollarSign size={16} className="text-secondary" />
-                  <span className="font-bold text-lg">
-                    {(current.price / 1000000).toFixed(1)} mil.
-                  </span>
+              <PriceTag price={call.price} perSqm={call.pricePerSqm} size="sm" />
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <span className="text-[10px] text-muted">Plocha</span>
+                  <p className="font-mono font-medium text-xs">{call.area}</p>
                 </div>
-                <Badge
-                  variant="score"
-                  style={{
-                    borderColor: "rgba(16, 185, 129, 0.3)",
-                    color: "#10b981",
-                  }}
-                >
-                  {current.score}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="p-2 rounded-lg bg-card-hover">
-                  <p className="font-semibold text-sm">{current.rooms}</p>
-                  <p className="text-muted">dispozice</p>
-                </div>
-                <div className="p-2 rounded-lg bg-card-hover">
-                  <p className="font-semibold text-sm">{current.area}</p>
-                  <p className="text-muted">m²</p>
-                </div>
-                <div className="p-2 rounded-lg bg-card-hover">
-                  <p className="font-semibold text-sm">{current.condition}</p>
-                  <p className="text-muted">stav</p>
+                <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <span className="text-[10px] text-muted">Dispozice</span>
+                  <p className="font-medium text-xs">{call.rooms}</p>
                 </div>
               </div>
-              {current.notes && (
-                <div>
-                  <p className="text-xs font-semibold text-warning mb-1">Poznámka</p>
-                  <p className="text-xs text-muted">{current.notes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Center - Call Action */}
-          <div className="flex flex-col items-center justify-center gap-6">
-            <div className="text-center">
-              <p className="text-sm text-muted mb-2">Nyní voláte</p>
-              <p className="text-lg font-bold">{current.contactName}</p>
-              <p className="text-sm text-muted">{current.contactType}</p>
+              <Badge variant="secondary" size="sm">{call.condition}</Badge>
             </div>
-
-            <div className="relative">
-              <motion.div
-                animate={callActive ? { scale: [1, 1.1, 1], opacity: [1, 0.8, 1] } : {}}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="absolute inset-0 rounded-full bg-accent/20"
-              />
-              <Button
-                variant={callActive ? "danger" : "default"}
-                size="xl"
-                className="relative h-20 w-20 rounded-full z-10"
-                onClick={callActive ? () => { setCallActive(false); setShowOutcome(true); } : handleCall}
-              >
-                {callActive ? <PhoneOff size={28} /> : <Phone size={28} />}
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <Phone size={14} />
-              <a href={`tel:${current.contactPhone}`} className="hover:text-accent transition-colors">
-                {current.contactPhone}
-              </a>
-            </div>
-
-            {!callActive && showOutcome && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-sm space-y-2"
-              >
-                <p className="text-center text-sm text-muted">Výsledek hovoru</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: "Nezvedá", icon: PhoneOff, color: "text-muted" },
-                    { label: "Volat znovu", icon: Clock, color: "text-info" },
-                    { label: "Nezájem", icon: XCircle, color: "text-danger" },
-                    { label: "Zájem", icon: CheckCircle2, color: "text-success" },
-                  ].map((opt) => (
-                    <Button
-                      key={opt.label}
-                      variant="outline"
-                      size="sm"
-                      className="flex-col gap-1 h-16"
-                      onClick={() => handleOutcome(opt.label)}
-                    >
-                      <opt.icon size={16} className={opt.color} />
-                      <span className="text-xs">{opt.label}</span>
-                    </Button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {hasNext && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setCurrentIndex(currentIndex + 1);
-                  setShowOutcome(false);
-                }}
-              >
-                <SkipForward size={14} />
-                Přeskočit
-              </Button>
-            )}
           </div>
 
-          {/* Right - Script & Tools */}
-          <Card glass className="overflow-y-auto">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <FileText size={16} className="text-secondary" />
-                Cheatsheet
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Contact Info */}
-              <div className="space-y-2 p-3 rounded-lg bg-card-hover">
-                <div className="flex items-center gap-2 text-sm">
-                  <User size={14} className="text-accent" />
-                  <span className="font-medium">{current.contactName}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone size={14} className="text-secondary" />
-                  <span>{current.contactPhone}</span>
-                </div>
-                <div className="text-xs text-muted">{current.contactType}</div>
-              </div>
+          {/* Center — Call Action */}
+          <div className="rounded-2xl border border-border/50 card-gradient-accent p-6 flex flex-col items-center justify-center lg:col-span-1">
+            <span className="text-xs text-muted mb-6">Probíhající hovor</span>
+            <motion.div
+              animate={calling ? { scale: [1, 1.05, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="flex h-20 w-20 items-center justify-center rounded-full bg-accent/10 border border-accent/20 mb-4"
+            >
+              <Phone size={32} className="text-accent" weight="fill" />
+            </motion.div>
+            <h2 className="text-xl font-semibold tracking-tight">{call.name}</h2>
+            <p className="text-sm text-muted mb-6">{call.phone}</p>
 
-              {/* Call Script */}
-              <div>
-                <p className="text-xs font-semibold mb-2">Scénář hovoru</p>
-                <pre className="text-xs text-muted whitespace-pre-wrap font-sans leading-relaxed">
-                  {callScript}
-                </pre>
-              </div>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setCalling(!calling)}
+              className={`flex h-16 w-16 items-center justify-center rounded-full transition-all duration-300 ${
+                calling
+                  ? "bg-red-500/20 border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                  : "bg-accent/20 border-2 border-accent shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+              }`}
+            >
+              {calling ? (
+                <PhoneSlash size={24} className="text-red-400" weight="fill" />
+              ) : (
+                <Phone size={24} className="text-accent" weight="fill" />
+              )}
+            </motion.button>
 
-              {/* SMS Template */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold">SMS šablona</p>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => copyToClipboard(smsTemplate)}
+            <div className="flex gap-2 mt-6 flex-wrap justify-center">
+              {outcomes.map((o) => (
+                <button
+                  key={o.label}
+                  className={`text-xs px-3 py-1.5 rounded-full border bg-card/50 ${o.color} transition-colors`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={next}
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors mt-6"
+            >
+              <SkipForward size={14} weight="bold" />
+              Přeskočit
+            </button>
+          </div>
+
+          {/* Right — Script & Notes */}
+          <div className="space-y-4 lg:col-span-1">
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <span className="text-xs text-muted mb-4 block">Script hovoru</span>
+              <div className="space-y-2">
+                {scriptSteps.map((step, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setScriptStep(i)}
+                    className={`w-full text-left flex gap-3 p-3 rounded-xl border transition-all ${
+                      scriptStep === i
+                        ? "border-accent/30 bg-accent/5"
+                        : "border-transparent hover:bg-card-hover"
+                    }`}
                   >
-                    {copied ? (
-                      <CheckCircle2 size={14} className="text-success" />
-                    ) : (
-                      <MessageSquare size={14} />
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-muted p-2 rounded-lg bg-card-hover">
-                  {smsTemplate}
-                </p>
+                    <span className={`text-xs font-mono shrink-0 w-4 mt-0.5 ${
+                      scriptStep === i ? "text-accent" : "text-muted"
+                    }`}>{i + 1}.</span>
+                    <p className={`text-sm ${
+                      scriptStep === i ? "text-foreground" : "text-muted"
+                    }`}>{step}</p>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Notes */}
-              <div>
-                <p className="text-xs font-semibold mb-2">Poznámky</p>
-                <textarea
-                  className="w-full h-20 rounded-lg bg-card-hover border border-border p-2 text-xs resize-none focus:outline-none focus:border-accent/50"
-                  placeholder="Zapište poznámky z hovoru..."
-                />
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-muted">SMS šablona</span>
+                <button
+                  onClick={copySms}
+                  className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                >
+                  {copied ? <Check size={12} weight="bold" /> : <Copy size={12} weight="bold" />}
+                  {copied ? "Zkopírováno" : "Kopírovat"}
+                </button>
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-sm text-foreground/80 leading-relaxed">{smsTemplate}</p>
+            </div>
+
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <span className="text-xs text-muted mb-3 block">Poznámky</span>
+              <textarea
+                className="w-full h-20 resize-none rounded-xl bg-card border border-border/50 p-3 text-sm placeholder:text-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
+                placeholder="Zapište poznámky z hovoru..."
+              />
+            </div>
+          </div>
         </motion.div>
       </AnimatePresence>
     </div>

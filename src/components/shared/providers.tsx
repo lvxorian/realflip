@@ -1,10 +1,10 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
-import { Toaster } from "sonner";
+import { SessionProvider } from "next-auth/react";
 import { MotionConfig } from "framer-motion";
+import { Toaster } from "sonner";
+import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -25,18 +25,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <MotionConfig reducedMotion="user">
           {children}
+          <Toaster
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "#18181b",
+                color: "#f5f5f0",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: "0.75rem",
+                boxShadow: "0 20px 40px -15px rgba(0,0,0,0.4)",
+              },
+            }}
+          />
         </MotionConfig>
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: "#12121a",
-              color: "#f0f0f5",
-              border: "1px solid #2a2a3a",
-              borderRadius: "0.75rem",
-            },
-          }}
-        />
       </QueryClientProvider>
     </SessionProvider>
   );
