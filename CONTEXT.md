@@ -89,9 +89,17 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - `src/components/ui/property-map.tsx` — Leaflet map
 - `src/components/ui/property-card.tsx` — Property card (used in grid view)
 
+## Deploy (Vercel + Neon)
+- **Vercel**: `https://realflip.vercel.app`
+- **Neon**: PostgreSQL, schema pushed via `drizzle-kit push --config=drizzle.config.prod.ts`
+- **Dual dialect**: `src/db/index.ts` detects `DATABASE_URL` env var → Neon (cloud) or SQLite (local)
+- **Middleware fix**: Edge Runtime doesn't support `better-sqlite3` → separate `src/lib/auth-middleware.ts` without DB adapter
+- **Cron**: daily at 6 AM via Vercel Cron (`vercel.json`)
+- **Build fix**: `@phosphor-icons/react/ssr` for server components; removed `functions`/`rewrites` from `vercel.json`
+
 ## Next Steps
-1. Implement real scraper adapters (bazos — simple HTML, then sreality — requires JS)
-2. Show photos from real scraped listings (imageUrls from scraper)
-3. Deploy to Vercel + Neon (PostgreSQL)
-4. Add Vercel Cron for scheduled scraping
-5. Implement AI analysis pipeline (connect GPT-4o to new properties)
+1. Implement real scraper adapters for other portals (sreality — requires JS, bezrealitky, remax, ...)
+2. Implement AI analysis pipeline (connect GPT-4o to new properties)
+3. Add Google OAuth (set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` in Vercel env vars)
+4. Add OpenAI API key for AI reports (`OPENAI_API_KEY`)
+5. Show photos from real scraped listings (already works for bazos — 16 images per listing)
