@@ -107,21 +107,6 @@ export default async function PropertyDetailPage({
     }
   }
 
-  const recommendationLabel =
-    analysis?.recommendation === "buy"
-      ? "DOPORUČENO K INVESTICI"
-      : analysis?.recommendation === "consider"
-      ? "ZVAŽIT"
-      : analysis?.recommendation === "skip"
-      ? "NEDOPORUČENO"
-      : null;
-  const recommendationVariant =
-    analysis?.recommendation === "buy"
-      ? "success"
-      : analysis?.recommendation === "consider"
-      ? "warning"
-      : "danger";
-
   return (
     <div className="space-y-6">
       <Link
@@ -274,56 +259,208 @@ export default async function PropertyDetailPage({
         {/* Sidebar */}
         <div className="space-y-4">
           {analysis && (
-            <div className="rounded-2xl border border-border/50 card-gradient-accent p-5">
-              <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-4">
-                <CurrencyDollar size={16} className="text-accent" weight="duotone" />
-                Investiční analýza
-              </h2>
-              <div className="space-y-2.5 text-sm">
-                {[
-                  { label: "Tržní hodnota", value: fmt(analysis.marketValue), color: "" },
-                  {
-                    label: "Podhodnocení",
-                    value: `${analysis.undervaluationPct.toFixed(1)}%`,
-                    color: "text-emerald-400",
-                  },
-                  { label: "ARV", value: fmt(analysis.arv ?? 0), color: "" },
-                  {
-                    label: "Zisk",
-                    value: fmt(analysis.netProfit ?? 0),
-                    color: "text-emerald-400",
-                  },
-                  {
-                    label: "ROI",
-                    value: `${(analysis.roi ?? 0).toFixed(1)}%`,
-                    color: "text-emerald-400",
-                  },
-                  {
-                    label: "Annualized ROI",
-                    value: `${(analysis.annualizedRoi ?? 0).toFixed(1)}%`,
-                    color: "",
-                  },
-                ].map((r) => (
-                  <div key={r.label} className="flex items-center justify-between">
-                    <span className="text-muted">{r.label}</span>
-                    <span className={`font-mono font-medium ${r.color}`}>{r.value}</span>
+            <>
+              {/* Verdict */}
+              {analysis.verdictLevel && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-lg font-bold ${
+                      analysis.verdictLevel === "strongBuy" ? "bg-emerald-500/20 text-emerald-400" :
+                      analysis.verdictLevel === "buy" ? "bg-emerald-500/15 text-emerald-400" :
+                      analysis.verdictLevel === "consider" ? "bg-amber-500/15 text-amber-400" :
+                      analysis.verdictLevel === "dontBuy" ? "bg-red-500/15 text-red-400" :
+                      "bg-red-600/20 text-red-400"
+                    }`}>
+                      {analysis.verdictLevel === "strongBuy" || analysis.verdictLevel === "buy" ? "🟢" :
+                       analysis.verdictLevel === "consider" ? "🟡" : "🔴"}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">
+                        {analysis.verdictLevel === "strongBuy" ? "SILNĚ DOPORUČUJI" :
+                         analysis.verdictLevel === "buy" ? "DOPORUČUJI" :
+                         analysis.verdictLevel === "consider" ? "ZVAŽUJTE OPATRNĚ" :
+                         analysis.verdictLevel === "dontBuy" ? "NEDOPORUČUJI" :
+                         "KATEGORICKY ODMÍTNOUT"}
+                      </p>
+                      <p className="text-xs text-muted mt-0.5">{analysis.verdictSummary}</p>
+                    </div>
                   </div>
-                ))}
-              </div>
-              {recommendationLabel && (
-                <div className="mt-4 pt-4 border-t border-border/30">
-                  <Badge
-                    variant={recommendationVariant as "success" | "warning" | "danger"}
-                    size="lg"
-                    className="w-full justify-center py-2 text-sm gap-1.5"
-                  >
-                    {recommendationVariant === "success" && <CheckCircle size={14} weight="fill" />}
-                    {recommendationLabel}
-                  </Badge>
+                  <div className="flex items-center gap-2 text-[10px] text-muted">
+                    <span className="font-mono">Skóre {analysis.investmentScore}/100</span>
+                    <span className="w-0.5 h-0.5 rounded-full bg-border" />
+                    <span>Marže {(analysis.roi ?? 0).toFixed(1)}%</span>
+                  </div>
                 </div>
               )}
-            </div>
+
+              {/* Location & Price Analysis */}
+              {analysis.locationCity && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <h2 className="font-semibold tracking-tight text-sm mb-3">Lokalita & cena</h2>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
+                      <p className="text-[10px] text-muted mb-1">Město</p>
+                      <p className="font-semibold text-sm capitalize">{analysis.locationCity}</p>
+                      {analysis.locationDistrict && (
+                        <p className="text-[10px] text-muted mt-0.5 capitalize">{analysis.locationDistrict}</p>
+                      )}
+                    </div>
+                    <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
+                      <p className="text-[10px] text-muted mb-1">Kategorie</p>
+                      <p className={`font-semibold text-sm ${
+                        analysis.locationCategory === "premium" ? "text-emerald-400" :
+                        analysis.locationCategory === "stable" ? "text-amber-400" :
+                        "text-red-400"
+                      }`}>
+                        {analysis.locationCategory === "premium" ? "Prémiová" :
+                         analysis.locationCategory === "stable" ? "Stabilní" :
+                         analysis.locationCategory === "risky" ? "Riziková" : "Neznámá"}
+                      </p>
+                    </div>
+                    {analysis.pricePerSqm != null && analysis.pricePerSqm > 0 && (
+                      <>
+                        <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
+                          <p className="text-[10px] text-muted mb-1">Cena/m²</p>
+                          <p className="font-semibold text-sm font-mono">
+                            {(analysis.pricePerSqm / 1000).toFixed(0)} tis. Kč
+                          </p>
+                        </div>
+                        {analysis.marketPriceMin != null && analysis.marketPriceMax != null && (
+                          <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
+                            <p className="text-[10px] text-muted mb-1">Trh/m²</p>
+                            <p className="font-semibold text-sm font-mono">
+                              {(analysis.marketPriceMin / 1000).toFixed(0)}–{(analysis.marketPriceMax / 1000).toFixed(0)} tis.
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {analysis.overpricingPct != null && analysis.overpricingPct !== 0 && (
+                    <div className="mt-3 flex items-center gap-2 text-xs">
+                      <span className="text-muted">Přeplaceno:</span>
+                      <span className={`font-mono font-medium ${
+                        analysis.overpricingPct > 10 ? "text-red-400" :
+                        analysis.overpricingPct > 0 ? "text-amber-400" :
+                        "text-emerald-400"
+                      }`}>
+                        {analysis.overpricingPct > 0 ? "+" : ""}{analysis.overpricingPct.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Investment Analysis */}
+              <div className="rounded-2xl border border-border/50 card-gradient-accent p-5">
+                <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-4">
+                  <CurrencyDollar size={16} className="text-accent" weight="duotone" />
+                  Investiční analýza
+                </h2>
+                <div className="space-y-2.5 text-sm">
+                  {[
+                    { label: "Tržní hodnota (ARV)", value: fmt(analysis.arv ?? 0), color: "" },
+                    { label: "Celkové náklady", value: fmt(analysis.totalCost ?? 0), color: "" },
+                    { label: "Zisk", value: fmt(analysis.netProfit ?? 0), color: "text-emerald-400" },
+                    { label: "ROI", value: `${(analysis.roi ?? 0).toFixed(1)}%`, color: "text-emerald-400" },
+                    { label: "Annualized ROI", value: `${(analysis.annualizedRoi ?? 0).toFixed(1)}%`, color: "" },
+                    { label: "Cash-on-Cash", value: `${(analysis.cashOnCash ?? 0).toFixed(1)}%`, color: "" },
+                    { label: "Break-even", value: `${((analysis.breakEvenPrice ?? 0) / 1000000).toFixed(1)} mil.`, color: "" },
+                  ].map((r) => (
+                    <div key={r.label} className="flex items-center justify-between">
+                      <span className="text-muted">{r.label}</span>
+                      <span className={`font-mono font-medium ${r.color}`}>{r.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Red Flags */}
+              {analysis.redFlagsJson && (() => {
+                const flags = JSON.parse(analysis.redFlagsJson);
+                if (flags.length === 0) return null;
+                return (
+                  <div className="rounded-2xl border border-border/50 bg-card p-5">
+                    <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-3">
+                      <WarningCircle size={14} className="text-amber-400" weight="duotone" />
+                      Red flags ({flags.length})
+                    </h2>
+                    <ul className="space-y-2">
+                      {flags.map((f: any, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-xs">
+                          <span className={`mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full ${
+                            f.severity === "high" ? "bg-red-400" :
+                            f.severity === "medium" ? "bg-amber-400" : "bg-muted"
+                          }`} />
+                          <span className="text-muted">{f.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+
+              {/* Technical details */}
+              {(analysis.technicalScore || analysis.segmentRating || analysis.buildingType) && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <h2 className="font-semibold tracking-tight text-sm mb-3">Technický stav</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {analysis.segmentRating && (
+                      <div className="rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
+                        <p className="text-[10px] text-muted">Segment</p>
+                        <p className="text-xs font-semibold">
+                          {analysis.segmentRating === "best" ? "✅ Ideální (45-75 m²)" :
+                           analysis.segmentRating === "good" ? "✅ Dobrý" :
+                           analysis.segmentRating === "ok" ? "➖ Přijatelný" :
+                           analysis.segmentRating === "niche" ? "⚠️ Úzký trh" : "❌ Nevhodný"}
+                        </p>
+                      </div>
+                    )}
+                    {analysis.buildingType && (
+                      <div className="rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
+                        <p className="text-[10px] text-muted">Konstrukce</p>
+                        <p className="text-xs font-semibold capitalize">{analysis.buildingType}</p>
+                      </div>
+                    )}
+                    {analysis.occupancy && analysis.occupancy !== "unknown" && (
+                      <div className="rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
+                        <p className="text-[10px] text-muted">Obsazeno</p>
+                        <p className={`text-xs font-semibold ${analysis.occupancy === "occupied" ? "text-red-400" : "text-emerald-400"}`}>
+                          {analysis.occupancy === "free" ? "Volný" : "⚠️ Nájemník"}
+                        </p>
+                      </div>
+                    )}
+                    {analysis.energyLabel && (
+                      <div className="rounded-lg bg-white/[0.02] border border-white/5 px-3 py-2">
+                        <p className="text-[10px] text-muted">Štítek</p>
+                        <p className="text-xs font-semibold">{analysis.energyLabel}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Alternative strategies */}
+              {analysis.alternativeStrategiesJson && (() => {
+                const strategies = JSON.parse(analysis.alternativeStrategiesJson);
+                if (strategies.length === 0) return null;
+                return (
+                  <div className="rounded-2xl border border-border/50 bg-card p-5">
+                    <h2 className="font-semibold tracking-tight text-sm mb-3">Alternativní strategie</h2>
+                    <ul className="space-y-1.5">
+                      {strategies.map((s: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-muted">
+                          <span className="text-emerald-400 mt-0.5">◆</span>
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+            </>
           )}
+
 
           <FlipCalculator
             initialPrice={property.price}

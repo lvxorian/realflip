@@ -20,6 +20,27 @@ export const propertyAnalysis = pgTable("property_analysis", {
   breakEvenPrice: integer("break_even_price"),
   recommendation: text("recommendation"),
   aiReport: text("ai_report"),
+
+  // Nová pole z enhanced analyzer
+  pricePerSqm: integer("price_per_sqm"),
+  marketPriceMin: integer("market_price_min"),
+  marketPriceMax: integer("market_price_max"),
+  overpricingPct: real("overpricing_pct"),
+  locationCategory: text("location_category"),
+  locationCity: text("location_city"),
+  locationDistrict: text("location_district"),
+  segmentRating: text("segment_rating"),
+  occupancy: text("occupancy"),
+  buildingType: text("building_type"),
+  energyLabel: text("energy_label"),
+  technicalScore: integer("technical_score"),
+  verdictLevel: text("verdict_level"),
+  verdictSummary: text("verdict_summary"),
+  redFlagsJson: text("red_flags_json"),
+  costsJson: text("costs_json"),
+  alternativeStrategiesJson: text("alternative_strategies_json"),
+  rentalYield: real("rental_yield"),
+
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });

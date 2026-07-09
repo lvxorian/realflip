@@ -4,7 +4,7 @@ import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { calculateFlip } from "@/lib/analysis/flip-calculator";
+import { analyzeListing } from "@/lib/analysis/analyzer";
 import { generateId } from "@/lib/utils";
 
 export class ScrapingOrchestrator {
@@ -170,31 +170,43 @@ export class ScrapingOrchestrator {
         recordedAt: listing.publishedAt || new Date(),
       });
 
-      // Auto-analyze with flip calculator
-      const analysis = calculateFlip({
-        purchasePrice: listing.price,
-        area: listing.area ?? 70,
-        condition: (listing.condition as any) ?? "good",
-        renovationLevel: "medium",
-        timelineMonths: 6,
-        marketValue: Math.round(listing.price * 1.15),
-      });
+      // Enhanced analysis
+      const analysis = analyzeListing(listing);
 
       await db.insert(propertyAnalysis).values({
         id: generateId(),
         propertyId: id,
-        marketValue: analysis.marketValue,
-        undervaluationPct: analysis.undervaluationPct,
+        marketValue: analysis.costs.purchasePrice,
+        undervaluationPct: analysis.costs.totalCost > 0 ? ((analysis.arv - analysis.costs.totalCost) / analysis.arv) * 100 : 0,
         investmentScore: analysis.investmentScore,
         arv: analysis.arv,
-        renovationCost: analysis.renovationCost,
-        totalCost: analysis.totalCost,
+        renovationCost: analysis.costs.renovationCost,
+        totalCost: analysis.costs.totalCost,
         netProfit: analysis.netProfit,
         roi: analysis.roi,
         annualizedRoi: analysis.annualizedRoi,
         cashOnCash: analysis.cashOnCash,
         breakEvenPrice: analysis.breakEvenPrice,
         recommendation: analysis.recommendation,
+        // Nová rozšířená pole
+        pricePerSqm: analysis.pricePerSqm,
+        marketPriceMin: analysis.marketPricePerSqmLow,
+        marketPriceMax: analysis.marketPricePerSqmHigh,
+        overpricingPct: analysis.overpricingPct,
+        locationCategory: analysis.location.category,
+        locationCity: analysis.location.city,
+        locationDistrict: analysis.location.district,
+        segmentRating: analysis.segmentRating,
+        occupancy: analysis.occupancy,
+        buildingType: analysis.buildingType,
+        energyLabel: analysis.energyLabel,
+        technicalScore: analysis.technicalScore,
+        verdictLevel: analysis.verdictLevel,
+        verdictSummary: analysis.verdictSummary,
+        redFlagsJson: JSON.stringify(analysis.redFlags),
+        costsJson: JSON.stringify(analysis.costs),
+        alternativeStrategiesJson: JSON.stringify(analysis.alternativeStrategies),
+        rentalYield: analysis.rentalYield,
         createdAt: new Date(),
         updatedAt: new Date(),
       });

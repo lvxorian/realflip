@@ -1,8 +1,7 @@
 import { ScrapingOrchestrator } from "../src/lib/scraping/orchestrator";
-import { MockAdapter } from "../src/lib/scraping/adapters/mock";
 import { BazosAdapter } from "../src/lib/scraping/adapters/bazos";
 import { db } from "../src/db";
-import { properties, scrapingJobs, activityLog } from "../src/db/schema";
+import { properties, scrapingJobs } from "../src/db/schema";
 import { eq } from "drizzle-orm";
 
 async function main() {
@@ -14,11 +13,9 @@ async function main() {
   });
 
   orchestrator.registerAdapter("bazos", new BazosAdapter());
-  orchestrator.registerAdapter("annonce", new MockAdapter("annonce"));
 
   console.log("Registered adapters:");
   console.log("  - bazos: BazosAdapter (real, /prodam/byt/)");
-  console.log("  - annonce: MockAdapter (test data)");
   console.log("Starting crawl...\n");
 
   const start = Date.now();
@@ -35,7 +32,7 @@ async function main() {
 
   console.log("\n=== Verifying DB ===");
 
-  for (const portal of ["bazos", "annonce"]) {
+  for (const portal of ["bazos"]) {
     const props = await db
       .select({
         id: properties.id,
