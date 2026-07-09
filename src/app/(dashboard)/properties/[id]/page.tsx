@@ -30,7 +30,7 @@ function fmt(p: number) {
   return `${(p / 1000000).toFixed(1)} mil. Kč`;
 }
 
-function formatDays(firstSeen: Date) {
+function formatDays(firstSeen: Date | number) {
   const days = Math.floor((Date.now() - new Date(firstSeen).getTime()) / 86400000);
   if (days <= 0) return "dnes";
   if (days === 1) return "1 den";

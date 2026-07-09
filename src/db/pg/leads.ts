@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 
 export const leads = pgTable("leads", {
@@ -11,8 +11,8 @@ export const leads = pgTable("leads", {
   priority: integer("priority").default(0),
   notes: text("notes"),
   assignedTo: text("assigned_to"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
 export const contacts = pgTable("contacts", {
@@ -23,8 +23,8 @@ export const contacts = pgTable("contacts", {
   type: text("type").default("agent"),
   tags: text("tags").default("[]"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
 export const callQueue = pgTable("call_queue", {
@@ -32,11 +32,11 @@ export const callQueue = pgTable("call_queue", {
   leadId: text("lead_id")
     .notNull()
     .references(() => leads.id, { onDelete: "cascade" }),
-  scheduledAt: timestamp("scheduled_at"),
+  scheduledAt: bigint("scheduled_at", { mode: "number" }),
   priority: integer("priority").default(0),
   status: text("status").default("pending"),
   attempts: integer("attempts").default(0),
-  createdAt: timestamp("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
 export const callLogs = pgTable("call_logs", {
@@ -45,9 +45,9 @@ export const callLogs = pgTable("call_logs", {
     .notNull()
     .references(() => leads.id, { onDelete: "cascade" }),
   contactId: text("contact_id"),
-  calledAt: timestamp("called_at").notNull(),
+  calledAt: bigint("called_at", { mode: "number" }).notNull(),
   duration: integer("duration"),
   outcome: text("outcome"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });

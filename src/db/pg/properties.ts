@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, timestamp, boolean } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, real, bigint } from "drizzle-orm/pg-core";
 
 export const properties = pgTable("properties", {
   id: text("id").primaryKey(),
@@ -22,9 +22,9 @@ export const properties = pgTable("properties", {
   description: text("description"),
   imageUrls: text("image_urls").default("[]"),
   status: text("status").default("active").notNull(),
-  firstSeen: timestamp("first_seen").notNull(),
-  lastSeen: timestamp("last_seen").notNull(),
-  isActive: boolean("is_active").default(true),
+  firstSeen: bigint("first_seen", { mode: "number" }).notNull(),
+  lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
+  isActive: integer("is_active").default(1),
 });
 
 export const priceHistory = pgTable("price_history", {
@@ -33,5 +33,5 @@ export const priceHistory = pgTable("price_history", {
     .notNull()
     .references(() => properties.id, { onDelete: "cascade" }),
   price: integer("price").notNull(),
-  recordedAt: timestamp("recorded_at").notNull(),
+  recordedAt: bigint("recorded_at", { mode: "number" }).notNull(),
 });

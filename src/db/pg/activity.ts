@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, bigint } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 
 export const activityLog = pgTable("activity_log", {
@@ -8,5 +8,5 @@ export const activityLog = pgTable("activity_log", {
   message: text("message").notNull(),
   propertyId: text("property_id").references(() => properties.id, { onDelete: "set null" }),
   data: text("data"),
-  createdAt: timestamp("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });

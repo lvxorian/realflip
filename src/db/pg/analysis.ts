@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, timestamp } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, real, bigint } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 
 export const propertyAnalysis = pgTable("property_analysis", {
@@ -20,6 +20,6 @@ export const propertyAnalysis = pgTable("property_analysis", {
   breakEvenPrice: integer("break_even_price"),
   recommendation: text("recommendation"),
   aiReport: text("ai_report"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });

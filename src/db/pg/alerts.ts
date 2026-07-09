@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const alerts = pgTable("alerts", {
@@ -9,10 +9,10 @@ export const alerts = pgTable("alerts", {
   name: text("name").notNull(),
   conditions: text("conditions"),
   channels: text("channels").default('["in_app"]'),
-  isActive: boolean("is_active").default(true),
-  lastTriggered: timestamp("last_triggered"),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  isActive: integer("is_active").default(1),
+  lastTriggered: bigint("last_triggered", { mode: "number" }),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
 export const notifications = pgTable("notifications", {
@@ -23,7 +23,7 @@ export const notifications = pgTable("notifications", {
   title: text("title").notNull(),
   message: text("message"),
   type: text("type").default("info"),
-  read: boolean("read").default(false),
+  read: integer("read").default(0),
   data: text("data"),
-  createdAt: timestamp("created_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });

@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, jsonb, bigint } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const userPreferences = pgTable("user_preferences", {
@@ -21,8 +21,8 @@ export const userPreferences = pgTable("user_preferences", {
   dailyCallLimit: integer("daily_call_limit").default(15),
   callStartHour: integer("call_start_hour").default(9),
   callEndHour: integer("call_end_hour").default(18),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
 export const subscriptions = pgTable("subscriptions", {
@@ -35,6 +35,6 @@ export const subscriptions = pgTable("subscriptions", {
   status: text("status").default("active").notNull(),
   scrapedListings: integer("scraped_listings").default(0),
   scrapingLimit: integer("scraping_limit").default(500),
-  createdAt: timestamp("created_at").notNull(),
-  updatedAt: timestamp("updated_at").notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });

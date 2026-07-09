@@ -6,7 +6,7 @@ const day = 86400000;
 const { users, userPreferences, properties, propertyAnalysis, leads, contacts } = schema as any;
 
 function dt(offset = 0) {
-  return new Date(Date.now() - offset);
+  return Date.now() - offset;
 }
 
 function generateId() {
@@ -50,7 +50,7 @@ async function seed() {
       name: "Cakmak",
       email: "cakmak@tuta.com",
       passwordHash,
-      onboardingCompleted: true,
+      onboardingCompleted: 1,
       role: "user",
       createdAt: dt(),
       updatedAt: dt(),
@@ -104,7 +104,7 @@ async function seed() {
       description: p.desc,
       imageUrls: imageUrls(p.id),
       status: "active",
-      isActive: true,
+      isActive: 1,
       firstSeen: dt(30 * day),
       lastSeen: dt(),
     });
