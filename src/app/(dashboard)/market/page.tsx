@@ -1,133 +1,117 @@
-"use client";
-
-import { motion } from "framer-motion";
+import { db } from "@/db";
+import { properties, propertyAnalysis } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
-import { MarketChart } from "@/components/ui/market-chart";
-import { ArrowUp, ArrowDown, Clock, SealCheck } from "@phosphor-icons/react";
+import { ArrowUp, ArrowDown, Clock, SealCheck } from "@phosphor-icons/react/dist/ssr";
 
-const priceTrend = [
-  { label: "Led", value: 82000 },
-  { label: "Úno", value: 83500 },
-  { label: "Bře", value: 86000 },
-  { label: "Dub", value: 84500 },
-  { label: "Kvě", value: 87800 },
-  { label: "Čer", value: 89500 },
-];
+function fmtPrice(v: number) { return `${(v / 1000).toFixed(0)}k`; }
 
-const localities = [
-  { name: "Praha", price: 105000, trend: "up", change: "+3.2%", listings: 450, days: 22 },
-  { name: "Brno", price: 82000, trend: "up", change: "+2.8%", listings: 230, days: 28 },
-  { name: "Ostrava", price: 45000, trend: "down", change: "-1.5%", listings: 120, days: 35 },
-  { name: "Plzeň", price: 58000, trend: "up", change: "+1.9%", listings: 85, days: 30 },
-  { name: "Liberec", price: 52000, trend: "up", change: "+2.1%", listings: 62, days: 25 },
-  { name: "Olomouc", price: 48000, trend: "down", change: "-0.8%", listings: 48, days: 32 },
-  { name: "Č. Budějovice", price: 55000, trend: "up", change: "+1.4%", listings: 55, days: 29 },
-  { name: "Hradec Králové", price: 60000, trend: "up", change: "+2.5%", listings: 42, days: 26 },
-  { name: "Ústí n. Labem", price: 28000, trend: "down", change: "-3.1%", listings: 38, days: 45 },
-  { name: "Pardubice", price: 54000, trend: "up", change: "+1.8%", listings: 36, days: 27 },
-];
+function trendClass(change: number) { return change >= 0 ? "text-emerald-400" : "text-red-400"; }
+function trendIcon(change: number) { return change >= 0 ? ArrowUp : ArrowDown; }
 
-const recommendations = [
-  { period: "Q1 2026", rating: "Výborné", note: "Nízká konkurence, motivovaní prodávající.", color: "text-emerald-400" },
-  { period: "Q2 2026", rating: "Dobré", note: "Jarní oživení trhu, více inzerátů.", color: "text-accent" },
-  { period: "Q3 2026", rating: "Průměrné", note: "Letní měsíce – pomalejší.", color: "text-amber-400" },
-  { period: "Q4 2026", rating: "Dobré", note: "Předvánoční pokles poptávky.", color: "text-accent" },
-];
+export default async function MarketPage() {
+  const props = await db
+    .select()
+    .from(properties)
+    .leftJoin(propertyAnalysis, eq(properties.id, propertyAnalysis.propertyId))
+    .orderBy(desc(properties.lastSeen));
 
-const fmtPrice = (v: number) => `${(v / 1000).toFixed(0)}k`;
+  const totalListings = props.length;
+  const activeListings = props.filter((p) => p.properties.isActive);
+  const avgPricePerSqm = activeListings.length > 0
+    ? Math.round(activeListings.reduce((s, p) => s + ((p.properties.price / (p.properties.area ?? 70)) || 0), 0) / activeListings.length)
+    : 0;
+  const avgDays = activeListings.length > 0
+    ? Math.round(activeListings.reduce((s, p) => s + Math.floor((Date.now() - new Date(p.properties.firstSeen).getTime()) / 86400000), 0) / activeListings.length)
+    : 0;
 
-export default function MarketPage() {
+  // Group by city
+  const byCity: Record<string, { priceSqm: number[]; days: number[]; count: number }> = {};
+  for (const p of activeListings) {
+    const city = p.property_analysis?.locationCity ?? "Neznámá";
+    if (!byCity[city]) byCity[city] = { priceSqm: [], days: [], count: 0 };
+    if (p.properties.area && p.properties.area > 0) {
+      byCity[city].priceSqm.push(Math.round(p.properties.price / p.properties.area));
+    }
+    byCity[city].days.push(Math.floor((Date.now() - new Date(p.properties.firstSeen).getTime()) / 86400000));
+    byCity[city].count++;
+  }
+
+  const cityRows = Object.entries(byCity)
+    .map(([name, data]) => ({
+      name: name === "Neznámá" ? "Neznámá" : name.replace(/_/g, " "),
+      price: data.priceSqm.length > 0 ? Math.round(data.priceSqm.reduce((a, b) => a + b, 0) / data.priceSqm.length) : 0,
+      listings: data.count,
+      days: Math.round(data.days.reduce((a, b) => a + b, 0) / data.days.length),
+    }))
+    .sort((a, b) => b.price - a.price);
+
+  // Price trend (last 7 vs prior 7 days)
+  const now = Date.now();
+  const weekAgo = new Date(now - 7 * 86400000);
+  const twoWeeksAgo = new Date(now - 14 * 86400000);
+  const recentProps = activeListings.filter((p) => new Date(p.properties.lastSeen) >= weekAgo);
+  const olderProps = activeListings.filter((p) => {
+    const d = new Date(p.properties.lastSeen);
+    return d >= twoWeeksAgo && d < weekAgo;
+  });
+  const recentAvg = recentProps.length > 0 ? recentProps.reduce((s, p) => s + (p.properties.price / (p.properties.area ?? 70)), 0) / recentProps.length : 0;
+  const olderAvg = olderProps.length > 0 ? olderProps.reduce((s, p) => s + (p.properties.price / (p.properties.area ?? 70)), 0) / olderProps.length : 0;
+  const trendPct = olderAvg > 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
+
+  const priceDrops = activeListings.filter((p) => {
+    // Simplification: properties with updated_at != first_seen may have had price changes
+    return p.properties.lastSeen.getTime() - new Date(p.properties.firstSeen).getTime() > 86400000 * 14;
+  }).length;
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Trh</h1>
-        <p className="text-sm text-muted mt-1">Přehled realitního trhu v ČR</p>
+        <p className="text-sm text-muted mt-1">Přehled realitního trhu z nasbíraných dat ({totalListings} inzerátů)</p>
       </div>
 
-      {/* Activity stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Nové inzeráty", value: "24", sub: "dnes", icon: ArrowUp },
-          { label: "Ø doba na trhu", value: "23", sub: "dní", icon: Clock },
-          { label: "Snížené ceny", value: "18%", sub: "za týden", icon: ArrowDown },
-          { label: "Nejaktivnější", value: "sreality.cz", sub: "47 inzerátů", icon: SealCheck },
+          { label: "Aktivních inzerátů", value: activeListings.length.toString(), sub: `z ${totalListings} celkem`, icon: ArrowUp },
+          { label: "Ø cena/m²", value: fmtPrice(avgPricePerSqm), sub: `${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}% trend`, icon: trendIcon(trendPct) },
+          { label: "Ø dny na trhu", value: avgDays.toString(), sub: "dní", icon: Clock },
+          { label: "Potenciální dropy", value: `${Math.round((priceDrops / Math.max(activeListings.length, 1)) * 100)}%`, sub: "inzerátů 14+ dní", icon: SealCheck },
         ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="rounded-2xl border border-border/50 bg-card p-5"
-          >
+          <div key={s.label} className="rounded-2xl border border-border/50 bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-muted">{s.label}</span>
               <s.icon size={16} className="text-muted" weight="duotone" />
             </div>
             <p className="text-xl font-semibold font-mono tracking-tight">{s.value}</p>
             <p className="text-xs text-muted mt-1">{s.sub}</p>
-          </motion.div>
+          </div>
         ))}
       </div>
 
-      {/* Price trend chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="rounded-2xl border border-border/50 card-gradient-blue p-6"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Clock size={16} weight="duotone" className="text-info" />
-            <h2 className="font-semibold tracking-tight text-sm">Průměrná cena/m² (ČR)</h2>
-          </div>
-          <Badge variant="info" size="sm">+9.1% r/r</Badge>
-        </div>
-        <MarketChart
-          data={priceTrend}
-          accent="#3b82f6"
-          height={200}
-          formatValue={fmtPrice}
-        />
-      </motion.div>
-
-      {/* Locality table */}
       <div>
-        <h2 className="font-semibold tracking-tight mb-4">Ceny v lokalitách</h2>
+        <h2 className="font-semibold tracking-tight mb-4">Ceny v lokalitách (z nasbíraných dat)</h2>
         <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/30">
                   <th className="text-left p-4 text-xs text-muted font-medium">Lokalita</th>
-                  <th className="text-right p-4 text-xs text-muted font-medium">Cena/m²</th>
-                  <th className="text-right p-4 text-xs text-muted font-medium">Trend</th>
-                  <th className="text-right p-4 text-xs text-muted font-medium hidden sm:table-cell">Inzerátů</th>
-                  <th className="text-right p-4 text-xs text-muted font-medium hidden sm:table-cell">Dny na trhu</th>
+                  <th className="text-right p-4 text-xs text-muted font-medium">Ø cena/m²</th>
+                  <th className="text-right p-4 text-xs text-muted font-medium">Inzerátů</th>
+                  <th className="text-right p-4 text-xs text-muted font-medium hidden sm:table-cell">Ø dny na trhu</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/20">
-                {localities.map((loc, i) => (
-                  <motion.tr
-                    key={loc.name}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.02 }}
-                    className="hover:bg-card-hover transition-colors"
-                  >
-                    <td className="p-4 font-medium">{loc.name}</td>
+                {cityRows.map((loc) => (
+                  <tr key={loc.name} className="hover:bg-card-hover transition-colors">
+                    <td className="p-4 font-medium capitalize">{loc.name}</td>
                     <td className="p-4 text-right font-mono">
                       {new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(loc.price)} Kč
                     </td>
-                    <td className="p-4 text-right">
-                      <span className={`inline-flex items-center gap-1 text-xs font-mono ${loc.trend === "up" ? "text-emerald-400" : "text-red-400"}`}>
-                        {loc.trend === "up" ? <ArrowUp size={12} weight="bold" /> : <ArrowDown size={12} weight="bold" />}
-                        {loc.change}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right font-mono text-muted hidden sm:table-cell">{loc.listings}</td>
+                    <td className="p-4 text-right font-mono">{loc.listings}</td>
                     <td className="p-4 text-right font-mono text-muted hidden sm:table-cell">{loc.days}</td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -135,23 +119,29 @@ export default function MarketPage() {
         </div>
       </div>
 
-      {/* Seasonality */}
       <div>
-        <h2 className="font-semibold tracking-tight mb-4">Sezónní doporučení</h2>
+        <h2 className="font-semibold tracking-tight mb-4">Top lokality podle skóre</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {recommendations.map((r, i) => (
-            <motion.div
-              key={r.period}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.06 }}
-              className="rounded-2xl border border-border/50 bg-card p-5"
-            >
-              <p className="text-sm font-medium mb-1">{r.period}</p>
-              <p className={`text-lg font-semibold font-mono ${r.color} mb-2`}>{r.rating}</p>
-              <p className="text-xs text-muted">{r.note}</p>
-            </motion.div>
-          ))}
+          {activeListings
+            .filter((p) => p.property_analysis?.investmentScore)
+            .sort((a, b) => (b.property_analysis?.investmentScore ?? 0) - (a.property_analysis?.investmentScore ?? 0))
+            .slice(0, 4)
+            .map((p, i) => {
+              const city = p.property_analysis?.locationCity ?? "Neznámá";
+              const score = p.property_analysis?.investmentScore ?? 0;
+              return (
+                <div key={p.properties.id} className="rounded-2xl border border-border/50 bg-card p-5">
+                  <p className="text-sm font-medium truncate">{p.properties.title}</p>
+                  <p className="text-xs text-muted capitalize mt-0.5">{city.replace(/_/g, " ")}</p>
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="text-xs text-muted">Skóre</span>
+                    <span className={`font-mono font-semibold text-lg ${score >= 60 ? "text-emerald-400" : score >= 40 ? "text-amber-400" : "text-red-400"}`}>
+                      {score}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
         </div>
       </div>
     </div>

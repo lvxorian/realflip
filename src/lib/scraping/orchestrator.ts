@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
+import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { generateId } from "@/lib/utils";
 
 export class ScrapingOrchestrator {
@@ -173,11 +174,31 @@ export class ScrapingOrchestrator {
       // Enhanced analysis
       const analysis = analyzeListing(listing);
 
+      // AI analysis (only if API key available)
+      let aiReport: string | null = null;
+      if (process.env.OPENAI_API_KEY) {
+        try {
+          const aiResult = await aiAnalyzeListing({
+            title: listing.title,
+          description: listing.description ?? "",
+          price: listing.price,
+          pricePerSqm: listing.pricePerSqm,
+          area: listing.area,
+          rooms: listing.rooms,
+          address: listing.address,
+          condition: listing.condition,
+        });
+          aiReport = JSON.stringify(aiResult);
+        } catch {
+          // AI analysis is optional
+        }
+      }
+
       await db.insert(propertyAnalysis).values({
         id: generateId(),
         propertyId: id,
-        marketValue: analysis.costs.purchasePrice,
-        undervaluationPct: analysis.costs.totalCost > 0 ? ((analysis.arv - analysis.costs.totalCost) / analysis.arv) * 100 : 0,
+        marketValue: analysis.arv,
+        undervaluationPct: analysis.marketPricePerSqmHigh > 0 ? ((analysis.marketPricePerSqmHigh - analysis.pricePerSqm) / analysis.marketPricePerSqmHigh) * 100 : 0,
         investmentScore: analysis.investmentScore,
         arv: analysis.arv,
         renovationCost: analysis.costs.renovationCost,
@@ -207,6 +228,7 @@ export class ScrapingOrchestrator {
         costsJson: JSON.stringify(analysis.costs),
         alternativeStrategiesJson: JSON.stringify(analysis.alternativeStrategies),
         rentalYield: analysis.rentalYield,
+        aiReport,
         createdAt: new Date(),
         updatedAt: new Date(),
       });

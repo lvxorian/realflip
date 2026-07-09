@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
 import { Input } from "@/components/ui/input";
+import { X } from "@phosphor-icons/react/dist/ssr";
 import {
   MagnifyingGlass,
   SquaresFour,
@@ -24,40 +25,110 @@ export interface PropertyListItem {
   recommendation: string | null;
   daysOnMarket: number;
   imageUrls: string[];
+  portalName: string;
+  locationCity: string | null;
+  verdictLevel: string | null;
+  condition: string | null;
+  roi: number | null;
 }
 
-const FILTERS = [
-  { label: "Všechny", match: () => true },
-  { label: "Nové", match: (p: PropertyListItem) => p.daysOnMarket <= 2 },
-  { label: "Skóre 80+", match: (p: PropertyListItem) => (p.score ?? 0) >= 80 },
-  { label: "Doporučeno", match: (p: PropertyListItem) => p.recommendation === "buy" },
-  { label: "Zvažit", match: (p: PropertyListItem) => p.recommendation === "consider" },
-] as const;
+interface FilterState {
+  city: string;
+  portal: string;
+  verdict: string;
+  condition: string;
+  scoreMin: string;
+  scoreMax: string;
+  priceMin: string;
+  priceMax: string;
+  areaMin: string;
+  areaMax: string;
+}
+
+const PORTAL_LABELS: Record<string, string> = {
+  sreality: "Sreality",
+  bezrealitky: "Bezrealitky",
+  bazos: "Bazos",
+  annonce: "Annonce",
+  mmreality: "M&M Reality",
+  "idnes-reality": "iDnes Reality",
+  hyperreality: "Hyperreality",
+  "reality-cz": "Reality.cz",
+  remax: "RE/MAX",
+  century21: "Century 21",
+};
+
+const INITIAL_FILTERS: FilterState = {
+  city: "",
+  portal: "",
+  verdict: "",
+  condition: "",
+  scoreMin: "",
+  scoreMax: "",
+  priceMin: "",
+  priceMax: "",
+  areaMin: "",
+  areaMax: "",
+};
 
 export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<string>("Všechny");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+
+  const cities = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((p) => { if (p.locationCity) set.add(p.locationCity); });
+    return Array.from(set).sort();
+  }, [items]);
+
+  const portals = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((p) => { if (p.portalName) set.add(p.portalName); });
+    return Array.from(set).sort();
+  }, [items]);
+
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   const filtered = useMemo(() => {
-    const filterDef = FILTERS.find((f) => f.label === activeFilter) ?? FILTERS[0];
     const q = search.toLowerCase().trim();
     return items.filter((p) => {
-      if (!filterDef.match(p)) return false;
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
         (p.address ?? "").toLowerCase().includes(q)
       );
+    }).filter((p) => {
+      if (filters.city && p.locationCity !== filters.city) return false;
+      if (filters.portal && p.portalName !== filters.portal) return false;
+      if (filters.verdict && p.verdictLevel !== filters.verdict) return false;
+      if (filters.condition && p.condition !== filters.condition) return false;
+      if (filters.scoreMin && (p.score ?? 0) < parseInt(filters.scoreMin)) return false;
+      if (filters.scoreMax && (p.score ?? 0) > parseInt(filters.scoreMax)) return false;
+      if (filters.priceMin && p.price < parseInt(filters.priceMin)) return false;
+      if (filters.priceMax && p.price > parseInt(filters.priceMax)) return false;
+      if (filters.areaMin && (p.area ?? 0) < parseFloat(filters.areaMin)) return false;
+      if (filters.areaMax && (p.area ?? 0) > parseFloat(filters.areaMax)) return false;
+      return true;
     });
-  }, [items, search, activeFilter]);
+  }, [items, search, filters]);
+
+  const setFilter = (key: keyof FilterState, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters(INITIAL_FILTERS);
+    setSearch("");
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Nemovitosti</h1>
-          <p className="text-sm text-muted mt-1">{filtered.length} aktivních inzerátů</p>
+          <p className="text-sm text-muted mt-1">{filtered.length} z {items.length} inzerátů</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -91,33 +162,167 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
               <List size={16} weight={view === "list" ? "fill" : "regular"} />
             </button>
           </div>
-          <button className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border border-border/50 bg-card text-xs font-medium hover:bg-card-hover transition-colors">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+              hasActiveFilters
+                ? "bg-accent/10 text-accent border-accent/30"
+                : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
+            }`}
+          >
             <FadersHorizontal size={14} weight="bold" />
             Filtry
+            {hasActiveFilters && (
+              <span className="h-4 w-4 rounded-full bg-accent text-[10px] font-bold text-accent-foreground flex items-center justify-center">
+                {Object.values(filters).filter((v) => v !== "").length}
+              </span>
+            )}
           </button>
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f.label}
-            onClick={() => setActiveFilter(f.label)}
-            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-              activeFilter === f.label
-                ? "bg-accent/10 text-accent border-accent/30"
-                : "border-border/50 text-muted hover:text-foreground hover:border-border bg-card"
-            }`}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
           >
-            {f.label}
-          </button>
-        ))}
-      </div>
+            <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold tracking-tight uppercase text-muted">Rozšířené filtry</p>
+                <button
+                  onClick={clearFilters}
+                  className="text-xs text-muted hover:text-foreground flex items-center gap-1"
+                >
+                  <X size={12} weight="bold" />
+                  Vymazat
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <select
+                  value={filters.city}
+                  onChange={(e) => setFilter("city", e.target.value)}
+                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                >
+                  <option value="">Všechna města</option>
+                  {cities.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <select
+                  value={filters.portal}
+                  onChange={(e) => setFilter("portal", e.target.value)}
+                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                >
+                  <option value="">Všechny portály</option>
+                  {portals.map((p) => (
+                    <option key={p} value={p}>{PORTAL_LABELS[p] || p}</option>
+                  ))}
+                </select>
+                <select
+                  value={filters.verdict}
+                  onChange={(e) => setFilter("verdict", e.target.value)}
+                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                >
+                  <option value="">Všechny verdikty</option>
+                  <option value="strongBuy">Silně doporučit</option>
+                  <option value="buy">Doporučit</option>
+                  <option value="consider">Zvážit</option>
+                  <option value="dontBuy">Nedoporučit</option>
+                  <option value="reject">Zamítnout</option>
+                </select>
+                <select
+                  value={filters.condition}
+                  onChange={(e) => setFilter("condition", e.target.value)}
+                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                >
+                  <option value="">Všechny stavy</option>
+                  <option value="puvodni">Původní</option>
+                  <option value="good">Dobrý</option>
+                  <option value="po rekonstrukci">Po rekonstrukci</option>
+                  <option value="dilapidated">Zchátralý</option>
+                  <option value="novostavba">Novostavba</option>
+                </select>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    placeholder="Skóre od"
+                    value={filters.scoreMin}
+                    onChange={(e) => setFilter("scoreMin", e.target.value)}
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-xs text-muted">–</span>
+                  <input
+                    placeholder="Skóre do"
+                    value={filters.scoreMax}
+                    onChange={(e) => setFilter("scoreMax", e.target.value)}
+                    type="number"
+                    min={0}
+                    max={100}
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    placeholder="Cena od"
+                    value={filters.priceMin}
+                    onChange={(e) => setFilter("priceMin", e.target.value)}
+                    type="number"
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-[10px] text-muted">Kč</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    placeholder="Cena do"
+                    value={filters.priceMax}
+                    onChange={(e) => setFilter("priceMax", e.target.value)}
+                    type="number"
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-[10px] text-muted">Kč</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    placeholder="Plocha od"
+                    value={filters.areaMin}
+                    onChange={(e) => setFilter("areaMin", e.target.value)}
+                    type="number"
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-[10px] text-muted">m²</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    placeholder="Plocha do"
+                    value={filters.areaMax}
+                    onChange={(e) => setFilter("areaMax", e.target.value)}
+                    type="number"
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-[10px] text-muted">m²</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-border/50 bg-card p-12 text-center">
           <MapPin size={32} weight="duotone" className="text-muted/40 mx-auto mb-3" />
           <p className="text-sm text-muted">Žádné nemovitosti neodpovídají filtrům.</p>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-xs text-accent hover:underline mt-2">
+              Vymazat filtry
+            </button>
+          )}
         </div>
       ) : (
         <AnimatePresence mode="wait">

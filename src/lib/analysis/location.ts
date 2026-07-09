@@ -19,13 +19,48 @@ const CITY_ALIASES: Record<string, string> = {
   "liberec": "liberec",
   "zlin": "zlin",
   "zlín": "zlin",
+  "kladno": "kladno",
+  "mladá boleslav": "mlada_boleslav",
+  "mlada boleslav": "mlada_boleslav",
+  "kolín": "kolin",
+  "kolin": "kolin",
+  "jihlava": "jihlava",
+  "karvina": "karvina",
+  "karviná": "karvina",
+  "trutnov": "trutnov",
+  "písek": "pisek",
+  "pisek": "pisek",
+  "tábor": "tabor",
+  "tabor": "tabor",
+  "chomutov": "chomutov",
+  "děčín": "decin",
+  "decin": "decin",
+  "teplice": "teplice",
+  "cheb": "cheb",
+  "příbram": "pribram",
+  "pribram": "pribram",
+  "prostějov": "prostejov",
+  "prostejov": "prostejov",
+  "přerov": "prerov",
+  "prerov": "prerov",
+  "havlíčkův brod": "havlickuv_brod",
+  "znojmo": "znojmo",
+  "česká lípa": "ceska_lipa",
+  "ceska lipa": "ceska_lipa",
+  "kroměříž": "kromeriz",
+  "kromeriz": "kromeriz",
+  "bruntál": "bruntal",
+  "jeseník": "jesenik",
+  "jesenik": "jesenik",
+  "havířov": "havirov",
+  "havirov": "havirov",
 };
 
 function normalize(text: string): string {
   return text
     .toLowerCase()
     .replace(/[–\-—]/g, " ")
-    .replace(/[^\w\s]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }

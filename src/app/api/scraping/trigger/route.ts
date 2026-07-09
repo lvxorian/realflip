@@ -9,15 +9,17 @@ export async function POST() {
 
   try {
     const { ScrapingOrchestrator } = await import("@/lib/scraping/orchestrator");
-    const { MockAdapter } = await import("@/lib/scraping/adapters/mock");
     const { BazosAdapter } = await import("@/lib/scraping/adapters/bazos");
+    const { MmrealityAdapter } = await import("@/lib/scraping/adapters/mmreality");
+    const { AnnonceAdapter } = await import("@/lib/scraping/adapters/annonce");
 
     const orchestrator = new ScrapingOrchestrator((portal, found, errors) => {
       console.log(`[scraping] ${portal}: ${found} listings, ${errors.length} errors`);
     });
 
     orchestrator.registerAdapter("bazos", new BazosAdapter());
-    orchestrator.registerAdapter("annonce", new MockAdapter("annonce"));
+    orchestrator.registerAdapter("mmreality", new MmrealityAdapter());
+    orchestrator.registerAdapter("annonce", new AnnonceAdapter());
 
     const result = await orchestrator.crawlAll();
 

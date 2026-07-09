@@ -206,6 +206,31 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       brick_renovated: { low: 50000, high: 75000 },
     },
   },
+
+  kladno: {
+    districts: { premium: ["Centrum", "Kročehlavy"], stable: ["Rozdělov", "Švermov"], risky: ["Dubí", "Sítná"] },
+    segments: { panel_needs_renov: { low: 25000, high: 38000 }, panel_renovated: { low: 35000, high: 50000 }, brick_needs_renov: { low: 30000, high: 42000 }, brick_renovated: { low: 42000, high: 60000 } },
+  },
+  mlada_boleslav: {
+    districts: { premium: ["Centrum"], stable: ["Mladá Boleslav II", "Podlázky"], risky: [] },
+    segments: { panel_needs_renov: { low: 28000, high: 40000 }, panel_renovated: { low: 38000, high: 55000 }, brick_needs_renov: { low: 32000, high: 45000 }, brick_renovated: { low: 45000, high: 65000 } },
+  },
+  kolin: {
+    districts: { premium: ["Centrum", "Zálabí"], stable: ["Heřmanův Městec", "Kmochův ostrov"], risky: [] },
+    segments: { panel_needs_renov: { low: 25000, high: 35000 }, panel_renovated: { low: 35000, high: 50000 }, brick_needs_renov: { low: 28000, high: 40000 }, brick_renovated: { low: 40000, high: 55000 } },
+  },
+  jihlava: {
+    districts: { premium: ["Centrum"], stable: ["Horní Kosov", "Pávov"], risky: [] },
+    segments: { panel_needs_renov: { low: 30000, high: 42000 }, panel_renovated: { low: 40000, high: 55000 }, brick_needs_renov: { low: 35000, high: 48000 }, brick_renovated: { low: 48000, high: 65000 } },
+  },
+  karvina: {
+    districts: { premium: [], stable: ["Mizerov", "Ráj"], risky: ["Fryštát", "Hranice"] },
+    segments: { panel_needs_renov: { low: 15000, high: 25000 }, panel_renovated: { low: 22000, high: 35000 }, brick_needs_renov: { low: 18000, high: 28000 }, brick_renovated: { low: 28000, high: 40000 } },
+  },
+  havirov: {
+    districts: { premium: [], stable: ["Město", "Podlesí"], risky: ["Šumbark", "Prostřední Suchá"] },
+    segments: { panel_needs_renov: { low: 18000, high: 28000 }, panel_renovated: { low: 25000, high: 38000 }, brick_needs_renov: { low: 20000, high: 30000 }, brick_renovated: { low: 30000, high: 45000 } },
+  },
 };
 
 export const RISKY_CITIES = [

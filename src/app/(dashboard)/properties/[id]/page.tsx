@@ -46,6 +46,81 @@ function formatDate(d: Date) {
   });
 }
 
+function calcScenarios(price: number, area: number, condition: string | null, marketPriceHigh: number) {
+  const needsFull = condition === "original" || condition === "dilapidated";
+  const needsMedium = condition === "good" || !condition;
+
+  function renoCost(mult: number) {
+    const items = [
+      { c: "Bourání", v: area * (needsFull ? 600 : 300) },
+      { c: "Elektrika", v: area * (needsFull ? 1800 : needsMedium ? 1200 : 400) },
+      { c: "Voda+topení", v: area * (needsFull ? 2000 : needsMedium ? 1400 : 500) },
+      { c: "Podlahy", v: area * (needsFull ? 1500 : needsMedium ? 1000 : 600) },
+      { c: "Malby+omítky", v: area * (needsFull ? 800 : needsMedium ? 500 : 300) },
+      { c: "Koupelna", v: needsFull ? 250000 : needsMedium ? 180000 : 80000 },
+      { c: "Kuchyně", v: needsFull ? 200000 : needsMedium ? 140000 : 60000 },
+      { c: "Okna+dveře", v: area * (needsFull ? 1200 : needsMedium ? 600 : 200) },
+    ];
+    return Math.round(items.reduce((s, i) => s + i.v, 0) * mult);
+  }
+
+  function scenario(mult: number, arvMult: number, timeline: number) {
+    const rc = renoCost(mult);
+    const arv = Math.round(marketPriceHigh * area * arvMult);
+    const sellingComm = Math.round(arv * 0.04);
+    const acqCosts = Math.round(price * 0.04) + 25000 + 8000;
+    const holding = Math.round((price + rc) * 0.005 * timeline);
+    const fixedSell = sellingComm + 35000 + 10000;
+    const totalCost = price + acqCosts + rc + holding + fixedSell;
+    const netProfit = arv - totalCost;
+    const incomeTax = netProfit > 0 ? Math.round(netProfit * 0.15) : 0;
+    const finalCost = totalCost + incomeTax;
+    const finalProfit = arv - finalCost;
+    const roi = finalCost > 0 ? (finalProfit / finalCost) * 100 : 0;
+    return { renovationCost: rc, arv, totalCost: finalCost, netProfit: finalProfit, roi, annualizedRoi: timeline > 0 ? (roi / timeline) * 12 : 0 };
+  }
+
+  return {
+    optimistic: scenario(0.85, 1.2, 4),
+    conservative: scenario(1.0, 1.05, 6),
+    pessimistic: scenario(1.3, 0.9, 9),
+  };
+}
+
+function calcRenovationItems(area: number, condition: string | null) {
+  const needsFull = condition === "original" || condition === "dilapidated";
+  const needsMedium = condition === "good" || !condition;
+  return [
+    { category: "Bourání", estimatedCost: Math.round(area * (needsFull ? 600 : 300)), note: needsFull ? "Plné" : "Částečné" },
+    { category: "Elektrika", estimatedCost: Math.round(area * (needsFull ? 1800 : needsMedium ? 1200 : 400)), note: needsFull ? "Nová" : needsMedium ? "Částečná" : "Úpravy" },
+    { category: "Voda+topení", estimatedCost: Math.round(area * (needsFull ? 2000 : needsMedium ? 1400 : 500)), note: needsFull ? "Nová" : needsMedium ? "Částečná" : "Úpravy" },
+    { category: "Podlahy", estimatedCost: Math.round(area * (needsFull ? 1500 : needsMedium ? 1000 : 600)), note: needsFull ? "Vč. vyrovnání" : "Přebroušení" },
+    { category: "Malby+omítky", estimatedCost: Math.round(area * (needsFull ? 800 : needsMedium ? 500 : 300)), note: needsFull ? "Nové" : "Přemalování" },
+    { category: "Koupelna", estimatedCost: needsFull ? 250000 : needsMedium ? 180000 : 80000, note: needsFull ? "Komplet" : "Částečná" },
+    { category: "Kuchyně", estimatedCost: needsFull ? 200000 : needsMedium ? 140000 : 60000, note: needsFull ? "Nová vč. spotř." : needsMedium ? "Nová linka" : "Úpravy" },
+    { category: "Okna+dveře", estimatedCost: Math.round(area * (needsFull ? 1200 : needsMedium ? 600 : 200)), note: needsFull ? "Nová" : "Částečná" },
+  ];
+}
+
+function calcTargetPrice(askingPrice: number, arv: number, renovationCost: number) {
+  const TARGET_ROI = 0.15;
+  const taxRate = 0.15;
+  const grossTargetRatio = TARGET_ROI / (1 - taxRate);
+  const targetMultiple = 1 + grossTargetRatio;
+  const targetTotalCost = arv / targetMultiple;
+  const acqCostRate = 0.04;
+  const holdingCostRate = 0.005 * 6;
+  const fixedAcqCosts = 33000;
+  const sellingCosts = Math.round(arv * 0.04) + 45000;
+  const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
+  const targetPurchasePrice = Math.round(
+    (targetTotalCost - (1 + holdingCostRate) * renovationCost - sellingCosts - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
+  );
+  const priceReductionNeeded = Math.max(0, askingPrice - targetPurchasePrice);
+  const priceReductionPct = askingPrice > 0 ? Math.round((priceReductionNeeded / askingPrice) * 100 * 10) / 10 : 0;
+  return { targetPurchasePrice, priceReductionNeeded, priceReductionPct, targetROI: Math.round(TARGET_ROI * 100) };
+}
+
 const PORTAL_LABELS: Record<string, string> = {
   sreality: "Sreality.cz",
   bezrealitky: "Bezrealitky.cz",
@@ -93,6 +168,18 @@ export default async function PropertyDetailPage({
   const imageUrls: string[] = property.imageUrls ? JSON.parse(property.imageUrls) : [];
   const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
   const hasRealUrl = property.url && property.url.startsWith("http");
+
+  const targetPrice = analysis?.arv && analysis?.renovationCost
+    ? calcTargetPrice(property.price, analysis.arv, analysis.renovationCost)
+    : null;
+
+  const scenarios = analysis?.marketPriceMax && property.area
+    ? calcScenarios(property.price, property.area, property.condition, analysis.marketPriceMax)
+    : null;
+
+  const renovationItems = property.area
+    ? calcRenovationItems(property.area, property.condition)
+    : null;
 
   let aiReport: {
     summary: string;
@@ -294,6 +381,65 @@ export default async function PropertyDetailPage({
               )}
 
               {/* Location & Price Analysis */}
+              {/* Target price */}
+              {targetPrice && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <h2 className="font-semibold tracking-tight text-sm mb-3">Cenový cíl</h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted">Aktuální cena</span>
+                      <span className="font-mono font-medium">{(property.price / 1000000).toFixed(1)} mil. Kč</span>
+                    </div>
+                    <div className="relative h-2 rounded-full bg-white/[0.04] overflow-hidden">
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full bg-emerald-500/40"
+                        style={{ width: `${Math.min(100, (targetPrice.targetPurchasePrice / property.price) * 100)}%` }}
+                      />
+                      <div
+                        className="absolute inset-y-0 rounded-full bg-white/20"
+                        style={{
+                          left: `${Math.min(100, (targetPrice.targetPurchasePrice / property.price) * 100)}%`,
+                          width: `${Math.min(100, Math.max(2, ((property.price - targetPrice.targetPurchasePrice) / property.price) * 100))}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted">Cílový nákup</span>
+                      <span className="font-mono font-medium text-emerald-400">
+                        {(targetPrice.targetPurchasePrice / 1000000).toFixed(1)} mil. Kč
+                      </span>
+                    </div>
+                    {targetPrice.priceReductionNeeded > 0 && (
+                      <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3 mt-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted">Potřebná sleva</span>
+                          <span className="font-mono font-semibold text-amber-400">
+                            {(targetPrice.priceReductionNeeded / 1000000).toFixed(1)} mil. Kč
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs mt-1">
+                          <span className="text-muted">Z celkové ceny</span>
+                          <span className={`font-mono font-semibold ${
+                            targetPrice.priceReductionPct > 15 ? "text-red-400" :
+                            targetPrice.priceReductionPct > 5 ? "text-amber-400" :
+                            "text-emerald-400"
+                          }`}>
+                            −{targetPrice.priceReductionPct.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs mt-1">
+                          <span className="text-muted">Cílová marže</span>
+                          <span className="font-mono font-semibold text-emerald-400">
+                            {targetPrice.targetROI.toFixed(0)} % ROI
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Location & Price Analysis */}
               {analysis.locationCity && (
                 <div className="rounded-2xl border border-border/50 bg-card p-5">
                   <h2 className="font-semibold tracking-tight text-sm mb-3">Lokalita & cena</h2>
@@ -374,6 +520,59 @@ export default async function PropertyDetailPage({
                   ))}
                 </div>
               </div>
+
+              {/* 3 Scenarios */}
+              {scenarios && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <h2 className="font-semibold tracking-tight text-sm mb-3">3 scénáře</h2>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(["optimistic", "conservative", "pessimistic"] as const).map((key) => {
+                      const s = scenarios[key];
+                      return (
+                        <div key={key} className={`rounded-xl border p-3 text-xs space-y-1.5 ${
+                          key === "optimistic" ? "border-emerald-500/20 bg-emerald-500/5" :
+                          key === "conservative" ? "border-accent/20 bg-accent/5" :
+                          "border-red-500/20 bg-red-500/5"
+                        }`}>
+                          <p className="font-semibold text-[11px] tracking-tight uppercase">
+                            {key === "optimistic" ? "Optimistický" : key === "conservative" ? "Konzervativní" : "Pesimistický"}
+                          </p>
+                          <div className="flex justify-between"><span className="text-muted">ARV</span><span className="font-mono">{(s.arv / 1000000).toFixed(1)} mil.</span></div>
+                          <div className="flex justify-between"><span className="text-muted">Rekonstrukce</span><span className="font-mono">{(s.renovationCost / 1000000).toFixed(1)} mil.</span></div>
+                          <div className="flex justify-between"><span className="text-muted">Zisk</span><span className={`font-mono ${s.netProfit > 0 ? "text-emerald-400" : "text-red-400"}`}>{(s.netProfit / 1000000).toFixed(1)} mil.</span></div>
+                          <div className="flex justify-between"><span className="text-muted">ROI</span><span className={`font-mono ${s.roi > 10 ? "text-emerald-400" : s.roi > 0 ? "text-amber-400" : "text-red-400"}`}>{s.roi.toFixed(1)}%</span></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Renovation Items */}
+              {renovationItems && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <h2 className="font-semibold tracking-tight text-sm mb-3">Odhad rekonstrukce ({renovationItems.reduce((s, i) => s + i.estimatedCost, 0).toLocaleString()} Kč)</h2>
+                  <div className="space-y-1.5">
+                    {renovationItems.map((item, i) => {
+                      const pct = item.estimatedCost / renovationItems.reduce((s, i) => s + i.estimatedCost, 0) * 100;
+                      return (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-medium truncate">{item.category}</span>
+                              <span className="font-mono text-muted shrink-0 ml-2">{item.estimatedCost.toLocaleString()} Kč</span>
+                            </div>
+                            <div className="h-1 rounded-full bg-border/30 overflow-hidden mt-1">
+                              <div className="h-full rounded-full bg-accent/60" style={{ width: `${Math.min(pct, 100)}%` }} />
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-muted w-20 text-right shrink-0">{item.note}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Red Flags */}
               {analysis.redFlagsJson && (() => {
@@ -533,6 +732,21 @@ export default async function PropertyDetailPage({
           )}
 
           {/* Contact info */}
+          {/* Create Deal */}
+          {analysis && (
+            <form action="/api/deals" method="POST" className="block">
+              <input type="hidden" name="propertyId" value={property.id} />
+              <input type="hidden" name="purchasePrice" value={property.price} />
+              <input type="hidden" name="renovationBudget" value={analysis.renovationCost ?? 0} />
+              <button type="submit"
+                className="w-full rounded-2xl border border-accent/30 bg-accent/5 p-4 hover:bg-accent/10 transition-all text-left group"
+              >
+                <p className="font-semibold tracking-tight text-sm group-hover:text-accent transition-colors">Vytvořit projekt</p>
+                <p className="text-xs text-muted mt-0.5">Založit nový reflip projekt z tohoto inzerátu</p>
+              </button>
+            </form>
+          )}
+
           {(property.contactName || property.contactPhone || property.contactEmail) && (
             <div className="rounded-2xl border border-border/50 bg-card p-5">
               <h2 className="font-semibold tracking-tight text-sm mb-3">Kontakt</h2>

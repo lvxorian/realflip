@@ -1,8 +1,7 @@
-import { FullAnalysis, RedFlag, DetailedCosts, BuildingType, EnergyLabel, OccupancyStatus, LocationCategory } from "./types";
+import { FullAnalysis, RedFlag, DetailedCosts, BuildingType, EnergyLabel, OccupancyStatus, LocationCategory, RenovationItem, ScenarioResult, CitySegments } from "./types";
 import { classifyLocation } from "./location";
-import { EUPHEMISMS } from "./market-data";
+import { EUPHEMISMS, MARKET_DATA } from "./market-data";
 import { RawListing } from "../scraping/types";
-import { calculateFlip } from "./flip-calculator";
 
 function detectBuildingType(description: string | null, title: string | null): BuildingType {
   const text = [description, title].filter(Boolean).join(" ").toLowerCase();
@@ -73,18 +72,35 @@ function detectRedFlags(description: string | null, title: string | null, priceP
   return flags;
 }
 
-function calculateOverpricing(
-  pricePerSqm: number,
+function detectSegmentKey(condition: string | null, buildingType: BuildingType): keyof CitySegments {
+  const needsRenov = condition === "original" || condition === "dilapidated";
+  const isPanel = buildingType === "panel";
+  if (isPanel && needsRenov) return "panel_needs_renov";
+  if (isPanel) return "panel_renovated";
+  if (needsRenov) return "brick_needs_renov";
+  return "brick_renovated";
+}
+
+function calculateMarketPriceRange(
+  segments: CitySegments | null,
   locationCategory: LocationCategory,
   buildingType: BuildingType,
   condition: string | null
-): { low: number; high: number; overpricingPct: number } {
+): { low: number; high: number } {
+  if (segments) {
+    const key = detectSegmentKey(condition, buildingType);
+    const range = segments[key];
+    if (locationCategory === "risky") {
+      return { low: Math.round(range.low * 0.5), high: Math.round(range.high * 0.5) };
+    }
+    return range;
+  }
+
   const useRenovated = condition === "new" || condition === "renovated" || condition === "good";
   const useBrick = buildingType === "brick" || buildingType === "new";
   const other = buildingType === "panel" || buildingType === null;
 
   let low = 0, high = 0;
-
   if (useBrick) {
     low = useRenovated ? 130000 : 110000;
     high = useRenovated ? 220000 : 160000;
@@ -98,13 +114,8 @@ function calculateOverpricing(
     high = Math.round(high * 0.5);
   }
 
-  if (low === 0) {
-    low = 30000;
-    high = 80000;
-  }
-
-  const overpricingPct = high > 0 ? ((pricePerSqm - high) / high) * 100 : 0;
-  return { low, high, overpricingPct };
+  if (low === 0) { low = 30000; high = 80000; }
+  return { low, high };
 }
 
 function rateSegment(area: number | null, rooms: string | null): "best" | "good" | "ok" | "niche" | "poor" {
@@ -162,23 +173,89 @@ function calculateRentalYield(price: number, area: number | null): number | null
   return (annualRent / price) * 100;
 }
 
+function calculateItemizedRenovation(area: number, condition: string | null): RenovationItem[] {
+  const needsFull = condition === "original" || condition === "dilapidated";
+  const needsMedium = condition === "good" || !condition;
+  const needsLight = condition === "new" || condition === "renovated";
+
+  const items: RenovationItem[] = [];
+
+  // Bourání
+  items.push({ category: "Bourání a přípravné práce", estimatedCost: Math.round(area * (needsFull ? 600 : 300)), note: needsFull ? "Plné bourání" : "Částečné úpravy" });
+
+  // Elektrika
+  items.push({ category: "Elektroinstalace", estimatedCost: Math.round(area * (needsFull ? 1800 : needsMedium ? 1200 : 400)), note: needsFull ? "Kompletní nová" : needsMedium ? "Částečná" : "Drobné úpravy" });
+
+  // Voda + topení
+  items.push({ category: "Vodoinstalace a topení", estimatedCost: Math.round(area * (needsFull ? 2000 : needsMedium ? 1400 : 500)), note: needsFull ? "Kompletní nové" : needsMedium ? "Částečná" : "Drobné úpravy" });
+
+  // Podlahy
+  items.push({ category: "Podlahy", estimatedCost: Math.round(area * (needsFull ? 1500 : needsMedium ? 1000 : 600)), note: needsFull ? "Včetně vyrovnání" : "Přebroušení/položení" });
+
+  // Malby + omítky
+  items.push({ category: "Malby a omítky", estimatedCost: Math.round(area * (needsFull ? 800 : needsMedium ? 500 : 300)), note: needsFull ? "Nové omítky" : "Přemalování" });
+
+  // Koupelna (estimated as flat cost based on condition)
+  const bathroomCost = needsFull ? 250000 : needsMedium ? 180000 : 80000;
+  items.push({ category: "Koupelna", estimatedCost: bathroomCost, note: needsFull ? "Kompletní rekonstrukce" : "Částečná" });
+
+  // Kuchyně
+  const kitchenCost = needsFull ? 200000 : needsMedium ? 140000 : 60000;
+  items.push({ category: "Kuchyně", estimatedCost: kitchenCost, note: needsFull ? "Nová kuchyně vč. spotřebičů" : needsMedium ? "Nová linka" : "Drobné úpravy" });
+
+  // Okna + dveře
+  items.push({ category: "Okna a dveře", estimatedCost: Math.round(area * (needsFull ? 1200 : needsMedium ? 600 : 200)), note: needsFull ? "Nová okna" : needsMedium ? "Částečná výměna" : "Údržba" });
+
+  return items;
+}
+
+function calculateScenario(
+  label: string,
+  purchasePrice: number,
+  area: number,
+  condition: string | null,
+  marketPriceHigh: number,
+  renovationMultiplier: number,
+  arvMultiplier: number,
+  timelineMonths: number
+): ScenarioResult {
+  const items = calculateItemizedRenovation(area, condition);
+  const renovationCost = Math.round(items.reduce((s, i) => s + i.estimatedCost, 0) * renovationMultiplier);
+  const arv = Math.round(marketPriceHigh * area * arvMultiplier);
+
+  const commission = Math.round(purchasePrice * 0.04);
+  const legalFees = 25000;
+  const appraisalFee = 8000;
+  const holdingCosts = Math.round((purchasePrice + renovationCost) * 0.005 * timelineMonths);
+  const sellingCommission = Math.round(arv * 0.04);
+  const homeStaging = 35000;
+  const certificates = 10000;
+  const grossProfit = arv - purchasePrice - commission - legalFees - appraisalFee - renovationCost - holdingCosts - sellingCommission - homeStaging - certificates;
+  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.15) : 0;
+  const totalCost = purchasePrice + commission + legalFees + appraisalFee + renovationCost + holdingCosts + sellingCommission + homeStaging + certificates + incomeTax;
+  const netProfit = arv - totalCost;
+  const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
+  const annualizedRoi = timelineMonths > 0 ? (roi / timelineMonths) * 12 : 0;
+
+  return { label, renovationCost, arv, totalCost, netProfit, roi: Math.round(roi * 10) / 10, annualizedRoi: Math.round(annualizedRoi * 10) / 10 };
+}
+
 function determineVerdict(
   investmentScore: number,
   locationCategory: LocationCategory,
   overpricingPct: number,
   occupancy: OccupancyStatus,
   redFlags: RedFlag[],
-  netProfit: number,
-  roi: number
+  scenarios: FullAnalysis["scenarios"]
 ): { verdictLevel: FullAnalysis["verdictLevel"]; recommendation: "buy" | "consider" | "skip"; summary: string } {
   const highRedFlags = redFlags.filter((f) => f.severity === "high").length;
-  const hasOccupied = occupancy === "occupied";
+  const { conservative } = scenarios;
 
   if (occupancy === "occupied" && locationCategory !== "premium") {
     return {
       verdictLevel: "categoricalReject",
       recommendation: "skip",
-      summary: "Obsazeno nájemníkem v nerpémiové lokalitě — reflip nemožný bez nákladného vystěhování",
+      summary: "Obsazeno nájemníkem v neprémiové lokalitě — reflip nemožný bez nákladného vystěhování",
     };
   }
 
@@ -200,31 +277,31 @@ function determineVerdict(
     };
   }
 
-  if (investmentScore >= 70 && overpricingPct <= 0 && occupancy === "free" && highRedFlags === 0) {
+  if (conservative.roi >= 15 && overpricingPct <= 0 && occupancy === "free" && highRedFlags === 0) {
     return {
       verdictLevel: "strongBuy",
       recommendation: "buy",
-      summary: `Silný kandidát — skóre ${investmentScore}, pod tržní cenou, volný byt, prémiová lokalita`,
+      summary: `Silný kandidát — skóre ${investmentScore}, konzervativní ROI ${conservative.roi.toFixed(1)} %, volný byt`,
     };
   }
 
-  if (investmentScore >= 50 && overpricingPct <= 10 && occupancy !== "occupied") {
+  if (conservative.roi >= 10 && overpricingPct <= 10 && occupancy !== "occupied") {
     return {
       verdictLevel: "buy",
       recommendation: "buy",
-      summary: `Doporučeno ke koupi — skóre ${investmentScore}, marže ${roi.toFixed(1)} %`,
+      summary: `Doporučeno ke koupi — skóre ${investmentScore}, marže ${conservative.roi.toFixed(1)} %`,
     };
   }
 
-  if (investmentScore >= 30 && roi >= 5) {
+  if (conservative.roi >= 5) {
     return {
       verdictLevel: "consider",
       recommendation: "consider",
-      summary: `Zvažit s opatrností — skóre ${investmentScore}, marže ${roi.toFixed(1)} %, nutná due diligence`,
+      summary: `Zvažit s opatrností — skóre ${investmentScore}, marže ${conservative.roi.toFixed(1)} %, nutná due diligence`,
     };
   }
 
-  if (netProfit <= 0) {
+  if (conservative.netProfit <= 0) {
     return {
       verdictLevel: "categoricalReject",
       recommendation: "skip",
@@ -235,7 +312,7 @@ function determineVerdict(
   return {
     verdictLevel: "dontBuy",
     recommendation: "skip",
-    summary: `Nízká marže (${roi.toFixed(1)} %) nebo příliš mnoho rizikových signálů`,
+    summary: `Nízká marže (${conservative.roi.toFixed(1)} %) nebo příliš mnoho rizikových signálů`,
   };
 }
 
@@ -243,6 +320,7 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   const { price, area, rooms, condition, description, title, address, yearBuilt } = listing;
 
   // Krok 1: Základní parametry
+  const usableArea = area ?? 70;
   const pricePerSqm = area && area > 0 ? Math.round(price / area) : 0;
   const missingFields: string[] = [];
   if (!area) missingFields.push("užitná plocha");
@@ -256,8 +334,10 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   // Krok 2: Lokalita
   const location = classifyLocation(address, title);
 
-  // Krok 3: Cenová analýza
-  const overpricing = calculateOverpricing(pricePerSqm, location.category, detectBuildingType(description, title), condition);
+  // Krok 3: Cenová analýza — POUŽÍVÁ MARKET_DATA SEGMENTY
+  const buildingType = detectBuildingType(description, title);
+  const marketRange = calculateMarketPriceRange(location.segments, location.category, buildingType, condition);
+  const overpricingPct = marketRange.high > 0 ? ((pricePerSqm - marketRange.high) / marketRange.high) * 100 : 0;
 
   // Krok 4: Dispozice
   const segmentRating = rateSegment(area, rooms);
@@ -266,33 +346,35 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   const occupancy = detectOccupancy(description, title);
 
   // Krok 6: Technický stav
-  const buildingType = detectBuildingType(description, title);
   const energyLabel = detectEnergyLabel(description);
   const technicalScore = calculateTechnicalScore(condition, energyLabel, yearBuilt, buildingType);
 
   // Krok 7: Red flags
-  const redFlags = detectRedFlags(description, title, pricePerSqm, overpricing.overpricingPct, location.category);
+  const redFlags = detectRedFlags(description, title, pricePerSqm, overpricingPct, location.category);
 
-  // Krok 8: Full kalkulace
-  const flipInput = {
-    purchasePrice: price,
-    area: area ?? 70,
-    condition: (condition as any) ?? "good",
-    renovationLevel: "medium" as const,
-    timelineMonths: 6,
-    marketValue: Math.round(price * 1.15),
+  // Krok 8: Itemizovaná rekonstrukce
+  const renovationItems = calculateItemizedRenovation(usableArea, condition);
+
+  // Krok 9: 3 scénáře
+  const marketPriceHigh = marketRange.high;
+  const scenarios = {
+    optimistic: calculateScenario("Optimistický", price, usableArea, condition, marketPriceHigh, 0.85, 1.2, 4),
+    conservative: calculateScenario("Konzervativní", price, usableArea, condition, marketPriceHigh, 1.0, 1.05, 6),
+    pessimistic: calculateScenario("Pesimistický", price, usableArea, condition, marketPriceHigh, 1.3, 0.9, 9),
   };
-  const flip = calculateFlip(flipInput);
+
+  // Hlavní kalkulace používá konzervativní scénář
+  const flip = scenarios.conservative;
+  const renovationTotal = flip.renovationCost;
 
   const commission = Math.round(price * 0.04);
   const legalFees = 25000;
   const appraisalFee = 8000;
-  const renovationTotal = flip.renovationCost;
-  const holdingCosts = Math.round(flip.totalCost * 0.005 * 6);
+  const holdingCosts = Math.round((price + renovationTotal) * 0.005 * 6);
   const sellingCommission = Math.round(flip.arv * 0.04);
   const homeStaging = 35000;
   const certificates = 10000;
-  const grossProfit = flip.arv - flip.totalCost;
+  const grossProfit = flip.arv - price - commission - legalFees - appraisalFee - renovationTotal - holdingCosts - sellingCommission - homeStaging - certificates;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.15) : 0;
 
   const costs: DetailedCosts = {
@@ -311,9 +393,44 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
 
   const netProfit = flip.arv - costs.totalCost;
   const roi = costs.totalCost > 0 ? (netProfit / costs.totalCost) * 100 : 0;
+  const annualizedRoi = roi / 6 * 12;
 
-  // Krok 9: Alternativy
-  const rentalYield = calculateRentalYield(price, area ?? 70);
+  // Investment score
+  const undervaluationPct = marketRange.high > 0 ? ((marketRange.high - pricePerSqm) / marketRange.high) * 100 : 0;
+  const scoreComponents = {
+    undervaluation: Math.min(Math.max(0, (undervaluationPct / 30) * 40), 40),
+    roi: Math.min(Math.max(0, (flip.roi / 30) * 25), 25),
+    timeline: Math.max(0, 15 - 6),
+    condition: condition === "original" || condition === "dilapidated" ? 10 : condition === "good" ? 5 : 0,
+    marketConfidence: marketRange.high > 0 ? 10 : 0,
+  };
+  const investmentScore = Math.round(
+    scoreComponents.undervaluation +
+    scoreComponents.roi +
+    scoreComponents.timeline +
+    scoreComponents.condition +
+    scoreComponents.marketConfidence
+  );
+
+  // Cílový nákup
+  const TARGET_ROI = 0.15;
+  const taxRate = 0.15;
+  const grossTargetRatio = TARGET_ROI / (1 - taxRate);
+  const targetMultiple = 1 + grossTargetRatio;
+  const targetTotalCost = flip.arv / targetMultiple;
+  const acqCostRate = 0.04;
+  const holdingCostRate = 0.005 * 6;
+  const fixedAcqCosts = 33000;
+  const sellingCostsCalc = Math.round(flip.arv * 0.04) + 45000;
+  const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
+  const targetPurchasePrice = Math.round(
+    (targetTotalCost - (1 + holdingCostRate) * renovationTotal - sellingCostsCalc - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
+  );
+  const priceReductionNeeded = Math.max(0, price - targetPurchasePrice);
+  const priceReductionPct = price > 0 ? Math.round((priceReductionNeeded / price) * 100 * 10) / 10 : 0;
+
+  // Krok 10: Alternativy
+  const rentalYield = calculateRentalYield(price, usableArea);
   const alternativeStrategies: string[] = [];
   if (rentalYield && rentalYield >= 5) {
     alternativeStrategies.push(`Dlouhodobý pronájem (výnosnost ${rentalYield.toFixed(1)} % p.a.)`);
@@ -325,24 +442,23 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
     alternativeStrategies.push("Krátkodobý pronájem (Airbnb) — ověřit povolení SVJ a regulace");
   }
 
-  // Krok 10: Verdikt
+  // Krok 11: Verdikt
   const { verdictLevel, recommendation, summary } = determineVerdict(
-    flip.investmentScore,
+    investmentScore,
     location.category,
-    overpricing.overpricingPct,
+    overpricingPct,
     occupancy,
     redFlags,
-    netProfit,
-    roi
+    scenarios
   );
 
   return {
     pricePerSqm,
     missingFields,
     location,
-    marketPricePerSqmLow: overpricing.low,
-    marketPricePerSqmHigh: overpricing.high,
-    overpricingPct: Math.round(overpricing.overpricingPct * 10) / 10,
+    marketPricePerSqmLow: marketRange.low,
+    marketPricePerSqmHigh: marketRange.high,
+    overpricingPct: Math.round(overpricingPct * 10) / 10,
     segmentRating,
     occupancy,
     buildingType,
@@ -353,14 +469,20 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
     arv: flip.arv,
     netProfit,
     roi: Math.round(roi * 10) / 10,
-    annualizedRoi: Math.round(flip.annualizedRoi * 10) / 10,
-    cashOnCash: Math.round(flip.cashOnCash * 10) / 10,
-    breakEvenPrice: flip.breakEvenPrice,
+    annualizedRoi: Math.round(annualizedRoi * 10) / 10,
+    cashOnCash: costs.purchasePrice > 0 ? Math.round((netProfit / costs.purchasePrice) * 100 * 10) / 10 : 0,
+    breakEvenPrice: Math.round(costs.totalCost - netProfit * 0.5),
     rentalYield: rentalYield ? Math.round(rentalYield * 10) / 10 : null,
     alternativeStrategies,
-    investmentScore: flip.investmentScore,
+    investmentScore,
     recommendation,
     verdictLevel,
     verdictSummary: summary,
+    targetPurchasePrice,
+    priceReductionNeeded,
+    priceReductionPct,
+    targetROI: TARGET_ROI * 100,
+    scenarios,
+    renovationItems,
   };
 }

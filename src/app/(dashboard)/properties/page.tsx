@@ -17,8 +17,13 @@ export default async function PropertiesPage() {
       address: properties.address,
       imageUrls: properties.imageUrls,
       firstSeen: properties.firstSeen,
+      portalName: properties.portalName,
+      condition: properties.condition,
       score: propertyAnalysis.investmentScore,
       recommendation: propertyAnalysis.recommendation,
+      locationCity: propertyAnalysis.locationCity,
+      verdictLevel: propertyAnalysis.verdictLevel,
+      roi: propertyAnalysis.roi,
     })
     .from(properties)
     .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
@@ -34,6 +39,11 @@ export default async function PropertiesPage() {
     area: r.area,
     rooms: r.rooms,
     address: r.address,
+    portalName: r.portalName,
+    condition: r.condition,
+    locationCity: r.locationCity,
+    verdictLevel: r.verdictLevel,
+    roi: r.roi,
     score: r.score,
     recommendation: r.recommendation,
     daysOnMarket: Math.max(

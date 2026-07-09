@@ -52,6 +52,22 @@ export interface DetailedCosts {
   totalCost: number;
 }
 
+export interface RenovationItem {
+  category: string;
+  estimatedCost: number;
+  note: string;
+}
+
+export interface ScenarioResult {
+  label: string;
+  renovationCost: number;
+  arv: number;
+  totalCost: number;
+  netProfit: number;
+  roi: number;
+  annualizedRoi: number;
+}
+
 export interface FullAnalysis {
   pricePerSqm: number;
   missingFields: string[];
@@ -78,4 +94,20 @@ export interface FullAnalysis {
   recommendation: "buy" | "consider" | "skip";
   verdictLevel: VerdictLevel;
   verdictSummary: string;
+
+  // Target price for 15% flip margin
+  targetPurchasePrice: number;
+  priceReductionNeeded: number;
+  priceReductionPct: number;
+  targetROI: number;
+
+  // Multi-scenario analysis
+  scenarios: {
+    optimistic: ScenarioResult;
+    conservative: ScenarioResult;
+    pessimistic: ScenarioResult;
+  };
+
+  // Itemized renovation estimate
+  renovationItems: RenovationItem[];
 }
