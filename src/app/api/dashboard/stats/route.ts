@@ -88,6 +88,7 @@ export async function GET() {
           area: p.area ?? 0,
           status: statusLabel(daysOnMarket, analysis?.investmentScore ?? null),
           days: daysOnMarket,
+          imageUrls: p.imageUrls ? JSON.parse(p.imageUrls) : [],
         };
       });
 

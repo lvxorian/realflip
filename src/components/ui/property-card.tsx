@@ -20,6 +20,7 @@ interface PropertyCardProps {
   rooms?: string;
   days?: number;
   index?: number;
+  imageUrl?: string;
 }
 
 export function PropertyCard({
@@ -34,6 +35,7 @@ export function PropertyCard({
   rooms,
   days,
   index = 0,
+  imageUrl,
 }: PropertyCardProps) {
   const statusVariant =
     status === "Nový" ? "success" :
@@ -49,13 +51,23 @@ export function PropertyCard({
         transition={{ delay: index * 0.04, type: "spring" as const, stiffness: 100, damping: 20 }}
         className="group rounded-2xl border border-border/50 bg-card overflow-hidden hover:bg-card-hover hover:border-accent/20 transition-all duration-300 cursor-pointer h-full flex flex-col"
       >
-        {/* Image placeholder */}
-        <div className="relative h-40 property-image-shimmer flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
-          <div className="flex items-center gap-1.5 text-accent/30 text-sm font-mono">
-            <span className="text-2xl">{score}</span>
-            <span className="text-[10px]">skóre</span>
-          </div>
+        {/* Image */}
+        <div className="relative h-40 overflow-hidden">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={title}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full property-image-shimmer flex items-center justify-center">
+              <div className="flex items-center gap-1.5 text-accent/30 text-sm font-mono">
+                <span className="text-2xl">{score}</span>
+                <span className="text-[10px]">skóre</span>
+              </div>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />
           <div className="absolute top-3 right-3">
             <ScoreGauge score={score} size={36} strokeWidth={2.5} />
           </div>

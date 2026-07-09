@@ -149,6 +149,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                   rooms={p.rooms ?? undefined}
                   days={p.daysOnMarket}
                   index={i}
+                  imageUrl={p.imageUrls?.[0]}
                 />
               ))}
             </motion.div>

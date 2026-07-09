@@ -40,6 +40,7 @@ interface DashboardData {
     area: number;
     status: string;
     days: number;
+    imageUrls: string[];
   }[];
   activities: {
     id: string;
@@ -369,12 +370,18 @@ export default function DashboardPage() {
                   transition={{ delay: 0.3 + i * 0.05 }}
                   className="rounded-2xl border border-border/50 bg-card overflow-hidden hover:bg-card-hover hover:border-accent/20 transition-all cursor-pointer group"
                 >
-                  <div className="relative h-28 property-image-shimmer flex items-center justify-center">
-                    <ScoreGauge
-                      score={p.score}
-                      size={32}
-                      strokeWidth={2.5}
-                    />
+                  <div className="relative h-28 overflow-hidden">
+                    {p.imageUrls?.[0] ? (
+                      <img
+                        src={p.imageUrls[0]}
+                        alt={p.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full property-image-shimmer flex items-center justify-center">
+                        <ScoreGauge score={p.score} size={32} strokeWidth={2.5} />
+                      </div>
+                    )}
                     <Badge
                       variant={
                         p.status === "Nový"
