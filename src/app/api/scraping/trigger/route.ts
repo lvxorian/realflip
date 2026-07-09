@@ -12,7 +12,9 @@ export async function POST() {
     const { BazosAdapter } = await import("@/lib/scraping/adapters/bazos");
     const { MmrealityAdapter } = await import("@/lib/scraping/adapters/mmreality");
     const { AnnonceAdapter } = await import("@/lib/scraping/adapters/annonce");
-
+    const { RealityCzAdapter } = await import("@/lib/scraping/adapters/reality-cz");
+    const { HyperinzerceAdapter } = await import("@/lib/scraping/adapters/hyperinzerce");
+ 
     const orchestrator = new ScrapingOrchestrator((portal, found, errors) => {
       console.log(`[scraping] ${portal}: ${found} listings, ${errors.length} errors`);
     });
@@ -20,6 +22,8 @@ export async function POST() {
     orchestrator.registerAdapter("bazos", new BazosAdapter());
     orchestrator.registerAdapter("mmreality", new MmrealityAdapter());
     orchestrator.registerAdapter("annonce", new AnnonceAdapter());
+    orchestrator.registerAdapter("reality-cz", new RealityCzAdapter());
+    orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
 
     const result = await orchestrator.crawlAll();
 
