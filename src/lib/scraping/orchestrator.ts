@@ -2,8 +2,9 @@ import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing } from "./types";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, scrapingJobs, activityLog, priceHistory } from "@/db/schema";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { calculateFlip } from "@/lib/analysis/flip-calculator";
 import { generateId } from "@/lib/utils";
 
 export class ScrapingOrchestrator {
@@ -167,6 +168,35 @@ export class ScrapingOrchestrator {
         propertyId: id,
         price: listing.price,
         recordedAt: listing.publishedAt || new Date(),
+      });
+
+      // Auto-analyze with flip calculator
+      const analysis = calculateFlip({
+        purchasePrice: listing.price,
+        area: listing.area ?? 70,
+        condition: (listing.condition as any) ?? "good",
+        renovationLevel: "medium",
+        timelineMonths: 6,
+        marketValue: Math.round(listing.price * 1.15),
+      });
+
+      await db.insert(propertyAnalysis).values({
+        id: generateId(),
+        propertyId: id,
+        marketValue: analysis.marketValue,
+        undervaluationPct: analysis.undervaluationPct,
+        investmentScore: analysis.investmentScore,
+        arv: analysis.arv,
+        renovationCost: analysis.renovationCost,
+        totalCost: analysis.totalCost,
+        netProfit: analysis.netProfit,
+        roi: analysis.roi,
+        annualizedRoi: analysis.annualizedRoi,
+        cashOnCash: analysis.cashOnCash,
+        breakEvenPrice: analysis.breakEvenPrice,
+        recommendation: analysis.recommendation,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       // Log new property activity
