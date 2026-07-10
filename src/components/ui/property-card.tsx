@@ -21,6 +21,7 @@ interface PropertyCardProps {
   days?: number;
   index?: number;
   imageUrl?: string;
+  undervaluationPct?: number;
 }
 
 export function PropertyCard({
@@ -36,12 +37,15 @@ export function PropertyCard({
   days,
   index = 0,
   imageUrl,
+  undervaluationPct,
 }: PropertyCardProps) {
   const statusVariant =
     status === "Nový" ? "success" :
     status === "Cenový drop" ? "warning" :
     status === "Sledovaný" ? "default" :
     "secondary";
+
+  const isUndervalued = undervaluationPct !== undefined && undervaluationPct > 0;
 
   return (
     <Link href={`/properties/${id}`}>
@@ -71,11 +75,14 @@ export function PropertyCard({
           <div className="absolute top-3 right-3">
             <ScoreGauge score={score} size={36} strokeWidth={2.5} />
           </div>
-          {status && (
-            <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 flex flex-col gap-1">
+            {status && (
               <Badge variant={statusVariant} size="sm">{status}</Badge>
-            </div>
-          )}
+            )}
+            {isUndervalued && (
+              <Badge variant="success" size="sm">Podhodnoceno {Math.round(undervaluationPct!)}%</Badge>
+            )}
+          </div>
         </div>
 
         <div className="p-4 flex-1 flex flex-col">

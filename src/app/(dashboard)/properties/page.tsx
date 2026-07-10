@@ -24,6 +24,9 @@ export default async function PropertiesPage() {
       locationCity: propertyAnalysis.locationCity,
       verdictLevel: propertyAnalysis.verdictLevel,
       roi: propertyAnalysis.roi,
+      undervaluationPct: propertyAnalysis.undervaluationPct,
+      overpricingPct: propertyAnalysis.overpricingPct,
+      marketPriceMax: propertyAnalysis.marketPriceMax,
     })
     .from(properties)
     .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
@@ -46,6 +49,9 @@ export default async function PropertiesPage() {
     roi: r.roi,
     score: r.score,
     recommendation: r.recommendation,
+    undervaluationPct: r.undervaluationPct,
+    overpricingPct: r.overpricingPct,
+    marketPriceMax: r.marketPriceMax,
     daysOnMarket: Math.max(
       0,
       Math.floor((now - new Date(r.firstSeen).getTime()) / 86400000)

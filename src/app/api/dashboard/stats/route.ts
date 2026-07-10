@@ -98,6 +98,27 @@ export async function GET() {
       .orderBy(desc(activityLog.createdAt))
       .limit(5);
 
+    const topUndervalued = allAnalysis
+      .filter((a) => a.undervaluationPct > 0)
+      .sort((a, b) => b.undervaluationPct - a.undervaluationPct)
+      .slice(0, 8)
+      .map((a) => {
+        const p = allProperties.find((prop) => prop.id === a.propertyId);
+        if (!p) return null;
+        return {
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          score: a.investmentScore,
+          undervaluationPct: Math.round(a.undervaluationPct),
+          rooms: p.rooms ?? "—",
+          area: p.area ?? 0,
+          imageUrls: p.imageUrls ? JSON.parse(p.imageUrls) : [],
+          verdictLevel: a.verdictLevel,
+        };
+      })
+      .filter(Boolean);
+
     const activities = recentActivities.map((a) => ({
       id: a.id,
       text: a.message,
@@ -129,7 +150,7 @@ export async function GET() {
       activeDeals,
       avgScore,
       recentProperties: recentProps,
-      activities,
+      topUndervalued,
       portfolioData,
     });
   } catch (error) {
@@ -144,7 +165,7 @@ export async function GET() {
         activeDeals: 0,
         avgScore: 0,
         recentProperties: [],
-        activities: [],
+        topUndervalued: [],
         portfolioData: [],
       }
     );

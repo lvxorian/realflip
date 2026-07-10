@@ -74,6 +74,7 @@ export interface FullAnalysis {
   location: LocationResult;
   marketPricePerSqmLow: number;
   marketPricePerSqmHigh: number;
+  undervaluationPct: number;
   overpricingPct: number;
   segmentRating: "best" | "good" | "ok" | "niche" | "poor";
   occupancy: OccupancyStatus;

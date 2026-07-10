@@ -31,6 +31,17 @@ interface DashboardData {
   totalLeads: number;
   activeDeals: number;
   avgScore: number;
+  topUndervalued: {
+    id: string;
+    title: string;
+    price: number;
+    score: number;
+    undervaluationPct: number;
+    rooms: string;
+    area: number;
+    imageUrls: string[];
+    verdictLevel: string | null;
+  }[];
   recentProperties: {
     id: string;
     title: string;
@@ -346,6 +357,88 @@ export default function DashboardPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Top Undervalued */}
+      {data?.topUndervalued && data.topUndervalued.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold tracking-tight flex items-center gap-2">
+              <TrendDown size={16} weight="duotone" className="text-emerald-400" />
+              Nejpodhodnocenější
+            </h2>
+            <Link
+              href="/properties?sort=mostUndervalued"
+              className="text-xs text-muted hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              Všechny <ArrowRight size={12} weight="bold" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {data.topUndervalued.map((p, i) => (
+              <Link key={p.id} href={`/properties/${p.id}`}>
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="rounded-2xl border border-emerald-500/20 bg-card overflow-hidden hover:bg-card-hover hover:border-emerald-500/40 transition-all cursor-pointer group"
+                >
+                  <div className="relative h-28 overflow-hidden">
+                    {p.imageUrls?.[0] ? (
+                      <img
+                        src={p.imageUrls[0]}
+                        alt={p.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full property-image-shimmer flex items-center justify-center">
+                        <ScoreGauge score={p.score} size={32} strokeWidth={2.5} />
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2">
+                      <Badge variant="success" size="sm">
+                        -{p.undervaluationPct} %
+                      </Badge>
+                    </div>
+                    <div className="absolute top-2 right-2">
+                      <Badge
+                        variant={
+                          p.verdictLevel === "strongBuy" ? "success" :
+                          p.verdictLevel === "buy" ? "default" :
+                          "secondary"
+                        }
+                        size="sm"
+                      >
+                        {p.verdictLevel === "strongBuy" ? "Silně" :
+                         p.verdictLevel === "buy" ? "Dop." :
+                         p.verdictLevel === "consider" ? "Zvážit" : ""}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-xs font-medium truncate group-hover:text-accent transition-colors">
+                      {p.title}
+                    </p>
+                    <div className="flex items-center gap-2 text-[10px] text-muted mt-1">
+                      <span>{p.area} m²</span>
+                      <span className="w-0.5 h-0.5 rounded-full bg-border" />
+                      <span>{p.rooms}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs font-mono font-semibold text-price">
+                        {new Intl.NumberFormat("cs-CZ", {
+                          style: "decimal",
+                          maximumFractionDigits: 0,
+                        }).format(p.price)}{" "}
+                        Kč
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              </Link>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Recent Properties */}
       <motion.div variants={itemVariants}>

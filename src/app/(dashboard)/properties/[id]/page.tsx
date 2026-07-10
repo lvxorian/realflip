@@ -380,6 +380,63 @@ export default async function PropertyDetailPage({
                 </div>
               )}
 
+              {/* Market Price Analysis */}
+              {analysis.marketPriceMin != null && analysis.marketPriceMax != null && (
+                <div className="rounded-2xl border border-border/50 bg-card p-5">
+                  <h2 className="font-semibold tracking-tight text-sm mb-3 flex items-center gap-2">
+                    <CurrencyDollar size={14} className="text-accent" weight="duotone" />
+                    Cenová analýza trhu
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted">Inzerovaná cena</span>
+                      <span className="font-mono font-medium">{(property.price / 1000000).toFixed(1)} mil. Kč</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted">Tržní rozmezí</span>
+                      <span className="font-mono font-medium text-emerald-400">
+                        {(analysis.marketPriceMin * (property.area ?? 1) / 1000000).toFixed(1)} – {(analysis.marketPriceMax * (property.area ?? 1) / 1000000).toFixed(1)} mil. Kč
+                      </span>
+                    </div>
+                    <div className="relative h-2 rounded-full bg-border/30 overflow-hidden">
+                      <div className="absolute inset-y-0 left-0 bg-emerald-500/30 rounded-full" style={{
+                        left: `${Math.max(0, Math.min(90, (analysis.marketPriceMin / analysis.marketPriceMax) * 50))}%`,
+                        width: `${Math.min(50, ((analysis.marketPriceMax - analysis.marketPriceMin) / analysis.marketPriceMax) * 50 + 10)}%`,
+                      }} />
+                      <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-4 bg-white/80 rounded-full" style={{
+                        left: `${Math.min(95, Math.max(5, (property.pricePerSqm ?? analysis.marketPriceMin) / analysis.marketPriceMax * 100))}%`,
+                      }} />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted">
+                      <span>{((analysis.marketPriceMin ?? 0) / 1000).toFixed(0)} tis. Kč/m²</span>
+                      <span className="font-semibold text-white/60">Aktuální</span>
+                      <span>{((analysis.marketPriceMax ?? 0) / 1000).toFixed(0)} tis. Kč/m²</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      {analysis.undervaluationPct != null && analysis.undervaluationPct > 0 && (
+                        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 flex-1">
+                          <ArrowUpRight size={14} className="text-emerald-400" weight="bold" />
+                          <div>
+                            <span className="text-[10px] text-muted">Podhodnoceno</span>
+                            <p className="text-xs font-semibold font-mono text-emerald-400">{Math.round(analysis.undervaluationPct)} %</p>
+                          </div>
+                        </div>
+                      )}
+                      {analysis.overpricingPct != null && analysis.overpricingPct > 0 && (
+                        <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 flex-1">
+                          <WarningCircle size={14} className="text-amber-400" weight="fill" />
+                          <div>
+                            <span className="text-[10px] text-muted">Přeplaceno</span>
+                            <p className="text-xs font-semibold font-mono text-amber-400">{Math.round(analysis.overpricingPct)} %</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Location & Price Analysis */}
               {/* Target price */}
               {targetPrice && (

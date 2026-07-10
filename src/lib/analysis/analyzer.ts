@@ -458,6 +458,7 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
     location,
     marketPricePerSqmLow: marketRange.low,
     marketPricePerSqmHigh: marketRange.high,
+    undervaluationPct: Math.round(undervaluationPct * 10) / 10,
     overpricingPct: Math.round(overpricingPct * 10) / 10,
     segmentRating,
     occupancy,

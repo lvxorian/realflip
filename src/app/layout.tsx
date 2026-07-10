@@ -26,7 +26,8 @@ export default function RootLayout({
   return (
     <html
       lang="cs"
-      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased dark`}
+      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full bg-background text-foreground noise-overlay">
         <Providers>{children}</Providers>

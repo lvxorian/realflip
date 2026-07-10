@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
 import { Input } from "@/components/ui/input";
-import { X } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowDown } from "@phosphor-icons/react/dist/ssr";
 import {
   MagnifyingGlass,
   SquaresFour,
@@ -30,7 +30,12 @@ export interface PropertyListItem {
   verdictLevel: string | null;
   condition: string | null;
   roi: number | null;
+  undervaluationPct?: number | null;
+  overpricingPct?: number | null;
+  marketPriceMax?: number | null;
 }
+
+type SortMode = "newest" | "highestScore" | "mostUndervalued";
 
 interface FilterState {
   city: string;
@@ -76,6 +81,8 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+  const [sort, setSort] = useState<SortMode>("newest");
+  const [undervaluedOnly, setUndervaluedOnly] = useState(false);
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -93,7 +100,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return items.filter((p) => {
+    let result = items.filter((p) => {
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
@@ -110,9 +117,18 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
       if (filters.priceMax && p.price > parseInt(filters.priceMax)) return false;
       if (filters.areaMin && (p.area ?? 0) < parseFloat(filters.areaMin)) return false;
       if (filters.areaMax && (p.area ?? 0) > parseFloat(filters.areaMax)) return false;
+      if (undervaluedOnly && (p.undervaluationPct ?? 0) <= 0) return false;
       return true;
     });
-  }, [items, search, filters]);
+
+    if (sort === "mostUndervalued") {
+      result = result.sort((a, b) => (b.undervaluationPct ?? 0) - (a.undervaluationPct ?? 0));
+    } else if (sort === "highestScore") {
+      result = result.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    }
+
+    return result;
+  }, [items, search, filters, sort, undervaluedOnly]);
 
   const setFilter = (key: keyof FilterState, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -121,6 +137,8 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
   const clearFilters = () => {
     setFilters(INITIAL_FILTERS);
     setSearch("");
+    setSort("newest");
+    setUndervaluedOnly(false);
   };
 
   return (
@@ -144,6 +162,26 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
               className="h-9 pl-9 w-56"
             />
           </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortMode)}
+            className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 cursor-pointer"
+          >
+            <option value="newest">Nejnovější</option>
+            <option value="highestScore">Nejvyšší skóre</option>
+            <option value="mostUndervalued">Nejpodhodnocenější</option>
+          </select>
+          <button
+            onClick={() => setUndervaluedOnly(!undervaluedOnly)}
+            className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+              undervaluedOnly
+                ? "bg-success/10 text-success border-success/30"
+                : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
+            }`}
+          >
+            <ArrowDown size={14} weight="bold" />
+            Podhodnocené
+          </button>
           <div className="flex items-center rounded-lg border border-border/50 p-0.5 bg-card">
             <button
               onClick={() => setView("grid")}
@@ -355,6 +393,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                   days={p.daysOnMarket}
                   index={i}
                   imageUrl={p.imageUrls?.[0]}
+                  undervaluationPct={p.undervaluationPct ?? undefined}
                 />
               ))}
             </motion.div>

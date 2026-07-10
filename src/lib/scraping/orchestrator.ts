@@ -2,7 +2,7 @@ import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing } from "./types";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory } from "@/db/schema";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, notifications } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
@@ -176,7 +176,7 @@ export class ScrapingOrchestrator {
 
       // AI analysis (only if API key available)
       let aiReport: string | null = null;
-      if (process.env.OPENAI_API_KEY) {
+      if (process.env.GEMINI_API_KEY) {
         try {
           const aiResult = await aiAnalyzeListing({
             title: listing.title,
@@ -232,6 +232,23 @@ export class ScrapingOrchestrator {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+
+      // Create notification for highly undervalued properties
+      if (analysis.undervaluationPct > 10) {
+        await db.insert(notifications).values({
+          id: generateId(),
+          userId: "system",
+          title: "Podhodnocená nemovitost",
+          message: `${listing.title} je podhodnocena o ${Math.round(analysis.undervaluationPct)} % (${listing.price.toLocaleString()} Kč)`,
+          type: "undervalued",
+          data: JSON.stringify({
+            propertyId: id,
+            undervaluationPct: Math.round(analysis.undervaluationPct),
+            price: listing.price,
+          }),
+          createdAt: new Date(),
+        });
+      }
 
       // Log new property activity
       await db.insert(activityLog).values({
