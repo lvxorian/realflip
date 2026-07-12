@@ -54,16 +54,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         animate={{ width: collapsed ? 68 : 240 }}
         transition={{ type: "spring", stiffness: 200, damping: 25 }}
       >
-        <div className="flex h-14 items-center gap-1 px-3 border-b border-border/50">
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
-          >
-            {theme === "dark" ? <Sun size={16} weight="duotone" /> : <Moon size={16} weight="duotone" />}
-          </button>
-          <NotificationBell />
-          <AnimatePresence mode="wait">
-            {!collapsed && (
+        <div className={cn("flex h-14 items-center border-b border-border/50", collapsed ? "justify-center" : "gap-1 px-3")}>
+          {!collapsed && (
+            <>
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
+              >
+                {theme === "dark" ? <Sun size={16} weight="duotone" /> : <Moon size={16} weight="duotone" />}
+              </button>
+              <NotificationBell />
               <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -72,8 +72,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               >
                 RealFlip
               </motion.span>
-            )}
-          </AnimatePresence>
+            </>
+          )}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
