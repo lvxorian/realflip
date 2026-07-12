@@ -1,6 +1,7 @@
 import { FullAnalysis, RedFlag, DetailedCosts, BuildingType, EnergyLabel, OccupancyStatus, LocationCategory, RenovationItem, ScenarioResult, CitySegments } from "./types";
 import { classifyLocation } from "./location";
 import { EUPHEMISMS, MARKET_DATA } from "./market-data";
+import { normalizeCondition } from "./condition";
 import { RawListing } from "../scraping/types";
 
 function detectBuildingType(description: string | null, title: string | null): BuildingType {
@@ -102,19 +103,17 @@ function calculateMarketPriceRange(
 
   let low = 0, high = 0;
   if (useBrick) {
-    low = useRenovated ? 130000 : 110000;
-    high = useRenovated ? 220000 : 160000;
+    low = useRenovated ? 40000 : 25000;
+    high = useRenovated ? 70000 : 45000;
   } else if (other) {
-    low = useRenovated ? 110000 : 90000;
-    high = useRenovated ? 160000 : 130000;
+    low = useRenovated ? 28000 : 18000;
+    high = useRenovated ? 50000 : 32000;
   }
 
   if (locationCategory === "risky") {
     low = Math.round(low * 0.5);
     high = Math.round(high * 0.5);
   }
-
-  if (low === 0) { low = 30000; high = 80000; }
   return { low, high };
 }
 
@@ -317,7 +316,8 @@ function determineVerdict(
 }
 
 export function analyzeListing(listing: RawListing): FullAnalysis {
-  const { price, area, rooms, condition, description, title, address, yearBuilt } = listing;
+  const { price, area, rooms, title, address, yearBuilt, description } = listing;
+  const condition = normalizeCondition(listing.condition);
 
   // Krok 1: Základní parametry
   const usableArea = area ?? 70;
@@ -337,7 +337,10 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   // Krok 3: Cenová analýza — POUŽÍVÁ MARKET_DATA SEGMENTY
   const buildingType = detectBuildingType(description, title);
   const marketRange = calculateMarketPriceRange(location.segments, location.category, buildingType, condition);
-  const overpricingPct = marketRange.high > 0 ? ((pricePerSqm - marketRange.high) / marketRange.high) * 100 : 0;
+  const marketMid = marketRange.low > 0 ? (marketRange.low + marketRange.high) / 2 : 0;
+  const hasValidPrice = pricePerSqm > 0 && marketMid > 0;
+  const overpricingPct = hasValidPrice && pricePerSqm > marketMid ? ((pricePerSqm - marketMid) / marketMid) * 100 : 0;
+  const undervaluationPct = hasValidPrice && pricePerSqm < marketMid ? ((marketMid - pricePerSqm) / marketMid) * 100 : 0;
 
   // Krok 4: Dispozice
   const segmentRating = rateSegment(area, rooms);
@@ -355,12 +358,12 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   // Krok 8: Itemizovaná rekonstrukce
   const renovationItems = calculateItemizedRenovation(usableArea, condition);
 
-  // Krok 9: 3 scénáře
-  const marketPriceHigh = marketRange.high;
+  // Krok 9: 3 scénáře (ARV počítáme z midpointu = realistická tržní hodnota po rekonstrukci)
+  const marketPriceForArv = marketMid > 0 ? marketMid : marketRange.high;
   const scenarios = {
-    optimistic: calculateScenario("Optimistický", price, usableArea, condition, marketPriceHigh, 0.85, 1.2, 4),
-    conservative: calculateScenario("Konzervativní", price, usableArea, condition, marketPriceHigh, 1.0, 1.05, 6),
-    pessimistic: calculateScenario("Pesimistický", price, usableArea, condition, marketPriceHigh, 1.3, 0.9, 9),
+    optimistic: calculateScenario("Optimistický", price, usableArea, condition, marketPriceForArv, 0.85, 1.2, 4),
+    conservative: calculateScenario("Konzervativní", price, usableArea, condition, marketPriceForArv, 1.0, 1.05, 6),
+    pessimistic: calculateScenario("Pesimistický", price, usableArea, condition, marketPriceForArv, 1.3, 0.9, 9),
   };
 
   // Hlavní kalkulace používá konzervativní scénář
@@ -395,14 +398,13 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   const roi = costs.totalCost > 0 ? (netProfit / costs.totalCost) * 100 : 0;
   const annualizedRoi = roi / 6 * 12;
 
-  // Investment score
-  const undervaluationPct = marketRange.high > 0 ? ((marketRange.high - pricePerSqm) / marketRange.high) * 100 : 0;
+  // Investment score (používáme midpoint-based undervaluation)
   const scoreComponents = {
-    undervaluation: Math.min(Math.max(0, (undervaluationPct / 30) * 40), 40),
-    roi: Math.min(Math.max(0, (flip.roi / 30) * 25), 25),
+    undervaluation: Math.min(Math.max(0, (undervaluationPct / 25) * 40), 40),
+    roi: Math.min(Math.max(0, (flip.roi / 25) * 25), 25),
     timeline: Math.max(0, 15 - 6),
     condition: condition === "original" || condition === "dilapidated" ? 10 : condition === "good" ? 5 : 0,
-    marketConfidence: marketRange.high > 0 ? 10 : 0,
+    marketConfidence: marketRange.low > 0 ? 10 : 0,
   };
   const investmentScore = Math.round(
     scoreComponents.undervaluation +
@@ -453,6 +455,7 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   );
 
   return {
+    condition,
     pricePerSqm,
     missingFields,
     location,

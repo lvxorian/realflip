@@ -198,7 +198,7 @@ export class ScrapingOrchestrator {
         id: generateId(),
         propertyId: id,
         marketValue: analysis.arv,
-        undervaluationPct: analysis.marketPricePerSqmHigh > 0 ? ((analysis.marketPricePerSqmHigh - analysis.pricePerSqm) / analysis.marketPricePerSqmHigh) * 100 : 0,
+        undervaluationPct: analysis.undervaluationPct,
         investmentScore: analysis.investmentScore,
         arv: analysis.arv,
         renovationCost: analysis.costs.renovationCost,
@@ -235,19 +235,23 @@ export class ScrapingOrchestrator {
 
       // Create notification for highly undervalued properties
       if (analysis.undervaluationPct > 10) {
-        await db.insert(notifications).values({
-          id: generateId(),
-          userId: "system",
-          title: "Podhodnocená nemovitost",
-          message: `${listing.title} je podhodnocena o ${Math.round(analysis.undervaluationPct)} % (${listing.price.toLocaleString()} Kč)`,
-          type: "undervalued",
-          data: JSON.stringify({
-            propertyId: id,
-            undervaluationPct: Math.round(analysis.undervaluationPct),
-            price: listing.price,
-          }),
-          createdAt: new Date(),
-        });
+        try {
+          await db.insert(notifications).values({
+            id: generateId(),
+            userId: "system",
+            title: "Podhodnocená nemovitost",
+            message: `${listing.title} je podhodnocena o ${Math.round(analysis.undervaluationPct)} % (${listing.price.toLocaleString()} Kč)`,
+            type: "undervalued",
+            data: JSON.stringify({
+              propertyId: id,
+              undervaluationPct: Math.round(analysis.undervaluationPct),
+              price: listing.price,
+            }),
+            createdAt: new Date(),
+          });
+        } catch {
+          // notifications table has FK to users — skip if user doesn't exist
+        }
       }
 
       // Log new property activity

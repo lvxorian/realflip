@@ -46,9 +46,10 @@ function formatDate(d: Date) {
   });
 }
 
-function calcScenarios(price: number, area: number, condition: string | null, marketPriceHigh: number) {
+function calcScenarios(price: number, area: number, condition: string | null, marketPriceMin: number, marketPriceMax: number) {
   const needsFull = condition === "original" || condition === "dilapidated";
   const needsMedium = condition === "good" || !condition;
+  const marketMid = (marketPriceMin + marketPriceMax) / 2;
 
   function renoCost(mult: number) {
     const items = [
@@ -66,7 +67,7 @@ function calcScenarios(price: number, area: number, condition: string | null, ma
 
   function scenario(mult: number, arvMult: number, timeline: number) {
     const rc = renoCost(mult);
-    const arv = Math.round(marketPriceHigh * area * arvMult);
+    const arv = Math.round(marketMid * area * arvMult);
     const sellingComm = Math.round(arv * 0.04);
     const acqCosts = Math.round(price * 0.04) + 25000 + 8000;
     const holding = Math.round((price + rc) * 0.005 * timeline);
@@ -173,8 +174,8 @@ export default async function PropertyDetailPage({
     ? calcTargetPrice(property.price, analysis.arv, analysis.renovationCost)
     : null;
 
-  const scenarios = analysis?.marketPriceMax && property.area
-    ? calcScenarios(property.price, property.area, property.condition, analysis.marketPriceMax)
+  const scenarios = analysis?.marketPriceMax && analysis?.marketPriceMin && property.area
+    ? calcScenarios(property.price, property.area, property.condition, analysis.marketPriceMin, analysis.marketPriceMax)
     : null;
 
   const renovationItems = property.area

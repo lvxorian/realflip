@@ -69,6 +69,7 @@ export interface ScenarioResult {
 }
 
 export interface FullAnalysis {
+  condition: string | null;
   pricePerSqm: number;
   missingFields: string[];
   location: LocationResult;
