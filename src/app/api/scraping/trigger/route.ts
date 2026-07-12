@@ -14,6 +14,7 @@ export async function POST() {
     const { AnnonceAdapter } = await import("@/lib/scraping/adapters/annonce");
     const { RealityCzAdapter } = await import("@/lib/scraping/adapters/reality-cz");
     const { HyperinzerceAdapter } = await import("@/lib/scraping/adapters/hyperinzerce");
+    const { SrealityAdapter } = await import("@/lib/scraping/adapters/sreality");
  
     const orchestrator = new ScrapingOrchestrator((portal, found, errors) => {
       console.log(`[scraping] ${portal}: ${found} listings, ${errors.length} errors`);
@@ -24,6 +25,7 @@ export async function POST() {
     orchestrator.registerAdapter("annonce", new AnnonceAdapter());
     orchestrator.registerAdapter("reality-cz", new RealityCzAdapter());
     orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
+    orchestrator.registerAdapter("sreality", new SrealityAdapter());
 
     const result = await orchestrator.crawlAll();
 
