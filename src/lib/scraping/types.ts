@@ -138,6 +138,7 @@ export interface RawListing {
   rooms: string | null;
   floor: number | null;
   condition: string | null;
+  buildingType: string | null;
   yearBuilt: number | null;
   address: string | null;
   lat: number | null;

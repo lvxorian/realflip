@@ -194,7 +194,7 @@ export default function AnalyzerPage() {
 
   return (
     <motion.div
-      className="mx-auto max-w-4xl space-y-8 p-6"
+      className="space-y-8"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -206,7 +206,7 @@ export default function AnalyzerPage() {
         </p>
       </div>
 
-      <Card glass>
+      <Card>
         <CardContent className="p-6">
           <div className="space-y-4">
             <div className="relative">
@@ -215,7 +215,7 @@ export default function AnalyzerPage() {
                 onChange={(e) => setUrlText(e.target.value)}
                 placeholder="Vložte URL inzerátů (každou na nový řádek, max 10)"
                 rows={5}
-                className="w-full resize-none rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="w-full resize-none rounded-xl border border-border/50 bg-card px-4 py-3 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
               />
               {urlText.length > 0 && (
                 <button
@@ -259,7 +259,7 @@ export default function AnalyzerPage() {
       </Card>
 
       {loading && (
-        <Card glass>
+        <Card>
           <CardContent className="p-6">
             <div className="space-y-3">
               {activeUrls.map((url, i) => (
@@ -340,7 +340,7 @@ export default function AnalyzerPage() {
 function ResultCard({ result }: { result: AnalysisResult }) {
   if (!result.success) {
     return (
-      <Card glass>
+      <Card>
         <CardContent className="p-5">
           <div className="flex items-start gap-3">
             <XCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
@@ -367,7 +367,7 @@ function ResultCard({ result }: { result: AnalysisResult }) {
 
   return (
     <motion.div variants={itemVariants}>
-      <Card glass>
+      <Card>
         <CardContent className="p-5">
           {/* Header */}
           <div className="flex items-start justify-between gap-4 mb-4">
@@ -379,10 +379,10 @@ function ResultCard({ result }: { result: AnalysisResult }) {
                   {verdictLabels[a.verdictLevel]}
                 </Badge>
                 <Badge variant="score" score={a.investmentScore} size="sm" />
-                {a.condition && (
-                  <span className="rounded-lg bg-card/80 border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{a.condition}</span>
-                )}
-                <span className="rounded-lg bg-card/80 border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
+                  {a.condition && (
+                    <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{a.condition}</span>
+                  )}
+                  <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
               </div>
             </div>
           </div>
@@ -438,15 +438,15 @@ function ResultCard({ result }: { result: AnalysisResult }) {
           {/* Location & Meta */}
           <div className="flex flex-wrap gap-2 mb-4">
             {a.location && (
-              <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">
+              <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">
                 {a.location.city} ({a.location.category})
               </span>
             )}
-            {l.area && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
-            {l.rooms && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
-            {l.address && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
-            {a.buildingType && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
-            {a.occupancy && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
+            {l.area && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
+            {l.rooms && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
+            {l.address && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
+            {a.buildingType && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
+            {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
           </div>
 
           {/* Scenarios */}
@@ -505,14 +505,14 @@ function ResultCard({ result }: { result: AnalysisResult }) {
 
           {/* AI Summary */}
           {result.aiSummary && (
-            <div className="rounded-xl bg-card/80 border border-border/50 p-4">
+            <div className="rounded-xl bg-card-hover border border-border/50 p-4">
               <p className="text-xs text-muted mb-3 font-medium">🤖 AI Hodnocení</p>
               <p className="text-sm text-foreground/80 leading-relaxed">{result.aiSummary}</p>
             </div>
           )}
 
           {/* Metrics Table */}
-          <div className="rounded-xl bg-card/80 border border-border/50 overflow-hidden">
+          <div className="rounded-xl bg-card-hover border border-border/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50">
@@ -609,7 +609,7 @@ function ResultCard({ result }: { result: AnalysisResult }) {
 
           {/* Comparable Notes */}
           {result.aiComparableNotes && (
-            <div className="rounded-xl bg-card/80 border border-border/50 p-4">
+            <div className="rounded-xl bg-card-hover border border-border/50 p-4">
               <p className="text-xs text-muted mb-3 font-medium">📋 Srovnání s trhem</p>
               <p className="text-sm text-foreground/80 leading-relaxed">{result.aiComparableNotes}</p>
             </div>
@@ -630,7 +630,7 @@ function InfoBox({
   highlight?: string;
 }) {
   return (
-    <div className="rounded-xl bg-card/80 border border-border/50 p-3">
+    <div className="rounded-xl bg-card-hover border border-border/50 p-3">
       <p className="text-xs text-muted mb-1">{label}</p>
       <p className={`text-sm font-semibold font-mono ${highlight ?? "text-foreground"}`}>{value}</p>
     </div>

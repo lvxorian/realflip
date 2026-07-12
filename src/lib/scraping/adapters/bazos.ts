@@ -52,6 +52,7 @@ export class BazosAdapter extends PortalAdapter {
         rooms: this.extractRooms(title),
         floor: null,
         condition: null,
+        buildingType: null,
         yearBuilt: null,
         address,
         lat: null,
@@ -111,6 +112,11 @@ export class BazosAdapter extends PortalAdapter {
         if (src && !images.includes(src)) images.push(src);
       });
       if (images.length > 0) listing.imageUrls = images;
+
+      if (!listing.buildingType && listing.description) {
+        const bt = listing.description.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);
+        if (bt) listing.buildingType = /cihlov/i.test(bt[0]) ? "brick" : /panel/i.test(bt[0]) ? "panel" : /novostavba/i.test(bt[0]) ? "new" : "mixed";
+      }
 
       const yearBuiltMatch = listing.description?.match(
         /rok[^\d]*(\d{4})/i

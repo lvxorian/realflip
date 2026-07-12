@@ -148,6 +148,7 @@ export class ScrapingOrchestrator {
         rooms: listing.rooms,
         floor: listing.floor,
         condition: listing.condition,
+        buildingType: listing.buildingType,
         yearBuilt: listing.yearBuilt,
         address: listing.address,
         lat: listing.lat,

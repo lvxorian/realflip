@@ -91,6 +91,7 @@ export class RealityCzAdapter extends PortalAdapter {
         rooms,
         floor: null,
         condition: this.inferCondition(layoutText),
+        buildingType: null,
         yearBuilt: null,
         address: title,
         lat,
@@ -137,6 +138,11 @@ export class RealityCzAdapter extends PortalAdapter {
         if (condition) listing.condition = condition;
       }
 
+      if (!listing.buildingType && fullDesc) {
+        const bt = fullDesc.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);
+        if (bt) listing.buildingType = /cihlov/i.test(bt[0]) ? "brick" : /panel/i.test(bt[0]) ? "panel" : /novostavba/i.test(bt[0]) ? "new" : "mixed";
+      }
+
       $("table.detailbytu tr").each((_i, tr) => {
         const $tr = $(tr);
         const label = this.cleanText($tr.find("th").text()) || "";
@@ -169,6 +175,10 @@ export class RealityCzAdapter extends PortalAdapter {
         if (/druh.*budovy/i.test(label)) {
           const c = this.inferCondition(value);
           if (c) listing.condition = c;
+        }
+
+        if (/(konstrukce|materi[áa]l)/i.test(label) && !listing.buildingType) {
+          listing.buildingType = /cihlov/i.test(value) ? "brick" : /panel/i.test(value) ? "panel" : null;
         }
       });
 

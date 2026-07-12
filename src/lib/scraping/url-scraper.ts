@@ -5,6 +5,28 @@ import { inferConditionFromText } from "@/lib/analysis/condition";
 
 const rateLimiter = RateLimiter.getInstance();
 
+function normalizeBuildingType(raw: string | null): string | null {
+  if (!raw) return null;
+  const v = raw.toLowerCase().trim();
+  if (/cihlov/i.test(v)) return "brick";
+  if (/panelov/i.test(v)) return "panel";
+  if (/skletov|skeletov/i.test(v)) return "mixed";
+  if (/sm[íi]šen/i.test(v)) return "mixed";
+  if (/montovan/i.test(v)) return "panel";
+  if (/d[řr]evostavba|modul[áa]rn/i.test(v)) return "new";
+  if (/kamenn/i.test(v)) return "brick";
+  return null;
+}
+
+function inferBuildingType(description: string | null, title: string | null): string | null {
+  const text = [description, title].filter(Boolean).join(" ").toLowerCase();
+  if (/cihlov[éý]/i.test(text)) return "brick";
+  if (/panel[ovýáé]/i.test(text)) return "panel";
+  if (/novostavba|nov[ýá]\s+objekt/i.test(text)) return "new";
+  if (/sm[íi]šen[ýé]/i.test(text)) return "mixed";
+  return null;
+}
+
 async function fetchHtml(url: string, portal: string): Promise<string> {
   await rateLimiter.wait(portal, 2000);
   const response = await globalThis.fetch(url, {
@@ -85,7 +107,7 @@ async function scrapeSreality(url: string): Promise<RawListing> {
     buildingConditionRaw,
   );
 
-  const buildingTypeRaw = r.building_type?.name ?? null;
+  const buildingType = normalizeBuildingType(r.building_type?.name ?? null);
 
   const images: string[] = (r.advert_images ?? []).map(
     (img: any) => (img.url ?? img.advert_image_sdn_url ?? "").replace(/^\/*/, "https://"),
@@ -106,6 +128,7 @@ async function scrapeSreality(url: string): Promise<RawListing> {
     rooms: roomsClean,
     floor: floorNumber,
     condition,
+    buildingType,
     yearBuilt: r.acceptance_year ?? null,
     address,
     lat: locality.gps_lat ?? null,
@@ -141,6 +164,7 @@ async function scrapeRealityCz(url: string): Promise<RawListing> {
 
   let rooms: string | null = null;
   let condition: string | null = null;
+  let buildingType: string | null = null;
   let floor: number | null = null;
   let yearBuilt: number | null = null;
 
@@ -149,11 +173,13 @@ async function scrapeRealityCz(url: string): Promise<RawListing> {
     const td = cleanText($(row).find("td").text()) ?? "";
     if (/velikost/i.test(th)) rooms = extractRooms(td) || td;
     if (/stav/i.test(th) || /druh.*budovy/i.test(th)) condition = td;
+    if (/konstrukce/i.test(th) || /materi[áa]l/i.test(th)) buildingType = td;
     if (/patro/i.test(th)) floor = parseInt(td) || null;
     if (/(výstavba|rok)/i.test(th)) yearBuilt = parseInt(td) || null;
   });
 
   condition = inferConditionFromText(condition, description, title) ?? null;
+  buildingType = normalizeBuildingType(buildingType) ?? inferBuildingType(description, title);
 
   const images: string[] = [];
   $("div#galerie a[href^='/photo/']").each((_, el) => {
@@ -179,6 +205,7 @@ async function scrapeRealityCz(url: string): Promise<RawListing> {
     rooms,
     floor,
     condition,
+    buildingType,
     yearBuilt,
     address,
     lat: null,
@@ -206,6 +233,7 @@ async function scrapeHyperinzerce(url: string): Promise<RawListing> {
   let area: number | null = null;
   let rooms: string | null = null;
   let condition: string | null = null;
+  let buildingType: string | null = null;
   let floor: number | null = null;
   let yearBuilt: number | null = null;
   let address: string | null = null;
@@ -216,11 +244,13 @@ async function scrapeHyperinzerce(url: string): Promise<RawListing> {
     if (/plocha/i.test(label)) area = extractArea(value);
     if (/dispozice/i.test(label)) rooms = extractRooms(value) || value;
     if (/stav/i.test(label)) condition = value;
+    if (/(konstrukce|materi[áa]l)/i.test(label)) buildingType = value;
     if (/patro/i.test(label)) floor = parseInt(value) || null;
     if (/(výstavba|rok)/i.test(label)) yearBuilt = parseInt(value) || null;
   });
 
   condition = inferConditionFromText(condition, description, title) ?? null;
+  buildingType = normalizeBuildingType(buildingType) ?? inferBuildingType(description, title);
 
   const addressEl = cleanText($(".c-ad-detail__header-info-location").text());
   address = addressEl ?? title;
@@ -241,6 +271,7 @@ async function scrapeHyperinzerce(url: string): Promise<RawListing> {
     rooms,
     floor,
     condition,
+    buildingType,
     yearBuilt,
     address,
     lat: null,
@@ -285,6 +316,7 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
 
   const rooms = extractRooms(title);
   const condition = inferConditionFromText(description, title) ?? null;
+  const buildingType = inferBuildingType(description, title);
 
   const images: string[] = [];
   if (scriptJson) {
@@ -304,6 +336,7 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
     rooms,
     floor: null,
     condition,
+    buildingType,
     yearBuilt: null,
     address: title,
     lat: null,
@@ -343,6 +376,7 @@ async function scrapeBazos(url: string): Promise<RawListing> {
 
   const rooms = extractRooms(title);
   const condition = inferConditionFromText(description, title) ?? null;
+  const buildingType = inferBuildingType(description, title);
 
   const images: string[] = [];
   $("img.carousel-cell-image").each((_, el) => {
@@ -360,6 +394,7 @@ async function scrapeBazos(url: string): Promise<RawListing> {
     rooms,
     floor: null,
     condition,
+    buildingType,
     yearBuilt: null,
     address: title,
     lat: null,
@@ -391,6 +426,7 @@ async function scrapeMmreality(url: string): Promise<RawListing> {
 
   const rooms = extractRooms(title);
   const condition = inferConditionFromText(description, title) ?? null;
+  const buildingType = inferBuildingType(description, title);
 
   const images: string[] = [];
   $("img.rds-image").each((_, el) => {
@@ -408,6 +444,7 @@ async function scrapeMmreality(url: string): Promise<RawListing> {
     rooms,
     floor: null,
     condition,
+    buildingType,
     yearBuilt: null,
     address: title,
     lat: null,

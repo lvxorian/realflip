@@ -1,0 +1,19 @@
+ALTER TABLE `property_analysis` ADD `price_per_sqm` integer;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `market_price_min` integer;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `market_price_max` integer;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `overpricing_pct` real;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `location_category` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `location_city` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `location_district` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `segment_rating` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `occupancy` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `building_type` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `energy_label` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `technical_score` integer;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `verdict_level` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `verdict_summary` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `red_flags_json` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `costs_json` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `alternative_strategies_json` text;--> statement-breakpoint
+ALTER TABLE `property_analysis` ADD `rental_yield` real;--> statement-breakpoint
+ALTER TABLE `properties` ADD `building_type` text;

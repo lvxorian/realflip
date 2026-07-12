@@ -12,6 +12,7 @@ export const properties = sqliteTable("properties", {
   rooms: text("rooms"),
   floor: integer("floor"),
   condition: text("condition"),
+  buildingType: text("building_type"),
   yearBuilt: integer("year_built"),
   address: text("address"),
   lat: real("lat"),

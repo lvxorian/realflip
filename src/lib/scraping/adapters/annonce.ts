@@ -113,6 +113,7 @@ export class AnnonceAdapter extends PortalAdapter {
         rooms,
         floor,
         condition: null,
+        buildingType: null,
         yearBuilt: null,
         address,
         lat: null,
@@ -139,6 +140,11 @@ export class AnnonceAdapter extends PortalAdapter {
       if (!fullDesc) {
         const metaDesc = $('meta[name="description"]').attr("content") || "";
         if (metaDesc) listing.description = metaDesc;
+      }
+
+      if (!listing.buildingType && listing.description) {
+        const bt = listing.description.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);
+        if (bt) listing.buildingType = /cihlov/i.test(bt[0]) ? "brick" : /panel/i.test(bt[0]) ? "panel" : /novostavba/i.test(bt[0]) ? "new" : "mixed";
       }
 
       const yearBuiltMatch = listing.description?.match(/rok[^\d]*(\d{4})/i);

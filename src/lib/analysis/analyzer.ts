@@ -4,7 +4,8 @@ import { EUPHEMISMS, MARKET_DATA } from "./market-data";
 import { normalizeCondition } from "./condition";
 import { RawListing } from "../scraping/types";
 
-function detectBuildingType(description: string | null, title: string | null): BuildingType {
+function detectBuildingType(description: string | null, title: string | null, scrapedBuildingType?: string | null): BuildingType {
+  if (scrapedBuildingType) return scrapedBuildingType as BuildingType;
   const text = [description, title].filter(Boolean).join(" ").toLowerCase();
   if (/cihlov[éý]/i.test(text)) return "brick";
   if (/panel[ovýáé]/.test(text)) return "panel";
@@ -367,7 +368,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   const location = classifyLocation(address, title);
 
   // Krok 3: Cenová analýza
-  const buildingType = detectBuildingType(description, title);
+  const buildingType = detectBuildingType(description, title, listing.buildingType);
   const marketRange = calculateMarketPriceRange(location.segments, location.category, buildingType, condition, dynamicRange);
   const marketMid = marketRange.low > 0 ? (marketRange.low + marketRange.high) / 2 : 0;
   const hasValidPrice = pricePerSqm > 0 && marketMid > 0;

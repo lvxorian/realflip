@@ -8,6 +8,7 @@ interface MockTemplate {
   rooms: string;
   floor: number;
   condition: string;
+  buildingType: string | null;
   yearBuilt: number;
   address: string;
   lat: number;
@@ -23,6 +24,7 @@ const MOCK_TEMPLATES: MockTemplate[] = [
     rooms: "2+kk",
     floor: 3,
     condition: "puvodni",
+    buildingType: "brick",
     yearBuilt: 1935,
     address: "Dukelska 14, Praha 7",
     lat: 50.104,
@@ -37,6 +39,7 @@ const MOCK_TEMPLATES: MockTemplate[] = [
     rooms: "3+1",
     floor: 2,
     condition: "dobry",
+    buildingType: "brick",
     yearBuilt: 1960,
     address: "Vrsovicka 88, Praha 10",
     lat: 50.068,
@@ -51,6 +54,7 @@ const MOCK_TEMPLATES: MockTemplate[] = [
     rooms: "1+kk",
     floor: 5,
     condition: "po rekonstrukci",
+    buildingType: "brick",
     yearBuilt: 1920,
     address: "Korunni 23, Praha 2",
     lat: 50.078,
@@ -65,6 +69,7 @@ const MOCK_TEMPLATES: MockTemplate[] = [
     rooms: "4+1",
     floor: 1,
     condition: "puvodni",
+    buildingType: "panel",
     yearBuilt: 1958,
     address: "Tychonova 5, Praha 6",
     lat: 50.099,
@@ -95,6 +100,7 @@ export class MockAdapter extends PortalAdapter {
         rooms: t.rooms,
         floor: t.floor,
         condition: t.condition,
+        buildingType: t.buildingType,
         yearBuilt: t.yearBuilt,
         address: t.address,
         lat: t.lat,

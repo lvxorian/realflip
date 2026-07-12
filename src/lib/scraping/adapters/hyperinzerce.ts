@@ -70,6 +70,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
         rooms,
         floor: null,
         condition: this.inferCondition(searchText),
+        buildingType: null,
         yearBuilt: null,
         address: location,
         lat: null,
@@ -150,7 +151,16 @@ export class HyperinzerceAdapter extends PortalAdapter {
           const c = this.inferCondition(value);
           if (c) listing.condition = c;
         }
+
+        if (/(konstrukce|materi[áa]l)/i.test(label) && !listing.buildingType) {
+          listing.buildingType = /cihlov/i.test(value) ? "brick" : /panel/i.test(value) ? "panel" : null;
+        }
       });
+
+      if (!listing.buildingType && fullDesc) {
+        const bt = fullDesc.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);
+        if (bt) listing.buildingType = /cihlov/i.test(bt[0]) ? "brick" : /panel/i.test(bt[0]) ? "panel" : /novostavba/i.test(bt[0]) ? "new" : "mixed";
+      }
 
       const locationText = this.cleanText($(".c-ad-detail__header-info-location").text());
       if (locationText) listing.address = locationText;
