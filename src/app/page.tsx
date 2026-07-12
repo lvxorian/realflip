@@ -114,7 +114,7 @@ export default function LandingPage() {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-6 lg:px-10 h-16"
       >
-        <div className="glass-strong rounded-full px-4 py-2 flex items-center gap-3">
+        <div className="rounded-xl bg-card border border-border/50 px-4 py-2 flex items-center gap-3">
           <House size={20} weight="fill" className="text-accent" />
           <span className="font-semibold text-sm tracking-tight">RealFlip</span>
         </div>
@@ -192,7 +192,7 @@ export default function LandingPage() {
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
               className="relative"
             >
-              <div className="glass-strong rounded-[2.5rem] p-8 lg:p-10 relative overflow-hidden">
+              <div className="rounded-2xl border border-border/50 bg-card p-8 lg:p-10 relative overflow-hidden">
                 <div className="absolute -top-20 -right-20 w-60 h-60 bg-accent/10 rounded-full blur-3xl" />
                 <div className="space-y-4 relative">
                   <div className="flex items-center justify-between">
@@ -214,7 +214,7 @@ export default function LandingPage() {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.5 + i * 0.1 }}
-                        className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 p-4"
+                        className="flex items-center justify-between rounded-xl bg-card-hover border border-border/50 p-4"
                       >
                         <div className="flex items-center gap-3">
                           <ScoreGauge score={item.score} size={28} strokeWidth={2.5} />
@@ -266,7 +266,7 @@ export default function LandingPage() {
               <motion.div
                 key={f.title}
                 variants={itemVariants}
-                className={`${sizeClasses[f.size]} rounded-[2rem] border border-white/5 bg-card p-8 hover:bg-card-hover transition-colors duration-300 flex flex-col`}
+                className={`${sizeClasses[f.size]} rounded-2xl border border-border/50 bg-card p-8 hover:bg-card-hover transition-colors duration-300 flex flex-col`}
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 border border-accent/20 mb-5">
                   <f.icon size={20} className="text-accent" weight="duotone" />
@@ -286,7 +286,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="glass-strong rounded-[2.5rem] p-10 lg:p-16 text-center relative overflow-hidden"
+            className="rounded-2xl border border-border/50 bg-card p-10 lg:p-16 text-center relative overflow-hidden"
           >
             <div className="absolute -top-40 -left-40 w-80 h-80 bg-accent/5 rounded-full blur-3xl" />
             <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
