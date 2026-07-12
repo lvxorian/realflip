@@ -369,17 +369,17 @@ function ResultCard({ result }: { result: AnalysisResult }) {
           {/* Header */}
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="min-w-0 flex-1">
-              <h3 className="font-medium text-sm leading-snug line-clamp-2">{l.title}</h3>
+              <h3 className="font-medium text-sm leading-snug line-clamp-2 text-foreground">{l.title}</h3>
               <p className="text-xs text-muted mt-1 break-all">{result.url}</p>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex flex-wrap items-center gap-2 mt-2">
                 <Badge variant={verdictBadgeVariant as any} size="sm">
                   {verdictLabels[a.verdictLevel]}
                 </Badge>
                 <Badge variant="score" score={a.investmentScore} size="sm" />
                 {a.condition && (
-                  <Badge variant="secondary" size="sm">{a.condition}</Badge>
+                  <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2 py-0.5 text-[10px] text-foreground/80">{a.condition}</span>
                 )}
-                <Badge variant="secondary" size="sm">{result.portal}</Badge>
+                <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
               </div>
             </div>
           </div>
@@ -419,52 +419,63 @@ function ResultCard({ result }: { result: AnalysisResult }) {
               value={a.roi.toFixed(1) + "%"}
               highlight={a.roi >= 15 ? "text-emerald-400" : a.roi >= 10 ? "text-amber-400" : "text-red-400"}
             />
-            <InfoBox label="Čistý zisk" value={formatPrice(a.netProfit)} />
+            <InfoBox label="Čistý zisk" value={formatPrice(a.netProfit)} highlight="text-price" />
             <InfoBox
               label="Podhodnocení"
               value={a.undervaluationPct > 0 ? a.undervaluationPct.toFixed(1) + "%" : "—"}
-              highlight={a.undervaluationPct > 0 ? "text-emerald-400" : undefined}
+              highlight={a.undervaluationPct > 0 ? "text-emerald-400" : "text-muted"}
             />
             <InfoBox
               label="Nadhodnocení"
               value={a.overpricingPct > 0 ? a.overpricingPct.toFixed(1) + "%" : "—"}
-              highlight={a.overpricingPct > 0 ? "text-amber-400" : undefined}
+              highlight={a.overpricingPct > 0 ? "text-amber-400" : "text-muted"}
             />
           </div>
 
           {/* Location & Meta */}
           <div className="flex flex-wrap gap-2 mb-4">
             {a.location && (
-              <Badge variant="info" size="sm">
+              <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">
                 {a.location.city} ({a.location.category})
-              </Badge>
+              </span>
             )}
-            {l.area && <Badge variant="info" size="sm">{l.area} m²</Badge>}
-            {l.rooms && <Badge variant="info" size="sm">{l.rooms}</Badge>}
-            {l.address && <Badge variant="info" size="sm">{l.address}</Badge>}
-            {a.buildingType && <Badge variant="secondary" size="sm">{a.buildingType}</Badge>}
-            {a.occupancy && <Badge variant="secondary" size="sm">{a.occupancy}</Badge>}
+            {l.area && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
+            {l.rooms && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
+            {l.address && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
+            {a.buildingType && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
+            {a.occupancy && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
           </div>
 
           {/* Scenarios */}
           {a.scenarios && (
-            <div className="mb-4">
-              <p className="text-xs font-medium text-muted mb-2">Scénáře</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <h2 className="font-semibold tracking-tight text-sm mb-3">Scénáře</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {(["optimistic", "conservative", "pessimistic"] as const).map((key) => {
                   const s = a.scenarios![key];
                   if (!s) return null;
+                  const borderColor = key === "optimistic" ? "border-emerald-500/20 bg-emerald-500/5" : key === "conservative" ? "border-accent/20 bg-accent/5" : "border-red-500/20 bg-red-500/5";
                   return (
-                    <div key={key} className="rounded-xl border border-border/30 bg-card/50 p-3">
-                      <p className="text-xs font-medium mb-1">{s.label}</p>
-                      <p className="text-xs text-muted">
-                        Renovace: {formatPrice(s.renovationCost)}
-                      </p>
-                      <p className={`text-xs font-medium ${
+                    <div key={key} className={`rounded-xl border ${borderColor} p-3 text-xs space-y-1.5`}>
+                      <p className="font-semibold text-[11px] tracking-tight uppercase">{s.label}</p>
+                      <div className="flex justify-between">
+                        <span className="text-muted">Renovace</span>
+                        <span className="font-mono">{formatPrice(s.renovationCost)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted">ARV</span>
+                        <span className="font-mono">{formatPrice(s.arv)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted">Celk. náklady</span>
+                        <span className="font-mono">{formatPrice(s.totalCost)}</span>
+                      </div>
+                      <div className={`flex justify-between font-medium ${
                         s.roi >= 15 ? "text-emerald-400" : s.roi >= 10 ? "text-amber-400" : "text-red-400"
                       }`}>
-                        Zisk: {formatPrice(s.netProfit)} | ROI: {s.roi}%
-                      </p>
+                        <span>Zisk / ROI</span>
+                        <span className="font-mono">{formatPrice(s.netProfit)} / {s.roi}%</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -474,15 +485,16 @@ function ResultCard({ result }: { result: AnalysisResult }) {
 
           {/* Red Flags */}
           {a.redFlags.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs font-medium text-red-400 mb-2">
+            <div className="rounded-xl bg-red-500/5 border border-red-500/10 p-4 mb-4">
+              <h2 className="font-semibold tracking-tight text-sm text-red-400 mb-3">
                 Varovné signály ({a.redFlags.length})
-              </p>
-              <div className="space-y-1">
+              </h2>
+              <div className="space-y-2">
                 {a.redFlags.map((rf, i) => (
-                  <p key={i} className="text-xs text-red-400/80">
-                    • <span className="font-medium">{rf.type}:</span> {rf.description}
-                  </p>
+                  <div key={i} className="flex items-start gap-2 text-xs text-red-400/80">
+                    <span className="mt-0.5 shrink-0">•</span>
+                    <span><span className="font-medium text-red-400">{rf.type}:</span> {rf.description}</span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -490,15 +502,13 @@ function ResultCard({ result }: { result: AnalysisResult }) {
 
           {/* AI Report */}
           {result.aiReport && (
-            <div className="rounded-xl border border-border/30 bg-card/50 p-4">
-              <p className="text-xs font-medium text-muted mb-2">🤖 AI Hodnocení</p>
+            <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4">
+              <p className="text-xs text-muted mb-3 font-medium">🤖 AI Hodnocení</p>
               <div
-                className="prose prose-invert prose-xs max-w-none text-sm leading-relaxed [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-medium [&_table]:w-full [&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:text-xs [&_th]:text-muted [&_table]:text-xs [&_tr]:border-b [&_tr]:border-border/20"
+                className="text-sm leading-relaxed space-y-2 [&_strong]:text-foreground [&_em]:text-foreground/80 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-3 [&_h2]:mt-4 [&_h2:first-child]:mt-0 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:text-foreground [&_h3]:mb-2 [&_h3]:mt-3 [&_p]:text-foreground/80 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1 [&_li]:text-foreground/80 [&_table]:w-full [&_table]:text-sm [&_table]:mt-2 [&_table]:mb-3 [&_thead]:border-b [&_thead]:border-white/10 [&_th]:text-left [&_th]:text-xs [&_th]:text-muted [&_th]:font-medium [&_th]:pb-2 [&_th]:pr-3 [&_td]:py-1.5 [&_td]:pr-3 [&_td]:text-foreground/80 [&_td]:border-b [&_td]:border-white/5 [&_tr:last-child_td]:border-0]"
                 dangerouslySetInnerHTML={{
                   __html: result.aiReport
-                    .replace(/\n/g, "<br>")
-                    .replace(/\|/g, "")
-                    .replace(/<br>\s*<br>/g, "<br>"),
+                    .replace(/\n/g, "<br>"),
                 }}
               />
             </div>
@@ -519,9 +529,9 @@ function InfoBox({
   highlight?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/30 bg-card/50 p-3">
-      <p className="text-[10px] uppercase tracking-wider text-muted mb-1">{label}</p>
-      <p className={`text-sm font-medium ${highlight ?? ""}`}>{value}</p>
+    <div className="rounded-xl bg-white/[0.02] border border-white/5 p-3">
+      <p className="text-xs text-muted mb-1">{label}</p>
+      <p className={`text-sm font-semibold font-mono ${highlight ?? "text-foreground"}`}>{value}</p>
     </div>
   );
 }
