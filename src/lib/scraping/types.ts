@@ -31,10 +31,10 @@ export const PORTAL_CONFIGS: Record<PortalName, PortalConfig> = {
     name: "sreality",
     enabled: true,
     baseUrl: "https://www.sreality.cz",
-    searchPath: "/hledani/prodej/byty",
-    rateLimitMs: 3000,
+    searchPath: "/api/v1/estates",
+    rateLimitMs: 2000,
     respectRobotsTxt: true,
-    requiresJs: true,
+    requiresJs: false,
   },
   bezrealitky: {
     name: "bezrealitky",

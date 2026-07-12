@@ -18,6 +18,21 @@ async function fetchHtml(url: string, portal: string): Promise<string> {
   return response.text();
 }
 
+async function fetchJson(url: string, portal: string, headers?: Record<string, string>): Promise<any> {
+  await rateLimiter.wait(portal, 2000);
+  const response = await globalThis.fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "cs,en;q=0.9",
+      Referer: "https://www.sreality.cz/",
+      ...headers,
+    },
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
+  return response.json();
+}
+
 function cleanText(text: string | null): string | null {
   if (!text) return null;
   return text.replace(/\s+/g, " ").trim();
@@ -42,6 +57,67 @@ function extractRooms(text: string): string | null {
     if (m) return m[0];
   }
   return null;
+}
+
+async function scrapeSreality(url: string): Promise<RawListing> {
+  const segments = url.replace(/\/+$/, "").split("/");
+  const id = segments[segments.length - 1];
+  if (!/^\d+$/.test(id)) throw new Error("Nelze parsovat ID inzerátu z URL");
+
+  const data = await fetchJson(`https://www.sreality.cz/api/v1/estates/${id}`, "sreality");
+  const r = data.result;
+  if (!r) throw new Error("API nevrátilo data inzerátu");
+
+  const locality = r.locality ?? {};
+  const city = locality.city ?? null;
+  const street = locality.street ?? null;
+  const streetNumber = locality.streetnumber ?? null;
+  const address = [street, streetNumber, city].filter(Boolean).join(" ") || null;
+
+  const subCb = r.category_sub_cb ?? {};
+  const roomsLabel: string = subCb.name ?? null;
+  const roomsClean = roomsLabel ? roomsLabel.replace(/^(\d+\+\w+).*$/, "$1") : null;
+
+  const buildingConditionRaw = r.building_condition?.name ?? null;
+  const condition = inferConditionFromText(
+    r.advert_description ?? "",
+    r.advert_name ?? "",
+    buildingConditionRaw,
+  );
+
+  const buildingTypeRaw = r.building_type?.name ?? null;
+
+  const images: string[] = (r.advert_images ?? []).map(
+    (img: any) => (img.url ?? img.advert_image_sdn_url ?? "").replace(/^\/*/, "https://"),
+  );
+
+  const floorNumber = typeof r.floor_number === "number" ? r.floor_number : null;
+  const usableArea = typeof r.usable_area === "number" ? r.usable_area : typeof r.floor_area === "number" ? r.floor_area : null;
+  const gardenArea = typeof r.garden_area === "number" ? r.garden_area : null;
+  const balconyArea = typeof r.balcony_area === "number" ? r.balcony_area : null;
+
+  return {
+    portalName: "sreality",
+    url,
+    title: r.advert_name ?? "",
+    price: r.price_czk ?? r.price ?? 0,
+    pricePerSqm: r.price_czk_m2 ?? null,
+    area: usableArea,
+    rooms: roomsClean,
+    floor: floorNumber,
+    condition,
+    yearBuilt: r.acceptance_year ?? null,
+    address,
+    lat: locality.gps_lat ?? null,
+    lng: locality.gps_lon ?? null,
+    contactPhone: r.user?.user_phones?.[0]?.phone ?? null,
+    contactName: r.user?.user_name ?? null,
+    contactEmail: r.user?.user_email ?? null,
+    description: r.advert_description ?? null,
+    imageUrls: images,
+    publishedAt: r.since ? new Date(r.since) : new Date(),
+    updatedAt: r.edited ? new Date(r.edited) : new Date(),
+  };
 }
 
 async function scrapeRealityCz(url: string): Promise<RawListing> {
@@ -353,7 +429,7 @@ function makeNotImplementedScraper(portal: string, hint: string) {
 }
 
 const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) => Promise<RawListing> }[] = [
-  { pattern: /sreality\.cz/, portal: "sreality", scrape: makeNotImplementedScraper("sreality", "Portál vyžaduje JS a autentizaci API — scraping není možný") },
+  { pattern: /sreality\.cz/, portal: "sreality", scrape: scrapeSreality },
   { pattern: /\breality\.cz/, portal: "reality-cz", scrape: scrapeRealityCz },
   { pattern: /hyperinzerce\.cz/, portal: "hyperinzerce", scrape: scrapeHyperinzerce },
   { pattern: /annonce\.cz/, portal: "annonce", scrape: scrapeAnnonce },
@@ -382,7 +458,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     }
   }
 
-  throw new Error("Neznámý realitní portál — podporujeme: reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz");
+  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz");
 }
 
 export function detectPortal(url: string): string | null {
