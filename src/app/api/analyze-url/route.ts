@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { scrapeUrl } from "@/lib/scraping/url-scraper";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
+import { classifyLocation } from "@/lib/analysis/location";
+import { getMarketPriceRange } from "@/lib/scraping/market-price-service";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -27,7 +29,11 @@ export async function POST(req: Request) {
             return { url, portal, success: false, error: "Nepodařilo se načíst cenu inzerátu" };
           }
 
-          const analysis = analyzeListing(listing);
+          const location = classifyLocation(listing.address, listing.title);
+          const dynamicRange = location.city !== "Neznámá"
+            ? await getMarketPriceRange(location.city).catch(() => null)
+            : null;
+          const analysis = analyzeListing(listing, dynamicRange);
 
           let aiSummary: string | null = null;
           let aiNegotiationTips: string[] | null = null;

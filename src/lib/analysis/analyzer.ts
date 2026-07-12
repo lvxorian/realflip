@@ -82,12 +82,44 @@ function detectSegmentKey(condition: string | null, buildingType: BuildingType):
   return "brick_renovated";
 }
 
+function conditionMultiplier(condition: string | null): number {
+  switch (condition) {
+    case "new": return 1.15;
+    case "renovated": return 1.08;
+    case "good": return 1.0;
+    case "original": return 0.85;
+    case "dilapidated": return 0.7;
+    case "project": return 0.75;
+    default: return 1.0;
+  }
+}
+
+function buildingTypeMultiplier(buildingType: BuildingType): number {
+  return buildingType === "panel" ? 0.75 : 1.0;
+}
+
+function categoryMultiplier(category: LocationCategory): number {
+  return category === "premium" ? 1.2 : category === "risky" ? 0.7 : 1.0;
+}
+
 function calculateMarketPriceRange(
   segments: CitySegments | null,
   locationCategory: LocationCategory,
   buildingType: BuildingType,
-  condition: string | null
+  condition: string | null,
+  dynamicRange?: { low: number; high: number; median: number } | null
 ): { low: number; high: number } {
+  if (dynamicRange) {
+    const cm = conditionMultiplier(condition);
+    const bt = buildingTypeMultiplier(buildingType);
+    const cat = categoryMultiplier(locationCategory);
+    const adj = cm * bt * cat;
+    return {
+      low: Math.round(dynamicRange.low * adj),
+      high: Math.round(dynamicRange.high * adj),
+    };
+  }
+
   if (segments) {
     const key = detectSegmentKey(condition, buildingType);
     const range = segments[key];
@@ -315,7 +347,7 @@ function determineVerdict(
   };
 }
 
-export function analyzeListing(listing: RawListing): FullAnalysis {
+export function analyzeListing(listing: RawListing, dynamicRange?: { low: number; high: number; median: number } | null): FullAnalysis {
   const { price, area, rooms, title, address, yearBuilt, description } = listing;
   const condition = normalizeCondition(listing.condition);
 
@@ -334,9 +366,9 @@ export function analyzeListing(listing: RawListing): FullAnalysis {
   // Krok 2: Lokalita
   const location = classifyLocation(address, title);
 
-  // Krok 3: Cenová analýza — POUŽÍVÁ MARKET_DATA SEGMENTY
+  // Krok 3: Cenová analýza
   const buildingType = detectBuildingType(description, title);
-  const marketRange = calculateMarketPriceRange(location.segments, location.category, buildingType, condition);
+  const marketRange = calculateMarketPriceRange(location.segments, location.category, buildingType, condition, dynamicRange);
   const marketMid = marketRange.low > 0 ? (marketRange.low + marketRange.high) / 2 : 0;
   const hasValidPrice = pricePerSqm > 0 && marketMid > 0;
   const overpricingPct = hasValidPrice && pricePerSqm > marketMid ? ((pricePerSqm - marketMid) / marketMid) * 100 : 0;
