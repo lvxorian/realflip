@@ -57,7 +57,10 @@ interface AnalysisResult {
       roi: number;
     }>;
   };
-  aiReport?: string | null;
+  aiSummary?: string | null;
+  aiNegotiationTips?: string[] | null;
+  aiComparableNotes?: string | null;
+  aiHiddenInfo?: string[] | null;
 }
 
 const verdictColors: Record<string, string> = {
@@ -377,9 +380,9 @@ function ResultCard({ result }: { result: AnalysisResult }) {
                 </Badge>
                 <Badge variant="score" score={a.investmentScore} size="sm" />
                 {a.condition && (
-                  <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2 py-0.5 text-[10px] text-foreground/80">{a.condition}</span>
+                  <span className="rounded-lg bg-card/80 border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{a.condition}</span>
                 )}
-                <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
+                <span className="rounded-lg bg-card/80 border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
               </div>
             </div>
           </div>
@@ -435,15 +438,15 @@ function ResultCard({ result }: { result: AnalysisResult }) {
           {/* Location & Meta */}
           <div className="flex flex-wrap gap-2 mb-4">
             {a.location && (
-              <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">
+              <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">
                 {a.location.city} ({a.location.category})
               </span>
             )}
-            {l.area && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
-            {l.rooms && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
-            {l.address && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
-            {a.buildingType && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
-            {a.occupancy && <span className="rounded-lg bg-white/[0.02] border border-white/5 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
+            {l.area && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
+            {l.rooms && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
+            {l.address && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
+            {a.buildingType && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
+            {a.occupancy && <span className="rounded-lg bg-card/80 border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
           </div>
 
           {/* Scenarios */}
@@ -500,17 +503,115 @@ function ResultCard({ result }: { result: AnalysisResult }) {
             </div>
           )}
 
-          {/* AI Report */}
-          {result.aiReport && (
-            <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4">
+          {/* AI Summary */}
+          {result.aiSummary && (
+            <div className="rounded-xl bg-card/80 border border-border/50 p-4">
               <p className="text-xs text-muted mb-3 font-medium">🤖 AI Hodnocení</p>
-              <div
-                className="text-sm leading-relaxed space-y-2 [&_strong]:text-foreground [&_em]:text-foreground/80 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mb-3 [&_h2]:mt-4 [&_h2:first-child]:mt-0 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:text-foreground [&_h3]:mb-2 [&_h3]:mt-3 [&_p]:text-foreground/80 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1 [&_li]:text-foreground/80 [&_table]:w-full [&_table]:text-sm [&_table]:mt-2 [&_table]:mb-3 [&_thead]:border-b [&_thead]:border-white/10 [&_th]:text-left [&_th]:text-xs [&_th]:text-muted [&_th]:font-medium [&_th]:pb-2 [&_th]:pr-3 [&_td]:py-1.5 [&_td]:pr-3 [&_td]:text-foreground/80 [&_td]:border-b [&_td]:border-white/5 [&_tr:last-child_td]:border-0]"
-                dangerouslySetInnerHTML={{
-                  __html: result.aiReport
-                    .replace(/\n/g, "<br>"),
-                }}
-              />
+              <p className="text-sm text-foreground/80 leading-relaxed">{result.aiSummary}</p>
+            </div>
+          )}
+
+          {/* Metrics Table */}
+          <div className="rounded-xl bg-card/80 border border-border/50 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left text-xs text-muted font-medium px-4 py-2.5">Metrika</th>
+                  <th className="text-right text-xs text-muted font-medium px-4 py-2.5">Hodnota</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Cena</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(l.price)}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Cena za m²</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{a.pricePerSqm > 0 ? formatPrice(a.pricePerSqm) + "/m²" : "neuvedeno"}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">ARV</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.arv)}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Tržní rozmezí</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.marketPricePerSqmLow)} – {formatPrice(a.marketPricePerSqmHigh)} /m²</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">ROI</td>
+                  <td className={`px-4 py-2.5 text-right font-mono ${a.roi >= 15 ? "text-emerald-400" : a.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{a.roi.toFixed(1)}%</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Čistý zisk</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.netProfit)}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Cíl. nákupní cena</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.targetPurchasePrice)}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Nutné snížení</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.priceReductionNeeded)} ({a.priceReductionPct}%)</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Podhodnocení</td>
+                  <td className={`px-4 py-2.5 text-right font-mono ${a.undervaluationPct > 0 ? "text-emerald-400" : "text-muted"}`}>{a.undervaluationPct > 0 ? a.undervaluationPct.toFixed(1) + "% ✅" : "—"}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Nadhodnocení</td>
+                  <td className={`px-4 py-2.5 text-right font-mono ${a.overpricingPct > 0 ? "text-amber-400" : "text-muted"}`}>{a.overpricingPct > 0 ? a.overpricingPct.toFixed(1) + "% ⚠️" : "—"}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Stav</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{a.condition ?? "nezjištěn"}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="px-4 py-2.5 text-foreground/80">Lokalita</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{a.location?.city ?? "?"} ({a.location?.category ?? "?"})</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 text-foreground/80">Typ budovy</td>
+                  <td className="px-4 py-2.5 text-right font-mono text-foreground">{a.buildingType ?? "?"}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Negotiation Tips */}
+          {result.aiNegotiationTips && result.aiNegotiationTips.length > 0 && (
+            <div>
+              <p className="text-xs text-muted mb-2 font-medium">💡 Vyjednávací tipy</p>
+              <ul className="space-y-1.5">
+                {result.aiNegotiationTips.map((tip, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-foreground/80">
+                    <span className="mt-0.5 shrink-0 text-muted">•</span>
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Hidden Info */}
+          {result.aiHiddenInfo && result.aiHiddenInfo.length > 0 && (
+            <div className="rounded-xl bg-amber-500/5 border border-amber-500/10 p-4">
+              <p className="text-xs text-amber-400 mb-2 font-medium">🔍 Co ověřit</p>
+              <ul className="space-y-1.5">
+                {result.aiHiddenInfo.map((info, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-amber-400/80">
+                    <span className="mt-0.5 shrink-0">•</span>
+                    <span>{info}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Comparable Notes */}
+          {result.aiComparableNotes && (
+            <div className="rounded-xl bg-card/80 border border-border/50 p-4">
+              <p className="text-xs text-muted mb-3 font-medium">📋 Srovnání s trhem</p>
+              <p className="text-sm text-foreground/80 leading-relaxed">{result.aiComparableNotes}</p>
             </div>
           )}
         </CardContent>
@@ -529,7 +630,7 @@ function InfoBox({
   highlight?: string;
 }) {
   return (
-    <div className="rounded-xl bg-white/[0.02] border border-white/5 p-3">
+    <div className="rounded-xl bg-card/80 border border-border/50 p-3">
       <p className="text-xs text-muted mb-1">{label}</p>
       <p className={`text-sm font-semibold font-mono ${highlight ?? "text-foreground"}`}>{value}</p>
     </div>

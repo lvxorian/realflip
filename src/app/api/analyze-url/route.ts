@@ -29,7 +29,10 @@ export async function POST(req: Request) {
 
           const analysis = analyzeListing(listing);
 
-          let aiReport: string | null = null;
+          let aiSummary: string | null = null;
+          let aiNegotiationTips: string[] | null = null;
+          let aiComparableNotes: string | null = null;
+          let aiHiddenInfo: string[] | null = null;
           if (process.env.GEMINI_API_KEY) {
             try {
               const aiResult = await aiAnalyzeListing({
@@ -42,9 +45,12 @@ export async function POST(req: Request) {
                 address: listing.address,
                 condition: listing.condition,
               });
-              aiReport = generateReportMarkdown(listing, analysis, aiResult);
+              aiSummary = aiResult.summary;
+              aiNegotiationTips = aiResult.negotiationTips;
+              aiComparableNotes = aiResult.comparableNotes;
+              aiHiddenInfo = aiResult.hiddenInfo;
             } catch {
-              aiReport = "AI analýza není k dispozici. Zkuste to prosím později.";
+              aiSummary = "AI analýza není k dispozici. Zkuste to prosím později.";
             }
           }
 
@@ -87,7 +93,10 @@ export async function POST(req: Request) {
               redFlags: analysis.redFlags,
               scenarios: analysis.scenarios,
             },
-            aiReport,
+            aiSummary,
+            aiNegotiationTips,
+            aiComparableNotes,
+            aiHiddenInfo,
           };
         } catch (error) {
           return { url, success: false, error: String(error) };
@@ -102,90 +111,4 @@ export async function POST(req: Request) {
   }
 }
 
-function formatPrice(n: number): string {
-  return n.toLocaleString("cs-CZ") + " Kč";
-}
 
-function generateReportMarkdown(
-  listing: any,
-  analysis: any,
-  aiResult: any
-): string {
-  const verdictEmoji: Record<string, string> = {
-    strongBuy: "🟢", buy: "🟢", consider: "🟡", dontBuy: "🔴", categoricalReject: "⛔",
-  };
-
-  const verdictLabel: Record<string, string> = {
-    strongBuy: "Silný kandidát ke koupi",
-    buy: "Doporučeno ke koupi",
-    consider: "Zvážit s opatrností",
-    dontBuy: "Nedoporučeno",
-    categoricalReject: "Kategorické odmítnutí",
-  };
-
-  const lines: string[] = [];
-  lines.push(`## ${verdictEmoji[analysis.verdictLevel] ?? "❓"} ${verdictLabel[analysis.verdictLevel] ?? analysis.verdictLevel}`);
-  lines.push("");
-  lines.push(`**${listing.title}**`);
-  lines.push(`📍 ${listing.address ?? "neuvedeno"} | ${listing.area ? listing.area + " m²" : "plocha neuvedena"} | ${listing.rooms ?? "?"}`);
-  lines.push(`💰 **Cena:** ${formatPrice(listing.price)} | **ARV:** ${formatPrice(analysis.arv)}`);
-  lines.push("");
-  lines.push("### 📊 Klíčové metriky");
-  lines.push(`| Metrika | Hodnota |`);
-  lines.push(`|---------|---------|`);
-  lines.push(`| Cena za m² | ${analysis.pricePerSqm ? formatPrice(analysis.pricePerSqm) + "/m²" : "neuvedeno"} |`);
-  lines.push(`| Tržní rozmezí | ${formatPrice(analysis.marketPricePerSqmLow)} – ${formatPrice(analysis.marketPricePerSqmHigh)} /m² |`);
-  lines.push(`| Podhodnocení | ${analysis.undervaluationPct > 0 ? analysis.undervaluationPct.toFixed(1) + "% ✅" : "—"} |`);
-  lines.push(`| Nadhodnocení | ${analysis.overpricingPct > 0 ? analysis.overpricingPct.toFixed(1) + "% ⚠️" : "—"} |`);
-  lines.push(`| Investiční skóre | ${analysis.investmentScore}/100 |`);
-  lines.push(`| Konzervativní ROI | ${analysis.roi.toFixed(1)}% |`);
-  lines.push(`| Čistý zisk | ${formatPrice(analysis.netProfit)} |`);
-  lines.push(`| Cílová nákupní cena | ${formatPrice(analysis.targetPurchasePrice)} |`);
-  lines.push(`| Nutné snížení | ${formatPrice(analysis.priceReductionNeeded)} (${analysis.priceReductionPct}%) |`);
-  lines.push(`| Stav | ${analysis.condition ?? "nezjištěn"} |`);
-  lines.push(`| Lokalita | ${analysis.location?.city ?? "?"} (${analysis.location?.category ?? "?"}) |`);
-  lines.push(`| Typ budovy | ${analysis.buildingType ?? "?"} |`);
-
-  if (analysis.scenarios) {
-    lines.push("");
-    lines.push("### 📈 Scénáře");
-    lines.push(`| Scénář | Renovace | ARV | Celk. náklady | Zisk | ROI |`);
-    lines.push(`|--------|----------|-----|--------------|------|-----|`);
-    for (const key of ["optimistic", "conservative", "pessimistic"]) {
-      const s = analysis.scenarios[key];
-      if (s) {
-        lines.push(`| ${s.label} | ${formatPrice(s.renovationCost)} | ${formatPrice(s.arv)} | ${formatPrice(s.totalCost)} | ${formatPrice(s.netProfit)} | ${s.roi}% |`);
-      }
-    }
-  }
-
-  if (aiResult?.summary) {
-    lines.push("");
-    lines.push("### 🤖 AI Hodnocení");
-    lines.push(aiResult.summary);
-  }
-
-  if (aiResult?.negotiationTips?.length > 0) {
-    lines.push("");
-    lines.push("### 💡 Vyjednávací tipy");
-    for (const tip of aiResult.negotiationTips) {
-      lines.push(`- ${tip}`);
-    }
-  }
-
-  if (analysis.redFlags?.length > 0) {
-    lines.push("");
-    lines.push("### ⚠️ Varovné signály");
-    for (const rf of analysis.redFlags) {
-      lines.push(`- **${rf.type}**: ${rf.description}`);
-    }
-  }
-
-  if (aiResult?.comparableNotes) {
-    lines.push("");
-    lines.push("### 📋 Srovnání s trhem");
-    lines.push(aiResult.comparableNotes);
-  }
-
-  return lines.join("\n");
-}
