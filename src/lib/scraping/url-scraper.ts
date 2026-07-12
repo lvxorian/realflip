@@ -353,12 +353,12 @@ function makeNotImplementedScraper(portal: string, hint: string) {
 }
 
 const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) => Promise<RawListing> }[] = [
-  { pattern: /reality\.cz/, portal: "reality-cz", scrape: scrapeRealityCz },
+  { pattern: /sreality\.cz/, portal: "sreality", scrape: makeNotImplementedScraper("sreality", "Portál vyžaduje JS a autentizaci API — scraping není možný") },
+  { pattern: /\breality\.cz/, portal: "reality-cz", scrape: scrapeRealityCz },
   { pattern: /hyperinzerce\.cz/, portal: "hyperinzerce", scrape: scrapeHyperinzerce },
   { pattern: /annonce\.cz/, portal: "annonce", scrape: scrapeAnnonce },
   { pattern: /bazos\.cz/, portal: "bazos", scrape: scrapeBazos },
   { pattern: /mmreality\.cz/, portal: "mmreality", scrape: scrapeMmreality },
-  { pattern: /sreality\.cz/, portal: "sreality", scrape: makeNotImplementedScraper("sreality", "Portál vyžaduje JS a autentizaci API — scraping není možný") },
   { pattern: /bezrealitky\.cz/, portal: "bezrealitky", scrape: makeNotImplementedScraper("bezrealitky", "Next.js SPA — detail scraper není implementován") },
   { pattern: /idnes-reality\.cz/, portal: "idnes-reality", scrape: makeNotImplementedScraper("idnes-reality", "JS SPA — detail scraper není implementován") },
   { pattern: /hyperreality\.cz/, portal: "hyperreality", scrape: makeNotImplementedScraper("hyperreality", "Portál není dostupný") },
