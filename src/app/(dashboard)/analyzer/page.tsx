@@ -87,7 +87,7 @@ const containerVariants = {
 const itemVariants = {
   hidden: { opacity: 0, y: 16 },
   visible: {
-    opacity: 0,
+    opacity: 1,
     y: 0,
     transition: { type: "spring" as const, stiffness: 100, damping: 20 },
   },
