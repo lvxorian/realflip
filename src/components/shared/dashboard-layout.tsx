@@ -10,6 +10,7 @@ import { cn, getInitials } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import {
   House,
+  Buildings,
   MagnifyingGlass,
   GitBranch,
   Phone,
@@ -26,7 +27,7 @@ import {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: House },
-  { href: "/properties", label: "Nemovitosti", icon: MagnifyingGlass },
+  { href: "/properties", label: "Nemovitosti", icon: Buildings },
   { href: "/analyzer", label: "Analyzátor", icon: MagnifyingGlass },
   { href: "/searches", label: "Hledání", icon: MagnifyingGlass },
   { href: "/leads", label: "Pipeline", icon: GitBranch },
