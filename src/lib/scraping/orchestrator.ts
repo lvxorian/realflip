@@ -1,9 +1,9 @@
 import { PortalAdapter } from "./adapters/base";
-import { PortalName, PORTAL_CONFIGS, RawListing } from "./types";
+import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters } from "./types";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, notifications } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, notifications, searches, searchProperties } from "@/db/schema";
+import { eq, and, ne } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { generateId } from "@/lib/utils";
@@ -34,7 +34,6 @@ export class ScrapingOrchestrator {
       const errors: string[] = [];
       let found = 0;
 
-      // Create job record
       const jobId = generateId();
       await db.insert(scrapingJobs).values({
         id: jobId,
@@ -48,7 +47,6 @@ export class ScrapingOrchestrator {
         const listings = await adapter.crawlListings();
         found = listings.length;
 
-        // Process each listing
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
 
@@ -63,7 +61,6 @@ export class ScrapingOrchestrator {
         errors.push(`Crawl error: ${err}`);
       }
 
-      // Update job record
       await db
         .update(scrapingJobs)
         .set({
@@ -77,7 +74,6 @@ export class ScrapingOrchestrator {
       allErrors.push(...errors);
       if (this.onProgress) this.onProgress(portal, found, errors);
 
-      // Log activity
       await db.insert(activityLog).values({
         id: generateId(),
         type: "scraping",
@@ -90,7 +86,72 @@ export class ScrapingOrchestrator {
     return { total, errors: allErrors };
   }
 
-  private async saveListing(listing: RawListing): Promise<void> {
+  async crawlSearch(
+    searchId: string,
+    filters: SearchFilters
+  ): Promise<{ total: number; errors: string[] }> {
+    const portals = Object.keys(PORTAL_CONFIGS) as PortalName[];
+    let total = 0;
+    const allErrors: string[] = [];
+
+    for (const portal of portals) {
+      const adapter = this.adapters.get(portal);
+      if (!adapter) continue;
+      if (!PORTAL_CONFIGS[portal].enabled) continue;
+
+      const errors: string[] = [];
+      let found = 0;
+
+      try {
+        const listings = await adapter.crawlListings(filters);
+        found = listings.length;
+
+        for (const listing of listings) {
+          if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
+
+          try {
+            const propertyId = await this.saveListing(listing, searchId);
+            if (propertyId) total++;
+          } catch (err) {
+            errors.push(`Failed to save listing ${listing.url}: ${err}`);
+          }
+        }
+      } catch (err) {
+        errors.push(`Crawl error: ${err}`);
+      }
+
+      allErrors.push(...errors);
+    }
+
+    if (total > 0 || allErrors.length > 0) {
+      await db
+        .update(searches)
+        .set({ lastRunAt: new Date() })
+        .where(eq(searches.id, searchId));
+    }
+
+    return { total, errors: allErrors };
+  }
+
+  async crawlAllScheduled(): Promise<void> {
+    const scheduled = await db
+      .select()
+      .from(searches)
+      .where(ne(searches.schedule, "manual"))
+
+    for (const search of scheduled) {
+      let filters: SearchFilters = {};
+      try {
+        filters = JSON.parse(search.filters) as SearchFilters;
+      } catch {
+        continue;
+      }
+
+      await this.crawlSearch(search.id, filters);
+    }
+  }
+
+  private async saveListing(listing: RawListing, searchId?: string): Promise<string | null> {
     const hash = this.deduplicator.hash(listing.url, listing.title);
 
     const existing = await db
@@ -123,7 +184,6 @@ export class ScrapingOrchestrator {
         }
       }
 
-      // Update existing
       await db
         .update(properties)
         .set({
@@ -133,6 +193,26 @@ export class ScrapingOrchestrator {
           isActive: true,
         })
         .where(eq(properties.id, existing.id));
+
+      if (searchId) {
+        const alreadyLinked = await db
+          .select()
+          .from(searchProperties)
+          .where(and(eq(searchProperties.searchId, searchId), eq(searchProperties.propertyId, existing.id)))
+          .limit(1)
+          .then((r) => r[0]);
+
+        if (!alreadyLinked) {
+        await db.insert(searchProperties).values({
+          searchId,
+          propertyId: existing.id,
+          firstSeen: new Date(),
+          lastSeen: new Date(),
+        });
+        }
+      }
+
+      return existing.id;
     } else {
       // Insert new property
       const id = generateId();
@@ -255,7 +335,6 @@ export class ScrapingOrchestrator {
         }
       }
 
-      // Log new property activity
       await db.insert(activityLog).values({
         id: generateId(),
         type: "new_property",
@@ -263,6 +342,17 @@ export class ScrapingOrchestrator {
         propertyId: id,
         createdAt: new Date(),
       });
+
+      if (searchId) {
+        await db.insert(searchProperties).values({
+          searchId,
+          propertyId: id,
+          firstSeen: new Date(),
+          lastSeen: new Date(),
+        });
+      }
+
+      return id;
     }
   }
 }

@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing } from "../types";
+import { RawListing, SearchFilters } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 
 interface SrealitySearchResult {
@@ -70,7 +70,7 @@ export class SrealityAdapter extends PortalAdapter {
     super("sreality");
   }
 
-  async crawlListings(): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
     for (let page = 0; page < this.maxPages; page++) {

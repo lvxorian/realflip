@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, PortalName } from "../types";
+import { RawListing, PortalName, SearchFilters } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -15,7 +15,7 @@ export class BazosAdapter extends PortalAdapter {
     return `${this.config.baseUrl}${this.searchPath}`;
   }
 
-  async crawlListings(): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const html = await this.fetch(this.getSearchUrl());
     const $ = cheerio.load(html);
     const listings: RawListing[] = [];

@@ -28,6 +28,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: House },
   { href: "/properties", label: "Nemovitosti", icon: MagnifyingGlass },
   { href: "/analyzer", label: "Analyzátor", icon: MagnifyingGlass },
+  { href: "/searches", label: "Hledání", icon: MagnifyingGlass },
   { href: "/leads", label: "Pipeline", icon: GitBranch },
   { href: "/call-mode", label: "Call Mode", icon: Phone },
   { href: "/contacts", label: "Kontakty", icon: UsersThree },

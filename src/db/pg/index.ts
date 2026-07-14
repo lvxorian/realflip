@@ -7,3 +7,4 @@ export { deals, dealExpenses } from "./deals";
 export { alerts, notifications } from "./alerts";
 export { marketData, scrapingJobs } from "./market";
 export { activityLog } from "./activity";
+export { searches, searchProperties } from "./searches";

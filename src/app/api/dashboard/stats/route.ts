@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, leads, propertyAnalysis, activityLog } from "@/db/schema";
+import { properties, leads, propertyAnalysis, activityLog, searches } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +65,7 @@ export async function GET() {
     );
 
     const allLeads = await db.select().from(leads);
+    const allSearches = await db.select().from(searches);
 
     const activeDeals = allProperties.filter((p) => p.lat !== null).length;
 
@@ -144,6 +145,7 @@ export async function GET() {
     return NextResponse.json({
       totalProperties: allProperties.length,
       todayProperties: todayProperties.length,
+      totalSearches: allSearches.length,
       avgUndervaluation: Math.round(avgUndervaluation * 10) / 10,
       pipelineProfit,
       totalLeads: allLeads.length,
@@ -159,6 +161,7 @@ export async function GET() {
       {
         totalProperties: 0,
         todayProperties: 0,
+        totalSearches: 0,
         avgUndervaluation: 0,
         pipelineProfit: 0,
         totalLeads: 0,

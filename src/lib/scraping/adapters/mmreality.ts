@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, PortalName } from "../types";
+import { RawListing, PortalName, SearchFilters } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -31,7 +31,7 @@ export class MmrealityAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
     for (let page = 1; page <= this.maxPages; page++) {

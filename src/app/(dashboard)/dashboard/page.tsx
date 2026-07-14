@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   House,
+  MagnifyingGlass,
   TrendDown,
   CurrencyDollar,
   Star,
@@ -26,6 +27,7 @@ import {
 interface DashboardData {
   totalProperties: number;
   todayProperties: number;
+  totalSearches: number;
   avgUndervaluation: number;
   pipelineProfit: number;
   totalLeads: number;
@@ -119,6 +121,13 @@ export default function DashboardPage() {
       value: data?.totalProperties ?? 0,
       suffix: "",
       icon: House,
+      color: "text-accent",
+    },
+    {
+      label: "Aktivní hledání",
+      value: data?.totalSearches ?? 0,
+      suffix: "",
+      icon: MagnifyingGlass,
       color: "text-accent",
     },
     {

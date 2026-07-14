@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing } from "../types";
+import { RawListing, SearchFilters } from "../types";
 import * as cheerio from "cheerio";
 
 export class HyperinzerceAdapter extends PortalAdapter {
@@ -10,7 +10,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
     for (let page = 1; page <= this.maxPages; page++) {

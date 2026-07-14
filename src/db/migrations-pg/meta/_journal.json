@@ -15,6 +15,13 @@
       "when": 1783851832960,
       "tag": "0001_gray_millenium_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784050936021,
+      "tag": "0002_volatile_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

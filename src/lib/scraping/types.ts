@@ -128,6 +128,18 @@ export const PORTAL_CONFIGS: Record<PortalName, PortalConfig> = {
   },
 };
 
+export interface SearchFilters {
+  location?: string;
+  district?: string;
+  priceMin?: number;
+  priceMax?: number;
+  areaMin?: number;
+  areaMax?: number;
+  propertyType?: string;
+  condition?: string;
+  buildingType?: string;
+}
+
 export interface RawListing {
   portalName: PortalName;
   url: string;

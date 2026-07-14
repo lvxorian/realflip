@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing } from "../types";
+import { RawListing, SearchFilters } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -11,7 +11,7 @@ export class RealityCzAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const all: RawListing[] = [];
     let pageUrl = "/prodej/byty/Ceska-republika/";
 

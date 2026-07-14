@@ -1,4 +1,4 @@
-import { RawListing, PortalConfig, PORTAL_CONFIGS, PortalName } from "../types";
+import { RawListing, PortalConfig, PORTAL_CONFIGS, PortalName, SearchFilters } from "../types";
 import { RateLimiter } from "../rate-limiter";
 
 export abstract class PortalAdapter {
@@ -10,7 +10,7 @@ export abstract class PortalAdapter {
     this.rateLimiter = RateLimiter.getInstance();
   }
 
-  abstract crawlListings(): Promise<RawListing[]>;
+  abstract crawlListings(filters?: SearchFilters): Promise<RawListing[]>;
   abstract extractContact(html: string): { phone: string | null; name: string | null; email: string | null };
 
   protected async fetch(url: string): Promise<string> {
