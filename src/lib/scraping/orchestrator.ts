@@ -103,8 +103,10 @@ export class ScrapingOrchestrator {
       let found = 0;
 
       try {
-        const listings = await adapter.crawlListings(filters);
+        let listings = await adapter.crawlListings(filters);
         found = listings.length;
+
+        listings = listings.filter((l) => matchFilters(l, filters));
 
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
@@ -355,4 +357,17 @@ export class ScrapingOrchestrator {
       return id;
     }
   }
+}
+
+function matchFilters(listing: RawListing, filters: SearchFilters): boolean {
+  if (filters.location) {
+    const loc = filters.location.toLowerCase().trim();
+    const parts = [listing.address, listing.title].filter(Boolean).join(" ").toLowerCase();
+    if (parts && loc && !parts.includes(loc)) return false;
+  }
+  if (filters.priceMin != null && listing.price < filters.priceMin) return false;
+  if (filters.priceMax != null && listing.price > filters.priceMax) return false;
+  if (filters.areaMin != null && (listing.area ?? 0) < filters.areaMin) return false;
+  if (filters.areaMax != null && (listing.area ?? 0) > filters.areaMax) return false;
+  return true;
 }
