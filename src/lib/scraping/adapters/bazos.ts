@@ -1,5 +1,6 @@
 import { PortalAdapter } from "./base";
 import { RawListing, PortalName } from "../types";
+import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
 export class BazosAdapter extends PortalAdapter {
@@ -88,6 +89,10 @@ export class BazosAdapter extends PortalAdapter {
       else {
         const metaDesc = $('meta[name="description"]').attr("content") || "";
         if (metaDesc) listing.description = metaDesc;
+      }
+
+      if (listing.description) {
+        listing.condition = inferConditionFromText(listing.description, listing.title);
       }
 
       const nameText = $("td:contains('Jméno')")

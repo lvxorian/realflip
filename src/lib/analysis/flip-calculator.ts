@@ -54,7 +54,7 @@ export function calculateFlip(input: FlipInput): InvestmentAnalysis {
   const cashOnCash = purchasePrice > 0 ? (netProfit / purchasePrice) * 100 : 0;
 
   // Break-even
-  const breakEvenPrice = Math.round(totalCost - netProfit * 0.5);
+  const breakEvenPrice = totalCost;
 
   // Undervaluation
   const undervaluationPct = marketValue > 0

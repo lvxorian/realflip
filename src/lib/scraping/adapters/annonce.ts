@@ -1,5 +1,6 @@
 import { PortalAdapter } from "./base";
 import { RawListing } from "../types";
+import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
 export class AnnonceAdapter extends PortalAdapter {
@@ -140,6 +141,10 @@ export class AnnonceAdapter extends PortalAdapter {
       if (!fullDesc) {
         const metaDesc = $('meta[name="description"]').attr("content") || "";
         if (metaDesc) listing.description = metaDesc;
+      }
+
+      if (listing.description) {
+        listing.condition = inferConditionFromText(listing.description, listing.title);
       }
 
       if (!listing.buildingType && listing.description) {

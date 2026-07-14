@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { db } from "@/db";
+import { userPreferences } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { scrapeUrl } from "@/lib/scraping/url-scraper";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
@@ -8,7 +11,8 @@ import { getMarketPriceRange } from "@/lib/scraping/market-price-service";
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user?.id) {
+  const userId = session?.user?.id;
+  if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -29,11 +33,19 @@ export async function POST(req: Request) {
             return { url, portal, success: false, error: "Nepodařilo se načíst cenu inzerátu" };
           }
 
+          const prefs = await db
+            .select({ minRoi: userPreferences.minRoi })
+            .from(userPreferences)
+            .where(eq(userPreferences.userId, userId))
+            .limit(1)
+            .then((r) => r[0])
+            .catch(() => null);
+
           const location = classifyLocation(listing.address, listing.title);
           const dynamicRange = location.city !== "Neznámá"
             ? await getMarketPriceRange(location.city).catch(() => null)
             : null;
-          const analysis = analyzeListing(listing, dynamicRange);
+          const analysis = analyzeListing(listing, dynamicRange, prefs ? { targetROI: prefs.minRoi ?? 15 } : undefined, location);
 
           let aiSummary: string | null = null;
           let aiNegotiationTips: string[] | null = null;

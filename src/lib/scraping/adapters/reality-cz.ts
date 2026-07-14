@@ -1,5 +1,6 @@
 import { PortalAdapter } from "./base";
 import { RawListing } from "../types";
+import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
 export class RealityCzAdapter extends PortalAdapter {
@@ -25,9 +26,8 @@ export class RealityCzAdapter extends PortalAdapter {
       const nextLink = $("#strankovani a[href*='?g=']").first().attr("href");
       if (!nextLink) break;
 
-      pageUrl = nextLink.startsWith("http")
-        ? new URL(nextLink).pathname + new URL(nextLink).search
-        : `/prodej/byty/hlavni-mesto-Praha/${nextLink}`;
+      pageUrl = new URL(nextLink, `${this.config.baseUrl}${pageUrl}`).pathname +
+                new URL(nextLink, `${this.config.baseUrl}${pageUrl}`).search;
     }
 
     const enriched = await Promise.all(
@@ -90,7 +90,7 @@ export class RealityCzAdapter extends PortalAdapter {
         area: area && area > 0 ? area : null,
         rooms,
         floor: null,
-        condition: this.inferCondition(layoutText),
+        condition: inferConditionFromText(layoutText),
         buildingType: null,
         yearBuilt: null,
         address: title,
@@ -134,8 +134,7 @@ export class RealityCzAdapter extends PortalAdapter {
         const floorMatch = fullDesc.match(/(\d+)\.\s*(?:NP|nadzemn[ií]m\s+podlaž[ií]|patro)/i);
         if (floorMatch) listing.floor = parseInt(floorMatch[1]);
 
-        const condition = this.inferCondition(fullDesc);
-        if (condition) listing.condition = condition;
+        listing.condition = inferConditionFromText(fullDesc) ?? listing.condition;
       }
 
       if (!listing.buildingType && fullDesc) {
@@ -173,7 +172,7 @@ export class RealityCzAdapter extends PortalAdapter {
         }
 
         if (/druh.*budovy/i.test(label)) {
-          const c = this.inferCondition(value);
+          const c = inferConditionFromText(value);
           if (c) listing.condition = c;
         }
 
@@ -236,16 +235,6 @@ export class RealityCzAdapter extends PortalAdapter {
     const cleaned = text.replace(/\s/g, "").replace(/Kč.*$/i, "").trim();
     const num = parseInt(cleaned);
     return isNaN(num) ? 0 : num;
-  }
-
-  private inferCondition(text: string): string | null {
-    const t = text.toLowerCase();
-    if (/novostavba|nov[ýe]/.test(t) && !/(po|k)\s*rekonstrukci/.test(t)) return "new";
-    if (/po\s*rekonstrukci|zrekonstruovan[ýy]/.test(t)) return "renovated";
-    if (/velmi\s*dobr[ýy]\s*stav|udržovan[ýy]/.test(t)) return "good";
-    if (/k\s*rekonstrukci|původn[íi]|špatn[ýy]\s*stav/.test(t)) return "project";
-    if (/dobr[ýy]\s*stav/.test(t)) return "good";
-    return null;
   }
 
   extractContact(_html: string): { phone: string | null; name: string | null; email: string | null } {

@@ -1,4 +1,4 @@
-import { FullAnalysis, RedFlag, DetailedCosts, BuildingType, EnergyLabel, OccupancyStatus, LocationCategory, RenovationItem, ScenarioResult, CitySegments } from "./types";
+import { FullAnalysis, RedFlag, DetailedCosts, BuildingType, EnergyLabel, OccupancyStatus, LocationCategory, LocationResult, RenovationItem, ScenarioResult, CitySegments } from "./types";
 import { classifyLocation } from "./location";
 import { EUPHEMISMS, MARKET_DATA } from "./market-data";
 import { normalizeCondition } from "./condition";
@@ -130,17 +130,24 @@ function calculateMarketPriceRange(
     return range;
   }
 
-  const useRenovated = condition === "new" || condition === "renovated" || condition === "good";
   const useBrick = buildingType === "brick" || buildingType === "new";
   const other = buildingType === "panel" || buildingType === null;
 
   let low = 0, high = 0;
   if (useBrick) {
-    low = useRenovated ? 40000 : 25000;
-    high = useRenovated ? 70000 : 45000;
+    if (condition === "new") { low = 50000; high = 80000; }
+    else if (condition === "renovated") { low = 40000; high = 70000; }
+    else if (condition === "good") { low = 35000; high = 60000; }
+    else if (condition === "original") { low = 25000; high = 45000; }
+    else if (condition === "dilapidated") { low = 15000; high = 30000; }
+    else { low = 30000; high = 50000; }
   } else if (other) {
-    low = useRenovated ? 28000 : 18000;
-    high = useRenovated ? 50000 : 32000;
+    if (condition === "new") { low = 35000; high = 60000; }
+    else if (condition === "renovated") { low = 28000; high = 50000; }
+    else if (condition === "good") { low = 25000; high = 45000; }
+    else if (condition === "original") { low = 18000; high = 32000; }
+    else if (condition === "dilapidated") { low = 10000; high = 20000; }
+    else { low = 20000; high = 35000; }
   }
 
   if (locationCategory === "risky") {
@@ -272,6 +279,26 @@ function calculateScenario(
   return { label, renovationCost, arv, totalCost, netProfit, roi: Math.round(roi * 10) / 10, annualizedRoi: Math.round(annualizedRoi * 10) / 10 };
 }
 
+export function calculateTargetPurchasePrice(
+  arv: number,
+  renovationCost: number,
+  targetROI?: number
+): number {
+  const roi = (targetROI ?? 15) / 100;
+  const taxRate = 0.15;
+  const grossTargetRatio = roi / (1 - taxRate);
+  const targetMultiple = 1 + grossTargetRatio;
+  const targetTotalCost = arv / targetMultiple;
+  const acqCostRate = 0.04;
+  const holdingCostRate = 0.005 * 6;
+  const fixedAcqCosts = 33000;
+  const sellingCosts = Math.round(arv * 0.04) + 45000;
+  const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
+  return Math.round(
+    (targetTotalCost - (1 + holdingCostRate) * renovationCost - sellingCosts - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
+  );
+}
+
 function determineVerdict(
   investmentScore: number,
   locationCategory: LocationCategory,
@@ -348,7 +375,7 @@ function determineVerdict(
   };
 }
 
-export function analyzeListing(listing: RawListing, dynamicRange?: { low: number; high: number; median: number } | null): FullAnalysis {
+export function analyzeListing(listing: RawListing, dynamicRange?: { low: number; high: number; median: number } | null, prefs?: { targetROI?: number }, precomputedLocation?: LocationResult): FullAnalysis {
   const { price, area, rooms, title, address, yearBuilt, description } = listing;
   const condition = normalizeCondition(listing.condition);
 
@@ -365,7 +392,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   if (!description) missingFields.push("popis");
 
   // Krok 2: Lokalita
-  const location = classifyLocation(address, title);
+  const location = precomputedLocation ?? classifyLocation(address, title);
 
   // Krok 3: Cenová analýza
   const buildingType = detectBuildingType(description, title, listing.buildingType);
@@ -448,19 +475,8 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   );
 
   // Cílový nákup
-  const TARGET_ROI = 0.15;
-  const taxRate = 0.15;
-  const grossTargetRatio = TARGET_ROI / (1 - taxRate);
-  const targetMultiple = 1 + grossTargetRatio;
-  const targetTotalCost = flip.arv / targetMultiple;
-  const acqCostRate = 0.04;
-  const holdingCostRate = 0.005 * 6;
-  const fixedAcqCosts = 33000;
-  const sellingCostsCalc = Math.round(flip.arv * 0.04) + 45000;
-  const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
-  const targetPurchasePrice = Math.round(
-    (targetTotalCost - (1 + holdingCostRate) * renovationTotal - sellingCostsCalc - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
-  );
+  const targetROI = prefs?.targetROI ?? 15;
+  const targetPurchasePrice = calculateTargetPurchasePrice(flip.arv, renovationTotal, targetROI);
   const priceReductionNeeded = Math.max(0, price - targetPurchasePrice);
   const priceReductionPct = price > 0 ? Math.round((priceReductionNeeded / price) * 100 * 10) / 10 : 0;
 
@@ -508,7 +524,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     roi: Math.round(roi * 10) / 10,
     annualizedRoi: Math.round(annualizedRoi * 10) / 10,
     cashOnCash: costs.purchasePrice > 0 ? Math.round((netProfit / costs.purchasePrice) * 100 * 10) / 10 : 0,
-    breakEvenPrice: Math.round(costs.totalCost - netProfit * 0.5),
+    breakEvenPrice: costs.totalCost,
     rentalYield: rentalYield ? Math.round(rentalYield * 10) / 10 : null,
     alternativeStrategies,
     investmentScore,
@@ -518,7 +534,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     targetPurchasePrice,
     priceReductionNeeded,
     priceReductionPct,
-    targetROI: TARGET_ROI * 100,
+    targetROI,
     scenarios,
     renovationItems,
   };

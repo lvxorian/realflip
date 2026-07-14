@@ -1,5 +1,6 @@
 import { PortalAdapter } from "./base";
 import { RawListing, PortalName } from "../types";
+import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
 interface MmrOffer {
@@ -138,6 +139,10 @@ export class MmrealityAdapter extends PortalAdapter {
 
       const fullDesc = this.cleanText($('div[data-cy="description-content"]').text());
       if (fullDesc) listing.description = fullDesc;
+
+      if (listing.description) {
+        listing.condition = inferConditionFromText(listing.description, listing.title);
+      }
 
       if (!listing.buildingType && listing.description) {
         const bt = listing.description.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);

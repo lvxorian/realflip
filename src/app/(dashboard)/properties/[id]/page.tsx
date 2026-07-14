@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { calculateTargetPurchasePrice } from "@/lib/analysis/analyzer";
+import { safeJsonParse } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
@@ -104,22 +106,10 @@ function calcRenovationItems(area: number, condition: string | null) {
 }
 
 function calcTargetPrice(askingPrice: number, arv: number, renovationCost: number) {
-  const TARGET_ROI = 0.15;
-  const taxRate = 0.15;
-  const grossTargetRatio = TARGET_ROI / (1 - taxRate);
-  const targetMultiple = 1 + grossTargetRatio;
-  const targetTotalCost = arv / targetMultiple;
-  const acqCostRate = 0.04;
-  const holdingCostRate = 0.005 * 6;
-  const fixedAcqCosts = 33000;
-  const sellingCosts = Math.round(arv * 0.04) + 45000;
-  const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
-  const targetPurchasePrice = Math.round(
-    (targetTotalCost - (1 + holdingCostRate) * renovationCost - sellingCosts - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
-  );
+  const targetPurchasePrice = calculateTargetPurchasePrice(arv, renovationCost);
   const priceReductionNeeded = Math.max(0, askingPrice - targetPurchasePrice);
   const priceReductionPct = askingPrice > 0 ? Math.round((priceReductionNeeded / askingPrice) * 100 * 10) / 10 : 0;
-  return { targetPurchasePrice, priceReductionNeeded, priceReductionPct, targetROI: Math.round(TARGET_ROI * 100) };
+  return { targetPurchasePrice, priceReductionNeeded, priceReductionPct, targetROI: 15 };
 }
 
 const PORTAL_LABELS: Record<string, string> = {
@@ -166,7 +156,7 @@ export default async function PropertyDetailPage({
     .limit(1)
     .then((r) => r[0]);
 
-  const imageUrls: string[] = property.imageUrls ? JSON.parse(property.imageUrls) : [];
+  const imageUrls: string[] = safeJsonParse<string[]>(property.imageUrls, []);
   const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
   const hasRealUrl = property.url && property.url.startsWith("http");
 
@@ -634,7 +624,7 @@ export default async function PropertyDetailPage({
 
               {/* Red Flags */}
               {analysis.redFlagsJson && (() => {
-                const flags = JSON.parse(analysis.redFlagsJson);
+                const flags = safeJsonParse<any[]>(analysis.redFlagsJson, []);
                 if (flags.length === 0) return null;
                 return (
                   <div className="rounded-2xl border border-border/50 bg-card p-5">
@@ -699,7 +689,7 @@ export default async function PropertyDetailPage({
 
               {/* Alternative strategies */}
               {analysis.alternativeStrategiesJson && (() => {
-                const strategies = JSON.parse(analysis.alternativeStrategiesJson);
+                const strategies = safeJsonParse<string[]>(analysis.alternativeStrategiesJson, []);
                 if (strategies.length === 0) return null;
                 return (
                   <div className="rounded-2xl border border-border/50 bg-card p-5">

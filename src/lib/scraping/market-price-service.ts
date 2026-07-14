@@ -1,3 +1,5 @@
+import { RateLimiter } from "./rate-limiter";
+
 interface CachedMarketData {
   city: string;
   medianPricePerSqm: number;
@@ -8,6 +10,7 @@ interface CachedMarketData {
 }
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const rateLimiter = RateLimiter.getInstance();
 
 let memoryCache: Map<string, CachedMarketData> = new Map();
 
@@ -47,6 +50,8 @@ function computeStats(prices: number[]): { median: number; p25: number; p75: num
 }
 
 async function fetchFromSreality(cityKey: string): Promise<CachedMarketData | null> {
+  await rateLimiter.wait("sreality", 3000);
+
   const slug = cityKeyToSrealitySlug(cityKey);
   const url = `https://www.sreality.cz/hledani/prodej/byty/${slug}`;
 

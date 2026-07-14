@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { properties, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { safeJsonParse } from "@/lib/utils";
 import { PropertiesExplorer, type PropertyListItem } from "@/components/ui/properties-explorer";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,7 @@ export default async function PropertiesPage() {
       0,
       Math.floor((now - new Date(r.firstSeen).getTime()) / 86400000)
     ),
-    imageUrls: r.imageUrls ? JSON.parse(r.imageUrls) : [],
+    imageUrls: safeJsonParse<string[]>(r.imageUrls, []),
   }));
 
   return <PropertiesExplorer items={items} />;

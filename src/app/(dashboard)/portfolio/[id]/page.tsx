@@ -5,6 +5,7 @@ import { deals, properties, propertyAnalysis, dealExpenses } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
+import { safeJsonParse } from "@/lib/utils";
 import { CheckCircle, Clock, ArrowLeft, MapPin, CurrencyDollar } from "@phosphor-icons/react/dist/ssr";
 
 const statusLabel: Record<string, string> = { purchased: "Koupeno", renovating: "Rekonstrukce", selling: "Na prodej", sold: "Prodáno" };
@@ -34,8 +35,7 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
   const prop = deal.properties;
   const analysis = deal.property_analysis;
 
-  const renovationItems: Array<{ category: string; planned: number; actual: number | null; notes: string | null }> = d.renovationItems
-    ? JSON.parse(d.renovationItems) : [];
+  const renovationItems: Array<{ category: string; planned: number; actual: number | null; notes: string | null }> = safeJsonParse<Array<{ category: string; planned: number; actual: number | null; notes: string | null }>>(d.renovationItems, []);
 
   const totalPlanned = renovationItems.reduce((s, i) => s + i.planned, 0);
   const totalActual = renovationItems.reduce((s, i) => s + (i.actual || 0), 0);

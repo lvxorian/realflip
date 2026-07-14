@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
 import { Input } from "@/components/ui/input";
-import { X, ArrowDown } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowDown, CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import {
   MagnifyingGlass,
   SquaresFour,
@@ -12,6 +12,8 @@ import {
   FadersHorizontal,
   MapPin,
 } from "@phosphor-icons/react";
+
+const PAGE_SIZE = 48;
 
 export interface PropertyListItem {
   id: string;
@@ -83,6 +85,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [sort, setSort] = useState<SortMode>("newest");
   const [undervaluedOnly, setUndervaluedOnly] = useState(false);
+  const [page, setPage] = useState(0);
 
   const cities = useMemo(() => {
     const set = new Set<string>();
@@ -130,8 +133,12 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
     return result;
   }, [items, search, filters, sort, undervaluedOnly]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   const setFilter = (key: keyof FilterState, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(0);
   };
 
   const clearFilters = () => {
@@ -139,6 +146,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
     setSearch("");
     setSort("newest");
     setUndervaluedOnly(false);
+    setPage(0);
   };
 
   return (
@@ -158,13 +166,13 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
             <Input
               placeholder="Hledat..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               className="h-9 pl-9 w-56"
             />
           </div>
           <select
             value={sort}
-            onChange={(e) => setSort(e.target.value as SortMode)}
+            onChange={(e) => { setSort(e.target.value as SortMode); setPage(0); }}
             className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 cursor-pointer"
           >
             <option value="newest">Nejnovější</option>
@@ -172,7 +180,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
             <option value="mostUndervalued">Nejpodhodnocenější</option>
           </select>
           <button
-            onClick={() => setUndervaluedOnly(!undervaluedOnly)}
+            onClick={() => { setUndervaluedOnly(!undervaluedOnly); setPage(0); }}
             className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
               undervaluedOnly
                 ? "bg-success/10 text-success border-success/30"
@@ -352,6 +360,32 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
         )}
       </AnimatePresence>
 
+      {/* Pagination top */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>{filtered.length} inzerátů celkem</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(Math.max(0, page - 1))}
+              disabled={page === 0}
+              className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <CaretLeft size={14} weight="bold" />
+            </button>
+            <span className="font-mono">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+              disabled={page >= totalPages - 1}
+              className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <CaretRight size={14} weight="bold" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-border/50 bg-card p-12 text-center">
           <MapPin size={32} weight="duotone" className="text-muted/40 mx-auto mb-3" />
@@ -363,114 +397,142 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
           )}
         </div>
       ) : (
-        <AnimatePresence mode="wait">
-          {view === "grid" ? (
-            <motion.div
-              key="grid"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            >
-              {filtered.map((p, i) => (
-                <PropertyCard
-                  key={p.id}
-                  id={p.id}
-                  title={p.title}
-                  price={p.price}
-                  pricePerSqm={p.pricePerSqm ?? undefined}
-                  address={p.address ?? "Neznámá adresa"}
-                  score={p.score ?? 0}
-                  status={
-                    p.recommendation === "buy"
-                      ? "Doporučeno"
-                      : p.daysOnMarket <= 2
-                      ? "Nový"
-                      : undefined
-                  }
-                  area={p.area ? `${p.area} m²` : undefined}
-                  rooms={p.rooms ?? undefined}
-                  days={p.daysOnMarket}
-                  index={i}
-                  imageUrl={p.imageUrls?.[0]}
-                  undervaluationPct={p.undervaluationPct ?? undefined}
-                />
-              ))}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="list"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-2"
-            >
-              {filtered.map((p, i) => (
-                <motion.div
-                  key={p.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="flex items-center justify-between rounded-xl border border-border/50 bg-card p-4 hover:bg-card-hover transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="relative h-14 w-20 shrink-0 rounded-lg overflow-hidden bg-card">
-                      {p.imageUrls && p.imageUrls.length > 0 ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={p.imageUrls[0]}
-                          alt={p.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full property-image-shimmer flex items-center justify-center">
-                          <span className="text-[10px] font-mono text-muted/40">
-                            {p.score}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{p.title}</p>
-                      <p className="text-xs text-muted">{p.address}</p>
-                      <div className="flex items-center gap-2 text-[10px] text-muted mt-1">
-                        {p.area && <span>{p.area} m²</span>}
-                        {p.rooms && (
-                          <>
-                            <span className="w-0.5 h-0.5 rounded-full bg-border" />
-                            <span>{p.rooms}</span>
-                          </>
+        <>
+          <AnimatePresence mode="wait">
+            {view === "grid" ? (
+              <motion.div
+                key="grid"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              >
+                {paged.map((p, i) => (
+                  <PropertyCard
+                    key={p.id}
+                    id={p.id}
+                    title={p.title}
+                    price={p.price}
+                    pricePerSqm={p.pricePerSqm ?? undefined}
+                    address={p.address ?? "Neznámá adresa"}
+                    score={p.score ?? 0}
+                    status={
+                      p.recommendation === "buy"
+                        ? "Doporučeno"
+                        : p.daysOnMarket <= 2
+                        ? "Nový"
+                        : undefined
+                    }
+                    area={p.area ? `${p.area} m²` : undefined}
+                    rooms={p.rooms ?? undefined}
+                    days={p.daysOnMarket}
+                    index={i}
+                    imageUrl={p.imageUrls?.[0]}
+                    undervaluationPct={p.undervaluationPct ?? undefined}
+                  />
+                ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="list"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-2"
+              >
+                {paged.map((p, i) => (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03 }}
+                    className="flex items-center justify-between rounded-xl border border-border/50 bg-card p-4 hover:bg-card-hover transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="relative h-14 w-20 shrink-0 rounded-lg overflow-hidden bg-card">
+                        {p.imageUrls && p.imageUrls.length > 0 ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.imageUrls[0]}
+                            alt={p.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full property-image-shimmer flex items-center justify-center">
+                            <span className="text-[10px] font-mono text-muted/40">
+                              {p.score}
+                            </span>
+                          </div>
                         )}
-                        {p.daysOnMarket !== undefined && (
-                          <>
-                            <span className="w-0.5 h-0.5 rounded-full bg-border" />
-                            <span>{p.daysOnMarket} dní</span>
-                          </>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{p.title}</p>
+                        <p className="text-xs text-muted">{p.address}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-muted mt-1">
+                          {p.area && <span>{p.area} m²</span>}
+                          {p.rooms && (
+                            <>
+                              <span className="w-0.5 h-0.5 rounded-full bg-border" />
+                              <span>{p.rooms}</span>
+                            </>
+                          )}
+                          {p.daysOnMarket !== undefined && (
+                            <>
+                              <span className="w-0.5 h-0.5 rounded-full bg-border" />
+                              <span>{p.daysOnMarket} dní</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm font-semibold font-mono text-price">
+                          {new Intl.NumberFormat("cs-CZ", {
+                            style: "decimal",
+                            maximumFractionDigits: 0,
+                          }).format(p.price)}{" "}
+                          Kč
+                        </p>
+                        {p.pricePerSqm && (
+                          <p className="text-[10px] text-muted">
+                            {p.pricePerSqm.toLocaleString("cs-CZ")} Kč/m²
+                          </p>
                         )}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="text-right">
-                      <p className="text-sm font-semibold font-mono text-price">
-                        {new Intl.NumberFormat("cs-CZ", {
-                          style: "decimal",
-                          maximumFractionDigits: 0,
-                        }).format(p.price)}{" "}
-                        Kč
-                      </p>
-                      {p.pricePerSqm && (
-                        <p className="text-[10px] text-muted">
-                          {p.pricePerSqm.toLocaleString("cs-CZ")} Kč/m²
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Pagination bottom */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between text-xs text-muted pt-4">
+              <span>{filtered.length} inzerátů celkem</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
+                  className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <CaretLeft size={14} weight="bold" />
+                </button>
+                <span className="font-mono">
+                  {page + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <CaretRight size={14} weight="bold" />
+                </button>
+              </div>
+            </div>
           )}
-        </AnimatePresence>
+        </>
       )}
     </div>
   );
