@@ -251,6 +251,26 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {/* Quick Search */}
+      <motion.div variants={itemVariants}>
+        <Link href="/searches/new">
+          <div className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover transition-colors cursor-pointer flex items-center justify-between group">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                <MagnifyingGlass size={20} weight="duotone" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm group-hover:text-accent transition-colors">Rychlé hledání</p>
+                <p className="text-xs text-muted mt-0.5">Vytvořte cílené hledání podle lokality, ceny a plochy</p>
+              </div>
+            </div>
+            <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+              Vytvořit →
+            </span>
+          </div>
+        </Link>
+      </motion.div>
+
       {/* Bento Bottom */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Portfolio Chart */}

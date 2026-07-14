@@ -93,7 +93,8 @@ export default function SettingsPage() {
 
             {activeTab === "scraping" && (
               <>
-                <h2 className="font-semibold tracking-tight">Sledované portály</h2>
+                <h2 className="font-semibold tracking-tight">Povolené portály</h2>
+                <p className="text-xs text-muted -mt-4">Všechna hledání prohledávají tyto portály.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {portals.map((p) => (
                     <label key={p} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 hover:bg-card-hover transition-colors cursor-pointer">
@@ -103,13 +104,26 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground/80">Interval scrapování</label>
+                  <label className="text-sm font-medium text-foreground/80">Výchozí plán pro nová hledání</label>
                   <select className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
-                    <option>Každou hodinu</option>
-                    <option>Každé 3 hodiny</option>
-                    <option>Každých 6 hodin</option>
-                    <option selected>Denně</option>
+                    <option value="manual">Ručně</option>
+                    <option value="daily">Denně</option>
+                    <option value="weekly">Týdně</option>
                   </select>
+                  <p className="text-xs text-muted">Každé hledání může mít vlastní plán při vytváření. Toto je výchozí hodnota.</p>
+                </div>
+                <hr className="border-border/50" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold tracking-tight text-sm">Vaše hledání</h3>
+                    <p className="text-xs text-muted mt-0.5">Spravujte jednotlivá hledání a jejich plánování.</p>
+                  </div>
+                  <a
+                    href="/searches"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+                  >
+                    Spravovat hledání
+                  </a>
                 </div>
               </>
             )}
