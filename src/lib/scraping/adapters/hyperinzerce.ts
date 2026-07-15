@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters } from "../types";
+import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
 import * as cheerio from "cheerio";
 
 export class HyperinzerceAdapter extends PortalAdapter {
@@ -79,7 +79,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
         contactName: null,
         contactEmail: null,
         description: descPreview,
-        imageUrls: imgSrc ? [imgSrc.startsWith("http") ? imgSrc : `https:${imgSrc}`] : [],
+        imageUrls: imgSrc ? filterImages([imgSrc.startsWith("http") ? imgSrc : `https:${imgSrc}`]) : [],
         publishedAt: new Date(),
         updatedAt: new Date(),
       });
@@ -173,7 +173,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
           if (!images.includes(absUrl)) images.push(absUrl);
         }
       });
-      if (images.length > 0) listing.imageUrls = images;
+      if (images.length > 0) listing.imageUrls = filterImages(images);
 
       const dateText = this.cleanText($(".c-ad-detail__header-info-date span").text());
       if (dateText) {
@@ -196,7 +196,8 @@ export class HyperinzerceAdapter extends PortalAdapter {
   private parsePrice(text: string): number {
     const cleaned = text.replace(/\s/g, "").replace(/Kč.*$/i, "").trim();
     const num = parseInt(cleaned);
-    return isNaN(num) ? 0 : num;
+    if (isNaN(num)) return 0;
+    return isValidPrice(num) ? num : 0;
   }
 
   private inferCondition(text: string): string | null {

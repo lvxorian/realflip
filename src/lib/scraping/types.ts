@@ -140,6 +140,36 @@ export interface SearchFilters {
   buildingType?: string;
 }
 
+export const MIN_REAL_ESTATE_PRICE = 50000;
+
+const PLACEHOLDER_IMAGE_PATTERNS = [
+  /nophoto/i,
+  /no-photo/i,
+  /placeholder/i,
+  /blank\.(gif|png|jpg)/i,
+  /pixel\.(gif|png|jpg)/i,
+  /1x1\.(gif|png|jpg)/i,
+  /transparent/i,
+  /default_img/i,
+  /noimage/i,
+  /no-image/i,
+  /image_not_found/i,
+  /not-available/i,
+  /not_available/i,
+];
+
+export function filterImages(urls: string[]): string[] {
+  return urls.filter((url) => {
+    if (!url || url.length < 10) return false;
+    if (url.startsWith("data:image/svg+xml")) return false;
+    return !PLACEHOLDER_IMAGE_PATTERNS.some((p) => p.test(url));
+  });
+}
+
+export function isValidPrice(price: number): boolean {
+  return price > 0 && price >= MIN_REAL_ESTATE_PRICE;
+}
+
 export interface RawListing {
   portalName: PortalName;
   url: string;

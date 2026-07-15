@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./adapters/base";
-import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters } from "./types";
+import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, notifications, searches, searchProperties } from "@/db/schema";
@@ -49,6 +49,10 @@ export class ScrapingOrchestrator {
 
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
+          if (!isValidPrice(listing.price)) {
+            errors.push(`Skipped listing with invalid price (${listing.price} Kč): ${listing.url}`);
+            continue;
+          }
 
           try {
             await this.saveListing(listing);
@@ -110,6 +114,7 @@ export class ScrapingOrchestrator {
 
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
+          if (!isValidPrice(listing.price)) continue;
 
           try {
             const propertyId = await this.saveListing(listing, searchId);
@@ -239,7 +244,7 @@ export class ScrapingOrchestrator {
         contactName: listing.contactName,
         contactEmail: listing.contactEmail,
         description: listing.description,
-        imageUrls: JSON.stringify(listing.imageUrls),
+        imageUrls: JSON.stringify(filterImages(listing.imageUrls)),
         status: "active",
         firstSeen: listing.publishedAt || new Date(),
         lastSeen: new Date(),

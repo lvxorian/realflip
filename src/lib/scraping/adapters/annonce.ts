@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters } from "../types";
+import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -47,7 +47,8 @@ export class AnnonceAdapter extends PortalAdapter {
       const url = href.startsWith("http") ? href : `https://www.annonce.cz${href}`;
 
       const priceText = $el.find("strong.mini-sticker span").text().trim();
-      const price = parseInt(priceText.replace(/\s/g, "").replace(/Kč.*$/i, "")) || 0;
+      const rawPrice = parseInt(priceText.replace(/\s/g, "").replace(/Kč.*$/i, "")) || 0;
+      const price = isValidPrice(rawPrice) ? rawPrice : 0;
       if (price === 0) return;
 
       let rooms: string | null = null;
@@ -84,8 +85,8 @@ export class AnnonceAdapter extends PortalAdapter {
       const imgEl = $el.find("a.thumbnail img");
       const imgSrc = imgEl.attr("src") || "";
 
-      const images: string[] = [];
-      if (imgSrc) images.push(imgSrc);
+      let images: string[] = [];
+      if (imgSrc) images = filterImages([imgSrc]);
 
       try {
         const slideshowRaw = $el.find("div.slideshow-container").attr("data-slideshow");
@@ -168,10 +169,9 @@ export class AnnonceAdapter extends PortalAdapter {
             listing.lat = data.geo.latitude;
             listing.lng = data.geo.longitude;
           }
-          if (data?.image && Array.isArray(data.image)) {
-            data.image.forEach((img: string) => {
-              if (img && !listing.imageUrls.includes(img)) listing.imageUrls.push(img);
-            });
+          if (data?.image) {
+            const jsonImages = Array.isArray(data.image) ? data.image : [data.image];
+            listing.imageUrls = filterImages([...listing.imageUrls, ...jsonImages]);
           }
         }
       } catch {

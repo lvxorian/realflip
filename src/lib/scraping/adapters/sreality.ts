@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters } from "../types";
+import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 
 interface SrealitySearchResult {
@@ -88,11 +88,14 @@ export class SrealityAdapter extends PortalAdapter {
         const streetNumber = locality?.housenumber ?? null;
         const address = [street, streetNumber, city].filter(Boolean).join(" ") || null;
 
+        const rawPrice = item.price ?? 0;
+        if (!isValidPrice(rawPrice)) continue;
+
         all.push({
           portalName: "sreality",
           url: `https://www.sreality.cz/detail/prodej/byt/${city?.toLowerCase() ?? "neznama"}/${item.hash_id}`,
           title: item.name ?? "",
-          price: item.price ?? 0,
+          price: rawPrice,
           pricePerSqm: item.price_czk_m2 ?? null,
           area: item.usable_area ?? null,
           rooms: null,
@@ -161,8 +164,10 @@ export class SrealityAdapter extends PortalAdapter {
         listing.lng = detailLocality.gps_lon ?? listing.lng;
       }
 
-      listing.imageUrls = (r.advert_images ?? []).map(
-        (img) => (img.url ?? "").replace(/^\/*/, "https://"),
+      listing.imageUrls = filterImages(
+        (r.advert_images ?? []).map(
+          (img) => (img.url ?? "").replace(/^\/*/, "https://"),
+        ),
       );
 
       if (r.user) {

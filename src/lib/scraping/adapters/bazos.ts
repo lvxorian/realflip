@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, PortalName, SearchFilters } from "../types";
+import { RawListing, PortalName, SearchFilters, filterImages, isValidPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -62,7 +62,7 @@ export class BazosAdapter extends PortalAdapter {
         contactName: null,
         contactEmail: null,
         description: descShort,
-        imageUrls: imgThumb ? [imgThumb] : [],
+        imageUrls: imgThumb ? filterImages([imgThumb]) : [],
         publishedAt: this.parseDate(dateText),
         updatedAt: new Date(),
       });
@@ -116,7 +116,7 @@ export class BazosAdapter extends PortalAdapter {
         const src = $(el).attr("data-flickity-lazyload") || $(el).attr("src");
         if (src && !images.includes(src)) images.push(src);
       });
-      if (images.length > 0) listing.imageUrls = images;
+      if (images.length > 0) listing.imageUrls = filterImages(images);
 
       if (!listing.buildingType && listing.description) {
         const bt = listing.description.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);
@@ -160,7 +160,8 @@ export class BazosAdapter extends PortalAdapter {
   private parsePrice(text: string): number {
     const cleaned = text.replace(/\s/g, "").replace(/Kč.*$/, "").trim();
     const num = parseInt(cleaned);
-    return isNaN(num) ? 0 : num;
+    if (isNaN(num)) return 0;
+    return isValidPrice(num) ? num : 0;
   }
 
   private parseDate(text: string): Date {
