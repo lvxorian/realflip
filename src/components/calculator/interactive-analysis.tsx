@@ -871,9 +871,9 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
 function InfoBox({ label, value, highlight }: { label: string; value: string; highlight?: string }) {
   return (
-    <div className="rounded-xl bg-card-hover border border-border/50 p-3 overflow-hidden">
-      <p className="text-xs text-muted mb-1 truncate">{label}</p>
-      <p className={`text-sm font-semibold font-mono truncate ${highlight ?? "text-foreground"}`}>{value}</p>
+    <div className="rounded-xl bg-card-hover border border-border/50 p-3">
+      <p className="text-xs text-muted mb-1">{label}</p>
+      <p className={`text-xs font-semibold font-mono break-words leading-snug ${highlight ?? "text-foreground"}`}>{value}</p>
     </div>
   );
 }
