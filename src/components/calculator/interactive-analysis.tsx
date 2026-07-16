@@ -718,21 +718,16 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           </div>
 
           {/* ===== FEATURE 7: INITIATE NEGOTIATION ===== */}
-          {l.id && <div className="rounded-xl border border-border/50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FloppyDisk size={16} className="text-muted" />
-                <h2 className="font-semibold tracking-tight text-sm">Zahájit jednání</h2>
-              </div>
-              {!saved ? (
-                <Button size="sm" onClick={initiateNegotiation} disabled={saving} className="text-xs">
-                  {saving ? "Vytvářím..." : "Zahájit"}
-                </Button>
-              ) : (
-                <span className="text-xs text-emerald-400">✅ Přidáno do pipeline</span>
-              )}
+          {l.id && !saved && (
+            <Button onClick={initiateNegotiation} disabled={saving} className="w-full text-sm gap-2 h-11">
+              {saving ? "Vytvářím..." : "Zahájit jednání"}
+            </Button>
+          )}
+          {saved && (
+            <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
+              <p className="text-sm text-emerald-400 font-medium">✅ Přidáno do pipeline</p>
             </div>
-          </div>}
+          )}
 
           {/* Existing: AI Summary */}
           {result.aiSummary && (
