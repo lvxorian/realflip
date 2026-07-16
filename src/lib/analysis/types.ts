@@ -44,10 +44,12 @@ export interface DetailedCosts {
   legalFees: number;
   appraisalFee: number;
   renovationCost: number;
+  contingency: number;
   holdingCosts: number;
   sellingCommission: number;
-  homeStaging: number;
-  certificates: number;
+  marketingPhoto: number;
+  furnishing: number;
+  energyCert: number;
   incomeTax: number;
   totalCost: number;
 }

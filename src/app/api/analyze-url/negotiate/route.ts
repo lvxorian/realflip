@@ -19,10 +19,12 @@ interface NegotiateInput {
     legalFees: number;
     appraisalFee: number;
     renovationCost: number;
+    contingency: number;
     holdingCosts: number;
     sellingCommission: number;
-    homeStaging: number;
-    certificates: number;
+    marketingPhoto: number;
+    furnishing: number;
+    energyCert: number;
     incomeTax: number;
     totalCost: number;
   };
@@ -134,9 +136,12 @@ NÁKLADOVÝ ROZPIS:
 - Provize RK: ${costs?.commission?.toLocaleString()} Kč
 - Právní služby: ${costs?.legalFees?.toLocaleString()} Kč
 - Znalecký posudek: ${costs?.appraisalFee?.toLocaleString()} Kč
+- Rekonstrukce: ${costs?.renovationCost?.toLocaleString()} Kč
+- Rezerva 10 %: ${costs?.contingency?.toLocaleString()} Kč
 - Holding: ${costs?.holdingCosts?.toLocaleString()} Kč
 - Provize při prodeji: ${costs?.sellingCommission?.toLocaleString()} Kč
-- Home staging: ${costs?.homeStaging?.toLocaleString()} Kč
+- Marketing + foto: ${costs?.marketingPhoto?.toLocaleString()} Kč
+- Zařízení bytu: ${costs?.furnishing?.toLocaleString()} Kč
 - Daň z příjmu: ${costs?.incomeTax?.toLocaleString()} Kč
 CELKOVÉ NÁKLADY: ${costs?.totalCost?.toLocaleString()} Kč
 

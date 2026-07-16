@@ -134,6 +134,18 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [renovationTotal, setRenovationTotal] = useState(a.scenarios?.conservative?.renovationCost || 700000);
   const [targetRoi, setTargetRoi] = useState(15);
 
+  const [costConfig, setCostConfig] = useState({
+    buyCommission: true,
+    sellCommission: true,
+    appraisal: false,
+    energyCert: false,
+    furnishingAmount: 0,
+    holdingMonths: 6,
+  });
+
+  const toggleConfig = (key: keyof typeof costConfig) =>
+    setCostConfig((prev) => ({ ...prev, [key]: !prev[key] }));
+
   const [showPlanner, setShowPlanner] = useState(false);
   const [renovationItems, setRenovationItems] = useState(() => calculateItemizedRenovation(area, l.condition ?? null));
 
@@ -162,14 +174,14 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area, itemsTotal]);
 
   const flipResults = useMemo(() => {
-    return calculateFlipResults(l.price, arv, currentRenovation, targetRoi);
-  }, [l.price, arv, currentRenovation, targetRoi]);
+    return calculateFlipResults(l.price, arv, currentRenovation, targetRoi, costConfig);
+  }, [l.price, arv, currentRenovation, targetRoi, costConfig]);
 
   const targetFlipResults = useMemo(() => {
     const targetPrice = flipResults.targetPurchasePrice;
     if (targetPrice <= 0) return null;
-    return calculateFlipResults(targetPrice, arv, currentRenovation, targetRoi);
-  }, [flipResults.targetPurchasePrice, arv, currentRenovation, targetRoi]);
+    return calculateFlipResults(targetPrice, arv, currentRenovation, targetRoi, costConfig);
+  }, [flipResults.targetPurchasePrice, arv, currentRenovation, targetRoi, costConfig]);
 
   const handleArvChange = (value: string) => {
     const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
@@ -449,6 +461,43 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{targetRoi}%</span>
             </div>
 
+            {/* Cost Toggles */}
+            <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">
+              <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Volitelné náklady</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.buyCommission} onChange={() => toggleConfig("buyCommission")} className="accent-accent" />
+                  <span className="text-foreground/80">Provize RK kupní (3 %)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
+                  <span className="text-foreground/80">Provize RK prodejní (3 %)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
+                  <span className="text-foreground/80">Znalecký posudek (5 000 Kč)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.energyCert} onChange={() => toggleConfig("energyCert")} className="accent-accent" />
+                  <span className="text-foreground/80">Energetický štítek (5 000 Kč)</span>
+                </label>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <label className="text-xs text-foreground/80 shrink-0">Zařízení bytu:</label>
+                <input
+                  type="text"
+                  value={costConfig.furnishingAmount > 0 ? formatPrice(costConfig.furnishingAmount) : ""}
+                  placeholder="0 Kč"
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
+                    setCostConfig((prev) => ({ ...prev, furnishingAmount: num }));
+                  }}
+                  className="w-32 rounded border border-border/50 bg-card px-2 py-1 text-right font-mono text-xs focus:outline-none focus:ring-1 focus:ring-accent/40"
+                />
+                <span className="text-[10px] text-muted">např. 200 000 Kč pro zařízený byt 60 m²</span>
+              </div>
+            </div>
+
             {/* Target Price Highlight */}
             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
               <p className="text-xs text-emerald-400 mb-1">🎯 IDEÁLNÍ KUPNÍ CENA</p>
@@ -469,13 +518,16 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <tbody>
                     {[
                       { label: "Kupní cena", value: flipResults.targetPurchasePrice },
-                      { label: "Provize RK (4 %)", value: targetFlipResults.costs.commission },
+                      ...(costConfig.buyCommission ? [{ label: "Provize RK kupní (3 %)", value: targetFlipResults.costs.commission }] : []),
                       { label: "Právní služby", value: targetFlipResults.costs.legalFees },
-                      { label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee },
+                      ...(costConfig.appraisal ? [{ label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee }] : []),
                       { label: "Rekonstrukce", value: currentRenovation },
+                      { label: "Rezerva 10 %", value: targetFlipResults.costs.contingency },
+                      ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (3 %)", value: targetFlipResults.costs.sellingCommission }] : []),
+                      ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: "Holding (6 měs.)", value: targetFlipResults.costs.holdingCosts },
-                      { label: "Provize při prodeji (4 %)", value: targetFlipResults.costs.sellingCommission },
-                      { label: "Home staging", value: targetFlipResults.costs.homeStaging },
+                      ...(costConfig.furnishingAmount > 0 ? [{ label: "Zařízení bytu", value: targetFlipResults.costs.furnishing }] : []),
+                      ...(costConfig.energyCert ? [{ label: "Energetický štítek", value: targetFlipResults.costs.energyCert }] : []),
                       { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (
                       <tr key={row.label} className="border-b border-emerald-500/10">
