@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MagnifyingGlass, Plus, Phone, Envelope } from "@phosphor-icons/react";
 import { safeJsonParse } from "@/lib/utils";
+import Link from "next/link";
 
 interface Contact {
   id: string;
@@ -94,8 +95,8 @@ export default function ContactsPage() {
             const initials = (c.name ?? "??").split(" ").map((n) => n[0]).join("").slice(0, 2);
 
             return (
+              <Link key={c.id} href={`/contacts/${c.id}`}>
               <motion.div
-                key={c.id}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
@@ -140,6 +141,7 @@ export default function ContactsPage() {
                   </div>
                 )}
               </motion.div>
+              </Link>
             );
           })}
         </div>

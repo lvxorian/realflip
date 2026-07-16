@@ -158,6 +158,10 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dbSaving, setDbSaving] = useState(false);
+  const [dbSaved, setDbSaved] = useState(false);
+  const [dbSavedId, setDbSavedId] = useState<string | null>(null);
+  const [dbInitiateSaving, setDbInitiateSaving] = useState(false);
 
   const itemsTotal = useMemo(() => renovationItems.reduce((s, i) => s + i.estimatedCost, 0), [renovationItems]);
 
@@ -281,10 +285,87 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setLoadingNegotiation(false);
   };
 
+  const saveToDb = async () => {
+    setDbSaving(true);
+    try {
+      const res = await fetch("/api/properties/create-from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: result.url,
+          portalName: result.portal,
+          title: l.title,
+          price: l.price,
+          pricePerSqm: a.pricePerSqm,
+          area: l.area,
+          rooms: l.rooms,
+          condition: l.condition,
+          buildingType: a.buildingType,
+          yearBuilt: null,
+          address: l.address,
+          lat: null,
+          lng: null,
+          description: l.description,
+          imageUrls: l.imageUrls,
+          contactName: l.contactName,
+          contactPhone: l.contactPhone,
+          contactEmail: l.contactEmail,
+        }),
+      });
+      const data = await res.json();
+      if (data.propertyId) {
+        setDbSaved(true);
+        setDbSavedId(data.propertyId);
+      }
+    } catch {}
+    setDbSaving(false);
+  };
+
+  const saveAndInitiate = async () => {
+    setDbInitiateSaving(true);
+    try {
+      const res = await fetch("/api/properties/create-from-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: result.url,
+          portalName: result.portal,
+          title: l.title,
+          price: l.price,
+          pricePerSqm: a.pricePerSqm,
+          area: l.area,
+          rooms: l.rooms,
+          condition: l.condition,
+          buildingType: a.buildingType,
+          yearBuilt: null,
+          address: l.address,
+          lat: null,
+          lng: null,
+          description: l.description,
+          imageUrls: l.imageUrls,
+          contactName: l.contactName,
+          contactPhone: l.contactPhone,
+          contactEmail: l.contactEmail,
+        }),
+      });
+      const data = await res.json();
+      if (data.propertyId) {
+        const initRes = await fetch(`/api/properties/${data.propertyId}/initiate`, { method: "POST" });
+        const initData = await initRes.json();
+        if (initData.leadId) setSaved(true);
+        setDbSaved(true);
+        setDbSavedId(data.propertyId);
+      }
+    } catch {}
+    setDbInitiateSaving(false);
+  };
+
   const initiateNegotiation = async () => {
+    const propertyId = l.id ?? dbSavedId;
+    if (!propertyId) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/properties/${l.id}/initiate`, { method: "POST" });
+      const res = await fetch(`/api/properties/${propertyId}/initiate`, { method: "POST" });
       const data = await res.json();
       if (data.leadId) setSaved(true);
     } catch {}
@@ -717,16 +798,28 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             )}
           </div>
 
-          {/* ===== FEATURE 7: INITIATE NEGOTIATION ===== */}
-          {l.id && !saved && (
-            <Button onClick={initiateNegotiation} disabled={saving} className="w-full text-sm gap-2 h-11">
-              {saving ? "Vytvářím..." : "Zahájit jednání"}
-            </Button>
-          )}
-          {saved && (
-            <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4 text-center">
-              <p className="text-sm text-emerald-400 font-medium">✅ Přidáno do pipeline</p>
-            </div>
+          {/* ===== FEATURE 7: SAVE & INITIATE ===== */}
+          {l.id ? (
+            <>
+              {!saved && <Button onClick={initiateNegotiation} disabled={saving} className="w-full text-sm gap-2 h-11">{saving ? "Vytvářím..." : "Zahájit jednání"}</Button>}
+              {saved && <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4 text-center"><p className="text-sm text-emerald-400 font-medium">✅ Přidáno do pipeline</p></div>}
+            </>
+          ) : (
+            <>
+              <div className="flex gap-3">
+                <Button onClick={saveToDb} disabled={dbSaving || dbSaved} variant={dbSaved ? "secondary" : "default"} className="flex-1 text-sm gap-2 h-11">
+                  {dbSaving ? "Ukládám..." : dbSaved ? "✅ Uloženo" : "💾 Uložit do databáze"}
+                </Button>
+                <Button onClick={saveAndInitiate} disabled={dbInitiateSaving || saved} variant={saved ? "secondary" : "default"} className="flex-1 text-sm gap-2 h-11">
+                  {dbInitiateSaving ? "Ukládám..." : saved ? "✅ V pipeline" : "🤝 Uložit a zahájit jednání"}
+                </Button>
+              </div>
+              {(dbSaved || dbSavedId) && !saved && (
+                <Button onClick={initiateNegotiation} disabled={saving} className="w-full text-sm gap-2 h-11 mt-2">
+                  {saving ? "Vytvářím..." : "Zahájit jednání"}
+                </Button>
+              )}
+            </>
           )}
 
           {/* Existing: AI Summary */}
