@@ -658,32 +658,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             </div>
           </div>
 
-          {/* Existing: Scenarios */}
-          {a.scenarios && (
-            <div>
-              <h2 className="font-semibold tracking-tight text-sm mb-3">Scénáře (původní)</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {(["optimistic", "conservative", "pessimistic"] as const).map((key) => {
-                  const s = a.scenarios![key];
-                  if (!s) return null;
-                  const borderColor = key === "optimistic" ? "border-emerald-500/20 bg-emerald-500/5" : key === "conservative" ? "border-accent/20 bg-accent/5" : "border-red-500/20 bg-red-500/5";
-                  return (
-                    <div key={key} className={`rounded-xl border ${borderColor} p-3 text-xs space-y-1.5`}>
-                      <p className="font-semibold text-[11px] tracking-tight uppercase">{s.label}</p>
-                      <div className="flex justify-between"><span className="text-muted">Renovace</span><span className="font-mono">{formatPrice(s.renovationCost)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted">ARV</span><span className="font-mono">{formatPrice(s.arv)}</span></div>
-                      <div className="flex justify-between"><span className="text-muted">Celk. náklady</span><span className="font-mono">{formatPrice(s.totalCost)}</span></div>
-                      <div className={`flex justify-between font-medium ${s.roi >= 15 ? "text-emerald-400" : s.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>
-                        <span>Zisk / ROI</span>
-                        <span className="font-mono">{formatPrice(s.netProfit)} / {s.roi}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Existing: AI Summary */}
           {result.aiSummary && (
             <div className="rounded-xl bg-card-hover border border-border/50 p-4">
@@ -706,29 +680,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               </div>
             </div>
           )}
-
-          {/* Existing: Full Metrics Table */}
-          <div className="rounded-xl bg-card-hover border border-border/50 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/50">
-                  <th className="text-left text-xs text-muted font-medium px-4 py-2.5">Metrika</th>
-                  <th className="text-right text-xs text-muted font-medium px-4 py-2.5">Hodnota</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Cena</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(l.price)}</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">ARV</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(arv)}</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Cena za m²</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{a.pricePerSqm > 0 ? formatPrice(a.pricePerSqm) + "/m²" : "neuvedeno"}</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Tržní rozmezí</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.marketPricePerSqmLow)} – {formatPrice(a.marketPricePerSqmHigh)} /m²</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">ROI</td><td className={`px-4 py-2.5 text-right font-mono ${flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{flipResults.roi.toFixed(1)}%</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Čistý zisk</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(flipResults.netProfit)}</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Cíl. nákupní cena</td><td className="px-4 py-2.5 text-right font-mono text-emerald-400">{formatPrice(flipResults.targetPurchasePrice)}</td></tr>
-                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Nutné snížení</td><td className="px-4 py-2.5 text-right font-mono text-red-400">{formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</td></tr>
-                <tr><td className="px-4 py-2.5 text-foreground/80">Celkové náklady</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(flipResults.costs.totalCost)}</td></tr>
-              </tbody>
-            </table>
-          </div>
         </CardContent>
       </Card>
     </motion.div>
