@@ -85,6 +85,9 @@ export async function POST(req: Request) {
               address: listing.address,
               description: listing.description?.slice(0, 500),
               imageUrls: listing.imageUrls.slice(0, 3),
+              contactPhone: listing.contactPhone,
+              contactName: listing.contactName,
+              contactEmail: listing.contactEmail,
             },
             analysis: {
               pricePerSqm: analysis.pricePerSqm,

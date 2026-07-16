@@ -19,11 +19,14 @@ interface AnalysisResult {
     title: string;
     price: number;
     area: number | null;
-    rooms: string;
+    rooms: string | null;
     condition: string | null;
     address: string | null;
     description: string | null;
     imageUrls: string[];
+    contactPhone: string | null;
+    contactName: string | null;
+    contactEmail: string | null;
   };
   analysis?: {
     pricePerSqm: number;
@@ -47,7 +50,7 @@ interface AnalysisResult {
     segmentRating: string;
     occupancy: string;
     missingFields: string[];
-    redFlags: { type: string; description: string }[];
+    redFlags: { type: string; text: string; severity: string }[];
     scenarios: Record<string, {
       label: string;
       renovationCost: number;

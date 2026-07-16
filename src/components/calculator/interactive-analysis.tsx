@@ -52,6 +52,9 @@ interface AnalysisResult {
     address: string | null;
     description: string | null;
     imageUrls: string[];
+    contactPhone: string | null;
+    contactName: string | null;
+    contactEmail: string | null;
   };
   analysis?: {
     pricePerSqm: number;
@@ -75,7 +78,7 @@ interface AnalysisResult {
     segmentRating: string;
     occupancy: string;
     missingFields: string[];
-    redFlags: { type: string; description: string }[];
+    redFlags: { type: string; text: string; severity: string }[];
     scenarios: Record<string, {
       label: string;
       renovationCost: number;
@@ -141,6 +144,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [negotiation, setNegotiation] = useState<any | null>(null);
   const [loadingNegotiation, setLoadingNegotiation] = useState(false);
   const [showNegotiation, setShowNegotiation] = useState(false);
+  const [negotiationError, setNegotiationError] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -210,6 +214,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
   const generateNegotiation = async () => {
     setLoadingNegotiation(true);
+    setNegotiationError(null);
     try {
       const res = await fetch("/api/analyze-url/negotiate", {
         method: "POST",
@@ -229,12 +234,20 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           costs: flipResults.costs,
         }),
       });
+      if (!res.ok) {
+        setNegotiationError("Chyba serveru — zkuste to prosím později");
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setNegotiation(data);
         setShowNegotiation(true);
+      } else {
+        setNegotiationError(data.error ?? "Nepodařilo se vygenerovat scénář");
       }
-    } catch {}
+    } catch (e) {
+      setNegotiationError("Chyba sítě — zkontrolujte připojení");
+    }
     setLoadingNegotiation(false);
   };
 
@@ -321,6 +334,15 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             {a.buildingType && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
             {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
           </div>
+
+          {/* Contact Info */}
+          {(l.contactName || l.contactPhone || l.contactEmail) && (
+            <div className="flex flex-wrap gap-2">
+              {l.contactName && <span className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent">📞 {l.contactName}</span>}
+              {l.contactPhone && <span className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent font-mono">{l.contactPhone}</span>}
+              {l.contactEmail && <span className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent">{l.contactEmail}</span>}
+            </div>
+          )}
 
           {/* ===== FEATURE 1: FLIP CALCULATOR ===== */}
           <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 space-y-4">
@@ -522,6 +544,11 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 </Button>
               )}
             </div>
+            {negotiationError && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3">
+                <p className="text-xs text-red-400">{negotiationError}</p>
+              </div>
+            )}
             {negotiation && showNegotiation && (
               <div className="space-y-3">
                 <div className="rounded-xl bg-card border border-border/50 p-3">
@@ -661,7 +688,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 {a.redFlags.map((rf, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs text-red-400/80">
                     <span className="mt-0.5 shrink-0">•</span>
-                    <span><span className="font-medium text-red-400">{rf.type}:</span> {rf.description}</span>
+                    <span><span className="font-medium text-red-400">{rf.type}:</span> {rf.text}</span>
                   </div>
                 ))}
               </div>
