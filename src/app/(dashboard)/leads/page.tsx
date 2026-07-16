@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowsLeftRight } from "@phosphor-icons/react";
+import { formatRelative } from "@/lib/utils";
 
 const stages = [
   { key: "new", label: "Nový", color: "border-l-accent" },
@@ -17,26 +20,57 @@ const stages = [
   { key: "lost", label: "Ztraceno", color: "border-l-red-500" },
 ];
 
-const initialLeads: Record<string, any[]> = {
-  new: [
-    { id: "l1", title: "Byt 3+kk, Praha 8", price: "4.890.000 Kč", score: 82, contact: "Jan Novák", last: "před 2 h" },
-    { id: "l2", title: "RD, Liberec", price: "4.980.000 Kč", score: 78, contact: "Petr Svoboda", last: "před 5 h" },
-  ],
-  contacted: [
-    { id: "l3", title: "Byt 2+kk, Ostrava", price: "2.890.000 Kč", score: 91, contact: "Marie Dvořáková", last: "před 1 d" },
-  ],
-  meeting: [
-    { id: "l4", title: "Byt 3+kk, Praha 8", price: "4.890.000 Kč", score: 82, contact: "Jan Novák", last: "před 3 d" },
-  ],
-  offer: [],
-  negotiation: [],
-  closed: [],
-  lost: [],
-};
+interface LeadItem {
+  id: string;
+  stage: string;
+  priority: number | null;
+  notes: string | null;
+  updatedAt: number | null;
+  propertyId: string | null;
+  propertyTitle: string | null;
+  propertyPrice: number | null;
+  propertyArea: number | null;
+  propertyRooms: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  analysisScore: number | null;
+}
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState(initialLeads);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [leads, setLeads] = useState<LeadItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dragOver, setDragOver] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login");
+  }, [status, router]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/leads")
+      .then((r) => r.json())
+      .then((d: LeadItem[]) => { setLeads(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [status]);
+
+  const grouped: Record<string, LeadItem[]> = {};
+  for (const stage of stages) grouped[stage.key] = [];
+  for (const lead of leads) {
+    if (grouped[lead.stage]) grouped[lead.stage].push(lead);
+  }
+
+  async function moveLead(leadId: string, fromStage: string, toStage: string) {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, stage: toStage } : l))
+    );
+    await fetch(`/api/leads/${leadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage: toStage }),
+    });
+  }
 
   function handleDragStart(e: React.DragEvent, leadId: string, fromStage: string) {
     e.dataTransfer.setData("leadId", leadId);
@@ -48,35 +82,38 @@ export default function LeadsPage() {
     const leadId = e.dataTransfer.getData("leadId");
     const fromStage = e.dataTransfer.getData("fromStage");
     setDragOver(null);
-
-    if (fromStage === toStage) return;
-
-    const lead = leads[fromStage].find((l: any) => l.id === leadId);
-    if (!lead) return;
-
-    setLeads((prev) => ({
-      ...prev,
-      [fromStage]: prev[fromStage].filter((l: any) => l.id !== leadId),
-      [toStage]: [...prev[toStage], lead],
-    }));
+    if (fromStage && fromStage !== toStage) {
+      moveLead(leadId, fromStage, toStage);
+    }
   }
 
-  const totalLeads = Object.values(leads).reduce((s, arr) => s + arr.length, 0);
+  if (status !== "authenticated" || loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
+            <p className="text-sm text-muted mt-1">Načítání...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-          <p className="text-sm text-muted mt-1">{totalLeads} leadů napříč {stages.length} fázemi</p>
+          <p className="text-sm text-muted mt-1">{leads.length} leadů napříč {stages.length} fázemi</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7 gap-3 min-h-[70dvh]">
         {stages.map((stage) => {
-          const stageLeads = leads[stage.key];
-          const stageTotal = Object.values(leads).reduce((s, arr) => s + arr.length, 0);
-          const pct = stageTotal > 0 ? Math.round((stageLeads.length / stageTotal) * 100) : 0;
+          const stageLeads = grouped[stage.key] ?? [];
+          const stageTotal = leads.length || 1;
+          const pct = Math.round((stageLeads.length / stageTotal) * 100);
 
           return (
             <div
@@ -88,7 +125,6 @@ export default function LeadsPage() {
                 dragOver === stage.key ? "border-accent/40 bg-accent/5" : ""
               }`}
             >
-              {/* Stage header */}
               <div className="p-3 border-b border-border/30">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-semibold tracking-tight">{stage.label}</span>
@@ -103,7 +139,6 @@ export default function LeadsPage() {
                 </div>
               </div>
 
-              {/* Cards */}
               <div className="flex-1 p-2 space-y-2 overflow-y-auto">
                 <AnimatePresence>
                   {stageLeads.length === 0 ? (
@@ -114,7 +149,7 @@ export default function LeadsPage() {
                       className="py-8"
                     />
                   ) : (
-                    stageLeads.map((lead: any, i: number) => (
+                    stageLeads.map((lead) => (
                       <div
                         key={lead.id}
                         draggable
@@ -122,12 +157,12 @@ export default function LeadsPage() {
                         className="rounded-xl border border-border/50 bg-card p-3 cursor-grab active:cursor-grabbing hover:bg-card-hover hover:border-accent/20 transition-all"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium truncate">{lead.title}</span>
-                          <ScoreGauge score={lead.score} size={28} strokeWidth={2.5} showLabel={false} />
+                          <span className="text-xs font-medium truncate">{lead.propertyTitle ?? "Neznámá nemovitost"}</span>
+                          <ScoreGauge score={lead.analysisScore ?? 0} size={28} strokeWidth={2.5} showLabel={false} />
                         </div>
-                        <p className="text-xs text-muted">{lead.price}</p>
-                        <p className="text-xs text-muted mt-1">{lead.contact}</p>
-                        <p className="text-[10px] text-muted/50 mt-1">{lead.last}</p>
+                        <p className="text-xs text-muted">{lead.propertyPrice ? `${lead.propertyPrice.toLocaleString()} Kč` : "—"}</p>
+                        {lead.contactName && <p className="text-xs text-muted mt-1">{lead.contactName}</p>}
+                        {lead.updatedAt && <p className="text-[10px] text-muted/50 mt-1">{formatRelative(lead.updatedAt)}</p>}
                       </div>
                     ))
                   )}
