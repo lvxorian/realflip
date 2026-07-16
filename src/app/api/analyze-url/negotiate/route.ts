@@ -15,7 +15,6 @@ interface NegotiateInput {
   address: string | null;
   pricePerSqm: number | null;
   costs: {
-    commission: number;
     legalFees: number;
     appraisalFee: number;
     renovationCost: number;
@@ -132,7 +131,6 @@ ADRESA: ${address}
 POPIS: ${description?.slice(0, 1000)}
 
 NÁKLADOVÝ ROZPIS:
-- Provize RK: ${costs?.commission?.toLocaleString()} Kč
 - Právní služby: ${costs?.legalFees?.toLocaleString()} Kč
 - Znalecký posudek: ${costs?.appraisalFee?.toLocaleString()} Kč
 - Rekonstrukce: ${costs?.renovationCost?.toLocaleString()} Kč

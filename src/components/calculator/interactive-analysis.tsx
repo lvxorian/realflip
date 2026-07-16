@@ -135,7 +135,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [targetRoi, setTargetRoi] = useState(15);
 
   const [costConfig, setCostConfig] = useState({
-    buyCommission: true,
     sellCommission: true,
     appraisal: false,
     energyCert: false,
@@ -465,12 +464,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Volitelné náklady</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={costConfig.buyCommission} onChange={() => toggleConfig("buyCommission")} className="accent-accent" />
-                  <span className="text-foreground/80">Provize RK kupní (3 %)</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
-                  <span className="text-foreground/80">Provize RK prodejní (3 %)</span>
+                  <span className="text-foreground/80">Provize RK prodejní (4 %)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
@@ -503,12 +498,11 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <tbody>
                     {[
                       { label: "Kupní cena", value: flipResults.targetPurchasePrice },
-                      ...(costConfig.buyCommission ? [{ label: "Provize RK kupní (3 %)", value: targetFlipResults.costs.commission }] : []),
                       { label: "Právní služby", value: targetFlipResults.costs.legalFees },
                       ...(costConfig.appraisal ? [{ label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee }] : []),
                       { label: "Rekonstrukce", value: currentRenovation },
                       { label: "Rezerva 10 %", value: targetFlipResults.costs.contingency },
-                      ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (3 %)", value: targetFlipResults.costs.sellingCommission }] : []),
+                      ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (4 %)", value: targetFlipResults.costs.sellingCommission }] : []),
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: "Holding (6 měs.)", value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.energyCert ? [{ label: "Energetický štítek", value: targetFlipResults.costs.energyCert }] : []),

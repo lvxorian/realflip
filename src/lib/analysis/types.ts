@@ -40,7 +40,6 @@ export interface RedFlag {
 
 export interface DetailedCosts {
   purchasePrice: number;
-  commission: number;
   legalFees: number;
   appraisalFee: number;
   renovationCost: number;

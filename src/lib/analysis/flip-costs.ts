@@ -1,8 +1,7 @@
 import { DetailedCosts, RenovationItem } from "./types";
 
 export const COST_CONSTANTS = {
-  commissionRate: 0.03,
-  sellingCommissionRate: 0.03,
+  sellingCommissionRate: 0.04,
   legalFees: 20000,
   appraisalFee: 5000,
   holdingMonthly: 5000,
@@ -20,7 +19,6 @@ export const RENOVATION_PRESETS = {
 };
 
 export interface FlipCostConfig {
-  buyCommission: boolean;
   sellCommission: boolean;
   appraisal: boolean;
   energyCert: boolean;
@@ -28,7 +26,6 @@ export interface FlipCostConfig {
 }
 
 const DEFAULT_CONFIG: FlipCostConfig = {
-  buyCommission: true,
   sellCommission: true,
   appraisal: false,
   energyCert: false,
@@ -45,7 +42,6 @@ function calculateRawROI(
   const c = COST_CONSTANTS;
   const months = cfg.holdingMonths ?? c.holdingPeriodMonths;
   const contingency = Math.round(renovationCost * c.contingencyRate);
-  const commission = cfg.buyCommission ? Math.round(purchasePrice * c.commissionRate) : 0;
   const legalFees = c.legalFees;
   const appraisalFee = cfg.appraisal ? c.appraisalFee : 0;
   const holding = months * c.holdingMonthly;
@@ -53,7 +49,7 @@ function calculateRawROI(
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
   const energyCert = cfg.energyCert ? c.energyCert : 0;
 
-  const subTotal = purchasePrice + commission + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -89,7 +85,6 @@ export function calculateFlipCosts(
   const c = COST_CONSTANTS;
   const months = cfg.holdingMonths ?? c.holdingPeriodMonths;
   const contingency = Math.round(renovationCost * c.contingencyRate);
-  const commission = cfg.buyCommission ? Math.round(purchasePrice * c.commissionRate) : 0;
   const legalFees = c.legalFees;
   const appraisalFee = cfg.appraisal ? c.appraisalFee : 0;
   const holding = months * c.holdingMonthly;
@@ -97,14 +92,13 @@ export function calculateFlipCosts(
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
   const energyCert = cfg.energyCert ? c.energyCert : 0;
 
-  const subTotal = purchasePrice + commission + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
 
   return {
     purchasePrice,
-    commission,
     legalFees,
     appraisalFee,
     renovationCost,
