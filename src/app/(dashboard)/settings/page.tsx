@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   User,
   MagnifyingGlass,
@@ -30,7 +33,27 @@ const portals = [
 ];
 
 export default function SettingsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("profile");
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login");
+  }, [status, router]);
+
+  if (status !== "authenticated") {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+      </div>
+    );
+  }
+
+  const initials = (session.user?.name ?? "??")
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .slice(0, 2);
 
   return (
     <div className="space-y-6">
@@ -40,7 +63,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* Tab sidebar */}
         <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 overflow-x-auto">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -61,7 +83,6 @@ export default function SettingsPage() {
           })}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <motion.div
             key={activeTab}
@@ -75,16 +96,16 @@ export default function SettingsPage() {
                 <h2 className="font-semibold tracking-tight">Profil</h2>
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent text-lg font-mono font-medium">
-                    CA
+                    {initials}
                   </div>
                   <div>
-                    <p className="font-medium">Cakmak</p>
-                    <p className="text-sm text-muted">cakmak@tuta.com</p>
+                    <p className="font-medium">{session.user?.name ?? "Uživatel"}</p>
+                    <p className="text-sm text-muted">{session.user?.email ?? ""}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Jméno" defaultValue="Cakmak" />
-                  <Input label="Email" defaultValue="cakmak@tuta.com" />
+                  <Input label="Jméno" defaultValue={session.user?.name ?? ""} />
+                  <Input label="Email" defaultValue={session.user?.email ?? ""} />
                   <Input label="Telefon" placeholder="+420 ..." />
                 </div>
                 <Button size="sm">Uložit změny</Button>
