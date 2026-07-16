@@ -402,9 +402,9 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           )}
 
           {/* Key Info Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <InfoBox label="Cena inzeráta" value={formatPrice(l.price)} />
-            <InfoBox label="ARV (po rekonstrukci)" value={formatPrice(arv)} highlight="text-price" />
+          <div className="grid grid-cols-2 gap-3">
+            <InfoBox label="Cena" value={formatPrice(l.price)} />
+            <InfoBox label="ARV" value={formatPrice(arv)} highlight="text-price" />
             <InfoBox label="Cena za m²" value={a.pricePerSqm > 0 ? formatPrice(a.pricePerSqm) + "/m²" : "neuvedeno"} />
             <InfoBox label="Trh/m²" value={`${formatPrice(a.marketPricePerSqmLow)}–${formatPrice(a.marketPricePerSqmHigh)}`} />
             <InfoBox label="ROI" value={flipResults.roi.toFixed(1) + "%"} highlight={flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"} />
@@ -873,7 +873,7 @@ function InfoBox({ label, value, highlight }: { label: string; value: string; hi
   return (
     <div className="rounded-xl bg-card-hover border border-border/50 p-3">
       <p className="text-xs text-muted mb-1">{label}</p>
-      <p className={`text-xs font-semibold font-mono break-words leading-snug ${highlight ?? "text-foreground"}`}>{value}</p>
+      <p className={`text-xs font-semibold font-mono whitespace-nowrap leading-snug ${highlight ?? "text-foreground"}`}>{value}</p>
     </div>
   );
 }
