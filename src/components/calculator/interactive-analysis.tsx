@@ -364,12 +364,29 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             {/* ARV */}
             <div>
               <label className="text-xs text-muted mb-1 block">ARV (hodnota po rekonstrukci)</label>
-              <input
-                type="text"
-                value={formatPrice(arv) || "0"}
-                onChange={(e) => handleArvChange(e.target.value)}
-                className={inputClass}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={formatPrice(arv) || "0"}
+                    onChange={(e) => handleArvChange(e.target.value)}
+                    className={inputClass}
+                  />
+                  <span className="text-[10px] text-muted mt-0.5 block text-right">celkem</span>
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={l.area && l.area > 0 ? Math.round(arv / l.area).toLocaleString() : "—"}
+                    onChange={(e) => {
+                      const num = parseInt(e.target.value.replace(/\s/g, "")) || 0;
+                      if (l.area && l.area > 0) setArv(num * l.area);
+                    }}
+                    className={inputClass}
+                  />
+                  <span className="text-[10px] text-muted mt-0.5 block text-right">Kč/m²</span>
+                </div>
+              </div>
             </div>
 
             {/* Renovation */}
