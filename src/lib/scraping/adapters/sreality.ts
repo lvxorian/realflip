@@ -10,7 +10,9 @@ interface SrealitySearchResult {
   usable_area: number | null;
   locality: {
     city: string | null;
+    city_seo_name: string | null;
     street: string | null;
+    street_seo_name: string | null;
     housenumber: string | null;
     gps_lat: number | null;
     gps_lon: number | null;
@@ -32,7 +34,11 @@ interface SrealityDetail {
     category_sub_cb: { name: string } | null;
     locality: {
       city: string | null;
+      city_seo_name: string | null;
       street: string | null;
+      street_seo_name: string | null;
+      citypart_seo_name: string | null;
+      district_seo_name: string | null;
       streetnumber: string | null;
       gps_lat: number | null;
       gps_lon: number | null;
@@ -46,6 +52,30 @@ interface SrealityDetail {
     since: string | null;
     edited: string | null;
   };
+}
+
+function extractRoomsFromName(name: string): string {
+  const m = name.match(/(\d+\+\w{2})/i);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function buildSrealityDetailUrl(
+  hashId: number,
+  rooms: string,
+  locality: {
+    city_seo_name?: string | null;
+    street_seo_name?: string | null;
+  } | null,
+): string {
+  const base = `https://www.sreality.cz/detail/prodej/byt`;
+  const roomsSlug = rooms.toLowerCase().replace(/\s/g, "");
+  if (!locality?.city_seo_name || !roomsSlug) {
+    return `${base}/${hashId}`;
+  }
+  const city = locality.city_seo_name;
+  const street = locality.street_seo_name ?? "";
+  const slug = street ? `${city}-${city}-${street}` : `${city}-${city}-`;
+  return `${base}/${roomsSlug}/${slug}/${hashId}`;
 }
 
 function normalizeBuildingType(raw: string | null): string | null {
@@ -91,9 +121,10 @@ export class SrealityAdapter extends PortalAdapter {
         const rawPrice = item.price ?? 0;
         if (!isValidPrice(rawPrice)) continue;
 
+        const roomsStr = extractRoomsFromName(item.name ?? "");
         all.push({
           portalName: "sreality",
-          url: `https://www.sreality.cz/detail/prodej/byt/${city?.toLowerCase() ?? "neznama"}/${item.hash_id}`,
+          url: buildSrealityDetailUrl(item.hash_id, roomsStr, item.locality),
           title: item.name ?? "",
           price: rawPrice,
           pricePerSqm: item.price_czk_m2 ?? null,
@@ -163,6 +194,13 @@ export class SrealityAdapter extends PortalAdapter {
         listing.lat = detailLocality.gps_lat ?? listing.lat;
         listing.lng = detailLocality.gps_lon ?? listing.lng;
       }
+
+      // Fix URL with enriched data (rooms + location slug)
+      const hashId = listing.url.split("/").pop() ?? "";
+      const enrichedRooms = r.category_sub_cb?.name
+        ? r.category_sub_cb.name.replace(/^(\d+\+\w+).*$/, "$1").toLowerCase()
+        : "";
+      listing.url = buildSrealityDetailUrl(parseInt(hashId) || 0, enrichedRooms, r.locality);
 
       listing.imageUrls = filterImages(
         (r.advert_images ?? []).map((img) => img.url ?? ""),

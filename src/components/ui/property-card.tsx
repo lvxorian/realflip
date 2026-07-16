@@ -65,6 +65,7 @@ export function PropertyCard({
               src={imageUrl}
               alt={title}
               className="h-full w-full object-cover"
+              referrerPolicy="no-referrer"
               onError={() => setImgError(true)}
             />
           ) : (

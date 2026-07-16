@@ -343,7 +343,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           {/* Image */}
           {l.imageUrls.length > 0 && (
             <div className="overflow-hidden rounded-xl">
-              <img src={l.imageUrls[0]} alt={l.title} className="h-48 w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <img src={l.imageUrls[0]} alt={l.title} className="h-48 w-full object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
             </div>
           )}
 
@@ -611,7 +611,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 <div className="max-h-40 overflow-y-auto space-y-1">
                   {comps.slice(0, 10).map((c: any) => (
                     <a key={c.id} href={c.url} target="_blank" className="flex items-center gap-2 rounded-lg bg-card-hover border border-border/30 p-2 text-xs hover:bg-card-hover/80 transition-colors">
-                      {c.imageUrl && <img src={c.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                      {c.imageUrl && <img src={c.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" referrerPolicy="no-referrer" />}
                       <span className="flex-1 truncate text-foreground/80">{c.title}</span>
                       <span className="font-mono shrink-0">{formatPrice(c.price)}</span>
                       {c.area && <span className="text-muted shrink-0">{c.area}m²</span>}

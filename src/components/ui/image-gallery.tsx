@@ -39,6 +39,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
           src={images[activeIndex]}
           alt={`${alt} - foto ${activeIndex + 1}`}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
+          referrerPolicy="no-referrer"
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
 
@@ -85,6 +86,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
                 src={src}
                 alt={`${alt} thumbnail ${i + 1}`}
                 className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
             </button>
