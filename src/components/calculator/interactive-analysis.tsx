@@ -744,8 +744,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <div className="space-y-2">
                 {a.redFlags.map((rf, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs text-red-400/80">
-                    <span className="mt-0.5 shrink-0">•</span>
-                    <span><span className="font-medium text-red-400">{rf.type}:</span> {rf.text}</span>
+                    <span className="mt-0.5 shrink-0">⚠</span>
+                    <span>{rf.text}</span>
                   </div>
                 ))}
               </div>
