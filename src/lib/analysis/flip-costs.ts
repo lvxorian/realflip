@@ -5,7 +5,7 @@ export const COST_CONSTANTS = {
   legalFees: 20000,
   appraisalFee: 5000,
   holdingCostPerSqm: 120,
-  marketingPhoto: 15000,
+  marketingPhoto: 20000,
   energyCert: 5000,
   contingencyRate: 0.10,
   taxRate: 0.15,

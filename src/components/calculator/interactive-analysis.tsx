@@ -592,7 +592,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       { label: "Rezerva 10 %", value: targetFlipResults.costs.contingency },
                       ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (4 %)", value: targetFlipResults.costs.sellingCommission }] : []),
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
-                      { label: `Provozní náklady (${costConfig.holdingMonths} měs. × ${area} m² × 120 Kč)`, value: targetFlipResults.costs.holdingCosts },
+                      { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
                       ...(costConfig.energyCert ? [{ label: "Energetický štítek", value: targetFlipResults.costs.energyCert }] : []),
                       { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
