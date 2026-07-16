@@ -522,11 +522,11 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek (5 000 Kč)</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.sourcingEnabled} onChange={() => toggleConfig("sourcingEnabled")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Provize za zprostředkování</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Sourcing fee</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
@@ -614,7 +614,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
-                      ...(costConfig.sourcingEnabled && targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Provize za zprostředkování", value: targetFlipResults.costs.sourcingFee }] : []),
+                      ...(costConfig.sourcingEnabled && targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: targetFlipResults.costs.sourcingFee }] : []),
                       { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (
                       <tr key={row.label} className="border-b border-emerald-500/10">
