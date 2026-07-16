@@ -31,7 +31,7 @@ export async function GET() {
       .leftJoin(contacts, eq(leads.contactId, contacts.id))
       .leftJoin(properties, eq(leads.propertyId, properties.id))
       .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
-      .where(and(isNotNull(leads.contactId), eq(leads.stage, "new")))
+      .where(and(eq(leads.userId, session.user.id), isNotNull(leads.contactId), eq(leads.stage, "new")))
       .orderBy(desc(leads.priority), desc(leads.createdAt));
 
     return NextResponse.json(rows);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { ts } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export async function PATCH(
     await db
       .update(leads)
       .set({ ...body, updatedAt: ts() })
-      .where(eq(leads.id, id));
+      .where(and(eq(leads.id, id), eq(leads.userId, session.user.id)));
 
     return NextResponse.json({ ok: true });
   } catch {

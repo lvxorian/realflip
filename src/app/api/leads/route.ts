@@ -28,6 +28,7 @@ export async function GET() {
         analysisScore: propertyAnalysis.investmentScore,
       })
       .from(leads)
+      .where(eq(leads.userId, session.user.id))
       .leftJoin(properties, eq(leads.propertyId, properties.id))
       .leftJoin(contacts, eq(leads.contactId, contacts.id))
       .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))

@@ -29,21 +29,13 @@ const verdictLabels: Record<string, string> = {
   categoricalReject: "Zamítnout",
 };
 
-const dealStatuses = [
-  { value: "new", label: "Nový" },
-  { value: "contacted", label: "Kontaktován" },
-  { value: "offered", label: "Nabídka" },
-  { value: "negotiating", label: "Vyjednávání" },
-  { value: "buying", label: "Kupuju" },
-  { value: "passed", label: "Pas" },
-];
-
 interface AnalysisResult {
   url: string;
   portal: string;
   success: boolean;
   error?: string;
   listing?: {
+    id?: string;
     title: string;
     price: number;
     area: number | null;
@@ -166,7 +158,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [dealStatus, setDealStatus] = useState("new");
 
   const itemsTotal = useMemo(() => renovationItems.reduce((s, i) => s + i.estimatedCost, 0), [renovationItems]);
 
@@ -290,36 +281,12 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setLoadingNegotiation(false);
   };
 
-  const saveDeal = async () => {
+  const initiateNegotiation = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/analyze-url/save-deal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          portalName: result.portal,
-          url: result.url,
-          title: l.title,
-          price: l.price,
-          pricePerSqm: a.pricePerSqm,
-          area: l.area,
-          rooms: l.rooms,
-          condition: l.condition,
-          buildingType: a.buildingType,
-          address: l.address,
-          description: l.description,
-          imageUrls: l.imageUrls,
-          arv,
-          renovationCost: currentRenovation,
-          targetPrice: flipResults.targetPurchasePrice,
-          roi: flipResults.roi,
-          netProfit: flipResults.netProfit,
-          status: dealStatus,
-          notes: null,
-        }),
-      });
+      const res = await fetch(`/api/properties/${l.id}/initiate`, { method: "POST" });
       const data = await res.json();
-      if (data.success) setSaved(true);
+      if (data.leadId) setSaved(true);
     } catch {}
     setSaving(false);
   };
@@ -750,33 +717,22 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             )}
           </div>
 
-          {/* ===== FEATURE 7: SAVE DEAL ===== */}
-          <div className="rounded-xl border border-border/50 p-4">
+          {/* ===== FEATURE 7: INITIATE NEGOTIATION ===== */}
+          {l.id && <div className="rounded-xl border border-border/50 p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FloppyDisk size={16} className="text-muted" />
-                <h2 className="font-semibold tracking-tight text-sm">Uložit do portfolia</h2>
+                <h2 className="font-semibold tracking-tight text-sm">Zahájit jednání</h2>
               </div>
               {!saved ? (
-                <div className="flex items-center gap-2">
-                  <select
-                    value={dealStatus}
-                    onChange={(e) => setDealStatus(e.target.value)}
-                    className="rounded-lg border border-border/50 bg-card px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/40"
-                  >
-                    {dealStatuses.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                  <Button size="sm" onClick={saveDeal} disabled={saving} className="text-xs">
-                    {saving ? "Ukládám..." : "Uložit"}
-                  </Button>
-                </div>
+                <Button size="sm" onClick={initiateNegotiation} disabled={saving} className="text-xs">
+                  {saving ? "Vytvářím..." : "Zahájit"}
+                </Button>
               ) : (
-                <span className="text-xs text-emerald-400">✅ Uloženo</span>
+                <span className="text-xs text-emerald-400">✅ Přidáno do pipeline</span>
               )}
             </div>
-          </div>
+          </div>}
 
           {/* Existing: AI Summary */}
           {result.aiSummary && (

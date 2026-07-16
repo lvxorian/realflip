@@ -1,8 +1,12 @@
 ﻿import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
+import { users } from "./users";
 
 export const leads = pgTable("leads", {
   id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   propertyId: text("property_id")
     .notNull()
     .references(() => properties.id, { onDelete: "cascade" }),

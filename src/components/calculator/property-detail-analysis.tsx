@@ -77,6 +77,7 @@ function buildAnalysisResult(
     portal: property.portalName,
     success: true,
     listing: {
+      id: property.id,
       title: property.title,
       price: property.price,
       area: property.area,

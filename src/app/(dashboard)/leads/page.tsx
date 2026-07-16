@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ArrowsLeftRight } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Check, X } from "@phosphor-icons/react";
 import { formatRelative } from "@/lib/utils";
 
 const stages = [
@@ -42,6 +44,9 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [converting, setConverting] = useState<string | null>(null);
+  const [convertPrice, setConvertPrice] = useState("");
+  const [convertRenovation, setConvertRenovation] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -87,7 +92,19 @@ export default function LeadsPage() {
     }
   }
 
-  if (status !== "authenticated" || loading) {
+  async function convertToDeal(leadId: string) {
+    const price = parseInt(convertPrice);
+    if (!price) return;
+    await fetch(`/api/leads/${leadId}/convert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ purchasePrice: price, renovationBudget: parseInt(convertRenovation) || null }),
+    });
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    setConverting(null);
+  }
+
+    if (status !== "authenticated" || loading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -150,19 +167,55 @@ export default function LeadsPage() {
                     />
                   ) : (
                     stageLeads.map((lead) => (
-                      <div
-                        key={lead.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, lead.id, stage.key)}
-                        className="rounded-xl border border-border/50 bg-card p-3 cursor-grab active:cursor-grabbing hover:bg-card-hover hover:border-accent/20 transition-all"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-medium truncate">{lead.propertyTitle ?? "Neznámá nemovitost"}</span>
-                          <ScoreGauge score={lead.analysisScore ?? 0} size={28} strokeWidth={2.5} showLabel={false} />
-                        </div>
-                        <p className="text-xs text-muted">{lead.propertyPrice ? `${lead.propertyPrice.toLocaleString()} Kč` : "—"}</p>
-                        {lead.contactName && <p className="text-xs text-muted mt-1">{lead.contactName}</p>}
-                        {lead.updatedAt && <p className="text-[10px] text-muted/50 mt-1">{formatRelative(lead.updatedAt)}</p>}
+                      <div key={lead.id}>
+                        {converting === lead.id ? (
+                          <div className="rounded-xl border border-accent/40 bg-card p-3 space-y-2">
+                            <Input
+                              label="Kupní cena"
+                              type="number"
+                              value={convertPrice}
+                              onChange={(e) => setConvertPrice(e.target.value)}
+                              placeholder={lead.propertyPrice?.toString() ?? "0"}
+                            />
+                            <Input
+                              label="Rozpočet na reko"
+                              type="number"
+                              value={convertRenovation}
+                              onChange={(e) => setConvertRenovation(e.target.value)}
+                              placeholder="např. 500000"
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" onClick={() => convertToDeal(lead.id)} className="text-xs">
+                                <Check size={12} weight="bold" /> Převést
+                              </Button>
+                              <Button size="sm" variant="secondary" onClick={() => setConverting(null)} className="text-xs">
+                                <X size={12} weight="bold" /> Zrušit
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, lead.id, stage.key)}
+                            className="rounded-xl border border-border/50 bg-card p-3 cursor-grab active:cursor-grabbing hover:bg-card-hover hover:border-accent/20 transition-all"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium truncate">{lead.propertyTitle ?? "Neznámá nemovitost"}</span>
+                              <ScoreGauge score={lead.analysisScore ?? 0} size={28} strokeWidth={2.5} showLabel={false} />
+                            </div>
+                            <p className="text-xs text-muted">{lead.propertyPrice ? `${lead.propertyPrice.toLocaleString()} Kč` : "—"}</p>
+                            {lead.contactName && <p className="text-xs text-muted mt-1">{lead.contactName}</p>}
+                            {lead.updatedAt && <p className="text-[10px] text-muted/50 mt-1">{formatRelative(lead.updatedAt)}</p>}
+                            {stage.key === "closed" && (
+                              <button
+                                onClick={() => { setConverting(lead.id); setConvertPrice(lead.propertyPrice?.toString() ?? ""); setConvertRenovation(""); }}
+                                className="mt-2 w-full rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-1.5 text-xs font-medium hover:bg-emerald-500/20 transition-colors"
+                              >
+                                Převést na deal
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
