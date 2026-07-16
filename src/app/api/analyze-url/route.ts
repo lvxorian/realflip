@@ -120,7 +120,8 @@ export async function POST(req: Request) {
             aiHiddenInfo,
           };
         } catch (error) {
-          return { url, success: false, error: "Analysis failed" };
+          console.error(`Analyze URL error for ${url}:`, error);
+          return { url, success: false, error: error instanceof Error ? error.message : "Analysis failed" };
         }
       })
     );
