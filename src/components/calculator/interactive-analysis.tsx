@@ -515,14 +515,14 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
-                  <span className="text-foreground/80">Provize RK prodejní (4 %)</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Provize RK prodejní (4 %)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
-                  <span className="text-foreground/80">Znalecký posudek (5 000 Kč)</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek (5 000 Kč)</span>
                 </label>
                 <div className="flex items-center gap-2 col-span-2">
-                  <span className="text-foreground/80 text-xs shrink-0">Provize za zprostředkování</span>
+                  <span className="text-foreground/80 text-xs shrink-0 whitespace-nowrap">Provize za zprostředkování</span>
                   <input
                     type="number"
                     value={costConfig.sourcingFee || ""}
@@ -547,7 +547,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
-                  <span className="text-foreground/80">Mám hypotéku</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Mám hypotéku</span>
                 </label>
               </div>
               {costConfig.hasMortgage && (
