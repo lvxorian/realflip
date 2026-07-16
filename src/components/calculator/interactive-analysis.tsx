@@ -139,6 +139,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
   const [comps, setComps] = useState<any[] | null>(null);
   const [compsStats, setCompsStats] = useState<any | null>(null);
+  const [compsNote, setCompsNote] = useState<string | null>(null);
+  const [compsDeadCount, setCompsDeadCount] = useState(0);
   const [loadingComps, setLoadingComps] = useState(false);
 
   const [negotiation, setNegotiation] = useState<any | null>(null);
@@ -207,6 +209,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       if (data.success) {
         setComps(data.comps);
         setCompsStats(data.stats);
+        setCompsNote(data.note ?? null);
+        setCompsDeadCount(data.deadCount ?? 0);
       }
     } catch {}
     setLoadingComps(false);
@@ -497,7 +501,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 </Button>
               )}
             </div>
-            {comps && compsStats && (
+            {comps && compsStats && compsStats.count > 0 && (
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="rounded-lg bg-card-hover border border-border/50 p-2 text-center">
@@ -513,6 +517,9 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                     <p className="font-mono font-semibold text-foreground">{formatPrice(compsStats.medianPricePerSqm)}</p>
                   </div>
                 </div>
+                {compsDeadCount > 0 && (
+                  <p className="text-xs text-muted">{compsDeadCount} neaktivních inzerátů bylo odfiltrováno</p>
+                )}
                 <div className="text-xs text-muted">
                   Rozmezí: {formatPrice(compsStats.p25)} – {formatPrice(compsStats.p75)} (Q1–Q3)
                 </div>
@@ -527,6 +534,11 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                     </a>
                   ))}
                 </div>
+              </div>
+            )}
+            {compsNote && !loadingComps && (
+              <div className="rounded-lg bg-card-hover border border-border/50 p-3">
+                <p className="text-xs text-muted">{compsNote}</p>
               </div>
             )}
           </div>

@@ -1,7 +1,7 @@
 import { LocationResult, LocationCategory } from "./types";
 import { MARKET_DATA, RISKY_CITIES } from "./market-data";
 
-const CITY_ALIASES: Record<string, string> = {
+export const CITY_ALIASES: Record<string, string> = {
   "české budějovice": "ceske_budejovice",
   "cb": "ceske_budejovice",
   "budejovice": "ceske_budejovice",

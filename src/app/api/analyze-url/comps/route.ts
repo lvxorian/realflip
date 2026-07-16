@@ -4,6 +4,71 @@ import { db } from "@/db";
 import { properties, propertyAnalysis } from "@/db/schema";
 import { eq, and, ne, gte } from "drizzle-orm";
 import { filterImages } from "@/lib/scraping/types";
+import { CITY_ALIASES } from "@/lib/analysis/location";
+
+function buildCityNames(cityKey: string): string[] {
+  const names: string[] = [];
+  const key = cityKey.toLowerCase().replace(/[_\-]/g, " ");
+  names.push(key);
+  // Collect all alias keys that map to this city key
+  for (const [alias, normalized] of Object.entries(CITY_ALIASES)) {
+    if (normalized === key.replace(/\s/g, "_")) {
+      names.push(alias);
+    }
+  }
+  // Also add raw geocoding names that users might type
+  if (key === "praha") names.push("prague");
+  if (key === "plzen") names.push("plzeň");
+  if (key === "ceske budejovice") { names.push("české budějovice"); names.push("budejovice"); }
+  if (key === "karlovy vary") names.push("karlovy vary");
+  if (key === "usti") { names.push("ústí nad labem"); names.push("usti nad labem"); }
+  if (key === "hradec") names.push("hradec králové");
+  if (key === "zlin") names.push("zlín");
+  if (key === "decin") names.push("děčín");
+  if (key === "prerov") names.push("přerov");
+  if (key === "breclav") names.push("břeclav");
+  if (key === "kromeriz") names.push("kroměříž");
+  if (key === "trebic") names.push("třebíč");
+  if (key === "benesov") names.push("benešov");
+  if (key === "havirov") names.push("havířov");
+  return [...new Set(names)];
+}
+
+function addressMatchesCity(address: string | null, cityNames: string[]): boolean {
+  if (!address) return false;
+  const addr = address.toLowerCase();
+  return cityNames.some((name) => addr.includes(name));
+}
+
+async function verifyUrls(comps: any[]): Promise<{ alive: any[]; dead: any[] }> {
+  const results = await Promise.allSettled(
+    comps.map(async (comp, i) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch(comp.url, {
+          method: "HEAD",
+          signal: controller.signal,
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        });
+        clearTimeout(timeout);
+        return { comp, alive: res.ok };
+      } catch {
+        return { comp, alive: true };
+      }
+    })
+  );
+  
+  const alive: any[] = [];
+  const dead: any[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      if (r.value.alive) alive.push(r.value.comp);
+      else dead.push(r.value.comp);
+    }
+  }
+  return { alive, dead };
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -14,7 +79,7 @@ export async function POST(req: Request) {
   try {
     const { area, address, price, excludeUrl, city } = await req.json();
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     const rows = await db
       .select({
@@ -38,23 +103,33 @@ export async function POST(req: Request) {
       .where(and(
         eq(properties.isActive, true),
         ne(properties.url, excludeUrl ?? ""),
-        gte(properties.lastSeen, thirtyDaysAgo),
+        gte(properties.lastSeen, fourteenDaysAgo),
       ))
       .limit(50);
 
     let comps = rows;
 
-    // 1) Filter by city (from analysis location)
+    // 1) Filter by city using CITY_ALIASES
     if (city) {
-      const cityLower = city.toLowerCase().replace(/_/g, " ");
-      const byCity = comps.filter((p) =>
-        (p.address ?? "").toLowerCase().includes(cityLower)
-      );
+      const cityNames = buildCityNames(city);
+      const byCity = comps.filter((p) => addressMatchesCity(p.address, cityNames));
       if (byCity.length >= 2) comps = byCity;
+      else comps = [];
+    }
+
+    if (comps.length === 0) {
+      return NextResponse.json({
+        success: true,
+        stats: { count: 0, medianPrice: 0, medianPricePerSqm: 0, p25: 0, p75: 0, min: 0, max: 0 },
+        comps: [],
+        note: city
+          ? `Pro lokalitu "${city}" není v databázi dost recentních inzerátů. Čím víc budete scrapovat, tím přesnější srovnání bude.`
+          : "Není k dispozici dost dat pro srovnání.",
+      });
     }
 
     // 2) Filter by area ±30 %
-    if (area && area > 0) {
+    if (area && area > 0 && comps.length > 2) {
       const areaRange = area * 0.3;
       const byArea = comps.filter(
         (p) => p.area && Math.abs(p.area - area) <= areaRange
@@ -63,7 +138,7 @@ export async function POST(req: Request) {
     }
 
     // 3) Filter by price ±50 %
-    if (price) {
+    if (price && comps.length > 2) {
       const priceMin = price * 0.5;
       const priceMax = price * 2;
       const byPrice = comps.filter(
@@ -71,6 +146,11 @@ export async function POST(req: Request) {
       );
       if (byPrice.length >= 2) comps = byPrice;
     }
+
+    // Verify URLs in parallel
+    const { alive, dead } = await verifyUrls(comps);
+    if (alive.length >= 2) comps = alive;
+    else if (dead.length > 0) { /* keep originals if too few alive */ }
 
     // Stats
     const prices = comps.map((p) => p.price).filter((p): p is number => p > 0);
@@ -132,6 +212,7 @@ export async function POST(req: Request) {
         max: sorted[sorted.length - 1] ?? 0,
       },
       comps: mappedComps,
+      deadCount: dead.length,
     });
   } catch (error) {
     console.error("Comps API error:", error);
