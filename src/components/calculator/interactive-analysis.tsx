@@ -139,7 +139,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     sellCommission: true,
     appraisal: false,
     energyCert: false,
-    furnishingAmount: 0,
     holdingMonths: 6,
   });
 
@@ -482,20 +481,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <span className="text-foreground/80">Energetický štítek (5 000 Kč)</span>
                 </label>
               </div>
-              <div className="flex items-center gap-2 pt-1">
-                <label className="text-xs text-foreground/80 shrink-0">Zařízení bytu:</label>
-                <input
-                  type="text"
-                  value={costConfig.furnishingAmount > 0 ? formatPrice(costConfig.furnishingAmount) : ""}
-                  placeholder="0 Kč"
-                  onChange={(e) => {
-                    const num = parseInt(e.target.value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
-                    setCostConfig((prev) => ({ ...prev, furnishingAmount: num }));
-                  }}
-                  className="w-32 rounded border border-border/50 bg-card px-2 py-1 text-right font-mono text-xs focus:outline-none focus:ring-1 focus:ring-accent/40"
-                />
-                <span className="text-[10px] text-muted">např. 200 000 Kč pro zařízený byt 60 m²</span>
-              </div>
             </div>
 
             {/* Target Price Highlight */}
@@ -526,7 +511,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (3 %)", value: targetFlipResults.costs.sellingCommission }] : []),
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: "Holding (6 měs.)", value: targetFlipResults.costs.holdingCosts },
-                      ...(costConfig.furnishingAmount > 0 ? [{ label: "Zařízení bytu", value: targetFlipResults.costs.furnishing }] : []),
                       ...(costConfig.energyCert ? [{ label: "Energetický štítek", value: targetFlipResults.costs.energyCert }] : []),
                       { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (

@@ -24,7 +24,6 @@ export interface FlipCostConfig {
   sellCommission: boolean;
   appraisal: boolean;
   energyCert: boolean;
-  furnishingAmount: number;
   holdingMonths: number;
 }
 
@@ -33,7 +32,6 @@ const DEFAULT_CONFIG: FlipCostConfig = {
   sellCommission: true,
   appraisal: false,
   energyCert: false,
-  furnishingAmount: 0,
   holdingMonths: 6,
 };
 
@@ -53,10 +51,9 @@ function calculateRawROI(
   const holding = months * c.holdingMonthly;
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
-  const furnishing = cfg.furnishingAmount;
   const energyCert = cfg.energyCert ? c.energyCert : 0;
 
-  const subTotal = purchasePrice + commission + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + furnishing + energyCert;
+  const subTotal = purchasePrice + commission + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -98,10 +95,9 @@ export function calculateFlipCosts(
   const holding = months * c.holdingMonthly;
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
-  const furnishing = cfg.furnishingAmount;
   const energyCert = cfg.energyCert ? c.energyCert : 0;
 
-  const subTotal = purchasePrice + commission + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + furnishing + energyCert;
+  const subTotal = purchasePrice + commission + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -116,7 +112,6 @@ export function calculateFlipCosts(
     holdingCosts: holding,
     sellingCommission,
     marketingPhoto,
-    furnishing,
     energyCert,
     incomeTax,
     totalCost,

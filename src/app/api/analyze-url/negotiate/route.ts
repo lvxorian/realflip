@@ -23,7 +23,6 @@ interface NegotiateInput {
     holdingCosts: number;
     sellingCommission: number;
     marketingPhoto: number;
-    furnishing: number;
     energyCert: number;
     incomeTax: number;
     totalCost: number;
@@ -141,7 +140,6 @@ NÁKLADOVÝ ROZPIS:
 - Holding: ${costs?.holdingCosts?.toLocaleString()} Kč
 - Provize při prodeji: ${costs?.sellingCommission?.toLocaleString()} Kč
 - Marketing + foto: ${costs?.marketingPhoto?.toLocaleString()} Kč
-- Zařízení bytu: ${costs?.furnishing?.toLocaleString()} Kč
 - Daň z příjmu: ${costs?.incomeTax?.toLocaleString()} Kč
 CELKOVÉ NÁKLADY: ${costs?.totalCost?.toLocaleString()} Kč
 

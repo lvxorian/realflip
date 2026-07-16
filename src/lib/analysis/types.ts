@@ -48,7 +48,6 @@ export interface DetailedCosts {
   holdingCosts: number;
   sellingCommission: number;
   marketingPhoto: number;
-  furnishing: number;
   energyCert: number;
   incomeTax: number;
   totalCost: number;

@@ -450,7 +450,6 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     holdingCosts,
     sellingCommission,
     marketingPhoto: 0,
-    furnishing: 0,
     energyCert: 0,
     incomeTax,
     totalCost: price + commission + legalFees + appraisalFee + renovationTotal + contingency + holdingCosts + sellingCommission + incomeTax,
