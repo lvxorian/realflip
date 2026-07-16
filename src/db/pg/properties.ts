@@ -25,7 +25,7 @@ export const properties = pgTable("properties", {
   status: text("status").default("active").notNull(),
   firstSeen: bigint("first_seen", { mode: "number" }).notNull(),
   lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
-  isActive: integer("is_active").default(1),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
 });
 
 export const priceHistory = pgTable("price_history", {
