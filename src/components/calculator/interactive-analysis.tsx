@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice, conditionLabel } from "@/lib/utils";
+import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locationCategoryLabel } from "@/lib/utils";
 import {
   calculateFlipResults,
   calculateItemizedRenovation,
@@ -418,12 +418,12 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
           {/* Location & Meta */}
           <div className="flex flex-wrap gap-2">
-            {a.location && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.location.city} ({a.location.category})</span>}
+            {a.location && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.location.city} ({locationCategoryLabel(a.location.category)})</span>}
             {l.area && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
             {l.rooms && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
             {l.address && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
-            {a.buildingType && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
-            {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
+            {a.buildingType && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{buildingTypeLabel(a.buildingType)}</span>}
+            {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{occupancyLabel(a.occupancy)}</span>}
           </div>
 
           {/* Contact Info */}
@@ -754,7 +754,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   )}
                   {negotiation.walkAwayPrice && (
                     <div className="rounded-lg bg-card border border-border/50 p-2 text-center">
-                      <p className="text-muted">Walk-away price</p>
+                      <p className="text-muted">Max. nabídka</p>
                       <p className="font-mono font-semibold text-red-400">{formatPrice(negotiation.walkAwayPrice)}</p>
                     </div>
                   )}

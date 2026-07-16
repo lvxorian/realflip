@@ -139,3 +139,27 @@ const BUILDING_TYPE_LABELS: Record<string, string> = {
 export function buildingTypeLabel(type: string | null): string {
   return type ? BUILDING_TYPE_LABELS[type] ?? type : "—";
 }
+
+const OCCUPANCY_LABELS: Record<string, string> = {
+  tenant: "Nájemník",
+  owner: "Majitel",
+  vacant: "Prázdný",
+};
+
+export function occupancyLabel(occupancy: string | null): string {
+  return occupancy ? OCCUPANCY_LABELS[occupancy] ?? occupancy : "—";
+}
+
+const LOCATION_CATEGORY_LABELS: Record<string, string> = {
+  best: "Nejlepší",
+  good: "Dobrá",
+  ok: "Průměrná",
+  niche: "Okrajová",
+  poor: "Slabá",
+  stable: "Stabilní",
+  growing: "Rostoucí",
+};
+
+export function locationCategoryLabel(category: string | null): string {
+  return category ? LOCATION_CATEGORY_LABELS[category] ?? category : "—";
+}
