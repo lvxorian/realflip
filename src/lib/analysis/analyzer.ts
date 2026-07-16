@@ -434,7 +434,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   const legalFees = 20000;
   const appraisalFee = 5000;
   const contingency = Math.round(renovationTotal * 0.10);
-  const holdingCosts = 6 * 5000;
+  const holdingCosts = 6 * usableArea * 120;
   const sellingCommission = Math.round(flip.arv * 0.04);
   const grossProfit = flip.arv - price - legalFees - appraisalFee - renovationTotal - contingency - holdingCosts - sellingCommission;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.15) : 0;
@@ -446,6 +446,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     renovationCost: renovationTotal,
     contingency,
     holdingCosts,
+    mortgageCost: 0,
     sellingCommission,
     marketingPhoto: 0,
     energyCert: 0,

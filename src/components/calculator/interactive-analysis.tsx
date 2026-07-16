@@ -139,10 +139,16 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     appraisal: false,
     energyCert: false,
     holdingMonths: 6,
+    hasMortgage: false,
+    mortgageAmount: 0,
+    mortgageRate: 5,
   });
 
   const toggleConfig = (key: keyof typeof costConfig) =>
     setCostConfig((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const updateConfig = (key: keyof typeof costConfig, value: number) =>
+    setCostConfig((prev) => ({ ...prev, [key]: value }));
 
   const [showPlanner, setShowPlanner] = useState(false);
   const [renovationItems, setRenovationItems] = useState(() => calculateItemizedRenovation(area, l.condition ?? null));
@@ -172,14 +178,14 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area, itemsTotal]);
 
   const flipResults = useMemo(() => {
-    return calculateFlipResults(l.price, arv, currentRenovation, targetRoi, costConfig);
-  }, [l.price, arv, currentRenovation, targetRoi, costConfig]);
+    return calculateFlipResults(l.price, arv, currentRenovation, area, targetRoi, costConfig);
+  }, [l.price, arv, currentRenovation, area, targetRoi, costConfig]);
 
   const targetFlipResults = useMemo(() => {
     const targetPrice = flipResults.targetPurchasePrice;
     if (targetPrice <= 0) return null;
-    return calculateFlipResults(targetPrice, arv, currentRenovation, targetRoi, costConfig);
-  }, [flipResults.targetPurchasePrice, arv, currentRenovation, targetRoi, costConfig]);
+    return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, costConfig);
+  }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, costConfig]);
 
   const handleArvChange = (value: string) => {
     const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
@@ -475,7 +481,41 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <input type="checkbox" checked={costConfig.energyCert} onChange={() => toggleConfig("energyCert")} className="accent-accent" />
                   <span className="text-foreground/80">Energetický štítek (5 000 Kč)</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
+                  <span className="text-foreground/80">Mám hypotéku</span>
+                </label>
               </div>
+              {costConfig.hasMortgage && (
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/30">
+                  <div>
+                    <label className="text-[10px] text-muted block mb-1">Výše úvěru</label>
+                    <input
+                      type="text"
+                      value={costConfig.mortgageAmount > 0 ? costConfig.mortgageAmount.toLocaleString() : ""}
+                      onChange={(e) => {
+                        const num = parseInt(e.target.value.replace(/\s/g, "")) || 0;
+                        updateConfig("mortgageAmount", num);
+                      }}
+                      placeholder="např. 3 000 000"
+                      className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted block mb-1">Úroková sazba (%)</label>
+                    <input
+                      type="text"
+                      value={costConfig.mortgageRate > 0 ? costConfig.mortgageRate.toString() : ""}
+                      onChange={(e) => {
+                        const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+                        updateConfig("mortgageRate", num);
+                      }}
+                      placeholder="např. 5"
+                      className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Target Price Highlight */}
@@ -484,7 +524,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <p className="text-2xl font-bold text-emerald-400 font-mono">{formatPrice(flipResults.targetPurchasePrice)}</p>
               <div className="flex items-center justify-center gap-3 mt-2 text-xs">
                 <span className="text-muted">Aktuální: {formatPrice(l.price)}</span>
-                <span className="text-emerald-400">↓ {formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</span>
+                <span className="text-red-400">↓ {formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</span>
               </div>
             </div>
 
@@ -504,7 +544,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       { label: "Rezerva 10 %", value: targetFlipResults.costs.contingency },
                       ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (4 %)", value: targetFlipResults.costs.sellingCommission }] : []),
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
-                      { label: "Holding (6 měs.)", value: targetFlipResults.costs.holdingCosts },
+                      { label: `Provozní náklady (${costConfig.holdingMonths} měs. × ${area} m² × 120 Kč)`, value: targetFlipResults.costs.holdingCosts },
+                      ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
                       ...(costConfig.energyCert ? [{ label: "Energetický štítek", value: targetFlipResults.costs.energyCert }] : []),
                       { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (

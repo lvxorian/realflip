@@ -4,7 +4,7 @@ export const COST_CONSTANTS = {
   sellingCommissionRate: 0.04,
   legalFees: 20000,
   appraisalFee: 5000,
-  holdingMonthly: 5000,
+  holdingCostPerSqm: 120,
   marketingPhoto: 15000,
   energyCert: 5000,
   contingencyRate: 0.10,
@@ -23,6 +23,9 @@ export interface FlipCostConfig {
   appraisal: boolean;
   energyCert: boolean;
   holdingMonths: number;
+  hasMortgage: boolean;
+  mortgageAmount: number;
+  mortgageRate: number;
 }
 
 const DEFAULT_CONFIG: FlipCostConfig = {
@@ -30,12 +33,16 @@ const DEFAULT_CONFIG: FlipCostConfig = {
   appraisal: false,
   energyCert: false,
   holdingMonths: 6,
+  hasMortgage: false,
+  mortgageAmount: 0,
+  mortgageRate: 0,
 };
 
 function calculateRawROI(
   purchasePrice: number,
   arv: number,
   renovationCost: number,
+  area: number,
   config?: Partial<FlipCostConfig>
 ): number {
   const cfg = { ...DEFAULT_CONFIG, ...config };
@@ -44,12 +51,15 @@ function calculateRawROI(
   const contingency = Math.round(renovationCost * c.contingencyRate);
   const legalFees = c.legalFees;
   const appraisalFee = cfg.appraisal ? c.appraisalFee : 0;
-  const holding = months * c.holdingMonthly;
+  const holding = months * area * c.holdingCostPerSqm;
+  const mortgageCost = cfg.hasMortgage && cfg.mortgageAmount > 0
+    ? Math.round(cfg.mortgageAmount * (cfg.mortgageRate / 100 / 12) * months)
+    : 0;
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
   const energyCert = cfg.energyCert ? c.energyCert : 0;
 
-  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + energyCert;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -60,6 +70,7 @@ function calculateRawROI(
 export function calculateTargetPurchasePrice(
   arv: number,
   renovationCost: number,
+  area: number,
   targetROI?: number,
   config?: Partial<FlipCostConfig>
 ): number {
@@ -68,7 +79,7 @@ export function calculateTargetPurchasePrice(
   let hi = arv;
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
-    const roi = calculateRawROI(mid, arv, renovationCost, config);
+    const roi = calculateRawROI(mid, arv, renovationCost, area, config);
     if (roi < target) hi = mid;
     else lo = mid;
   }
@@ -79,6 +90,7 @@ export function calculateFlipCosts(
   purchasePrice: number,
   arv: number,
   renovationCost: number,
+  area: number,
   config?: Partial<FlipCostConfig>
 ): DetailedCosts {
   const cfg = { ...DEFAULT_CONFIG, ...config };
@@ -87,12 +99,15 @@ export function calculateFlipCosts(
   const contingency = Math.round(renovationCost * c.contingencyRate);
   const legalFees = c.legalFees;
   const appraisalFee = cfg.appraisal ? c.appraisalFee : 0;
-  const holding = months * c.holdingMonthly;
+  const holding = months * area * c.holdingCostPerSqm;
+  const mortgageCost = cfg.hasMortgage && cfg.mortgageAmount > 0
+    ? Math.round(cfg.mortgageAmount * (cfg.mortgageRate / 100 / 12) * months)
+    : 0;
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
   const energyCert = cfg.energyCert ? c.energyCert : 0;
 
-  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + sellingCommission + marketingPhoto + energyCert;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + energyCert;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -104,6 +119,7 @@ export function calculateFlipCosts(
     renovationCost,
     contingency,
     holdingCosts: holding,
+    mortgageCost,
     sellingCommission,
     marketingPhoto,
     energyCert,
@@ -116,17 +132,18 @@ export function calculateFlipResults(
   purchasePrice: number,
   arv: number,
   renovationCost: number,
+  area: number,
   targetROI?: number,
   config?: Partial<FlipCostConfig>
 ) {
-  const costs = calculateFlipCosts(purchasePrice, arv, renovationCost, config);
+  const costs = calculateFlipCosts(purchasePrice, arv, renovationCost, area, config);
   const netProfit = arv - costs.totalCost;
   const roi = costs.totalCost > 0 ? (netProfit / costs.totalCost) * 100 : 0;
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const months = cfg.holdingMonths ?? COST_CONSTANTS.holdingPeriodMonths;
   const annualizedRoi = (roi / months) * 12;
 
-  const targetPrice = calculateTargetPurchasePrice(arv, renovationCost, targetROI, config);
+  const targetPrice = calculateTargetPurchasePrice(arv, renovationCost, area, targetROI, config);
   const priceReductionNeeded = Math.max(0, purchasePrice - targetPrice);
   const priceReductionPct = purchasePrice > 0
     ? Math.round((priceReductionNeeded / purchasePrice) * 100 * 10) / 10

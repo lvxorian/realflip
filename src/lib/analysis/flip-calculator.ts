@@ -15,7 +15,6 @@ const RENOVATION_COST_PER_SQM: Record<string, Record<string, number>> = {
   full: { new: 6000, renovated: 6000, good: 12000, original: 18000, dilapidated: 25000 },
 };
 
-const DEFAULT_COMMISSION_PCT = 4;
 const DEFAULT_TAX_PCT = 4;
 const DEFAULT_LEGAL_PCT = 4;
 const DEFAULT_BUFFER_PCT = 10;
@@ -35,13 +34,12 @@ export function calculateFlip(input: FlipInput): InvestmentAnalysis {
   const renovationCost = Math.round(area * costPerSqm);
 
   // Fees
-  const commission = Math.round(purchasePrice * (DEFAULT_COMMISSION_PCT / 100));
   const tax = Math.round(purchasePrice * (DEFAULT_TAX_PCT / 100));
   const legal = Math.round(purchasePrice * (DEFAULT_LEGAL_PCT / 100));
   const buffer = Math.round(renovationCost * (DEFAULT_BUFFER_PCT / 100));
 
   // Total cost
-  const totalCost = purchasePrice + renovationCost + commission + tax + legal + buffer;
+  const totalCost = purchasePrice + renovationCost + tax + legal + buffer;
 
   // ARV (After Repair Value) – market value + appreciation for renovation
   const renovationMultiplier = renovationLevel === "full" ? 1.2 : renovationLevel === "medium" ? 1.1 : 1.05;

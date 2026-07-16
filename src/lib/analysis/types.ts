@@ -45,6 +45,7 @@ export interface DetailedCosts {
   renovationCost: number;
   contingency: number;
   holdingCosts: number;
+  mortgageCost: number;
   sellingCommission: number;
   marketingPhoto: number;
   energyCert: number;

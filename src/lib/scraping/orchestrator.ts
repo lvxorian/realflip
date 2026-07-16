@@ -194,7 +194,7 @@ export class ScrapingOrchestrator {
 
       const area = existing.area ?? listing.area ?? 70;
       const renoCostEstimate = Math.round(area * 10000) + 180000 + 140000;
-      const freshAnalysis = calculateFlipResults(listing.price, listing.price, renoCostEstimate, 15);
+      const freshAnalysis = calculateFlipResults(listing.price, listing.price, renoCostEstimate, area, 15);
 
       await db
         .update(properties)
