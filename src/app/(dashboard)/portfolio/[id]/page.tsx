@@ -5,8 +5,9 @@ import { deals, properties, propertyAnalysis, dealExpenses } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
+import { DeleteDealButton } from "@/components/ui/delete-deal-button";
 import { safeJsonParse } from "@/lib/utils";
-import { CheckCircle, Clock, ArrowLeft, MapPin, CurrencyDollar } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, Clock, ArrowLeft, MapPin, CurrencyDollar, Trash } from "@phosphor-icons/react/dist/ssr";
 
 const statusLabel: Record<string, string> = { purchased: "Koupeno", renovating: "Rekonstrukce", selling: "Na prodej", sold: "Prodáno" };
 const statusColor: Record<string, "info" | "warning" | "success"> = { purchased: "info", renovating: "warning", selling: "info", sold: "success" };
@@ -46,10 +47,13 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
 
   return (
     <div className="space-y-6">
-      <Link href="/portfolio" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors">
-        <ArrowLeft size={14} weight="bold" />
-        Zpět na portfolio
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link href="/portfolio" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors">
+          <ArrowLeft size={14} weight="bold" />
+          Zpět na portfolio
+        </Link>
+        <DeleteDealButton dealId={d.id} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
