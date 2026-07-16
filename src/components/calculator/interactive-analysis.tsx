@@ -177,13 +177,15 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area, itemsTotal]);
 
   const flipResults = useMemo(() => {
-    return calculateFlipResults(l.price, arv, currentRenovation, area, targetRoi, costConfig);
+    const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
+    return calculateFlipResults(l.price, arv, currentRenovation, area, targetRoi, adjusted);
   }, [l.price, arv, currentRenovation, area, targetRoi, costConfig]);
 
   const targetFlipResults = useMemo(() => {
     const targetPrice = flipResults.targetPurchasePrice;
     if (targetPrice <= 0) return null;
-    return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, costConfig);
+    const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
+    return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, adjusted);
   }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, costConfig]);
 
   const handleArvChange = (value: string) => {
