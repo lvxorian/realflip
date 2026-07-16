@@ -522,36 +522,36 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
                   <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek (5 000 Kč)</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer col-span-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.sourcingEnabled} onChange={() => toggleConfig("sourcingEnabled")} className="accent-accent" />
                   <span className="text-foreground/80 whitespace-nowrap">Provize za zprostředkování</span>
                 </label>
-                {costConfig.sourcingEnabled && (
-                  <div className="flex items-center gap-2 col-span-2 pl-6">
-                    <input
-                      type="number"
-                      value={costConfig.sourcingFee || ""}
-                      onChange={(e) => setCostConfig((prev) => ({ ...prev, sourcingFee: parseInt(e.target.value) || 0 }))}
-                      className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                      placeholder="100000"
-                    />
-                    <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
-                      <button
-                        onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: false }))}
-                        className={`px-2 py-1 transition-colors ${!costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
-                      >Kč</button>
-                      <button
-                        onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: true }))}
-                        className={`px-2 py-1 transition-colors ${costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
-                      >%</button>
-                    </div>
-                  </div>
-                )}
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
                   <span className="text-foreground/80 whitespace-nowrap">Mám hypotéku</span>
                 </label>
               </div>
+              {costConfig.sourcingEnabled && (
+                <div className="flex items-center gap-2 pl-6">
+                  <input
+                    type="number"
+                    value={costConfig.sourcingFee || ""}
+                    onChange={(e) => setCostConfig((prev) => ({ ...prev, sourcingFee: parseInt(e.target.value) || 0 }))}
+                    className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
+                    placeholder="100000"
+                  />
+                  <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
+                    <button
+                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: false }))}
+                      className={`px-2 py-1 transition-colors ${!costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                    >Kč</button>
+                    <button
+                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: true }))}
+                      className={`px-2 py-1 transition-colors ${costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                    >%</button>
+                  </div>
+                </div>
+              )}
               {costConfig.hasMortgage && (
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/30">
                   <div>
