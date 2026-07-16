@@ -8,6 +8,7 @@ export const alerts = sqliteTable("alerts", {
     .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   conditions: text("conditions"),
+  rules: text("rules").default("{}"),
   channels: text("channels").default('["in_app"]'),
   isActive: integer("is_active").default(1),
   lastTriggered: integer("last_triggered"),

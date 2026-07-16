@@ -2,12 +2,13 @@
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, notifications, searches, searchProperties } from "@/db/schema";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
 import { eq, and, ne } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts } from "@/lib/utils";
+import { checkPriceDropAlert } from "@/lib/alert-matcher";
 
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
@@ -179,7 +180,7 @@ export class ScrapingOrchestrator {
           recordedAt: ts(),
         });
 
-        // Log price drop activity
+        // Log price drop activity and check alerts
         if (listing.price < existing.price) {
           const dropPct = ((existing.price - listing.price) / existing.price) * 100;
           await db.insert(activityLog).values({
@@ -189,6 +190,8 @@ export class ScrapingOrchestrator {
             propertyId: existing.id,
             createdAt: ts(),
           });
+
+          await checkPriceDropAlert(existing.id, listing.title, listing.url, existing.price, listing.price).catch(() => {});
         }
       }
 
@@ -356,26 +359,7 @@ export class ScrapingOrchestrator {
         updatedAt: ts(),
       });
 
-      // Create notification for highly undervalued properties
-      if (analysis.undervaluationPct > 10) {
-        try {
-          await db.insert(notifications).values({
-            id: generateId(),
-            userId: "system",
-            title: "PodhodnocenĂˇ nemovitost",
-            message: `${listing.title} je podhodnocena o ${Math.round(analysis.undervaluationPct)} % (${listing.price.toLocaleString()} KÄŤ)`,
-            type: "undervalued",
-            data: JSON.stringify({
-              propertyId: id,
-              undervaluationPct: Math.round(analysis.undervaluationPct),
-              price: listing.price,
-            }),
-            createdAt: ts(),
-          });
-        } catch {
-          // notifications table has FK to users â€” skip if user doesn't exist
-        }
-      }
+
 
       await db.insert(activityLog).values({
         id: generateId(),

@@ -11,14 +11,15 @@ interface Alert {
   id: string;
   name: string;
   conditions: string | null;
+  rules: string;
   isActive: number | null;
   lastTriggered: number | null;
 }
 
 const presets = [
-  { label: "Lokalita", desc: "Hlídá nové inzeráty ve vybrané lokalitě", icon: MapPin, name: "Nové inzeráty v lokalitě", conditions: "Lokalita: Praha" },
-  { label: "Cena", desc: "Upozorní na cenu pod zvolenou hranicí", icon: CurrencyDollar, name: "Cena pod hranicí", conditions: "Cena: < 3 000 000 Kč" },
-  { label: "Skóre", desc: "Alert na investiční skóre nad 80", icon: Star, name: "Podhodnocené nemovitosti", conditions: "Skóre: 80+" },
+  { label: "Cenový drop", desc: "Upozorní na snížení ceny o více než 10 %", icon: CurrencyDollar, name: "Cenový drop > 10 %", conditions: "Snížení ceny: >10%", rules: { type: "price_drop", minDropPct: 10 } },
+  { label: "Skóre", desc: "Alert na investiční skóre nad 80", icon: Star, name: "Podhodnocené nemovitosti", conditions: "Skóre: 80+", rules: { type: "score_threshold", minScore: 80 } },
+  { label: "Lokalita", desc: "Hlídá nové inzeráty ve vybrané lokalitě", icon: MapPin, name: "Nové inzeráty v lokalitě", conditions: "Lokalita: Praha", rules: { type: "price_drop", minDropPct: 5 } },
 ];
 
 export default function AlertsPage() {
@@ -60,11 +61,11 @@ export default function AlertsPage() {
     const res = await fetch("/api/alerts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: preset.name, conditions: preset.conditions }),
+      body: JSON.stringify({ name: preset.name, conditions: preset.conditions, rules: preset.rules }),
     });
     if (res.ok) {
       const data = await res.json();
-      setAlerts((prev) => [...prev, { id: data.id, name: preset.name, conditions: preset.conditions, isActive: 1, lastTriggered: null }]);
+      setAlerts((prev) => [...prev, { id: data.id, name: preset.name, conditions: preset.conditions, rules: JSON.stringify(preset.rules), isActive: 1, lastTriggered: null }]);
     }
   }
 

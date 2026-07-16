@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       userId: session.user.id,
       name: body.name,
       conditions: body.conditions ?? null,
+      rules: body.rules ? JSON.stringify(body.rules) : "{}",
       channels: body.channels ?? '["in_app"]',
       isActive: 1,
       createdAt: now,
