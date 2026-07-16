@@ -193,10 +193,10 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           area: l.area,
-          rooms: l.rooms,
           address: l.address,
           price: l.price,
           excludeUrl: result.url,
+          city: a.location?.city,
         }),
       });
       const data = await res.json();

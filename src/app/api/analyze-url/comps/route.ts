@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, propertyAnalysis } from "@/db/schema";
-import { eq, and, between, or, like, ne, gte, lte, sql } from "drizzle-orm";
+import { eq, and, ne, gte } from "drizzle-orm";
+import { filterImages } from "@/lib/scraping/types";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -11,11 +12,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { area, rooms, address, price, lat, lng, excludeUrl } = await req.json();
+    const { area, address, price, excludeUrl, city } = await req.json();
 
-    const similar: any[] = [];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const base = db
+    const rows = await db
       .select({
         id: properties.id,
         title: properties.title,
@@ -30,7 +31,6 @@ export async function POST(req: Request) {
         lat: properties.lat,
         lng: properties.lng,
         analysisScore: propertyAnalysis.investmentScore,
-        analysisRoi: propertyAnalysis.roi,
         analysisArv: propertyAnalysis.arv,
       })
       .from(properties)
@@ -38,38 +38,43 @@ export async function POST(req: Request) {
       .where(and(
         eq(properties.isActive, true),
         ne(properties.url, excludeUrl ?? ""),
+        gte(properties.lastSeen, thirtyDaysAgo),
       ))
       .limit(50);
 
-    const comps = await base;
+    let comps = rows;
 
-    let priceFiltered = comps;
-    if (price) {
-      const priceRangeMin = price * 0.5;
-      const priceRangeMax = price * 2;
-      priceFiltered = comps.filter((p) => p.price >= priceRangeMin && p.price <= priceRangeMax);
+    // 1) Filter by city (from analysis location)
+    if (city) {
+      const cityLower = city.toLowerCase().replace(/_/g, " ");
+      const byCity = comps.filter((p) =>
+        (p.address ?? "").toLowerCase().includes(cityLower)
+      );
+      if (byCity.length >= 2) comps = byCity;
     }
 
-    let areaFiltered = priceFiltered;
+    // 2) Filter by area ±30 %
     if (area && area > 0) {
       const areaRange = area * 0.3;
-      areaFiltered = priceFiltered.filter(
+      const byArea = comps.filter(
         (p) => p.area && Math.abs(p.area - area) <= areaRange
       );
+      if (byArea.length >= 2) comps = byArea;
     }
 
-    let locationFiltered = areaFiltered;
-    if (address) {
-      const normalized = address.toLowerCase().slice(0, 30);
-      locationFiltered = areaFiltered.filter(
-        (p) => p.address?.toLowerCase().includes(normalized) || normalized.includes(p.address?.toLowerCase().slice(0, 30) ?? "")
+    // 3) Filter by price ±50 %
+    if (price) {
+      const priceMin = price * 0.5;
+      const priceMax = price * 2;
+      const byPrice = comps.filter(
+        (p) => p.price >= priceMin && p.price <= priceMax
       );
+      if (byPrice.length >= 2) comps = byPrice;
     }
 
-    const finalComps = locationFiltered.length >= 3 ? locationFiltered : areaFiltered.length >= 3 ? areaFiltered : priceFiltered.length >= 3 ? priceFiltered : comps;
-
-    const prices = finalComps.map((p) => p.price).filter((p): p is number => p > 0);
-    const areas = finalComps.map((p) => p.area).filter((a): a is number => a !== null && a > 0);
+    // Stats
+    const prices = comps.map((p) => p.price).filter((p): p is number => p > 0);
+    const areas = comps.map((p) => p.area).filter((a): a is number => a !== null && a > 0);
     const pricePerSqms = prices
       .map((p, i) => (areas[i] ? Math.round(p / areas[i]) : null))
       .filter((p): p is number => p !== null);
@@ -80,7 +85,6 @@ export async function POST(req: Request) {
         ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
         : sorted[Math.floor(sorted.length / 2)]
       : 0;
-
     const p25 = sorted.length > 0 ? sorted[Math.floor(sorted.length * 0.25)] : 0;
     const p75 = sorted.length > 0 ? sorted[Math.floor(sorted.length * 0.75)] : 0;
 
@@ -91,18 +95,16 @@ export async function POST(req: Request) {
         : sortedPerSqm[Math.floor(sortedPerSqm.length / 2)]
       : 0;
 
-    return NextResponse.json({
-      success: true,
-      stats: {
-        count: finalComps.length,
-        medianPrice: Math.round(median),
-        medianPricePerSqm: Math.round(medianPerSqm),
-        p25: Math.round(p25),
-        p75: Math.round(p75),
-        min: sorted[0] ?? 0,
-        max: sorted[sorted.length - 1] ?? 0,
-      },
-      comps: finalComps.slice(0, 20).map((p) => ({
+    const mappedComps = comps.slice(0, 20).map((p) => {
+      let imageUrl: string | null = null;
+      if (p.imageUrls) {
+        try {
+          const parsed = JSON.parse(p.imageUrls as string);
+          const filtered = filterImages(Array.isArray(parsed) ? parsed : []);
+          imageUrl = filtered[0] ?? null;
+        } catch { imageUrl = null; }
+      }
+      return {
         id: p.id,
         title: p.title,
         price: p.price,
@@ -111,11 +113,25 @@ export async function POST(req: Request) {
         address: p.address,
         condition: p.condition,
         buildingType: p.buildingType,
-        imageUrl: p.imageUrls ? (JSON.parse(p.imageUrls as string)?.[0] ?? null) : null,
+        imageUrl,
         url: p.url,
         score: p.analysisScore,
         arv: p.analysisArv,
-      })),
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      stats: {
+        count: comps.length,
+        medianPrice: Math.round(median),
+        medianPricePerSqm: Math.round(medianPerSqm),
+        p25: Math.round(p25),
+        p75: Math.round(p75),
+        min: sorted[0] ?? 0,
+        max: sorted[sorted.length - 1] ?? 0,
+      },
+      comps: mappedComps,
     });
   } catch (error) {
     console.error("Comps API error:", error);
