@@ -1,0 +1,706 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { formatPrice } from "@/lib/utils";
+import {
+  calculateFlipResults,
+  calculateItemizedRenovation,
+  renovationCostFromPreset,
+} from "@/lib/analysis/flip-costs";
+import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp } from "@phosphor-icons/react";
+
+const verdictColors: Record<string, string> = {
+  strongBuy: "success",
+  buy: "success",
+  consider: "warning",
+  dontBuy: "danger",
+  categoricalReject: "danger",
+} as const;
+
+const verdictLabels: Record<string, string> = {
+  strongBuy: "Silný kandidát",
+  buy: "Doporučeno",
+  consider: "Zvážit",
+  dontBuy: "Nedoporučeno",
+  categoricalReject: "Zamítnout",
+};
+
+const dealStatuses = [
+  { value: "new", label: "Nový" },
+  { value: "contacted", label: "Kontaktován" },
+  { value: "offered", label: "Nabídka" },
+  { value: "negotiating", label: "Vyjednávání" },
+  { value: "buying", label: "Kupuju" },
+  { value: "passed", label: "Pas" },
+];
+
+interface AnalysisResult {
+  url: string;
+  portal: string;
+  success: boolean;
+  error?: string;
+  listing?: {
+    title: string;
+    price: number;
+    area: number | null;
+    rooms: string | null;
+    condition: string | null;
+    address: string | null;
+    description: string | null;
+    imageUrls: string[];
+  };
+  analysis?: {
+    pricePerSqm: number;
+    marketPricePerSqmLow: number;
+    marketPricePerSqmHigh: number;
+    undervaluationPct: number;
+    overpricingPct: number;
+    investmentScore: number;
+    verdictLevel: string;
+    recommendation: string;
+    verdictSummary: string | null;
+    arv: number;
+    roi: number;
+    netProfit: number;
+    targetPurchasePrice: number;
+    priceReductionNeeded: number;
+    priceReductionPct: number;
+    condition: string | null;
+    location: { city: string; category: string } | null;
+    buildingType: string;
+    segmentRating: string;
+    occupancy: string;
+    missingFields: string[];
+    redFlags: { type: string; description: string }[];
+    scenarios: Record<string, {
+      label: string;
+      renovationCost: number;
+      arv: number;
+      totalCost: number;
+      netProfit: number;
+      roi: number;
+    }>;
+  };
+  aiSummary?: string | null;
+  aiNegotiationTips?: string[] | null;
+  aiComparableNotes?: string | null;
+  aiHiddenInfo?: string[] | null;
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 100, damping: 20 } },
+};
+
+export default function InteractiveAnalysis({ result, index }: { result: AnalysisResult; index: number }) {
+  if (!result.success) {
+    return (
+      <motion.div variants={itemVariants}>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <XCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium break-all">{result.url}</p>
+                <p className="text-xs text-red-400 mt-1">{result.error ?? "Neznámá chyba"}</p>
+                {result.portal && <Badge variant="secondary" size="sm" className="mt-2">{result.portal}</Badge>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  return <InteractiveCard result={result} index={index} />;
+}
+
+function InteractiveCard({ result, index }: { result: AnalysisResult; index: number }) {
+  const a = result.analysis!;
+  const l = result.listing!;
+  const area = l.area ?? 70;
+
+  const [arv, setArv] = useState(a.arv);
+  const [renovationMode, setRenovationMode] = useState<"preset" | "perSqm" | "total">("preset");
+  const [renovationLevel, setRenovationLevel] = useState<"light" | "medium" | "full">("medium");
+  const [renovationPerSqm, setRenovationPerSqm] = useState(Math.round(a.scenarios?.conservative?.renovationCost / area) || 10000);
+  const [renovationTotal, setRenovationTotal] = useState(a.scenarios?.conservative?.renovationCost || 700000);
+  const [targetRoi, setTargetRoi] = useState(15);
+
+  const [showPlanner, setShowPlanner] = useState(false);
+  const [renovationItems, setRenovationItems] = useState(() => calculateItemizedRenovation(area, l.condition ?? null));
+
+  const [comps, setComps] = useState<any[] | null>(null);
+  const [compsStats, setCompsStats] = useState<any | null>(null);
+  const [loadingComps, setLoadingComps] = useState(false);
+
+  const [negotiation, setNegotiation] = useState<any | null>(null);
+  const [loadingNegotiation, setLoadingNegotiation] = useState(false);
+  const [showNegotiation, setShowNegotiation] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [dealStatus, setDealStatus] = useState("new");
+
+  const currentRenovation = useMemo(() => {
+    if (renovationMode === "preset") return renovationCostFromPreset(area, renovationLevel);
+    if (renovationMode === "perSqm") return Math.round(renovationPerSqm * area);
+    return renovationTotal;
+  }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area]);
+
+  const flipResults = useMemo(() => {
+    return calculateFlipResults(l.price, arv, currentRenovation, targetRoi);
+  }, [l.price, arv, currentRenovation, targetRoi]);
+
+  const handleArvChange = (value: string) => {
+    const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
+    setArv(num);
+  };
+
+  const handleRenovationPerSqmChange = (value: string) => {
+    const num = parseInt(value.replace(/\s/g, "")) || 0;
+    setRenovationPerSqm(num);
+  };
+
+  const handleRenovationTotalChange = (value: string) => {
+    const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
+    setRenovationTotal(num);
+  };
+
+  const handleRoiChange = (value: string) => {
+    const num = parseInt(value) || 0;
+    setTargetRoi(Math.max(5, Math.min(50, num)));
+  };
+
+  const handleItemCostChange = (index: number, value: string) => {
+    const num = parseInt(value.replace(/\s/g, "")) || 0;
+    setRenovationItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], estimatedCost: num };
+      return next;
+    });
+  };
+
+  const loadComps = async () => {
+    setLoadingComps(true);
+    try {
+      const res = await fetch("/api/analyze-url/comps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          area: l.area,
+          rooms: l.rooms,
+          address: l.address,
+          price: l.price,
+          excludeUrl: result.url,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setComps(data.comps);
+        setCompsStats(data.stats);
+      }
+    } catch {}
+    setLoadingComps(false);
+  };
+
+  const generateNegotiation = async () => {
+    setLoadingNegotiation(true);
+    try {
+      const res = await fetch("/api/analyze-url/negotiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: l.title,
+          description: l.description,
+          price: l.price,
+          targetPrice: flipResults.targetPurchasePrice,
+          arv,
+          renovationCost: currentRenovation,
+          area: l.area,
+          rooms: l.rooms,
+          condition: l.condition,
+          address: l.address,
+          pricePerSqm: a.pricePerSqm,
+          costs: flipResults.costs,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNegotiation(data);
+        setShowNegotiation(true);
+      }
+    } catch {}
+    setLoadingNegotiation(false);
+  };
+
+  const saveDeal = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/analyze-url/save-deal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          portalName: result.portal,
+          url: result.url,
+          title: l.title,
+          price: l.price,
+          pricePerSqm: a.pricePerSqm,
+          area: l.area,
+          rooms: l.rooms,
+          condition: l.condition,
+          buildingType: a.buildingType,
+          address: l.address,
+          description: l.description,
+          imageUrls: l.imageUrls,
+          arv,
+          renovationCost: currentRenovation,
+          targetPrice: flipResults.targetPurchasePrice,
+          roi: flipResults.roi,
+          netProfit: flipResults.netProfit,
+          status: dealStatus,
+          notes: null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setSaved(true);
+    } catch {}
+    setSaving(false);
+  };
+
+  const verdictBadgeVariant = verdictColors[a.verdictLevel] ?? "secondary";
+  const inputClass = "w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/40 text-right";
+
+  return (
+    <motion.div variants={itemVariants}>
+      <Card>
+        <CardContent className="p-5 space-y-5">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-sm leading-snug line-clamp-2 text-foreground">{l.title}</h3>
+              <p className="text-xs text-muted mt-1 break-all">{result.url}</p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <Badge variant={verdictBadgeVariant as any} size="sm">{verdictLabels[a.verdictLevel]}</Badge>
+                <Badge variant="score" score={a.investmentScore} size="sm" />
+                {l.condition && <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{l.condition}</span>}
+                <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Image */}
+          {l.imageUrls.length > 0 && (
+            <div className="overflow-hidden rounded-xl">
+              <img src={l.imageUrls[0]} alt={l.title} className="h-48 w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            </div>
+          )}
+
+          {/* Key Info Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <InfoBox label="Cena inzeráta" value={formatPrice(l.price)} />
+            <InfoBox label="ARV (po rekonstrukci)" value={formatPrice(arv)} highlight="text-price" />
+            <InfoBox label="Cena za m²" value={a.pricePerSqm > 0 ? formatPrice(a.pricePerSqm) + "/m²" : "neuvedeno"} />
+            <InfoBox label="Trh/m²" value={`${formatPrice(a.marketPricePerSqmLow)}–${formatPrice(a.marketPricePerSqmHigh)}`} />
+            <InfoBox label="ROI" value={flipResults.roi.toFixed(1) + "%"} highlight={flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"} />
+            <InfoBox label="Čistý zisk" value={formatPrice(flipResults.netProfit)} highlight="text-price" />
+            <InfoBox label="Podhodnocení" value={a.undervaluationPct > 0 ? a.undervaluationPct.toFixed(1) + "%" : "—"} highlight={a.undervaluationPct > 0 ? "text-emerald-400" : "text-muted"} />
+            <InfoBox label="Nadhodnocení" value={a.overpricingPct > 0 ? a.overpricingPct.toFixed(1) + "%" : "—"} highlight={a.overpricingPct > 0 ? "text-amber-400" : "text-muted"} />
+          </div>
+
+          {/* Location & Meta */}
+          <div className="flex flex-wrap gap-2">
+            {a.location && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.location.city} ({a.location.category})</span>}
+            {l.area && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
+            {l.rooms && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
+            {l.address && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}
+            {a.buildingType && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.buildingType}</span>}
+            {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.occupancy}</span>}
+          </div>
+
+          {/* ===== FEATURE 1: FLIP CALCULATOR ===== */}
+          <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <CurrencyCircleDollar size={16} className="text-accent" />
+              <h2 className="font-semibold tracking-tight text-sm">Kalkulačka flipu</h2>
+            </div>
+
+            {/* ARV */}
+            <div>
+              <label className="text-xs text-muted mb-1 block">ARV (hodnota po rekonstrukci)</label>
+              <input
+                type="text"
+                value={formatPrice(arv) || "0"}
+                onChange={(e) => handleArvChange(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            {/* Renovation */}
+            <div>
+              <label className="text-xs text-muted mb-1.5 block">Náklady na rekonstrukci</label>
+              <div className="flex gap-1.5 mb-2">
+                {(["light", "medium", "full"] as const).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => { setRenovationMode("preset"); setRenovationLevel(level); }}
+                    className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
+                      renovationMode === "preset" && renovationLevel === level
+                        ? "border-accent/40 bg-accent/10 text-accent"
+                        : "border-border/50 text-muted hover:bg-card-hover"
+                    }`}
+                  >
+                    {level === "light" ? "Lehká" : level === "medium" ? "Střední" : "Těžká"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 items-center">
+                <div className="flex gap-1.5 text-xs text-muted">
+                  <button onClick={() => setRenovationMode("perSqm")} className={`px-2 py-1 rounded border ${renovationMode === "perSqm" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Kč/m²</button>
+                  <button onClick={() => setRenovationMode("total")} className={`px-2 py-1 rounded border ${renovationMode === "total" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Celkem</button>
+                </div>
+                {renovationMode === "perSqm" ? (
+                  <input type="text" value={renovationPerSqm.toLocaleString()} onChange={(e) => handleRenovationPerSqmChange(e.target.value)} className={inputClass + " flex-1"} />
+                ) : renovationMode === "total" ? (
+                  <input type="text" value={formatPrice(renovationTotal) || "0"} onChange={(e) => handleRenovationTotalChange(e.target.value)} className={inputClass + " flex-1"} />
+                ) : (
+                  <span className="flex-1 text-right text-sm font-mono text-foreground">{formatPrice(currentRenovation)}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Target ROI */}
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-muted shrink-0">Cílové ROI:</label>
+              <input
+                type="range"
+                min={5}
+                max={40}
+                value={targetRoi}
+                onChange={(e) => setTargetRoi(parseInt(e.target.value))}
+                className="flex-1 accent-accent h-1.5"
+              />
+              <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{targetRoi}%</span>
+            </div>
+
+            {/* Cost Breakdown */}
+            <div className="rounded-xl bg-card border border-border/50 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left text-muted font-medium px-3 py-2">Náklad</th>
+                    <th className="text-right text-muted font-medium px-3 py-2">Částka</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { label: "Kupní cena", value: l.price },
+                    { label: "Provize RK (4 %)", value: flipResults.costs.commission },
+                    { label: "Právní služby", value: flipResults.costs.legalFees },
+                    { label: "Znalecký posudek", value: flipResults.costs.appraisalFee },
+                    { label: "Rekonstrukce", value: currentRenovation },
+                    { label: "Holding (6 měs.)", value: flipResults.costs.holdingCosts },
+                    { label: "Provize při prodeji (4 %)", value: flipResults.costs.sellingCommission },
+                    { label: "Home staging", value: flipResults.costs.homeStaging },
+                    { label: "Daň z příjmu (15 %)", value: flipResults.costs.incomeTax },
+                  ].map((row) => (
+                    <tr key={row.label} className="border-b border-border/30">
+                      <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
+                      <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-accent/5">
+                    <td className="px-3 py-2 font-semibold text-foreground">CELKOVÉ NÁKLADY</td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold text-foreground">{formatPrice(flipResults.costs.totalCost)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Target Price Highlight */}
+            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
+              <p className="text-xs text-emerald-400 mb-1">🎯 IDEÁLNÍ KUPNÍ CENA</p>
+              <p className="text-2xl font-bold text-emerald-400 font-mono">{formatPrice(flipResults.targetPurchasePrice)}</p>
+              <div className="flex items-center justify-center gap-3 mt-2 text-xs">
+                <span className="text-muted">Aktuální: {formatPrice(l.price)}</span>
+                <span className="text-emerald-400">↓ {formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ===== FEATURE 4: RENOVATION PLANNER ===== */}
+          <div className="rounded-xl border border-border/50 p-4 space-y-3">
+            <button onClick={() => setShowPlanner(!showPlanner)} className="flex items-center gap-2 w-full">
+              <Toolbox size={16} className="text-muted" />
+              <h2 className="font-semibold tracking-tight text-sm flex-1 text-left">Plán rekonstrukce</h2>
+              {showPlanner ? <CaretUp size={14} className="text-muted" /> : <CaretDown size={14} className="text-muted" />}
+            </button>
+            {showPlanner && (
+              <div className="space-y-1.5">
+                {renovationItems.map((item, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className="flex-1 text-foreground/80">{item.category}</span>
+                    <input
+                      type="text"
+                      value={item.estimatedCost.toLocaleString()}
+                      onChange={(e) => handleItemCostChange(i, e.target.value)}
+                      className="w-28 rounded border border-border/50 bg-card px-2 py-1 text-right font-mono text-xs focus:outline-none focus:ring-1 focus:ring-accent/40"
+                    />
+                    <span className="text-muted w-16 text-right">{Math.round(item.estimatedCost / area)} Kč/m²</span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2 text-xs pt-2 border-t border-border/30 font-semibold">
+                  <span className="flex-1 text-foreground">Celkem</span>
+                  <span className="w-28 text-right font-mono text-foreground">{formatPrice(renovationItems.reduce((s, i) => s + i.estimatedCost, 0))}</span>
+                  <span className="text-muted w-16 text-right">{Math.round(renovationItems.reduce((s, i) => s + i.estimatedCost, 0) / area)} Kč/m²</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ===== FEATURE 3: COMPS ===== */}
+          <div className="rounded-xl border border-border/50 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Buildings size={16} className="text-muted" />
+                <h2 className="font-semibold tracking-tight text-sm">Srovnání s trhem</h2>
+              </div>
+              {!comps && (
+                <Button size="sm" variant="secondary" onClick={loadComps} disabled={loadingComps} className="text-xs">
+                  {loadingComps ? "Načítám..." : "Načíst srovnání"}
+                </Button>
+              )}
+            </div>
+            {comps && compsStats && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded-lg bg-card-hover border border-border/50 p-2 text-center">
+                    <p className="text-muted">Počet</p>
+                    <p className="font-mono font-semibold text-foreground">{compsStats.count}</p>
+                  </div>
+                  <div className="rounded-lg bg-card-hover border border-border/50 p-2 text-center">
+                    <p className="text-muted">Medián ceny</p>
+                    <p className="font-mono font-semibold text-foreground">{formatPrice(compsStats.medianPrice)}</p>
+                  </div>
+                  <div className="rounded-lg bg-card-hover border border-border/50 p-2 text-center">
+                    <p className="text-muted">Medián Kč/m²</p>
+                    <p className="font-mono font-semibold text-foreground">{formatPrice(compsStats.medianPricePerSqm)}</p>
+                  </div>
+                </div>
+                <div className="text-xs text-muted">
+                  Rozmezí: {formatPrice(compsStats.p25)} – {formatPrice(compsStats.p75)} (Q1–Q3)
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {comps.slice(0, 10).map((c: any) => (
+                    <a key={c.id} href={c.url} target="_blank" className="flex items-center gap-2 rounded-lg bg-card-hover border border-border/30 p-2 text-xs hover:bg-card-hover/80 transition-colors">
+                      {c.imageUrl && <img src={c.imageUrl} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                      <span className="flex-1 truncate text-foreground/80">{c.title}</span>
+                      <span className="font-mono shrink-0">{formatPrice(c.price)}</span>
+                      {c.area && <span className="text-muted shrink-0">{c.area}m²</span>}
+                      {c.score && <Badge variant="score" score={c.score} size="sm" />}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ===== FEATURE 2: AI NEGOTIATION ===== */}
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Phone size={16} className="text-amber-400" />
+                <h2 className="font-semibold tracking-tight text-sm">Vyjednávací asistent</h2>
+              </div>
+              {!negotiation && (
+                <Button size="sm" onClick={generateNegotiation} disabled={loadingNegotiation} className="text-xs">
+                  {loadingNegotiation ? "Generuji..." : "Generovat scénář"}
+                </Button>
+              )}
+            </div>
+            {negotiation && showNegotiation && (
+              <div className="space-y-3">
+                <div className="rounded-xl bg-card border border-border/50 p-3">
+                  <p className="text-xs text-muted mb-1 font-medium">📞 Scénář hovoru</p>
+                  <p className="text-sm text-foreground/80 whitespace-pre-wrap">{negotiation.phoneScript}</p>
+                </div>
+                {negotiation.openingLine && (
+                  <div className="rounded-xl bg-accent/5 border border-accent/20 p-3">
+                    <p className="text-xs text-muted mb-1 font-medium">🎯 První věta</p>
+                    <p className="text-sm text-accent font-medium">{negotiation.openingLine}</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {negotiation.maxStartingOffer && (
+                    <div className="rounded-lg bg-card border border-border/50 p-2 text-center">
+                      <p className="text-muted">Max. první nabídka</p>
+                      <p className="font-mono font-semibold text-emerald-400">{formatPrice(negotiation.maxStartingOffer)}</p>
+                    </div>
+                  )}
+                  {negotiation.walkAwayPrice && (
+                    <div className="rounded-lg bg-card border border-border/50 p-2 text-center">
+                      <p className="text-muted">Walk-away price</p>
+                      <p className="font-mono font-semibold text-red-400">{formatPrice(negotiation.walkAwayPrice)}</p>
+                    </div>
+                  )}
+                </div>
+                {negotiation.arguments?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted mb-1.5 font-medium">💬 Argumenty pro snížení ceny</p>
+                    <ul className="space-y-1">
+                      {negotiation.arguments.map((arg: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
+                          <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                          <span>{arg}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {negotiation.sellerMotivation?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted mb-1.5 font-medium">🔍 Motivace prodejce — jak odhalit</p>
+                    <ul className="space-y-1">
+                      {negotiation.sellerMotivation.map((tip: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-amber-400/80">
+                          <span className="mt-0.5 shrink-0">•</span>
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {negotiation.handlingObjections?.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted mb-1.5 font-medium">🛡️ Jak reagovat na námitky</p>
+                    <ul className="space-y-1">
+                      {negotiation.handlingObjections.map((obj: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
+                          <span className="text-amber-400 mt-0.5 shrink-0">•</span>
+                          <span>{obj}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ===== FEATURE 7: SAVE DEAL ===== */}
+          <div className="rounded-xl border border-border/50 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FloppyDisk size={16} className="text-muted" />
+                <h2 className="font-semibold tracking-tight text-sm">Uložit do portfolia</h2>
+              </div>
+              {!saved ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={dealStatus}
+                    onChange={(e) => setDealStatus(e.target.value)}
+                    className="rounded-lg border border-border/50 bg-card px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/40"
+                  >
+                    {dealStatuses.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <Button size="sm" onClick={saveDeal} disabled={saving} className="text-xs">
+                    {saving ? "Ukládám..." : "Uložit"}
+                  </Button>
+                </div>
+              ) : (
+                <span className="text-xs text-emerald-400">✅ Uloženo</span>
+              )}
+            </div>
+          </div>
+
+          {/* Existing: Scenarios */}
+          {a.scenarios && (
+            <div>
+              <h2 className="font-semibold tracking-tight text-sm mb-3">Scénáře (původní)</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {(["optimistic", "conservative", "pessimistic"] as const).map((key) => {
+                  const s = a.scenarios![key];
+                  if (!s) return null;
+                  const borderColor = key === "optimistic" ? "border-emerald-500/20 bg-emerald-500/5" : key === "conservative" ? "border-accent/20 bg-accent/5" : "border-red-500/20 bg-red-500/5";
+                  return (
+                    <div key={key} className={`rounded-xl border ${borderColor} p-3 text-xs space-y-1.5`}>
+                      <p className="font-semibold text-[11px] tracking-tight uppercase">{s.label}</p>
+                      <div className="flex justify-between"><span className="text-muted">Renovace</span><span className="font-mono">{formatPrice(s.renovationCost)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">ARV</span><span className="font-mono">{formatPrice(s.arv)}</span></div>
+                      <div className="flex justify-between"><span className="text-muted">Celk. náklady</span><span className="font-mono">{formatPrice(s.totalCost)}</span></div>
+                      <div className={`flex justify-between font-medium ${s.roi >= 15 ? "text-emerald-400" : s.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>
+                        <span>Zisk / ROI</span>
+                        <span className="font-mono">{formatPrice(s.netProfit)} / {s.roi}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Existing: AI Summary */}
+          {result.aiSummary && (
+            <div className="rounded-xl bg-card-hover border border-border/50 p-4">
+              <p className="text-xs text-muted mb-3 font-medium">🤖 AI Hodnocení</p>
+              <p className="text-sm text-foreground/80 leading-relaxed">{result.aiSummary}</p>
+            </div>
+          )}
+
+          {/* Existing: Red Flags */}
+          {a.redFlags.length > 0 && (
+            <div className="rounded-xl bg-red-500/5 border border-red-500/10 p-4">
+              <h2 className="font-semibold tracking-tight text-sm text-red-400 mb-3">Varovné signály ({a.redFlags.length})</h2>
+              <div className="space-y-2">
+                {a.redFlags.map((rf, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs text-red-400/80">
+                    <span className="mt-0.5 shrink-0">•</span>
+                    <span><span className="font-medium text-red-400">{rf.type}:</span> {rf.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Existing: Full Metrics Table */}
+          <div className="rounded-xl bg-card-hover border border-border/50 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left text-xs text-muted font-medium px-4 py-2.5">Metrika</th>
+                  <th className="text-right text-xs text-muted font-medium px-4 py-2.5">Hodnota</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Cena</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(l.price)}</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">ARV</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(arv)}</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Cena za m²</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{a.pricePerSqm > 0 ? formatPrice(a.pricePerSqm) + "/m²" : "neuvedeno"}</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Tržní rozmezí</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(a.marketPricePerSqmLow)} – {formatPrice(a.marketPricePerSqmHigh)} /m²</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">ROI</td><td className={`px-4 py-2.5 text-right font-mono ${flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{flipResults.roi.toFixed(1)}%</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Čistý zisk</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(flipResults.netProfit)}</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Cíl. nákupní cena</td><td className="px-4 py-2.5 text-right font-mono text-emerald-400">{formatPrice(flipResults.targetPurchasePrice)}</td></tr>
+                <tr className="border-b border-border/50"><td className="px-4 py-2.5 text-foreground/80">Nutné snížení</td><td className="px-4 py-2.5 text-right font-mono text-red-400">{formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</td></tr>
+                <tr><td className="px-4 py-2.5 text-foreground/80">Celkové náklady</td><td className="px-4 py-2.5 text-right font-mono text-foreground">{formatPrice(flipResults.costs.totalCost)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+function InfoBox({ label, value, highlight }: { label: string; value: string; highlight?: string }) {
+  return (
+    <div className="rounded-xl bg-card-hover border border-border/50 p-3">
+      <p className="text-xs text-muted mb-1">{label}</p>
+      <p className={`text-sm font-semibold font-mono ${highlight ?? "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
