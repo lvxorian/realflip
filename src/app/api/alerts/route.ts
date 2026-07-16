@@ -13,7 +13,17 @@ export async function GET() {
     }
 
     const rows = await db
-      .select()
+      .select({
+        id: alerts.id,
+        userId: alerts.userId,
+        name: alerts.name,
+        conditions: alerts.conditions,
+        channels: alerts.channels,
+        isActive: alerts.isActive,
+        lastTriggered: alerts.lastTriggered,
+        createdAt: alerts.createdAt,
+        updatedAt: alerts.updatedAt,
+      })
       .from(alerts)
       .where(eq(alerts.userId, session.user.id))
       .orderBy(desc(alerts.createdAt));
@@ -40,7 +50,6 @@ export async function POST(req: Request) {
       userId: session.user.id,
       name: body.name,
       conditions: body.conditions ?? null,
-      rules: body.rules ? JSON.stringify(body.rules) : "{}",
       channels: body.channels ?? '["in_app"]',
       isActive: 1,
       createdAt: now,

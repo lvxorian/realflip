@@ -11,7 +11,7 @@ interface Alert {
   id: string;
   name: string;
   conditions: string | null;
-  rules: string;
+  rules?: string;
   isActive: number | null;
   lastTriggered: number | null;
 }
