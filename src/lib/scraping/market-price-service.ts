@@ -49,22 +49,35 @@ function computeStats(prices: number[]): { median: number; p25: number; p75: num
   };
 }
 
+async function fetchWithRetry(url: string, retries = 2): Promise<string | null> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "cs,en;q=0.9",
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) return res.text();
+    } catch {
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  }
+  return null;
+}
+
 async function fetchFromSreality(cityKey: string): Promise<CachedMarketData | null> {
   await rateLimiter.wait("sreality", 3000);
 
   const slug = cityKeyToSrealitySlug(cityKey);
   const url = `https://www.sreality.cz/hledani/prodej/byty/${slug}`;
 
-  let html: string;
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-      signal: AbortSignal.timeout(8000),
-    });
-    html = await res.text();
-  } catch {
-    return null;
-  }
+  const html = await fetchWithRetry(url);
+  if (!html) return null;
 
   const data = extractNextData(html);
   if (!data) return null;

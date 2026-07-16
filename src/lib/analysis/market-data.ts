@@ -19,10 +19,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       ],
     },
     segments: {
-      panel_needs_renov: { low: 65000, high: 95000 },
-      panel_renovated: { low: 90000, high: 135000 },
-      brick_needs_renov: { low: 85000, high: 125000 },
-      brick_renovated: { low: 120000, high: 175000 },
+      panel_needs_renov: { low: 70000, high: 100000 },
+      panel_renovated: { low: 95000, high: 140000 },
+      brick_needs_renov: { low: 90000, high: 130000 },
+      brick_renovated: { low: 125000, high: 185000 },
     },
   },
 
@@ -40,10 +40,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: ["Husovice", "Zábrdovice", "Cejl", "Trnitá"],
     },
     segments: {
-      panel_needs_renov: { low: 50000, high: 70000 },
-      panel_renovated: { low: 65000, high: 95000 },
-      brick_needs_renov: { low: 65000, high: 90000 },
-      brick_renovated: { low: 90000, high: 135000 },
+      panel_needs_renov: { low: 55000, high: 80000 },
+      panel_renovated: { low: 75000, high: 105000 },
+      brick_needs_renov: { low: 70000, high: 95000 },
+      brick_renovated: { low: 95000, high: 145000 },
     },
   },
 
@@ -57,10 +57,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: ["Košutka", "Sulkov"],
     },
     segments: {
-      panel_needs_renov: { low: 35000, high: 50000 },
-      panel_renovated: { low: 48000, high: 68000 },
-      brick_needs_renov: { low: 45000, high: 60000 },
-      brick_renovated: { low: 60000, high: 88000 },
+      panel_needs_renov: { low: 42000, high: 58000 },
+      panel_renovated: { low: 58000, high: 78000 },
+      brick_needs_renov: { low: 55000, high: 72000 },
+      brick_renovated: { low: 72000, high: 100000 },
     },
   },
 
@@ -74,10 +74,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: ["Vítkovice", "Přívoz", "Hrušov"],
     },
     segments: {
-      panel_needs_renov: { low: 18000, high: 30000 },
-      panel_renovated: { low: 28000, high: 45000 },
-      brick_needs_renov: { low: 25000, high: 38000 },
-      brick_renovated: { low: 38000, high: 58000 },
+      panel_needs_renov: { low: 22000, high: 35000 },
+      panel_renovated: { low: 32000, high: 50000 },
+      brick_needs_renov: { low: 28000, high: 42000 },
+      brick_renovated: { low: 42000, high: 65000 },
     },
   },
 
@@ -88,10 +88,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: ["Předlice", "Mojžíř", "Krásné Březno", "Neštěmice"],
     },
     segments: {
-      panel_needs_renov: { low: 15000, high: 25000 },
-      panel_renovated: { low: 25000, high: 38000 },
-      brick_needs_renov: { low: 22000, high: 32000 },
-      brick_renovated: { low: 32000, high: 50000 },
+      panel_needs_renov: { low: 18000, high: 28000 },
+      panel_renovated: { low: 28000, high: 42000 },
+      brick_needs_renov: { low: 25000, high: 38000 },
+      brick_renovated: { low: 38000, high: 55000 },
     },
   },
 
@@ -102,10 +102,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 32000, high: 45000 },
-      panel_renovated: { low: 45000, high: 65000 },
-      brick_needs_renov: { low: 40000, high: 55000 },
-      brick_renovated: { low: 55000, high: 80000 },
+      panel_needs_renov: { low: 38000, high: 52000 },
+      panel_renovated: { low: 50000, high: 70000 },
+      brick_needs_renov: { low: 45000, high: 60000 },
+      brick_renovated: { low: 60000, high: 88000 },
     },
   },
 
@@ -116,10 +116,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 35000, high: 48000 },
-      panel_renovated: { low: 48000, high: 68000 },
-      brick_needs_renov: { low: 42000, high: 58000 },
-      brick_renovated: { low: 58000, high: 85000 },
+      panel_needs_renov: { low: 40000, high: 55000 },
+      panel_renovated: { low: 55000, high: 75000 },
+      brick_needs_renov: { low: 48000, high: 65000 },
+      brick_renovated: { low: 65000, high: 92000 },
     },
   },
 
@@ -130,10 +130,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 30000, high: 42000 },
-      panel_renovated: { low: 42000, high: 60000 },
-      brick_needs_renov: { low: 38000, high: 52000 },
-      brick_renovated: { low: 52000, high: 75000 },
+      panel_needs_renov: { low: 35000, high: 48000 },
+      panel_renovated: { low: 48000, high: 65000 },
+      brick_needs_renov: { low: 42000, high: 58000 },
+      brick_renovated: { low: 58000, high: 82000 },
     },
   },
 
@@ -144,10 +144,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 32000, high: 45000 },
-      panel_renovated: { low: 45000, high: 65000 },
-      brick_needs_renov: { low: 40000, high: 55000 },
-      brick_renovated: { low: 55000, high: 80000 },
+      panel_needs_renov: { low: 38000, high: 52000 },
+      panel_renovated: { low: 50000, high: 72000 },
+      brick_needs_renov: { low: 45000, high: 62000 },
+      brick_renovated: { low: 62000, high: 88000 },
     },
   },
 
@@ -158,10 +158,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 28000, high: 40000 },
-      panel_renovated: { low: 40000, high: 58000 },
-      brick_needs_renov: { low: 35000, high: 48000 },
-      brick_renovated: { low: 48000, high: 72000 },
+      panel_needs_renov: { low: 32000, high: 45000 },
+      panel_renovated: { low: 45000, high: 65000 },
+      brick_needs_renov: { low: 40000, high: 55000 },
+      brick_renovated: { low: 55000, high: 78000 },
     },
   },
 
@@ -172,10 +172,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 28000, high: 40000 },
-      panel_renovated: { low: 40000, high: 58000 },
-      brick_needs_renov: { low: 35000, high: 48000 },
-      brick_renovated: { low: 50000, high: 72000 },
+      panel_needs_renov: { low: 32000, high: 45000 },
+      panel_renovated: { low: 45000, high: 65000 },
+      brick_needs_renov: { low: 40000, high: 55000 },
+      brick_renovated: { low: 55000, high: 80000 },
     },
   },
 
@@ -186,10 +186,10 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 28000, high: 40000 },
-      panel_renovated: { low: 40000, high: 58000 },
-      brick_needs_renov: { low: 35000, high: 48000 },
-      brick_renovated: { low: 50000, high: 72000 },
+      panel_needs_renov: { low: 30000, high: 42000 },
+      panel_renovated: { low: 42000, high: 60000 },
+      brick_needs_renov: { low: 38000, high: 52000 },
+      brick_renovated: { low: 52000, high: 75000 },
     },
   },
 
@@ -200,48 +200,48 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
       risky: [],
     },
     segments: {
-      panel_needs_renov: { low: 30000, high: 42000 },
-      panel_renovated: { low: 42000, high: 60000 },
-      brick_needs_renov: { low: 38000, high: 52000 },
-      brick_renovated: { low: 52000, high: 78000 },
+      panel_needs_renov: { low: 35000, high: 48000 },
+      panel_renovated: { low: 48000, high: 68000 },
+      brick_needs_renov: { low: 42000, high: 58000 },
+      brick_renovated: { low: 58000, high: 85000 },
     },
   },
 
   kladno: {
     districts: { premium: ["Centrum", "Kročehlavy"], stable: ["Rozdělov", "Švermov"], risky: ["Dubí", "Sítná"] },
-    segments: { panel_needs_renov: { low: 20000, high: 32000 }, panel_renovated: { low: 30000, high: 45000 }, brick_needs_renov: { low: 25000, high: 35000 }, brick_renovated: { low: 38000, high: 55000 } },
+    segments: { panel_needs_renov: { low: 25000, high: 38000 }, panel_renovated: { low: 35000, high: 52000 }, brick_needs_renov: { low: 30000, high: 42000 }, brick_renovated: { low: 42000, high: 62000 } },
   },
   mlada_boleslav: {
     districts: { premium: ["Centrum"], stable: ["Mladá Boleslav II", "Podlázky"], risky: [] },
-    segments: { panel_needs_renov: { low: 22000, high: 34000 }, panel_renovated: { low: 32000, high: 48000 }, brick_needs_renov: { low: 28000, high: 38000 }, brick_renovated: { low: 40000, high: 58000 } },
+    segments: { panel_needs_renov: { low: 28000, high: 40000 }, panel_renovated: { low: 38000, high: 55000 }, brick_needs_renov: { low: 32000, high: 45000 }, brick_renovated: { low: 45000, high: 65000 } },
   },
   kolin: {
     districts: { premium: ["Centrum", "Zálabí"], stable: ["Heřmanův Městec", "Kmochův ostrov"], risky: [] },
-    segments: { panel_needs_renov: { low: 20000, high: 30000 }, panel_renovated: { low: 30000, high: 42000 }, brick_needs_renov: { low: 25000, high: 35000 }, brick_renovated: { low: 35000, high: 50000 } },
+    segments: { panel_needs_renov: { low: 25000, high: 36000 }, panel_renovated: { low: 35000, high: 50000 }, brick_needs_renov: { low: 30000, high: 42000 }, brick_renovated: { low: 42000, high: 58000 } },
   },
   jihlava: {
     districts: { premium: ["Centrum"], stable: ["Horní Kosov", "Pávov"], risky: [] },
-    segments: { panel_needs_renov: { low: 25000, high: 36000 }, panel_renovated: { low: 36000, high: 52000 }, brick_needs_renov: { low: 30000, high: 42000 }, brick_renovated: { low: 42000, high: 62000 } },
+    segments: { panel_needs_renov: { low: 30000, high: 42000 }, panel_renovated: { low: 42000, high: 58000 }, brick_needs_renov: { low: 35000, high: 48000 }, brick_renovated: { low: 48000, high: 70000 } },
   },
   karvina: {
     districts: { premium: [], stable: ["Mizerov", "Ráj"], risky: ["Fryštát", "Hranice"] },
-    segments: { panel_needs_renov: { low: 10000, high: 18000 }, panel_renovated: { low: 18000, high: 28000 }, brick_needs_renov: { low: 14000, high: 22000 }, brick_renovated: { low: 22000, high: 35000 } },
+    segments: { panel_needs_renov: { low: 12000, high: 20000 }, panel_renovated: { low: 20000, high: 32000 }, brick_needs_renov: { low: 16000, high: 25000 }, brick_renovated: { low: 25000, high: 38000 } },
   },
   havirov: {
     districts: { premium: [], stable: ["Město", "Podlesí"], risky: ["Šumbark", "Prostřední Suchá"] },
-    segments: { panel_needs_renov: { low: 12000, high: 20000 }, panel_renovated: { low: 20000, high: 30000 }, brick_needs_renov: { low: 16000, high: 24000 }, brick_renovated: { low: 24000, high: 38000 } },
+    segments: { panel_needs_renov: { low: 15000, high: 24000 }, panel_renovated: { low: 24000, high: 35000 }, brick_needs_renov: { low: 18000, high: 28000 }, brick_renovated: { low: 28000, high: 42000 } },
   },
   znojmo: {
     districts: { premium: ["Centrum"], stable: ["Pražské Sídliště", "Hájek"], risky: [] },
-    segments: { panel_needs_renov: { low: 18000, high: 28000 }, panel_renovated: { low: 28000, high: 40000 }, brick_needs_renov: { low: 25000, high: 36000 }, brick_renovated: { low: 36000, high: 52000 } },
+    segments: { panel_needs_renov: { low: 22000, high: 32000 }, panel_renovated: { low: 32000, high: 48000 }, brick_needs_renov: { low: 28000, high: 40000 }, brick_renovated: { low: 40000, high: 58000 } },
   },
   trebic: {
     districts: { premium: ["Centrum", "Borovina"], stable: ["Horka-Domky", "Stařečka"], risky: [] },
-    segments: { panel_needs_renov: { low: 15000, high: 25000 }, panel_renovated: { low: 25000, high: 38000 }, brick_needs_renov: { low: 20000, high: 32000 }, brick_renovated: { low: 32000, high: 48000 } },
+    segments: { panel_needs_renov: { low: 18000, high: 28000 }, panel_renovated: { low: 28000, high: 42000 }, brick_needs_renov: { low: 24000, high: 36000 }, brick_renovated: { low: 36000, high: 55000 } },
   },
   benesov: {
     districts: { premium: ["Centrum"], stable: ["Červené Vršky", "Pod Lhotou"], risky: [] },
-    segments: { panel_needs_renov: { low: 22000, high: 32000 }, panel_renovated: { low: 32000, high: 48000 }, brick_needs_renov: { low: 28000, high: 40000 }, brick_renovated: { low: 40000, high: 58000 } },
+    segments: { panel_needs_renov: { low: 28000, high: 38000 }, panel_renovated: { low: 38000, high: 55000 }, brick_needs_renov: { low: 32000, high: 45000 }, brick_renovated: { low: 45000, high: 65000 } },
   },
 };
 

@@ -124,10 +124,11 @@ function calculateMarketPriceRange(
   if (segments) {
     const key = detectSegmentKey(condition, buildingType);
     const range = segments[key];
-    if (locationCategory === "risky") {
-      return { low: Math.round(range.low * 0.5), high: Math.round(range.high * 0.5) };
-    }
-    return range;
+    const cat = categoryMultiplier(locationCategory);
+    return {
+      low: Math.round(range.low * cat),
+      high: Math.round(range.high * cat),
+    };
   }
 
   const useBrick = buildingType === "brick" || buildingType === "new";
