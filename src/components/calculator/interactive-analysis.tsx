@@ -427,15 +427,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{occupancyLabel(a.occupancy)}</span>}
           </div>
 
-          {/* Contact Info */}
-          {(l.contactName || l.contactPhone || l.contactEmail) && (
-            <div className="flex flex-wrap gap-2">
-              {l.contactName && <span className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent">📞 {l.contactName}</span>}
-              {l.contactPhone && <span className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent font-mono">{l.contactPhone}</span>}
-              {l.contactEmail && <span className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent">{l.contactEmail}</span>}
-            </div>
-          )}
-
           {/* ===== FEATURE 1: FLIP CALCULATOR ===== */}
           <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 space-y-4">
             <div className="flex items-center gap-2">

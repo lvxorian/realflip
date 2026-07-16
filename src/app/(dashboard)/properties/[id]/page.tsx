@@ -233,6 +233,34 @@ export default async function PropertyDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Contact */}
+          {(property.contactName || property.contactPhone || property.contactEmail) && (
+            <div className="rounded-2xl border border-border/50 bg-card p-5">
+              <div className="flex items-center gap-2 text-sm mb-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent text-base">📞</span>
+                <span className="font-medium">{property.contactName ?? "Kontakt"}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {property.contactPhone && (
+                  <a
+                    href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
+                    className="rounded-lg bg-card-hover border border-accent/30 px-3 py-1.5 text-xs text-accent font-mono hover:bg-accent/10 transition-colors"
+                  >
+                    {property.contactPhone}
+                  </a>
+                )}
+                {property.contactEmail && (
+                  <a
+                    href={`mailto:${property.contactEmail}`}
+                    className="rounded-lg bg-card-hover border border-accent/30 px-3 py-1.5 text-xs text-accent hover:bg-accent/10 transition-colors"
+                  >
+                    {property.contactEmail}
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
           <PropertyDetailAnalysis
             property={{
               id: property.id,
@@ -291,43 +319,6 @@ export default async function PropertyDetailPage({
               aiReport: analysis.aiReport,
             } : null}
           />
-
-          {/* Contact info */}
-          {(property.contactName || property.contactPhone || property.contactEmail) && (
-            <div className="rounded-2xl border border-border/50 bg-card p-5">
-              <h2 className="font-semibold tracking-tight text-sm mb-3">Kontakt</h2>
-              <div className="space-y-2 text-sm">
-                {property.contactName && (
-                  <div className="flex justify-between">
-                    <span className="text-muted">Jméno</span>
-                    <span>{property.contactName}</span>
-                  </div>
-                )}
-                {property.contactPhone && (
-                  <div className="flex justify-between">
-                    <span className="text-muted">Telefon</span>
-                    <a
-                      href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
-                      className="font-mono text-accent hover:underline"
-                    >
-                      {property.contactPhone}
-                    </a>
-                  </div>
-                )}
-                {property.contactEmail && (
-                  <div className="flex justify-between">
-                    <span className="text-muted">E-mail</span>
-                    <a
-                      href={`mailto:${property.contactEmail}`}
-                      className="text-accent hover:underline"
-                    >
-                      {property.contactEmail}
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* PDF Report */}
           <Link
