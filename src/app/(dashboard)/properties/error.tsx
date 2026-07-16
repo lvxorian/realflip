@@ -19,6 +19,7 @@ export default function PropertiesError({
       <details className="text-xs text-red-400/80 bg-red-500/5 rounded-xl p-3 max-w-md w-full">
         <summary className="cursor-pointer font-medium">Technický detail</summary>
         <pre className="mt-2 whitespace-pre-wrap break-all">{error.message}</pre>
+        {error.digest && <p className="mt-2 text-muted">Digest: {error.digest}</p>}
       </details>
       <button
         onClick={reset}
