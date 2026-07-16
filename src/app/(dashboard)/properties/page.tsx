@@ -1,9 +1,10 @@
-import { db } from "@/db";
-import { properties, propertyAnalysis, searchProperties, searches } from "@/db/schema";
+import { db, schema } from "@/db";
 import { eq, desc, inArray } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
 import Link from "next/link";
 import { PropertiesExplorer, type PropertyListItem } from "@/components/ui/properties-explorer";
+
+const { properties, propertyAnalysis, searchProperties, searches } = schema;
 
 export const dynamic = "force-dynamic";
 
@@ -159,8 +160,22 @@ export default async function PropertiesPage({
     </div>
   );
   } catch (e) {
-    const msg = e instanceof Error ? `${e.message}\n\n${e.stack}` : String(e);
-    console.error("PropertiesPage error:", e);
+    const err = e as Error & { digest?: string; cause?: unknown };
+    const parts: string[] = [];
+    parts.push(`message: ${err.message}`);
+    if (err.digest) parts.push(`digest: ${err.digest}`);
+    if (err.stack) parts.push(`stack: ${err.stack}`);
+    if (err.cause) {
+      const c = err.cause as Error;
+      parts.push(`cause message: ${c.message || c}`);
+      if (c.stack) parts.push(`cause stack: ${c.stack}`);
+    }
+    const extraProps = Object.getOwnPropertyNames(err)
+      .filter((k) => !["message", "stack", "cause", "digest"].includes(k))
+      .map((k) => `[${k}]: ${String((err as any)[k])}`);
+    if (extraProps.length) parts.push(`extra props: ${extraProps.join(" | ")}`);
+
+    console.error("PropertiesPage error:", err);
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
@@ -168,7 +183,7 @@ export default async function PropertiesPage({
           <p className="text-sm text-muted mt-1">Nepodařilo se načíst seznam nemovitostí.</p>
           <details className="mt-4">
             <summary className="text-xs text-red-400/80 cursor-pointer font-medium">Detail chyby</summary>
-            <pre className="mt-2 text-xs text-red-400/70 whitespace-pre-wrap break-all">{msg}</pre>
+            <pre className="mt-2 text-xs text-red-400/70 whitespace-pre-wrap break-all">{parts.join("\n\n")}</pre>
           </details>
         </div>
       </div>
