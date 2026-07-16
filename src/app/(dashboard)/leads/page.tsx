@@ -56,7 +56,7 @@ export default function LeadsPage() {
     if (status !== "authenticated") return;
     fetch("/api/leads")
       .then((r) => r.json())
-      .then((d: LeadItem[]) => { setLeads(d); setLoading(false); })
+      .then((d: LeadItem[]) => { if (Array.isArray(d)) setLeads(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [status]);
 

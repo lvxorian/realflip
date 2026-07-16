@@ -34,7 +34,7 @@ export default function ContactsPage() {
   useEffect(() => {
     fetch("/api/contacts")
       .then((r) => r.json())
-      .then((d: Contact[]) => { setContacts(d); setLoading(false); })
+      .then((d: Contact[]) => { if (Array.isArray(d)) setContacts(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 

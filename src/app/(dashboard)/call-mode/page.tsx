@@ -62,7 +62,7 @@ export default function CallModePage() {
     if (status !== "authenticated") return;
     fetch("/api/call-mode")
       .then((r) => r.json())
-      .then((d: CallItem[]) => { setCalls(d); setLoading(false); })
+      .then((d: CallItem[]) => { if (Array.isArray(d)) setCalls(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [status]);
 
