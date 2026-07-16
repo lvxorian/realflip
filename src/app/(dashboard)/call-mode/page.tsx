@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { StatusDot } from "@/components/ui/status-dot";
 import { PriceTag } from "@/components/ui/price-tag";
+import { conditionLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin } from "@phosphor-icons/react";
 
@@ -168,7 +169,7 @@ export default function CallModePage() {
                   <p className="font-medium text-xs">{call.propertyRooms ?? "—"}</p>
                 </div>
               </div>
-              {call.propertyCondition && <Badge variant="secondary" size="sm">{call.propertyCondition}</Badge>}
+              {call.propertyCondition && <Badge variant="secondary" size="sm">{conditionLabel(call.propertyCondition)}</Badge>}
             </div>
           </div>
 

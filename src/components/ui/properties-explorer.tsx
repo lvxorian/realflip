@@ -291,11 +291,11 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                   className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                 >
                   <option value="">Všechny stavy</option>
-                  <option value="puvodni">Původní</option>
+                  <option value="original">Původní</option>
                   <option value="good">Dobrý</option>
-                  <option value="po rekonstrukci">Po rekonstrukci</option>
+                  <option value="renovated">Po rekonstrukci</option>
                   <option value="dilapidated">Zchátralý</option>
-                  <option value="novostavba">Novostavba</option>
+                  <option value="new">Novostavba</option>
                 </select>
                 <div className="flex items-center gap-1.5">
                   <input

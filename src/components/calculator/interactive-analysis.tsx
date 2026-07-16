@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, conditionLabel } from "@/lib/utils";
 import {
   calculateFlipResults,
   calculateItemizedRenovation,
@@ -306,7 +306,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <Badge variant={verdictBadgeVariant as any} size="sm">{verdictLabels[a.verdictLevel]}</Badge>
                 <Badge variant="score" score={a.investmentScore} size="sm" />
-                {l.condition && <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{l.condition}</span>}
+                {l.condition && <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{conditionLabel(l.condition)}</span>}
                 <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
               </div>
             </div>

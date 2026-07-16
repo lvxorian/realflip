@@ -115,3 +115,27 @@ export function recommendationColor(score: number): string {
   if (score >= 40) return "text-yellow-400";
   return "text-red-400";
 }
+
+const CONDITION_LABELS: Record<string, string> = {
+  new: "Novostavba",
+  renovated: "Po rekonstrukci",
+  good: "Dobrý",
+  original: "Původní",
+  dilapidated: "Zchátralý",
+  project: "Projekt",
+};
+
+export function conditionLabel(condition: string | null): string {
+  return condition ? CONDITION_LABELS[condition] ?? condition : "—";
+}
+
+const BUILDING_TYPE_LABELS: Record<string, string> = {
+  brick: "Cihlový",
+  panel: "Panelový",
+  new: "Novostavba",
+  mixed: "Smíšený",
+};
+
+export function buildingTypeLabel(type: string | null): string {
+  return type ? BUILDING_TYPE_LABELS[type] ?? type : "—";
+}

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { safeJsonParse } from "@/lib/utils";
+import { safeJsonParse, conditionLabel } from "@/lib/utils";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
@@ -156,7 +156,7 @@ export default async function PropertyDetailPage({
                   { label: "dispozice", value: property.rooms ?? "—" },
                   { label: "m²", value: property.area ? `${property.area} m²` : "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
-                  { label: "stav", value: property.condition ?? "—" },
+                  { label: "stav", value: conditionLabel(property.condition) },
                   { label: "rok", value: property.yearBuilt ?? "—" },
                 ].map((s) => (
                   <div
