@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import { X, ArrowDown, CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import {
   MagnifyingGlass,
@@ -446,8 +447,8 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                 className="space-y-2"
               >
                 {paged.map((p, i) => (
+                  <Link key={p.id} href={`/properties/${p.id}`}>
                   <motion.div
-                    key={p.id}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.03 }}
@@ -512,6 +513,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                       </div>
                     </div>
                   </motion.div>
+                  </Link>
                 ))}
               </motion.div>
             )}

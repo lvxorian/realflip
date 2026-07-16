@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export async function GET() {
     const all = await db
       .select()
       .from(notifications)
+      .where(eq(notifications.userId, session.user.id))
       .orderBy(desc(notifications.createdAt))
       .limit(30);
 
@@ -27,7 +29,7 @@ export async function GET() {
       message: n.message,
       type: n.type,
       read: n.read,
-      data: n.data ? JSON.parse(n.data) : null,
+      data: safeJsonParse(n.data, null),
       createdAt: n.createdAt,
     }));
 

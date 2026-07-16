@@ -9,7 +9,7 @@ export const alerts = sqliteTable("alerts", {
   name: text("name").notNull(),
   conditions: text("conditions"),
   channels: text("channels").default('["in_app"]'),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  isActive: integer("is_active").default(1),
   lastTriggered: integer("last_triggered", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),

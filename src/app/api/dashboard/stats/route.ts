@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, leads, propertyAnalysis, activityLog, searches } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
+import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export async function GET() {
     const allProperties = await db
       .select()
       .from(properties)
-      .where(eq(properties.isActive, true));
+      .where(eq(properties.isActive, 1));
 
     const todayProperties = allProperties.filter(
       (p) => p.firstSeen && new Date(p.firstSeen) >= today
@@ -64,8 +65,14 @@ export async function GET() {
       0
     );
 
-    const allLeads = await db.select().from(leads);
-    const allSearches = await db.select().from(searches);
+    const allLeads = await db
+      .select()
+      .from(leads)
+      .where(eq(leads.assignedTo, session.user.id));
+    const allSearches = await db
+      .select()
+      .from(searches)
+      .where(eq(searches.userId, session.user.id));
 
     const activeDeals = allProperties.filter((p) => p.lat !== null).length;
 
@@ -89,13 +96,14 @@ export async function GET() {
           area: p.area ?? 0,
           status: statusLabel(daysOnMarket, analysis?.investmentScore ?? null),
           days: daysOnMarket,
-          imageUrls: p.imageUrls ? JSON.parse(p.imageUrls) : [],
+          imageUrls: safeJsonParse<string[]>(p.imageUrls, []),
         };
       });
 
     const recentActivities = await db
       .select()
       .from(activityLog)
+      .where(eq(activityLog.userId, session.user.id))
       .orderBy(desc(activityLog.createdAt))
       .limit(5);
 
@@ -114,7 +122,7 @@ export async function GET() {
           undervaluationPct: Math.round(a.undervaluationPct),
           rooms: p.rooms ?? "—",
           area: p.area ?? 0,
-          imageUrls: p.imageUrls ? JSON.parse(p.imageUrls) : [],
+          imageUrls: safeJsonParse<string[]>(p.imageUrls, []),
           verdictLevel: a.verdictLevel,
         };
       })

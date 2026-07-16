@@ -25,7 +25,7 @@ export const properties = sqliteTable("properties", {
   status: text("status").default("active").notNull(),
   firstSeen: integer("first_seen", { mode: "timestamp" }).notNull(),
   lastSeen: integer("last_seen", { mode: "timestamp" }).notNull(),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  isActive: integer("is_active").default(1),
 });
 
 export const priceHistory = sqliteTable("price_history", {

@@ -3,6 +3,7 @@ import { eq, desc, inArray } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
 import Link from "next/link";
 import { PropertiesExplorer, type PropertyListItem } from "@/components/ui/properties-explorer";
+import { SearchFilter } from "@/components/ui/search-filter";
 
 const { properties, propertyAnalysis, searchProperties, searches } = schema;
 
@@ -78,7 +79,7 @@ export default async function PropertiesPage({
     .where(
       searchId && propertyIds.length > 0
         ? inArray(properties.id, propertyIds)
-        : eq(properties.isActive, 1 as any)
+        : eq(properties.isActive, 1)
     )
     .orderBy(desc(properties.firstSeen));
 
@@ -128,33 +129,11 @@ export default async function PropertiesPage({
         </Link>
       </div>
 
-      <form
-        method="GET"
-        className="flex items-center gap-3"
-      >
-        <select
-          name="searchId"
-          onChange={(e) => { if (e.target.form) e.target.form.submit(); }}
-          className="h-10 rounded-lg border border-border/50 bg-card px-3 text-sm text-foreground focus:outline-none focus:border-accent/50 cursor-pointer"
-          value={searchId ?? ""}
-        >
-          <option value="">Všechny inzeráty</option>
-          {allSearches.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-        {searchId && (
-          <Link
-            href="/properties"
-            className="text-xs text-muted hover:text-foreground transition-colors"
-          >
-            × Zrušit filtr
-          </Link>
-        )}
-        <span className="text-xs text-muted ml-auto">
-          {activeSearchName ? `Filtrováno: ${activeSearchName}` : `${items.length} inzerátů`}
-        </span>
-      </form>
+      <SearchFilter
+        searches={allSearches}
+        activeSearchName={activeSearchName}
+        itemsCount={items.length}
+      />
 
       <PropertiesExplorer items={items} />
     </div>

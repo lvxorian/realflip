@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       .from(properties)
       .leftJoin(propertyAnalysis, eq(properties.id, propertyAnalysis.propertyId))
       .where(and(
-        eq(properties.isActive, true),
+        eq(properties.isActive, 1),
         ne(properties.url, excludeUrl ?? ""),
         gte(properties.lastSeen, fourteenDaysAgo),
       ))

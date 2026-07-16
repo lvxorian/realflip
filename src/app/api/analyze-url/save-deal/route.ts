@@ -70,7 +70,7 @@ export async function POST(req: Request) {
           description,
           imageUrls: JSON.stringify(imageUrls ?? []),
           lastSeen: now,
-          isActive: true,
+          isActive: 1,
         })
         .where(eq(properties.id, propertyId));
     } else {
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
         status: "active",
         firstSeen: now,
         lastSeen: now,
-        isActive: true,
+        isActive: 1,
       });
     }
 

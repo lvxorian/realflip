@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import crypto from "crypto";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -14,7 +15,7 @@ export const users = sqliteTable("users", {
 });
 
 export const accounts = sqliteTable("accounts", {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -31,7 +32,7 @@ export const accounts = sqliteTable("accounts", {
 });
 
 export const sessions = sqliteTable("sessions", {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   sessionToken: text("session_token").unique().notNull(),
   userId: text("user_id")
     .notNull()

@@ -35,7 +35,7 @@ interface SearchResult {
     portalName: string;
     condition: string | null;
     url: string;
-    isActive: boolean;
+    isActive: number;
   };
   analysis: {
     investmentScore: number | null;

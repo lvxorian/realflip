@@ -112,7 +112,7 @@ async function fetchFromLocalDb(cityKey: string): Promise<CachedMarketData | nul
     .select({ price: properties.price, area: properties.area, address: properties.address })
     .from(properties)
     .where(and(
-      eq(properties.isActive, true),
+      eq(properties.isActive, 1),
       gte(properties.lastSeen, thirtyDaysAgo),
     ))
     .limit(200);

@@ -1,4 +1,5 @@
 ﻿import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
+import crypto from "crypto";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -14,7 +15,7 @@ export const users = pgTable("users", {
 });
 
 export const accounts = pgTable("accounts", {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
@@ -31,7 +32,7 @@ export const accounts = pgTable("accounts", {
 });
 
 export const sessions = pgTable("sessions", {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   sessionToken: text("session_token").unique().notNull(),
   userId: text("user_id")
     .notNull()

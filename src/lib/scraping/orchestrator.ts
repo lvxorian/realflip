@@ -207,7 +207,7 @@ export class ScrapingOrchestrator {
           address: listing.address ?? existing.address,
           description: listing.description ?? existing.description,
           lastSeen: new Date(),
-          isActive: true,
+          isActive: 1,
         })
         .where(eq(properties.id, existing.id));
 
@@ -275,7 +275,7 @@ export class ScrapingOrchestrator {
         status: "active",
         firstSeen: listing.publishedAt || new Date(),
         lastSeen: new Date(),
-        isActive: true,
+        isActive: 1,
       });
 
       // Initial price record
