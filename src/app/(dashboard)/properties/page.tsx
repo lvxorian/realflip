@@ -78,7 +78,7 @@ export default async function PropertiesPage({
     .where(
       searchId && propertyIds.length > 0
         ? inArray(properties.id, propertyIds)
-        : eq(properties.isActive, 1)
+        : eq(properties.isActive, 1 as any)
     )
     .orderBy(desc(properties.firstSeen));
 

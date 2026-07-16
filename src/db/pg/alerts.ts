@@ -9,7 +9,7 @@ export const alerts = pgTable("alerts", {
   name: text("name").notNull(),
   conditions: text("conditions"),
   channels: text("channels").default('["in_app"]'),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  isActive: integer("is_active").default(1),
   lastTriggered: bigint("last_triggered", { mode: "number" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
