@@ -153,6 +153,15 @@ export default async function PropertyDetailPage({
                 size="lg"
               />
 
+              {history.length > 1 && (() => {
+                const oldestPrice = history[history.length - 1].price;
+                if (oldestPrice > property.price) {
+                  const dropPct = ((oldestPrice - property.price) / oldestPrice * 100).toFixed(1);
+                  return <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2 text-xs text-red-400">Cena snížena o {dropPct} % (z {oldestPrice.toLocaleString()} Kč)</div>;
+                }
+                return null;
+              })()}
+
               <div className="flex flex-wrap gap-3">
                 {[
                   { label: "dispozice", value: property.rooms ?? "—" },

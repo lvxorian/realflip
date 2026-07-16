@@ -147,7 +147,7 @@ export default function SearchDetailPage() {
               <Badge variant="secondary">{data.schedule}</Badge>
             </div>
             <p className="text-sm text-muted mt-1">{filterParts.join(" · ") || "Bez filtrů"}</p>
-            {data.lastRunAt && (
+            {data.lastRunAt && !isNaN(new Date(data.lastRunAt).getTime()) && (
               <p className="text-xs text-muted mt-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 Poslední sken: {new Date(data.lastRunAt).toLocaleString("cs-CZ")}

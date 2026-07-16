@@ -132,12 +132,10 @@ export class ScrapingOrchestrator {
       allErrors.push(...errors);
     }
 
-    if (total > 0 || allErrors.length > 0) {
-      await db
-        .update(searches)
-        .set({ lastRunAt: ts() })
-        .where(eq(searches.id, searchId));
-    }
+    await db
+      .update(searches)
+      .set({ lastRunAt: ts() })
+      .where(eq(searches.id, searchId));
 
     return { total, errors: allErrors };
   }
