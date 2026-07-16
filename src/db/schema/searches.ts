@@ -10,9 +10,9 @@ export const searches = sqliteTable("searches", {
   name: text("name").notNull(),
   filters: text("filters").notNull(),
   schedule: text("schedule").default("manual").notNull(),
-  lastRunAt: integer("last_run_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  lastRunAt: integer("last_run_at"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 export const searchProperties = sqliteTable("search_properties", {
@@ -22,8 +22,8 @@ export const searchProperties = sqliteTable("search_properties", {
   propertyId: text("property_id")
     .notNull()
     .references(() => properties.id, { onDelete: "cascade" }),
-  firstSeen: integer("first_seen", { mode: "timestamp" }).notNull(),
-  lastSeen: integer("last_seen", { mode: "timestamp" }).notNull(),
+  firstSeen: integer("first_seen").notNull(),
+  lastSeen: integer("last_seen").notNull(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.searchId, t.propertyId] }),
 }));

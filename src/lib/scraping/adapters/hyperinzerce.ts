@@ -80,8 +80,8 @@ export class HyperinzerceAdapter extends PortalAdapter {
         contactEmail: null,
         description: descPreview,
         imageUrls: imgSrc ? filterImages([imgSrc], this.config.name) : [],
-        publishedAt: new Date(),
-        updatedAt: new Date(),
+        publishedAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -180,7 +180,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
         const dm = dateText.match(/(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/);
         if (dm) {
           const d = new Date(parseInt(dm[3]), parseInt(dm[2]) - 1, parseInt(dm[1]));
-          if (!isNaN(d.getTime())) listing.publishedAt = d;
+          if (!isNaN(d.getTime())) listing.publishedAt = d.getTime();
         }
       }
 

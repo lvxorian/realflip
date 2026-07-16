@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./adapters/base";
+﻿import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
@@ -7,7 +7,7 @@ import { eq, and, ne } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
-import { generateId } from "@/lib/utils";
+import { generateId, ts } from "@/lib/utils";
 
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
@@ -40,8 +40,8 @@ export class ScrapingOrchestrator {
         id: jobId,
         portal,
         status: "running",
-        startedAt: new Date(),
-        createdAt: new Date(),
+        startedAt: ts(),
+        createdAt: ts(),
       });
 
       try {
@@ -51,7 +51,7 @@ export class ScrapingOrchestrator {
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
           if (!isValidPrice(listing.price)) {
-            errors.push(`Skipped listing with invalid price (${listing.price} Kč): ${listing.url}`);
+            errors.push(`Skipped listing with invalid price (${listing.price} KÄŤ): ${listing.url}`);
             continue;
           }
 
@@ -70,7 +70,7 @@ export class ScrapingOrchestrator {
         .update(scrapingJobs)
         .set({
           status: errors.length > 0 && found === 0 ? "failed" : "completed",
-          finishedAt: new Date(),
+          finishedAt: ts(),
           listingsFound: found,
           errors: JSON.stringify(errors),
         })
@@ -82,9 +82,9 @@ export class ScrapingOrchestrator {
       await db.insert(activityLog).values({
         id: generateId(),
         type: "scraping",
-        message: `Scraping ${portal} dokončen (${found} inzerátů)`,
+        message: `Scraping ${portal} dokonÄŤen (${found} inzerĂˇtĹŻ)`,
         data: JSON.stringify({ portal, found, errors: errors.length }),
-        createdAt: new Date(),
+        createdAt: ts(),
       });
     }
 
@@ -134,7 +134,7 @@ export class ScrapingOrchestrator {
     if (total > 0 || allErrors.length > 0) {
       await db
         .update(searches)
-        .set({ lastRunAt: new Date() })
+        .set({ lastRunAt: ts() })
         .where(eq(searches.id, searchId));
     }
 
@@ -176,7 +176,7 @@ export class ScrapingOrchestrator {
           id: generateId(),
           propertyId: existing.id,
           price: listing.price,
-          recordedAt: new Date(),
+          recordedAt: ts(),
         });
 
         // Log price drop activity
@@ -185,16 +185,24 @@ export class ScrapingOrchestrator {
           await db.insert(activityLog).values({
             id: generateId(),
             type: "price",
-            message: `Snížení ceny o ${dropPct.toFixed(1)}% – ${listing.title}`,
+            message: `SnĂ­ĹľenĂ­ ceny o ${dropPct.toFixed(1)}% â€“ ${listing.title}`,
             propertyId: existing.id,
-            createdAt: new Date(),
+            createdAt: ts(),
           });
         }
       }
 
       const area = existing.area ?? listing.area ?? 70;
       const renoCostEstimate = Math.round(area * 10000) + 180000 + 140000;
-      const freshAnalysis = calculateFlipResults(listing.price, listing.price, renoCostEstimate, area, 15);
+
+      const existingAnalysis = await db
+        .select({ arv: propertyAnalysis.arv })
+        .from(propertyAnalysis)
+        .where(eq(propertyAnalysis.propertyId, existing.id))
+        .limit(1)
+        .then((r) => r[0]);
+      const estimatedArv = existingAnalysis?.arv ?? Math.round(listing.price * 1.15);
+      const freshAnalysis = calculateFlipResults(listing.price, estimatedArv, renoCostEstimate, area, 15);
 
       await db
         .update(properties)
@@ -206,7 +214,7 @@ export class ScrapingOrchestrator {
           condition: listing.condition ?? existing.condition,
           address: listing.address ?? existing.address,
           description: listing.description ?? existing.description,
-          lastSeen: new Date(),
+          lastSeen: ts(),
           isActive: 1,
         })
         .where(eq(properties.id, existing.id));
@@ -216,14 +224,14 @@ export class ScrapingOrchestrator {
         await db
           .update(propertyAnalysis)
           .set({
-            arv: listing.price,
+            arv: estimatedArv,
             totalCost: freshAnalysis.costs.totalCost,
             netProfit: freshAnalysis.netProfit,
             roi: freshAnalysis.roi,
             annualizedRoi: freshAnalysis.annualizedRoi,
             cashOnCash: freshAnalysis.cashOnCash,
             costsJson: JSON.stringify(freshAnalysis.costs),
-            updatedAt: new Date(),
+            updatedAt: ts(),
           })
           .where(eq(propertyAnalysis.propertyId, existing.id));
       }
@@ -240,8 +248,8 @@ export class ScrapingOrchestrator {
         await db.insert(searchProperties).values({
           searchId,
           propertyId: existing.id,
-          firstSeen: new Date(),
-          lastSeen: new Date(),
+          firstSeen: ts(),
+          lastSeen: ts(),
         });
         }
       }
@@ -273,8 +281,8 @@ export class ScrapingOrchestrator {
         description: listing.description,
         imageUrls: JSON.stringify(filterImages(listing.imageUrls)),
         status: "active",
-        firstSeen: listing.publishedAt || new Date(),
-        lastSeen: new Date(),
+        firstSeen: listing.publishedAt ? new Date(listing.publishedAt).getTime() : ts(),
+        lastSeen: ts(),
         isActive: 1,
       });
 
@@ -283,7 +291,7 @@ export class ScrapingOrchestrator {
         id: generateId(),
         propertyId: id,
         price: listing.price,
-        recordedAt: listing.publishedAt || new Date(),
+        recordedAt: listing.publishedAt ? new Date(listing.publishedAt).getTime() : ts(),
       });
 
       // Enhanced analysis
@@ -324,7 +332,7 @@ export class ScrapingOrchestrator {
         cashOnCash: analysis.cashOnCash,
         breakEvenPrice: analysis.breakEvenPrice,
         recommendation: analysis.recommendation,
-        // Nová rozšířená pole
+        // NovĂˇ rozĹˇĂ­Ĺ™enĂˇ pole
         pricePerSqm: analysis.pricePerSqm,
         marketPriceMin: analysis.marketPricePerSqmLow,
         marketPriceMax: analysis.marketPricePerSqmHigh,
@@ -344,8 +352,8 @@ export class ScrapingOrchestrator {
         alternativeStrategiesJson: JSON.stringify(analysis.alternativeStrategies),
         rentalYield: analysis.rentalYield,
         aiReport,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: ts(),
+        updatedAt: ts(),
       });
 
       // Create notification for highly undervalued properties
@@ -354,35 +362,35 @@ export class ScrapingOrchestrator {
           await db.insert(notifications).values({
             id: generateId(),
             userId: "system",
-            title: "Podhodnocená nemovitost",
-            message: `${listing.title} je podhodnocena o ${Math.round(analysis.undervaluationPct)} % (${listing.price.toLocaleString()} Kč)`,
+            title: "PodhodnocenĂˇ nemovitost",
+            message: `${listing.title} je podhodnocena o ${Math.round(analysis.undervaluationPct)} % (${listing.price.toLocaleString()} KÄŤ)`,
             type: "undervalued",
             data: JSON.stringify({
               propertyId: id,
               undervaluationPct: Math.round(analysis.undervaluationPct),
               price: listing.price,
             }),
-            createdAt: new Date(),
+            createdAt: ts(),
           });
         } catch {
-          // notifications table has FK to users — skip if user doesn't exist
+          // notifications table has FK to users â€” skip if user doesn't exist
         }
       }
 
       await db.insert(activityLog).values({
         id: generateId(),
         type: "new_property",
-        message: `Nalezen nový inzerát – ${listing.title}`,
+        message: `Nalezen novĂ˝ inzerĂˇt â€“ ${listing.title}`,
         propertyId: id,
-        createdAt: new Date(),
+        createdAt: ts(),
       });
 
       if (searchId) {
         await db.insert(searchProperties).values({
           searchId,
           propertyId: id,
-          firstSeen: new Date(),
-          lastSeen: new Date(),
+          firstSeen: ts(),
+          lastSeen: ts(),
         });
       }
 

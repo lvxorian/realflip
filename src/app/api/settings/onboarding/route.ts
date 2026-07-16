@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userPreferences, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { ts } from "@/lib/utils";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const userId = session.user.id;
 
-    const now = new Date();
+    const now = ts();
     await db
       .insert(userPreferences)
       .values({

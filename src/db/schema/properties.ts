@@ -23,8 +23,8 @@ export const properties = sqliteTable("properties", {
   description: text("description"),
   imageUrls: text("image_urls").default("[]"),
   status: text("status").default("active").notNull(),
-  firstSeen: integer("first_seen", { mode: "timestamp" }).notNull(),
-  lastSeen: integer("last_seen", { mode: "timestamp" }).notNull(),
+  firstSeen: integer("first_seen").notNull(),
+  lastSeen: integer("last_seen").notNull(),
   isActive: integer("is_active").default(1),
 });
 
@@ -34,5 +34,5 @@ export const priceHistory = sqliteTable("price_history", {
     .notNull()
     .references(() => properties.id, { onDelete: "cascade" }),
   price: integer("price").notNull(),
-  recordedAt: integer("recorded_at", { mode: "timestamp" }).notNull(),
+  recordedAt: integer("recorded_at").notNull(),
 });

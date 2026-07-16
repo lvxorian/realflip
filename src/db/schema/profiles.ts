@@ -21,8 +21,8 @@ export const userPreferences = sqliteTable("user_preferences", {
   dailyCallLimit: integer("daily_call_limit").default(15),
   callStartHour: integer("call_start_hour").default(9),
   callEndHour: integer("call_end_hour").default(18),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 export const subscriptions = sqliteTable("subscriptions", {
@@ -35,6 +35,6 @@ export const subscriptions = sqliteTable("subscriptions", {
   status: text("status").default("active").notNull(),
   scrapedListings: integer("scraped_listings").default(0),
   scrapingLimit: integer("scraping_limit").default(500),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });

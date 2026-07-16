@@ -106,7 +106,7 @@ async function fetchFromLocalDb(cityKey: string): Promise<CachedMarketData | nul
     if (normalized === cityKey) cityNames.push(alias);
   }
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
   const rows = await db
     .select({ price: properties.price, area: properties.area, address: properties.address })

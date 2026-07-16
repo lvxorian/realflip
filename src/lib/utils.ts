@@ -29,18 +29,18 @@ export function formatPercent(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-export function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function formatDate(date: Date | string | number): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return format(d, "d. M. yyyy", { locale: cs });
 }
 
-export function formatRelative(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function formatRelative(date: Date | string | number): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return formatDistanceToNow(d, { addSuffix: true, locale: cs });
 }
 
-export function daysAgo(date: Date | string): number {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function daysAgo(date: Date | string | number): number {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   return differenceInDays(new Date(), d);
 }
 
@@ -69,6 +69,10 @@ export function getInitials(name: string): string {
 
 export function generateId(): string {
   return crypto.randomUUID().slice(0, 12);
+}
+
+export function ts(): number {
+  return Date.now();
 }
 
 export function safeJsonParse<T>(json: string | null | undefined, fallback: T): T {

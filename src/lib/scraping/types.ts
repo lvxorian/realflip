@@ -206,6 +206,6 @@ export interface RawListing {
   contactEmail: string | null;
   description: string | null;
   imageUrls: string[];
-  publishedAt: Date;
-  updatedAt: Date;
+  publishedAt: number;
+  updatedAt: number;
 }

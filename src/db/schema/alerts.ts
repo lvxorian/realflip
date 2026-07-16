@@ -10,9 +10,9 @@ export const alerts = sqliteTable("alerts", {
   conditions: text("conditions"),
   channels: text("channels").default('["in_app"]'),
   isActive: integer("is_active").default(1),
-  lastTriggered: integer("last_triggered", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  lastTriggered: integer("last_triggered"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 export const notifications = sqliteTable("notifications", {
@@ -25,5 +25,5 @@ export const notifications = sqliteTable("notifications", {
   type: text("type").default("info"),
   read: integer("read", { mode: "boolean" }).default(false),
   data: text("data"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
 });

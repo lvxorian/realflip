@@ -61,7 +61,7 @@ export default async function MarketPage() {
 
   const priceDrops = activeListings.filter((p) => {
     // Simplification: properties with updated_at != first_seen may have had price changes
-    return p.properties.lastSeen.getTime() - new Date(p.properties.firstSeen).getTime() > 86400000 * 14;
+    return new Date(p.properties.lastSeen).getTime() - new Date(p.properties.firstSeen).getTime() > 86400000 * 14;
   }).length;
 
   return (

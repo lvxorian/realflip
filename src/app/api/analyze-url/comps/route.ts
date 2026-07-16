@@ -79,7 +79,7 @@ export async function POST(req: Request) {
   try {
     const { area, address, price, excludeUrl, city } = await req.json();
 
-    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
 
     const rows = await db
       .select({

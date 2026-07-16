@@ -122,8 +122,8 @@ export class MmrealityAdapter extends PortalAdapter {
         contactEmail: null,
         description: offer?.description ? this.cleanText(offer.description) : null,
         imageUrls: filteredImages,
-        publishedAt: new Date(),
-        updatedAt: new Date(),
+        publishedAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 

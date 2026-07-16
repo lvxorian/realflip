@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { searches, searchProperties, properties, propertyAnalysis } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { ts } from "@/lib/utils";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -58,7 +59,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   try {
     const body = await req.json();
-    const update: Record<string, unknown> = { updatedAt: new Date() };
+    const update: Record<string, unknown> = { updatedAt: ts() };
 
     if (body.name) update.name = body.name;
     if (body.filters) update.filters = JSON.stringify(body.filters);

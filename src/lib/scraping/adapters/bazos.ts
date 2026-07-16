@@ -64,7 +64,7 @@ export class BazosAdapter extends PortalAdapter {
         description: descShort,
         imageUrls: imgThumb ? filterImages([imgThumb], this.config.name) : [],
         publishedAt: this.parseDate(dateText),
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -164,16 +164,12 @@ export class BazosAdapter extends PortalAdapter {
     return isValidPrice(num) ? num : 0;
   }
 
-  private parseDate(text: string): Date {
+  private parseDate(text: string): number {
     const match = text.match(/\[(\d+)\.\s*(\d+)\.\s*(\d{4})\]/);
     if (match) {
-      return new Date(
-        parseInt(match[3]),
-        parseInt(match[2]) - 1,
-        parseInt(match[1])
-      );
+      return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1])).getTime();
     }
-    return new Date();
+    return Date.now();
   }
 
   extractContact(

@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, deals } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { generateId } from "@/lib/utils";
+import { generateId, ts } from "@/lib/utils";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       status,
     } = body;
 
-    const now = new Date();
+    const now = ts();
 
     const existingProperty = await db
       .select({ id: properties.id })
@@ -141,7 +141,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Save deal error:", error);
     return NextResponse.json(
-      { success: false, error: "Nepodařilo se uložit deal" },
+      { success: false, error: "NepodaĹ™ilo se uloĹľit deal" },
       { status: 500 }
     );
   }

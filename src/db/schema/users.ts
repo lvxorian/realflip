@@ -5,12 +5,12 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name"),
   email: text("email").unique().notNull(),
-  emailVerified: integer("email_verified", { mode: "timestamp" }),
+  emailVerified: integer("email_verified"),
   image: text("image"),
   passwordHash: text("password_hash"),
   role: text("role").default("user").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
   onboardingCompleted: integer("onboarding_completed", { mode: "boolean" }).default(false),
 });
 
@@ -37,11 +37,11 @@ export const sessions = sqliteTable("sessions", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expires: integer("expires", { mode: "timestamp" }).notNull(),
+  expires: integer("expires").notNull(),
 });
 
 export const verificationTokens = sqliteTable("verification_tokens", {
   identifier: text("identifier").notNull(),
   token: text("token").notNull(),
-  expires: integer("expires", { mode: "timestamp" }).notNull(),
+  expires: integer("expires").notNull(),
 });

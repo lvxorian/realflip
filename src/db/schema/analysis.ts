@@ -41,6 +41,6 @@ export const propertyAnalysis = sqliteTable("property_analysis", {
   alternativeStrategiesJson: text("alternative_strategies_json"),
   rentalYield: real("rental_yield"),
 
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });

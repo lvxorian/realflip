@@ -140,8 +140,8 @@ async function scrapeSreality(url: string): Promise<RawListing> {
     contactEmail: r.user?.user_email ?? null,
     description: r.advert_description ?? null,
     imageUrls: images,
-    publishedAt: r.since ? new Date(r.since) : new Date(),
-    updatedAt: r.edited ? new Date(r.edited) : new Date(),
+    publishedAt: r.since ? new Date(r.since).getTime() : Date.now(),
+    updatedAt: r.edited ? new Date(r.edited).getTime() : Date.now(),
   };
 }
 
@@ -218,8 +218,8 @@ async function scrapeRealityCz(url: string): Promise<RawListing> {
     contactEmail: null,
     description,
     imageUrls: images,
-    publishedAt: new Date(),
-    updatedAt: new Date(),
+    publishedAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -285,8 +285,8 @@ async function scrapeHyperinzerce(url: string): Promise<RawListing> {
     contactEmail: null,
     description,
     imageUrls: images,
-    publishedAt: new Date(),
-    updatedAt: new Date(),
+    publishedAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -351,8 +351,8 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
     contactEmail: null,
     description,
     imageUrls: images,
-    publishedAt: new Date(),
-    updatedAt: new Date(),
+    publishedAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -416,8 +416,8 @@ async function scrapeBazos(url: string): Promise<RawListing> {
     contactEmail: null,
     description,
     imageUrls: images,
-    publishedAt: new Date(),
-    updatedAt: new Date(),
+    publishedAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 
@@ -467,8 +467,8 @@ async function scrapeMmreality(url: string): Promise<RawListing> {
     contactEmail: null,
     description,
     imageUrls: images,
-    publishedAt: new Date(),
-    updatedAt: new Date(),
+    publishedAt: Date.now(),
+    updatedAt: Date.now(),
   };
 }
 

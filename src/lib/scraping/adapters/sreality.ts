@@ -65,6 +65,8 @@ function buildSrealityDetailUrl(
   locality: {
     city_seo_name?: string | null;
     street_seo_name?: string | null;
+    citypart_seo_name?: string | null;
+    district_seo_name?: string | null;
   } | null,
 ): string {
   const base = `https://www.sreality.cz/detail/prodej/byt`;
@@ -73,8 +75,9 @@ function buildSrealityDetailUrl(
     return `${base}/${hashId}`;
   }
   const city = locality.city_seo_name;
+  const district = locality.citypart_seo_name || locality.district_seo_name || city;
   const street = locality.street_seo_name ?? "";
-  const slug = street ? `${city}-${city}-${street}` : `${city}-${city}-`;
+  const slug = street ? `${city}-${district}-${street}` : `${city}-${district}-`;
   return `${base}/${roomsSlug}/${slug}/${hashId}`;
 }
 
@@ -142,8 +145,8 @@ export class SrealityAdapter extends PortalAdapter {
           contactEmail: null,
           description: null,
           imageUrls: [],
-          publishedAt: new Date(),
-          updatedAt: new Date(),
+          publishedAt: Date.now(),
+          updatedAt: Date.now(),
         });
       }
 
@@ -213,8 +216,8 @@ export class SrealityAdapter extends PortalAdapter {
         listing.contactPhone = r.user.user_phones?.[0]?.phone ?? null;
       }
 
-      if (r.since) listing.publishedAt = new Date(r.since);
-      if (r.edited) listing.updatedAt = new Date(r.edited);
+      if (r.since) listing.publishedAt = new Date(r.since).getTime();
+      if (r.edited) listing.updatedAt = new Date(r.edited).getTime();
 
       if (listing.price === 0 && r.price_czk) listing.price = r.price_czk;
     } catch {

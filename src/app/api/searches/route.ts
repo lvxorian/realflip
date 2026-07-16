@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { searches, searchProperties } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateId } from "@/lib/utils";
+import { generateId, ts } from "@/lib/utils";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     const id = generateId();
-    const now = new Date();
+    const now = ts();
 
     await db.insert(searches).values({
       id,

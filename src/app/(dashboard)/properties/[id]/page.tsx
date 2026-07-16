@@ -29,7 +29,7 @@ function formatDays(firstSeen: Date | number) {
   return `${days} dní`;
 }
 
-function formatDate(d: Date) {
+function formatDate(d: Date | number) {
   return new Date(d).toLocaleDateString("cs-CZ", {
     day: "2-digit",
     month: "2-digit",

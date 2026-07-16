@@ -11,8 +11,8 @@ export const leads = sqliteTable("leads", {
   priority: integer("priority").default(0),
   notes: text("notes"),
   assignedTo: text("assigned_to"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 export const contacts = sqliteTable("contacts", {
@@ -23,8 +23,8 @@ export const contacts = sqliteTable("contacts", {
   type: text("type").default("agent"),
   tags: text("tags").default("[]"),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 export const callQueue = sqliteTable("call_queue", {
@@ -32,11 +32,11 @@ export const callQueue = sqliteTable("call_queue", {
   leadId: text("lead_id")
     .notNull()
     .references(() => leads.id, { onDelete: "cascade" }),
-  scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
+  scheduledAt: integer("scheduled_at"),
   priority: integer("priority").default(0),
   status: text("status").default("pending"),
   attempts: integer("attempts").default(0),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
 });
 
 export const callLogs = sqliteTable("call_logs", {
@@ -45,9 +45,9 @@ export const callLogs = sqliteTable("call_logs", {
     .notNull()
     .references(() => leads.id, { onDelete: "cascade" }),
   contactId: text("contact_id"),
-  calledAt: integer("called_at", { mode: "timestamp" }).notNull(),
+  calledAt: integer("called_at").notNull(),
   duration: integer("duration"),
   outcome: text("outcome"),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
 });

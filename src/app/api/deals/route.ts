@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { deals, propertyAnalysis } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateId } from "@/lib/utils";
+import { generateId, ts } from "@/lib/utils";
 import { auth } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -43,10 +43,10 @@ export async function POST(request: Request) {
       renovationBudget: renovationBudget ?? analysis?.renovationCost ?? 0,
       renovationActual: 0,
       renovationItems: "[]",
-      purchaseDate: new Date(),
+      purchaseDate: ts(),
       status: "purchased",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: ts(),
+      updatedAt: ts(),
     });
 
     return NextResponse.json({ id });

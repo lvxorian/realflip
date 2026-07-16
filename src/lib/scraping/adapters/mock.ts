@@ -87,8 +87,7 @@ export class MockAdapter extends PortalAdapter {
   async crawlListings(): Promise<RawListing[]> {
     const listings: RawListing[] = MOCK_TEMPLATES.map((t, i) => {
       const id = `mock-${this.config.name}-${i + 1}`;
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - i * 47);
+      const now = Date.now() - i * 47 * 60 * 1000;
 
       return {
         portalName: this.config.name,

@@ -8,5 +8,5 @@ export const activityLog = sqliteTable("activity_log", {
   message: text("message").notNull(),
   propertyId: text("property_id").references(() => properties.id, { onDelete: "set null" }),
   data: text("data"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
 });

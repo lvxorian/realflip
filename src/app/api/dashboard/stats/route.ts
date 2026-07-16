@@ -7,7 +7,7 @@ import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function fmtTime(d: Date): string {
+function fmtTime(d: Date | number): string {
   const diff = Date.now() - new Date(d).getTime();
   const min = Math.floor(diff / 60000);
   if (min < 1) return "právě teď";

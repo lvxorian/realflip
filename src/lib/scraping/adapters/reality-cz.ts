@@ -101,8 +101,8 @@ export class RealityCzAdapter extends PortalAdapter {
         contactEmail: null,
         description: null,
         imageUrls: img ? filterImages([img], this.config.name) : [],
-        publishedAt: new Date(),
-        updatedAt: new Date(),
+        publishedAt: Date.now(),
+        updatedAt: Date.now(),
       });
     });
 
@@ -209,7 +209,7 @@ export class RealityCzAdapter extends PortalAdapter {
         const dm = dateText.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
         if (dm) {
           const d = new Date(parseInt(dm[3]), parseInt(dm[2]) - 1, parseInt(dm[1]));
-          if (!isNaN(d.getTime())) listing.publishedAt = d;
+          if (!isNaN(d.getTime())) listing.publishedAt = d.getTime();
         }
       }
 

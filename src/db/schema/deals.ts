@@ -8,16 +8,16 @@ export const deals = sqliteTable("deals", {
     .unique()
     .references(() => properties.id, { onDelete: "cascade" }),
   purchasePrice: integer("purchase_price").notNull(),
-  purchaseDate: integer("purchase_date", { mode: "timestamp" }).notNull(),
+  purchaseDate: integer("purchase_date").notNull(),
   renovationBudget: integer("renovation_budget"),
   renovationActual: integer("renovation_actual"),
   renovationItems: text("renovation_items").default("[]"),
   sellPrice: integer("sell_price"),
-  sellDate: integer("sell_date", { mode: "timestamp" }),
+  sellDate: integer("sell_date"),
   status: text("status").default("purchased").notNull(),
   notes: text("notes"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 export const dealExpenses = sqliteTable("deal_expenses", {
@@ -28,7 +28,7 @@ export const dealExpenses = sqliteTable("deal_expenses", {
   category: text("category").notNull(),
   description: text("description"),
   amount: integer("amount").notNull(),
-  date: integer("date", { mode: "timestamp" }).notNull(),
+  date: integer("date").notNull(),
   receiptUrl: text("receipt_url"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at").notNull(),
 });
