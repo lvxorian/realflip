@@ -16,7 +16,9 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 ## Key Decisions
 - JSON stored as text columns
 - Leaflet CSS loaded via CDN
-- Redesign experiment was fully reverted (commit 30b41ea = current HEAD)
+- Redesign experiment was fully reverted (commit 30b41ea = current)
+- Buy commission: removed from calculations (seller pays it in CZ)
+- Sell commission: 3% → 4% (realistic CZ rate)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -30,6 +32,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - Interactive analysis: flip calculator with toggles, cost breakdown, target price, comps, AI negotiation, save deal
 - Price validation: MIN_REAL_ESTATE_PRICE, filterImages for placeholders, normalizeImageUrl for relative URLs
 - Image/URL fixes: referrerPolicy, sreality URL format fix, onError fallbacks
+- Buy commission removed from calculator (seller pays in CZ), sell commission 3% → 4%
 
 ## Relevant Files
 
