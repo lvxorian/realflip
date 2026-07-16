@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { db } from "@/db";
 import { deals, properties, propertyAnalysis } from "@/db/schema";
