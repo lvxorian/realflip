@@ -156,7 +156,7 @@ export default async function PropertyDetailPage({
               <div className="flex flex-wrap gap-3">
                 {[
                   { label: "dispozice", value: property.rooms ?? "—" },
-                  { label: "m²", value: property.area ? `${property.area} m²` : "—" },
+                  { label: "velikost", value: property.area ? `${property.area} m²` : "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
                   { label: "stav", value: conditionLabel(property.condition) },
                   { label: "rok", value: property.yearBuilt ?? "—" },
