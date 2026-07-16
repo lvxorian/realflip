@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { StatusDot } from "@/components/ui/status-dot";
-import { ToggleLeft, ToggleRight, Trash, Bell, Plus } from "@phosphor-icons/react";
+import { ToggleLeft, ToggleRight, Trash, Bell, Plus, MapPin, CurrencyDollar, Star } from "@phosphor-icons/react";
 
 interface Alert {
   id: string;
@@ -14,6 +14,12 @@ interface Alert {
   isActive: number | null;
   lastTriggered: number | null;
 }
+
+const presets = [
+  { label: "Lokalita", desc: "Hlídá nové inzeráty ve vybrané lokalitě", icon: MapPin, name: "Nové inzeráty v lokalitě", conditions: "Lokalita: Praha" },
+  { label: "Cena", desc: "Upozorní na cenu pod zvolenou hranicí", icon: CurrencyDollar, name: "Cena pod hranicí", conditions: "Cena: < 3 000 000 Kč" },
+  { label: "Skóre", desc: "Alert na investiční skóre nad 80", icon: Star, name: "Podhodnocené nemovitosti", conditions: "Skóre: 80+" },
+];
 
 export default function AlertsPage() {
   const { data: session, status } = useSession();
@@ -46,6 +52,18 @@ export default function AlertsPage() {
   async function remove(id: string) {
     await fetch(`/api/alerts/${id}`, { method: "DELETE" });
     setAlerts((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  async function create(preset: typeof presets[0]) {
+    const res = await fetch("/api/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: preset.name, conditions: preset.conditions }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setAlerts((prev) => [...prev, { id: data.id, name: preset.name, conditions: preset.conditions, isActive: 1, lastTriggered: null }]);
+    }
   }
 
   if (status !== "authenticated" || loading) {
@@ -118,9 +136,33 @@ export default function AlertsPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-border/50 bg-card p-8 text-center">
-          <p className="text-sm text-muted">Zatím nemáte žádné alerty.</p>
+          <p className="text-sm text-muted">Zatím nemáte žádné alerty. Vytvořte si první alert pomocí šablon níže.</p>
         </div>
       )}
+
+      <div>
+        <h2 className="font-semibold tracking-tight mb-4">Rychlé vytvoření</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {presets.map((p, i) => (
+            <motion.button
+              key={p.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 + i * 0.05 }}
+              onClick={() => create(p)}
+              className="flex items-start gap-3 rounded-2xl border border-border/50 bg-card p-5 text-left hover:bg-card-hover hover:border-accent/30 transition-all group"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent group-hover:bg-accent/20 transition-colors">
+                <p.icon size={16} weight="bold" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{p.label}</p>
+                <p className="text-xs text-muted mt-0.5">{p.desc}</p>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
