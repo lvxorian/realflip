@@ -152,11 +152,14 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [saved, setSaved] = useState(false);
   const [dealStatus, setDealStatus] = useState("new");
 
+  const itemsTotal = useMemo(() => renovationItems.reduce((s, i) => s + i.estimatedCost, 0), [renovationItems]);
+
   const currentRenovation = useMemo(() => {
     if (renovationMode === "preset") return renovationCostFromPreset(area, renovationLevel);
     if (renovationMode === "perSqm") return Math.round(renovationPerSqm * area);
+    if (renovationMode === "total") return itemsTotal;
     return renovationTotal;
-  }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area]);
+  }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area, itemsTotal]);
 
   const flipResults = useMemo(() => {
     return calculateFlipResults(l.price, arv, currentRenovation, targetRoi);
@@ -193,8 +196,18 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setRenovationItems((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], estimatedCost: num };
+      const sum = next.reduce((s, i) => s + i.estimatedCost, 0);
+      setRenovationTotal(sum);
       return next;
     });
+    setRenovationMode("total");
+  };
+
+  const handlePresetChange = (level: "light" | "medium" | "full") => {
+    setRenovationMode("preset");
+    setRenovationLevel(level);
+    const conditionMap: Record<string, string | null> = { light: "renovated", medium: "good", full: "original" };
+    setRenovationItems(calculateItemizedRenovation(area, conditionMap[level]));
   };
 
   const loadComps = async () => {
@@ -396,7 +409,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 {(["light", "medium", "full"] as const).map((level) => (
                   <button
                     key={level}
-                    onClick={() => { setRenovationMode("preset"); setRenovationLevel(level); }}
+                    onClick={() => handlePresetChange(level)}
                     className={`flex-1 text-xs py-1.5 rounded-lg border transition-colors ${
                       renovationMode === "preset" && renovationLevel === level
                         ? "border-accent/40 bg-accent/10 text-accent"
