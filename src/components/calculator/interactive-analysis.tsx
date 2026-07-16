@@ -161,6 +161,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [saved, setSaved] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
   const [dbSaved, setDbSaved] = useState(false);
+  const [dbSavedMessage, setDbSavedMessage] = useState("");
   const [dbSavedId, setDbSavedId] = useState<string | null>(null);
   const [dbInitiateSaving, setDbInitiateSaving] = useState(false);
 
@@ -317,6 +318,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       if (data.propertyId) {
         setDbSaved(true);
         setDbSavedId(data.propertyId);
+        if (data.existed) setDbSavedMessage("Již v databázi ✅");
+        else setDbSavedMessage("Uloženo ✅");
       }
     } catch {}
     setDbSaving(false);
@@ -809,7 +812,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             <>
               <div className="flex gap-3">
                 <Button onClick={saveToDb} disabled={dbSaving || dbSaved} variant={dbSaved ? "secondary" : "default"} className="flex-1 text-sm gap-2 h-11">
-                  {dbSaving ? "Ukládám..." : dbSaved ? "✅ Uloženo" : "💾 Uložit do databáze"}
+                  {dbSaving ? "Ukládám..." : dbSaved ? dbSavedMessage : "💾 Uložit do databáze"}
                 </Button>
                 <Button onClick={saveAndInitiate} disabled={dbInitiateSaving || saved} variant={saved ? "secondary" : "default"} className="flex-1 text-sm gap-2 h-11">
                   {dbInitiateSaving ? "Ukládám..." : saved ? "✅ V pipeline" : "🤝 Uložit a zahájit jednání"}
