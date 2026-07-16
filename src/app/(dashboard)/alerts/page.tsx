@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { StatusDot } from "@/components/ui/status-dot";
-import { ToggleLeft, ToggleRight, Trash, Bell, Plus, MapPin, CurrencyDollar, Star } from "@phosphor-icons/react";
+import { ToggleLeft, ToggleRight, Trash, Bell, Plus, PencilSimple, MapPin, CurrencyDollar, Star, Check, X } from "@phosphor-icons/react";
 
 interface Alert {
   id: string;
@@ -26,6 +26,8 @@ export default function AlertsPage() {
   const router = useRouter();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState({ name: "", conditions: "" });
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -66,6 +68,26 @@ export default function AlertsPage() {
     }
   }
 
+  function startEdit(alert: Alert) {
+    setEditingId(alert.id);
+    setEditDraft({ name: alert.name, conditions: alert.conditions ?? "" });
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    await fetch(`/api/alerts/${editingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editDraft),
+    });
+    setAlerts((prev) => prev.map((a) => a.id === editingId ? { ...a, name: editDraft.name, conditions: editDraft.conditions } : a));
+    setEditingId(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
   if (status !== "authenticated" || loading) {
     return (
       <div className="space-y-4">
@@ -99,38 +121,62 @@ export default function AlertsPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className={`flex items-center justify-between rounded-2xl border bg-card p-5 transition-all ${
+              className={`rounded-2xl border bg-card p-5 transition-all ${
                 a.isActive ? "border-border/50" : "border-border/20 opacity-50"
               }`}
             >
-              <div className="flex items-center gap-4 min-w-0">
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                  a.isActive ? "bg-accent/10 text-accent" : "bg-card text-muted"
-                }`}>
-                  <Bell size={16} weight={a.isActive ? "fill" : "regular"} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{a.name}</p>
+              {editingId === a.id ? (
+                <div className="space-y-3">
+                  <input
+                    value={editDraft.name}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-sm font-medium outline-none focus:border-accent/50"
+                    placeholder="Název alertu"
+                  />
+                  <input
+                    value={editDraft.conditions}
+                    onChange={(e) => setEditDraft((p) => ({ ...p, conditions: e.target.value }))}
+                    className="w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-xs text-muted outline-none focus:border-accent/50"
+                    placeholder="Podmínky"
+                  />
                   <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted">{a.conditions}</p>
-                    {a.isActive ? <StatusDot status="active" /> : null}
+                    <button onClick={saveEdit} className="flex items-center gap-1 rounded-lg bg-accent/10 text-accent px-3 py-1.5 text-xs font-medium hover:bg-accent/20 transition-colors">
+                      <Check size={12} weight="bold" /> Uložit
+                    </button>
+                    <button onClick={cancelEdit} className="flex items-center gap-1 rounded-lg bg-card text-muted px-3 py-1.5 text-xs hover:text-foreground transition-colors">
+                      <X size={12} weight="bold" /> Zrušit
+                    </button>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <button
-                  onClick={() => toggle(a.id)}
-                  className="text-muted hover:text-accent transition-colors"
-                >
-                  {a.isActive ? <ToggleRight size={18} weight="fill" className="text-accent" /> : <ToggleLeft size={18} weight="fill" />}
-                </button>
-                <button
-                  onClick={() => remove(a.id)}
-                  className="text-muted hover:text-danger transition-colors"
-                >
-                  <Trash size={14} weight="bold" />
-                </button>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                      a.isActive ? "bg-accent/10 text-accent" : "bg-card text-muted"
+                    }`}>
+                      <Bell size={16} weight={a.isActive ? "fill" : "regular"} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{a.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted">{a.conditions}</p>
+                        {a.isActive ? <StatusDot status="active" /> : null}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button onClick={() => startEdit(a)} className="text-muted hover:text-accent transition-colors">
+                      <PencilSimple size={14} weight="bold" />
+                    </button>
+                    <button onClick={() => toggle(a.id)} className="text-muted hover:text-accent transition-colors">
+                      {a.isActive ? <ToggleRight size={18} weight="fill" className="text-accent" /> : <ToggleLeft size={18} weight="fill" />}
+                    </button>
+                    <button onClick={() => remove(a.id)} className="text-muted hover:text-danger transition-colors">
+                      <Trash size={14} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           ))}
         </div>

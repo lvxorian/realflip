@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ id, name, filters, schedule: schedule ?? "manual" }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -59,6 +59,6 @@ export async function GET() {
 
     return NextResponse.json(parsed);
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

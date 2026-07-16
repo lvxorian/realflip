@@ -33,7 +33,7 @@ export async function POST() {
   } catch (error) {
     console.error("Scraping trigger error:", error);
     return NextResponse.json(
-      { error: "Scraping failed", detail: String(error) },
+      { error: "Scraping failed" },
       { status: 500 }
     );
   }
