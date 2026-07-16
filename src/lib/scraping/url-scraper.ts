@@ -87,7 +87,19 @@ async function scrapeSreality(url: string): Promise<RawListing> {
   const id = segments[segments.length - 1];
   if (!/^\d+$/.test(id)) throw new Error("Nelze parsovat ID inzerátu z URL");
 
-  const data = await fetchJson(`https://www.sreality.cz/api/v1/estates/${id}`, "sreality");
+  let data: any;
+  try {
+    data = await fetchJson(`https://www.sreality.cz/api/v1/estates/${id}`, "sreality");
+  } catch {
+    const html = await fetchHtml(url, "sreality");
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
+    if (!match) throw new Error("Nepodařilo se načíst data inzerátu");
+    const nextData = JSON.parse(match[1]);
+    const queries = nextData.props?.pageProps?.dehydratedState?.queries ?? [];
+    const detailQuery = queries.find((q: any) => q.state?.data?.result?.advert_name);
+    if (!detailQuery) throw new Error("Nepodařilo se najít data inzerátu v HTML");
+    data = { result: detailQuery.state.data.result };
+  }
   const r = data.result;
   if (!r) throw new Error("API nevrátilo data inzerátu");
 
