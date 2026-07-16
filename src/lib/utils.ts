@@ -163,3 +163,19 @@ const LOCATION_CATEGORY_LABELS: Record<string, string> = {
 export function locationCategoryLabel(category: string | null): string {
   return category ? LOCATION_CATEGORY_LABELS[category] ?? category : "—";
 }
+
+const PORTAL_LABELS: Record<string, string> = {
+  sreality: "Sreality",
+  bazos: "Bazos",
+  annonce: "Annonce",
+  mmreality: "MMReality",
+  "reality-cz": "Reality.cz",
+  hyperinzerce: "Hyperinzerce",
+  bezrealitky: "BezRealitky",
+  remax: "RE/MAX",
+  century21: "Century 21",
+};
+
+export function portalLabel(name: string | null): string {
+  return name ? PORTAL_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1) : "—";
+}

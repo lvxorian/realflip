@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locationCategoryLabel } from "@/lib/utils";
+import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locationCategoryLabel, portalLabel } from "@/lib/utils";
 import {
   calculateFlipResults,
   calculateItemizedRenovation,
@@ -103,7 +103,7 @@ export default function InteractiveAnalysis({ result, index }: { result: Analysi
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium break-all">{result.url}</p>
                 <p className="text-xs text-red-400 mt-1">{result.error ?? "Neznámá chyba"}</p>
-                {result.portal && <Badge variant="secondary" size="sm" className="mt-2">{result.portal}</Badge>}
+                {result.portal && <Badge variant="secondary" size="sm" className="mt-2">{portalLabel(result.portal)}</Badge>}
               </div>
             </div>
           </CardContent>
@@ -396,7 +396,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 <Badge variant={verdictBadgeVariant as any} size="sm">{verdictLabels[a.verdictLevel]}</Badge>
                 <Badge variant="score" score={a.investmentScore} size="sm" />
                 {l.condition && <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{conditionLabel(l.condition)}</span>}
-                <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{result.portal}</span>
+                <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{portalLabel(result.portal)}</span>
               </div>
             </div>
           </div>
