@@ -88,7 +88,7 @@ export class MmrealityAdapter extends PortalAdapter {
         const src = $(img).attr("src");
         if (src) images.push(src);
       });
-      const filteredImages = filterImages(images);
+      const filteredImages = filterImages(images, this.config.name);
 
       const offer = offers[i];
 
@@ -161,7 +161,7 @@ export class MmrealityAdapter extends PortalAdapter {
         const src = $(el).attr("src");
         if (src && !images.includes(src)) images.push(src);
       });
-      if (images.length > 0) listing.imageUrls = filterImages(images);
+      if (images.length > 0) listing.imageUrls = filterImages(images, this.config.name);
 
       return listing;
     } catch {

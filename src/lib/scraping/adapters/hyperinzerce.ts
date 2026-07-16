@@ -79,7 +79,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
         contactName: null,
         contactEmail: null,
         description: descPreview,
-        imageUrls: imgSrc ? filterImages([imgSrc.startsWith("http") ? imgSrc : `https:${imgSrc}`]) : [],
+        imageUrls: imgSrc ? filterImages([imgSrc], this.config.name) : [],
         publishedAt: new Date(),
         updatedAt: new Date(),
       });
@@ -173,7 +173,7 @@ export class HyperinzerceAdapter extends PortalAdapter {
           if (!images.includes(absUrl)) images.push(absUrl);
         }
       });
-      if (images.length > 0) listing.imageUrls = filterImages(images);
+      if (images.length > 0) listing.imageUrls = filterImages(images, this.config.name);
 
       const dateText = this.cleanText($(".c-ad-detail__header-info-date span").text());
       if (dateText) {

@@ -39,6 +39,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
           src={images[activeIndex]}
           alt={`${alt} - foto ${activeIndex + 1}`}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
@@ -84,6 +85,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
                 src={src}
                 alt={`${alt} thumbnail ${i + 1}`}
                 className="h-full w-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
               />
             </button>
           ))}

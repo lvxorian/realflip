@@ -100,7 +100,7 @@ export class RealityCzAdapter extends PortalAdapter {
         contactName: null,
         contactEmail: null,
         description: null,
-        imageUrls: img ? filterImages([img.startsWith("http") ? img : `https://www.reality.cz${img}`]) : [],
+        imageUrls: img ? filterImages([img], this.config.name) : [],
         publishedAt: new Date(),
         updatedAt: new Date(),
       });
@@ -191,13 +191,11 @@ export class RealityCzAdapter extends PortalAdapter {
       });
 
       if (images.length > 0) {
-        listing.imageUrls = filterImages(images);
+        listing.imageUrls = filterImages(images, this.config.name);
       } else if (listing.imageUrls.length > 0) {
         const mainPhoto = $("a#mainfoto img").attr("src") || "";
         if (mainPhoto) {
-          listing.imageUrls = filterImages([
-            mainPhoto.startsWith("http") ? mainPhoto : `https://www.reality.cz${mainPhoto}`,
-          ]);
+          listing.imageUrls = filterImages([mainPhoto], this.config.name);
         }
       }
 

@@ -110,9 +110,10 @@ async function scrapeSreality(url: string): Promise<RawListing> {
 
   const buildingType = normalizeBuildingType(r.building_type?.name ?? null);
 
-  const images: string[] = filterImages((r.advert_images ?? []).map(
-    (img: any) => (img.url ?? img.advert_image_sdn_url ?? "").replace(/^\/*/, "https://"),
-  ));
+  const images: string[] = filterImages(
+    (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
+    "sreality",
+  );
 
   const floorNumber = typeof r.floor_number === "number" ? r.floor_number : null;
   const usableArea = typeof r.usable_area === "number" ? r.usable_area : typeof r.floor_area === "number" ? r.floor_area : null;
@@ -185,15 +186,15 @@ async function scrapeRealityCz(url: string): Promise<RawListing> {
   let images: string[] = [];
   $("div#galerie a[href^='/photo/']").each((_, el) => {
     const src = $(el).attr("href");
-    if (src) images.push(`https://www.reality.cz${src}`);
+    if (src) images.push(src);
   });
   if (images.length === 0) {
     $("a#mainfoto img").each((_, el) => {
       const src = $(el).attr("src");
-      if (src) images.push(`https://www.reality.cz${src}`);
+      if (src) images.push(src);
     });
   }
-  images = filterImages(images);
+  images = filterImages(images, "reality-cz");
 
   let address = cleanText($("div.moreobal div.fss").first().text()) ?? title;
 
@@ -262,7 +263,7 @@ async function scrapeHyperinzerce(url: string): Promise<RawListing> {
     const src = $(el).attr("data-gallery-full-url");
     if (src) images.push(src);
   });
-  images = filterImages(images);
+  images = filterImages(images, "hyperinzerce");
 
   return {
     portalName: "hyperinzerce" as PortalName,
@@ -328,7 +329,7 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
       if (data?.image) images = Array.isArray(data.image) ? data.image : [data.image];
     } catch { /* ignore */ }
   }
-  images = filterImages(images);
+  images = filterImages(images, "annonce");
 
   return {
     portalName: "annonce" as PortalName,
@@ -391,9 +392,9 @@ async function scrapeBazos(url: string): Promise<RawListing> {
   let images: string[] = [];
   $("img.carousel-cell-image").each((_, el) => {
     const src = $(el).attr("data-flickity-lazyload") || $(el).attr("src");
-    if (src) images.push(src);
+    if (src && !src.startsWith("data:image/gif")) images.push(src);
   });
-  images = filterImages(images);
+  images = filterImages(images, "bazos");
 
   return {
     portalName: "bazos" as PortalName,
@@ -444,7 +445,7 @@ async function scrapeMmreality(url: string): Promise<RawListing> {
     const src = $(el).attr("src");
     if (src) images.push(src);
   });
-  images = filterImages(images);
+  images = filterImages(images, "mmreality");
 
   return {
     portalName: "mmreality" as PortalName,

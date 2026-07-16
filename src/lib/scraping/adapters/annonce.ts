@@ -86,7 +86,7 @@ export class AnnonceAdapter extends PortalAdapter {
       const imgSrc = imgEl.attr("src") || "";
 
       let images: string[] = [];
-      if (imgSrc) images = filterImages([imgSrc]);
+      if (imgSrc) images = filterImages([imgSrc], this.config.name);
 
       try {
         const slideshowRaw = $el.find("div.slideshow-container").attr("data-slideshow");
@@ -171,7 +171,7 @@ export class AnnonceAdapter extends PortalAdapter {
           }
           if (data?.image) {
             const jsonImages = Array.isArray(data.image) ? data.image : [data.image];
-            listing.imageUrls = filterImages([...listing.imageUrls, ...jsonImages]);
+            listing.imageUrls = filterImages([...listing.imageUrls, ...jsonImages], this.config.name);
           }
         }
       } catch {

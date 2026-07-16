@@ -143,27 +143,43 @@ export interface SearchFilters {
 export const MIN_REAL_ESTATE_PRICE = 50000;
 
 const PLACEHOLDER_IMAGE_PATTERNS = [
-  /nophoto/i,
-  /no-photo/i,
-  /placeholder/i,
-  /blank\.(gif|png|jpg)/i,
-  /pixel\.(gif|png|jpg)/i,
-  /1x1\.(gif|png|jpg)/i,
-  /transparent/i,
-  /default_img/i,
-  /noimage/i,
-  /no-image/i,
-  /image_not_found/i,
-  /not-available/i,
-  /not_available/i,
+  /nophoto/i, /no-photo/i, /placeholder/i,
+  /blank\.(gif|png|jpg)/i, /pixel\.(gif|png|jpg)/i,
+  /1x1\.(gif|png|jpg)/i, /transparent/i, /default_img/i,
+  /noimage/i, /no-image/i, /image_not_found/i,
+  /not-available/i, /not_available/i,
 ];
 
-export function filterImages(urls: string[]): string[] {
-  return urls.filter((url) => {
-    if (!url || url.length < 10) return false;
-    if (url.startsWith("data:image/svg+xml")) return false;
-    return !PLACEHOLDER_IMAGE_PATTERNS.some((p) => p.test(url));
-  });
+const PORTAL_BASE_URLS: Record<string, string> = {
+  sreality: "https://www.sreality.cz",
+  "reality-cz": "https://www.reality.cz",
+  hyperinzerce: "https://byty.hyperinzerce.cz",
+  annonce: "https://www.annonce.cz",
+  bazos: "https://reality.bazos.cz",
+  mmreality: "https://www.mmreality.cz",
+};
+
+export function normalizeImageUrl(url: string | null | undefined, portalName?: string): string {
+  if (!url || url.length < 5) return "";
+  if (url.startsWith("data:image/gif") || url.startsWith("data:image/png;base64")) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("//")) return "https:" + url;
+  if (url.startsWith("/") && portalName) {
+    const base = PORTAL_BASE_URLS[portalName];
+    if (base) return base + url;
+  }
+  return "";
+}
+
+export function filterImages(urls: string[], portalName?: string): string[] {
+  return urls
+    .map((url) => normalizeImageUrl(url, portalName))
+    .filter((url) => {
+      if (!url || url.length < 10) return false;
+      if (/^https?:\/\/\//.test(url)) return false;
+      if (url.startsWith("data:image/svg+xml")) return false;
+      return !PLACEHOLDER_IMAGE_PATTERNS.some((p) => p.test(url));
+    });
 }
 
 export function isValidPrice(price: number): boolean {

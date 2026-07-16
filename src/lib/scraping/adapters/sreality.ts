@@ -165,9 +165,8 @@ export class SrealityAdapter extends PortalAdapter {
       }
 
       listing.imageUrls = filterImages(
-        (r.advert_images ?? []).map(
-          (img) => (img.url ?? "").replace(/^\/*/, "https://"),
-        ),
+        (r.advert_images ?? []).map((img) => img.url ?? ""),
+        this.config.name,
       );
 
       if (r.user) {

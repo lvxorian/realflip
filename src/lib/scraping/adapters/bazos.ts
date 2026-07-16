@@ -62,7 +62,7 @@ export class BazosAdapter extends PortalAdapter {
         contactName: null,
         contactEmail: null,
         description: descShort,
-        imageUrls: imgThumb ? filterImages([imgThumb]) : [],
+        imageUrls: imgThumb ? filterImages([imgThumb], this.config.name) : [],
         publishedAt: this.parseDate(dateText),
         updatedAt: new Date(),
       });
@@ -116,7 +116,7 @@ export class BazosAdapter extends PortalAdapter {
         const src = $(el).attr("data-flickity-lazyload") || $(el).attr("src");
         if (src && !images.includes(src)) images.push(src);
       });
-      if (images.length > 0) listing.imageUrls = filterImages(images);
+      if (images.length > 0) listing.imageUrls = filterImages(images, this.config.name);
 
       if (!listing.buildingType && listing.description) {
         const bt = listing.description.match(/cihlov[éý]|panel[ovýáé]|novostavba|sm[íi]šen[ýé]/i);

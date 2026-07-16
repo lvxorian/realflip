@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { ScoreGauge } from "./score-gauge";
 import { PriceTag } from "./price-tag";
 import { Badge } from "./badge";
@@ -46,6 +47,8 @@ export function PropertyCard({
     "secondary";
 
   const isUndervalued = undervaluationPct !== undefined && undervaluationPct > 0;
+  const [imgError, setImgError] = useState(false);
+  const showImage = imageUrl && !imgError;
 
   return (
     <Link href={`/properties/${id}`}>
@@ -57,11 +60,12 @@ export function PropertyCard({
       >
         {/* Image */}
         <div className="relative h-40 overflow-hidden">
-          {imageUrl ? (
+          {showImage ? (
             <img
               src={imageUrl}
               alt={title}
               className="h-full w-full object-cover"
+              onError={() => setImgError(true)}
             />
           ) : (
             <div className="h-full w-full property-image-shimmer flex items-center justify-center">
