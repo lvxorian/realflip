@@ -18,6 +18,28 @@ export const RENOVATION_PRESETS = {
   full: { label: "Těžká", costPerSqm: 18000, months: 8, description: "Generální rekonstrukce vč. rozvodů" },
 };
 
+function calculateRawROI(
+  purchasePrice: number,
+  arv: number,
+  renovationCost: number,
+  holdingMonths?: number
+): number {
+  const c = COST_CONSTANTS;
+  const months = holdingMonths ?? c.holdingPeriodMonths;
+  const commission = Math.round(purchasePrice * c.commissionRate);
+  const legalFees = c.legalFees;
+  const appraisalFee = c.appraisalFee;
+  const holding = Math.round((purchasePrice + renovationCost) * c.holdingCostMonthlyRate * months);
+  const sellingCommission = Math.round(arv * c.sellingCommissionRate);
+  const hs = c.homeStaging;
+  const certs = c.certificates;
+  const grossProfit = arv - purchasePrice - commission - legalFees - appraisalFee - renovationCost - holding - sellingCommission - hs - certs;
+  const tax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
+  const totalCost = purchasePrice + commission + legalFees + appraisalFee + renovationCost + holding + sellingCommission + hs + certs + tax;
+  const netProfit = arv - totalCost;
+  return totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
+}
+
 export function calculateTargetPurchasePrice(
   arv: number,
   renovationCost: number,
@@ -30,8 +52,8 @@ export function calculateTargetPurchasePrice(
 
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
-    const result = calculateFlipResults(mid, arv, renovationCost, target, holdingMonths);
-    if (result.roi < target) hi = mid;
+    const roi = calculateRawROI(mid, arv, renovationCost, holdingMonths);
+    if (roi < target) hi = mid;
     else lo = mid;
   }
 
