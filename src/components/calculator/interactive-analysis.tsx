@@ -234,12 +234,12 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           costs: flipResults.costs,
         }),
       });
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setNegotiationError("Chyba serveru — zkuste to prosím později");
+        setNegotiationError(data?.error ?? "Chyba serveru — zkuste to prosím později");
         return;
       }
-      const data = await res.json();
-      if (data.success) {
+      if (data?.success) {
         setNegotiation(data);
         setShowNegotiation(true);
       } else {

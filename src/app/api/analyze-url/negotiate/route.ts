@@ -85,14 +85,27 @@ Na základě těchto dat vytvoř vyjednávací scénář, který mi pomůže kou
     });
 
     const text = response.text;
-    if (!text) throw new Error("No response from AI");
+    if (!text) throw new Error("AI nevrátilo žádný text");
 
-    const result = JSON.parse(text);
+    let result: Record<string, unknown>;
+    try {
+      result = JSON.parse(text);
+    } catch {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        console.error("Raw AI response:", text.slice(0, 500));
+        throw new Error("AI nevrátilo validní JSON");
+      }
+    }
+
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    console.error("Negotiate API error:", error);
+    const msg = error instanceof Error ? error.message : "Neznámá chyba";
+    console.error("Negotiate API error:", msg);
     return NextResponse.json(
-      { success: false, error: "Nepodařilo se vygenerovat vyjednávací scénář" },
+      { success: false, error: `Nepodařilo se vygenerovat scénář: ${msg}` },
       { status: 500 }
     );
   }
