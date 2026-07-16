@@ -109,10 +109,9 @@ export default async function PropertiesPage({
     overpricingPct: r.overpricingPct,
     marketPriceMin: r.marketPriceMin,
     marketPriceMax: r.marketPriceMax,
-    daysOnMarket: Math.max(
-      0,
-      Math.floor((now - new Date(r.firstSeen).getTime()) / 86400000)
-    ),
+    daysOnMarket: r.firstSeen
+      ? Math.max(0, Math.floor((now - new Date(r.firstSeen).getTime()) / 86400000))
+      : 0,
     imageUrls: safeJsonParse<string[]>(r.imageUrls, []),
   }));
 

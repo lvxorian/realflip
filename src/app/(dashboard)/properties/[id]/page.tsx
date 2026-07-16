@@ -21,9 +21,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function formatDays(firstSeen: Date | number) {
+function formatDays(firstSeen: Date | number | null | undefined) {
+  if (!firstSeen) return "—";
   const days = Math.floor((Date.now() - new Date(firstSeen).getTime()) / 86400000);
-  if (days <= 0) return "dnes";
+  if (isNaN(days) || days < 0) return "—";
+  if (days === 0) return "dnes";
   if (days === 1) return "1 den";
   if (days < 5) return `${days} dny`;
   return `${days} dní`;
