@@ -130,7 +130,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [costConfig, setCostConfig] = useState({
     sellCommission: true,
     appraisal: false,
-    energyCert: false,
+    sourcingFee: 0,
+    sourcingFeeIsPct: false,
     holdingMonths: 6,
     hasMortgage: false,
     mortgageAmount: 0,
@@ -529,10 +530,30 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
                   <span className="text-foreground/80">Znalecký posudek (5 000 Kč)</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={costConfig.energyCert} onChange={() => toggleConfig("energyCert")} className="accent-accent" />
-                  <span className="text-foreground/80">Energetický štítek (5 000 Kč)</span>
-                </label>
+                <div className="flex items-center gap-2 col-span-2">
+                  <span className="text-foreground/80 text-xs shrink-0">Provize za zprostředkování</span>
+                  <input
+                    type="number"
+                    value={costConfig.sourcingFee || ""}
+                    onChange={(e) => setCostConfig((prev) => ({ ...prev, sourcingFee: parseInt(e.target.value) || 0 }))}
+                    className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
+                    placeholder="0"
+                  />
+                  <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
+                    <button
+                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: false }))}
+                      className={`px-2 py-1 transition-colors ${!costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                    >
+                      Kč
+                    </button>
+                    <button
+                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: true }))}
+                      className={`px-2 py-1 transition-colors ${costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                    >
+                      %
+                    </button>
+                  </div>
+                </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
                   <span className="text-foreground/80">Mám hypotéku</span>
@@ -598,7 +619,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
-                      ...(costConfig.energyCert ? [{ label: "Energetický štítek", value: targetFlipResults.costs.energyCert }] : []),
+                      ...(targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Provize za zprostředkování", value: targetFlipResults.costs.sourcingFee }] : []),
                       { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (
                       <tr key={row.label} className="border-b border-emerald-500/10">

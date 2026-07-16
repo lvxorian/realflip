@@ -48,7 +48,7 @@ export interface DetailedCosts {
   mortgageCost: number;
   sellingCommission: number;
   marketingPhoto: number;
-  energyCert: number;
+  sourcingFee: number;
   incomeTax: number;
   totalCost: number;
 }

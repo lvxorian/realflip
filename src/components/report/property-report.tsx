@@ -189,7 +189,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   { label: "Náklady na rekonstrukci", value: costs.renovationCost },
                   { label: "Rezerva (10 %)", value: costs.contingency },
                   { label: "Marketing + foto", value: costs.marketingPhoto },
-                  { label: "Energetický štítek", value: costs.energyCert },
+                  { label: "Provize za zprostředkování", value: costs.sourcingFee },
                   { label: "Náklady na hypotéku", value: costs.mortgageCost },
                   { label: "Daň z příjmu", value: costs.incomeTax },
                 ].filter((r) => r.value > 0).map((r) => (

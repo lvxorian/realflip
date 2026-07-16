@@ -6,7 +6,6 @@ export const COST_CONSTANTS = {
   appraisalFee: 5000,
   holdingCostPerSqm: 120,
   marketingPhoto: 20000,
-  energyCert: 5000,
   contingencyRate: 0.10,
   taxRate: 0.15,
   holdingPeriodMonths: 6,
@@ -21,7 +20,8 @@ export const RENOVATION_PRESETS = {
 export interface FlipCostConfig {
   sellCommission: boolean;
   appraisal: boolean;
-  energyCert: boolean;
+  sourcingFee: number;
+  sourcingFeeIsPct: boolean;
   holdingMonths: number;
   hasMortgage: boolean;
   mortgageAmount: number;
@@ -31,7 +31,8 @@ export interface FlipCostConfig {
 const DEFAULT_CONFIG: FlipCostConfig = {
   sellCommission: true,
   appraisal: false,
-  energyCert: false,
+  sourcingFee: 0,
+  sourcingFeeIsPct: false,
   holdingMonths: 6,
   hasMortgage: false,
   mortgageAmount: 0,
@@ -57,9 +58,9 @@ function calculateRawROI(
     : 0;
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
-  const energyCert = cfg.energyCert ? c.energyCert : 0;
+  const sourcingFee = cfg.sourcingFeeIsPct ? Math.round(purchasePrice * (cfg.sourcingFee / 100)) : cfg.sourcingFee;
 
-  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + energyCert;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -105,9 +106,9 @@ export function calculateFlipCosts(
     : 0;
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
-  const energyCert = cfg.energyCert ? c.energyCert : 0;
+  const sourcingFee = cfg.sourcingFeeIsPct ? Math.round(purchasePrice * (cfg.sourcingFee / 100)) : cfg.sourcingFee;
 
-  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + energyCert;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * c.taxRate) : 0;
   const totalCost = subTotal + incomeTax;
@@ -122,7 +123,7 @@ export function calculateFlipCosts(
     mortgageCost,
     sellingCommission,
     marketingPhoto,
-    energyCert,
+    sourcingFee,
     incomeTax,
     totalCost,
   };
