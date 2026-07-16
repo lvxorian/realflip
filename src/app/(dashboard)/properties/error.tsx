@@ -4,9 +4,15 @@ export default function PropertiesError({
   error,
   reset,
 }: {
-  error: Error & { digest?: string };
+  error: Error & { digest?: string; cause?: unknown };
   reset: () => void;
 }) {
+  const causeMsg = error.cause instanceof Error ? error.cause.message : error.cause ? String(error.cause) : null;
+  const errorProps = Object.getOwnPropertyNames(error)
+    .filter((k) => k !== "message" && k !== "stack")
+    .map((k) => `${k}: ${String((error as any)[k])}`)
+    .join("\n");
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
       <div className="h-12 w-12 rounded-2xl bg-red-500/20 flex items-center justify-center">
@@ -19,7 +25,10 @@ export default function PropertiesError({
       <details className="text-xs text-red-400/80 bg-red-500/5 rounded-xl p-3 max-w-md w-full">
         <summary className="cursor-pointer font-medium">Technický detail</summary>
         <pre className="mt-2 whitespace-pre-wrap break-all">{error.message}</pre>
+        {error.stack && <pre className="mt-2 whitespace-pre-wrap break-all text-amber-400/70">{error.stack}</pre>}
+        {causeMsg && <p className="mt-2 text-amber-400">Cause: {causeMsg}</p>}
         {error.digest && <p className="mt-2 text-muted">Digest: {error.digest}</p>}
+        {errorProps && <pre className="mt-2 whitespace-pre-wrap break-all text-muted">{errorProps}</pre>}
       </details>
       <button
         onClick={reset}

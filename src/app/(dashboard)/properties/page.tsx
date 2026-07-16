@@ -25,27 +25,28 @@ export default async function PropertiesPage({
 }: {
   searchParams: Promise<{ searchId?: string }>;
 }) {
-  const { searchId } = await searchParams;
+  try {
+    const { searchId } = await searchParams;
 
-  const allSearches = await db
-    .select({ id: searches.id, name: searches.name })
-    .from(searches)
-    .orderBy(desc(searches.createdAt));
+    const allSearches = await db
+      .select({ id: searches.id, name: searches.name })
+      .from(searches)
+      .orderBy(desc(searches.createdAt));
 
-  let activeSearchName = "";
-  let propertyIds: string[] = [];
+    let activeSearchName = "";
+    let propertyIds: string[] = [];
 
-  if (searchId && allSearches.some((s) => s.id === searchId)) {
-    activeSearchName = allSearches.find((s) => s.id === searchId)?.name ?? "";
-    const linked = await db
-      .select({ propertyId: searchProperties.propertyId })
-      .from(searchProperties)
-      .where(eq(searchProperties.searchId, searchId));
-    propertyIds = linked.map((l) => l.propertyId);
-  }
+    if (searchId && allSearches.some((s) => s.id === searchId)) {
+      activeSearchName = allSearches.find((s) => s.id === searchId)?.name ?? "";
+      const linked = await db
+        .select({ propertyId: searchProperties.propertyId })
+        .from(searchProperties)
+        .where(eq(searchProperties.searchId, searchId));
+      propertyIds = linked.map((l) => l.propertyId);
+    }
 
-  const baseQuery = db
-    .select({
+    const baseQuery = db
+      .select({
       id: properties.id,
       title: properties.title,
       price: properties.price,
@@ -157,4 +158,20 @@ export default async function PropertiesPage({
       <PropertiesExplorer items={items} />
     </div>
   );
+  } catch (e) {
+    const msg = e instanceof Error ? `${e.message}\n\n${e.stack}` : String(e);
+    console.error("PropertiesPage error:", e);
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
+          <h2 className="text-lg font-semibold tracking-tight text-red-400">Chyba při načítání</h2>
+          <p className="text-sm text-muted mt-1">Nepodařilo se načíst seznam nemovitostí.</p>
+          <details className="mt-4">
+            <summary className="text-xs text-red-400/80 cursor-pointer font-medium">Detail chyby</summary>
+            <pre className="mt-2 text-xs text-red-400/70 whitespace-pre-wrap break-all">{msg}</pre>
+          </details>
+        </div>
+      </div>
+    );
+  }
 }
