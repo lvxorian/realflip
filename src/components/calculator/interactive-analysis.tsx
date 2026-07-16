@@ -419,101 +419,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{targetRoi}%</span>
             </div>
 
-            {/* Cost Breakdown — Side by Side */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Current Scenario */}
-              <div className="rounded-xl bg-card border border-border/50 overflow-hidden">
-                <div className="bg-card-hover border-b border-border/50 px-3 py-2 text-xs font-semibold text-foreground">Aktuální cena</div>
-                <table className="w-full text-xs">
-                  <tbody>
-                    {[
-                      { label: "Kupní cena", value: l.price },
-                      { label: "Provize RK (4 %)", value: flipResults.costs.commission },
-                      { label: "Právní služby", value: flipResults.costs.legalFees },
-                      { label: "Znalecký posudek", value: flipResults.costs.appraisalFee },
-                      { label: "Rekonstrukce", value: currentRenovation },
-                      { label: "Holding (6 měs.)", value: flipResults.costs.holdingCosts },
-                      { label: "Provize při prodeji (4 %)", value: flipResults.costs.sellingCommission },
-                      { label: "Home staging", value: flipResults.costs.homeStaging },
-                      { label: "Daň z příjmu (15 %)", value: flipResults.costs.incomeTax },
-                    ].map((row) => (
-                      <tr key={row.label} className="border-b border-border/30">
-                        <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
-                        <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
-                      </tr>
-                    ))}
-                    <tr className="bg-accent/5">
-                      <td className="px-3 py-2 font-semibold text-foreground">Náklady celkem</td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold text-foreground">{formatPrice(flipResults.costs.totalCost)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <div className="border-t border-border/50 px-3 py-2 text-xs space-y-1 bg-card-hover/50">
-                  <div className="flex justify-between">
-                    <span className="text-muted">ARV</span>
-                    <span className="font-mono text-foreground">{formatPrice(arv)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted">Zisk</span>
-                    <span className={`font-mono ${flipResults.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(flipResults.netProfit)}</span>
-                  </div>
-                  <div className="flex justify-between font-medium">
-                    <span className="text-muted">ROI</span>
-                    <span className={`font-mono ${flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{flipResults.roi.toFixed(1)}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Target Scenario */}
-              <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 overflow-hidden">
-                <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">🎯 Při cílové ceně</div>
-                {targetFlipResults ? (
-                  <>
-                    <table className="w-full text-xs">
-                      <tbody>
-                        {[
-                          { label: "Kupní cena", value: flipResults.targetPurchasePrice },
-                          { label: "Provize RK (4 %)", value: targetFlipResults.costs.commission },
-                          { label: "Právní služby", value: targetFlipResults.costs.legalFees },
-                          { label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee },
-                          { label: "Rekonstrukce", value: currentRenovation },
-                          { label: "Holding (6 měs.)", value: targetFlipResults.costs.holdingCosts },
-                          { label: "Provize při prodeji (4 %)", value: targetFlipResults.costs.sellingCommission },
-                          { label: "Home staging", value: targetFlipResults.costs.homeStaging },
-                          { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
-                        ].map((row) => (
-                          <tr key={row.label} className="border-b border-emerald-500/10">
-                            <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
-                            <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-emerald-500/10">
-                          <td className="px-3 py-2 font-semibold text-emerald-400">Náklady celkem</td>
-                          <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(targetFlipResults.costs.totalCost)}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <div className="border-t border-emerald-500/20 px-3 py-2 text-xs space-y-1 bg-emerald-500/5">
-                      <div className="flex justify-between">
-                        <span className="text-emerald-400/70">ARV</span>
-                        <span className="font-mono text-emerald-400">{formatPrice(arv)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-emerald-400/70">Zisk</span>
-                        <span className={`font-mono ${targetFlipResults.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(targetFlipResults.netProfit)}</span>
-                      </div>
-                      <div className="flex justify-between font-medium">
-                        <span className="text-emerald-400/70">ROI</span>
-                        <span className={`font-mono ${targetFlipResults.roi >= 15 ? "text-emerald-400" : targetFlipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{targetFlipResults.roi.toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-4 text-xs text-muted text-center">Není k dispozici</div>
-                )}
-              </div>
-            </div>
-
             {/* Target Price Highlight */}
             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
               <p className="text-xs text-emerald-400 mb-1">🎯 IDEÁLNÍ KUPNÍ CENA</p>
@@ -522,12 +427,54 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 <span className="text-muted">Aktuální: {formatPrice(l.price)}</span>
                 <span className="text-emerald-400">↓ {formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</span>
               </div>
-              {targetFlipResults && (
-                <div className="mt-2 text-xs text-emerald-400/80">
-                  Při ceně {formatPrice(flipResults.targetPurchasePrice)}: zisk {formatPrice(targetFlipResults.netProfit)} | ROI {targetFlipResults.roi.toFixed(1)}%
-                </div>
-              )}
             </div>
+
+            {/* Cost Breakdown — at target price */}
+            {targetFlipResults && (
+              <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 overflow-hidden">
+                <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">
+                  Výpočet při cílové ceně {formatPrice(flipResults.targetPurchasePrice)}
+                </div>
+                <table className="w-full text-xs">
+                  <tbody>
+                    {[
+                      { label: "Kupní cena", value: flipResults.targetPurchasePrice },
+                      { label: "Provize RK (4 %)", value: targetFlipResults.costs.commission },
+                      { label: "Právní služby", value: targetFlipResults.costs.legalFees },
+                      { label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee },
+                      { label: "Rekonstrukce", value: currentRenovation },
+                      { label: "Holding (6 měs.)", value: targetFlipResults.costs.holdingCosts },
+                      { label: "Provize při prodeji (4 %)", value: targetFlipResults.costs.sellingCommission },
+                      { label: "Home staging", value: targetFlipResults.costs.homeStaging },
+                      { label: "Daň z příjmu (15 %)", value: targetFlipResults.costs.incomeTax },
+                    ].map((row) => (
+                      <tr key={row.label} className="border-b border-emerald-500/10">
+                        <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
+                        <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-emerald-500/10">
+                      <td className="px-3 py-2 font-semibold text-emerald-400">Náklady celkem</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(targetFlipResults.costs.totalCost)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="border-t border-emerald-500/20 px-3 py-2 text-xs space-y-1 bg-emerald-500/5">
+                  <div className="flex justify-between">
+                    <span className="text-emerald-400/70">ARV</span>
+                    <span className="font-mono text-emerald-400">{formatPrice(arv)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-emerald-400/70">Zisk</span>
+                    <span className={`font-mono ${targetFlipResults.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(targetFlipResults.netProfit)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span className="text-emerald-400/70">ROI</span>
+                    <span className={`font-mono ${targetFlipResults.roi >= 14.5 ? "text-emerald-400" : targetFlipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{targetFlipResults.roi.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ===== FEATURE 4: RENOVATION PLANNER ===== */}

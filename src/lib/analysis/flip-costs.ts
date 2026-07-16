@@ -21,21 +21,21 @@ export const RENOVATION_PRESETS = {
 export function calculateTargetPurchasePrice(
   arv: number,
   renovationCost: number,
-  targetROI?: number
+  targetROI?: number,
+  holdingMonths?: number
 ): number {
-  const roi = (targetROI ?? 15) / 100;
-  const taxRate = 0.15;
-  const grossTargetRatio = roi / (1 - taxRate);
-  const targetMultiple = 1 + grossTargetRatio;
-  const targetTotalCost = arv / targetMultiple;
-  const acqCostRate = 0.04;
-  const holdingCostRate = 0.005 * 6;
-  const fixedAcqCosts = 33000;
-  const sellingCosts = Math.round(arv * 0.04) + 45000;
-  const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
-  return Math.round(
-    (targetTotalCost - (1 + holdingCostRate) * renovationCost - sellingCosts - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
-  );
+  const target = targetROI ?? 15;
+  let lo = 0;
+  let hi = arv;
+
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const result = calculateFlipResults(mid, arv, renovationCost, target, holdingMonths);
+    if (result.roi < target) hi = mid;
+    else lo = mid;
+  }
+
+  return Math.round((lo + hi) / 2);
 }
 
 export function calculateFlipCosts(
