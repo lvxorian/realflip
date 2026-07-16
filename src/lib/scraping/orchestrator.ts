@@ -6,6 +6,7 @@ import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, 
 import { eq, and, ne } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
+import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId } from "@/lib/utils";
 
 export class ScrapingOrchestrator {
@@ -191,15 +192,41 @@ export class ScrapingOrchestrator {
         }
       }
 
+      const area = existing.area ?? listing.area ?? 70;
+      const renoCostEstimate = Math.round(area * 10000) + 180000 + 140000;
+      const freshAnalysis = calculateFlipResults(listing.price, listing.price, renoCostEstimate, 15);
+
       await db
         .update(properties)
         .set({
           price: listing.price,
           pricePerSqm: listing.pricePerSqm,
+          area: listing.area ?? existing.area,
+          rooms: listing.rooms ?? existing.rooms,
+          condition: listing.condition ?? existing.condition,
+          address: listing.address ?? existing.address,
+          description: listing.description ?? existing.description,
           lastSeen: new Date(),
           isActive: true,
         })
         .where(eq(properties.id, existing.id));
+
+      // Re-analyze on price change
+      if (existing.price !== listing.price && freshAnalysis) {
+        await db
+          .update(propertyAnalysis)
+          .set({
+            arv: listing.price,
+            totalCost: freshAnalysis.costs.totalCost,
+            netProfit: freshAnalysis.netProfit,
+            roi: freshAnalysis.roi,
+            annualizedRoi: freshAnalysis.annualizedRoi,
+            cashOnCash: freshAnalysis.cashOnCash,
+            costsJson: JSON.stringify(freshAnalysis.costs),
+            updatedAt: new Date(),
+          })
+          .where(eq(propertyAnalysis.propertyId, existing.id));
+      }
 
       if (searchId) {
         const alreadyLinked = await db
