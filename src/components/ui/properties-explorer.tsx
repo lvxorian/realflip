@@ -32,8 +32,13 @@ export interface PropertyListItem {
   verdictLevel: string | null;
   condition: string | null;
   roi: number | null;
+  arv: number | null;
+  renovationCost: number | null;
+  netProfit: number | null;
+  totalCost: number | null;
   undervaluationPct?: number | null;
   overpricingPct?: number | null;
+  marketPriceMin?: number | null;
   marketPriceMax?: number | null;
 }
 
@@ -494,11 +499,16 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                           }).format(p.price)}{" "}
                           Kč
                         </p>
-                        {p.pricePerSqm && (
-                          <p className="text-[10px] text-muted">
-                            {p.pricePerSqm.toLocaleString("cs-CZ")} Kč/m²
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2 justify-end text-[10px] text-muted mt-0.5">
+                          {p.arv != null && p.arv > 0 && (
+                            <span className="text-emerald-400/80">ARV {new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(p.arv)} Kč</span>
+                          )}
+                          {p.roi != null && (
+                            <span className={p.roi >= 15 ? "text-emerald-400" : p.roi >= 10 ? "text-amber-400" : "text-red-400"}>
+                              {p.roi.toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </motion.div>

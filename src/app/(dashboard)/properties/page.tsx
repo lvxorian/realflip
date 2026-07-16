@@ -62,9 +62,14 @@ export default async function PropertiesPage({
       locationCity: propertyAnalysis.locationCity,
       verdictLevel: propertyAnalysis.verdictLevel,
       roi: propertyAnalysis.roi,
+      arv: propertyAnalysis.arv,
+      renovationCost: propertyAnalysis.renovationCost,
+      netProfit: propertyAnalysis.netProfit,
+      totalCost: propertyAnalysis.totalCost,
+      marketPriceMin: propertyAnalysis.marketPriceMin,
+      marketPriceMax: propertyAnalysis.marketPriceMax,
       undervaluationPct: propertyAnalysis.undervaluationPct,
       overpricingPct: propertyAnalysis.overpricingPct,
-      marketPriceMax: propertyAnalysis.marketPriceMax,
     })
     .from(properties)
     .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
@@ -91,10 +96,15 @@ export default async function PropertiesPage({
     locationCity: r.locationCity,
     verdictLevel: r.verdictLevel,
     roi: r.roi,
+    arv: r.arv,
+    renovationCost: r.renovationCost,
+    netProfit: r.netProfit,
+    totalCost: r.totalCost,
     score: r.score,
     recommendation: r.recommendation,
     undervaluationPct: r.undervaluationPct,
     overpricingPct: r.overpricingPct,
+    marketPriceMin: r.marketPriceMin,
     marketPriceMax: r.marketPriceMax,
     daysOnMarket: Math.max(
       0,
