@@ -83,7 +83,7 @@ export async function POST(req: Request) {
               rooms: listing.rooms,
               condition: listing.condition,
               address: listing.address,
-              description: listing.description?.slice(0, 500),
+              description: listing.description,
               imageUrls: listing.imageUrls.slice(0, 3),
               contactPhone: listing.contactPhone,
               contactName: listing.contactName,

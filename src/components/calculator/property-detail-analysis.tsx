@@ -84,7 +84,7 @@ function buildAnalysisResult(
       rooms: property.rooms,
       condition: property.condition,
       address: property.address,
-      description: property.description?.slice(0, 500),
+      description: property.description,
       imageUrls: property.imageUrls.slice(0, 3),
       contactPhone: property.contactPhone,
       contactName: property.contactName,
