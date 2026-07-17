@@ -636,6 +636,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
               <p className="text-xs text-emerald-400 mb-1">🎯 IDEÁLNÍ KUPNÍ CENA</p>
               <p className="text-2xl font-bold text-emerald-400 font-mono">{formatPrice(flipResults.targetPurchasePrice)}</p>
+              <p className="text-[10px] text-emerald-400/60 mt-0.5">{formatPrice(area > 0 ? Math.round(flipResults.targetPurchasePrice / area) : 0)} Kč/m²</p>
               <div className="flex items-center justify-center gap-3 mt-2 text-xs">
                 <span className="text-muted">Aktuální: {formatPrice(l.price)}</span>
                 <span className="text-red-400">↓ {formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</span>

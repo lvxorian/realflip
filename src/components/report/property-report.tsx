@@ -183,6 +183,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
             <table className="w-full text-sm">
               <tbody className="divide-y divide-gray-100">
                 <tr><td className="py-1.5 pr-4 text-gray-600">Inzerovaná cena</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(property.price)}</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">Cena za m²</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(area > 0 ? Math.round(property.price / area) : 0)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">ARV</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(arvValue)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">Náklady na rekonstrukci</td><td className="py-1.5 text-right font-mono font-medium text-gray-700">{fmtPrice(renoCost)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">Celkové náklady</td><td className="py-1.5 text-right font-mono font-medium text-gray-700">{fmtPrice(oc.totalCost)}</td></tr>
@@ -211,6 +212,10 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   <span className="font-mono text-emerald-700">-{fmtPrice(originalResults.priceReductionNeeded)}</span>
                 </div>
               )}
+              <div className="flex items-center justify-between mb-4 text-sm">
+                <span className="text-gray-500">Cena za m² při cílové ceně</span>
+                <span className="font-mono text-gray-700">{fmtPrice(area > 0 ? Math.round(originalResults.targetPurchasePrice / area) : 0)}</span>
+              </div>
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-gray-100">
                   <tr><td className="py-1 pr-4 text-gray-600">Kupní cena</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(originalResults.targetPurchasePrice)}</td></tr>
@@ -236,16 +241,16 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   <span className="font-mono font-semibold text-gray-900">{fmtPrice(arvValue)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 text-xs pl-2">ARV/m²</span>
+                  <span className="font-mono text-xs text-gray-600">{fmtPrice(area > 0 ? Math.round(arvValue / area) : 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Zisk</span>
                   <span className={`font-mono font-semibold ${t.netProfit > 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(t.netProfit)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">ROI</span>
                   <span className={`font-mono font-semibold ${t.roi >= targetRoi ? "text-emerald-700" : "text-gray-700"}`}>{t.roi} %</span>
-                </div>
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-gray-600">Cílové ROI</span>
-                  <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 px-2.5 py-0.5 text-xs font-semibold font-mono">{targetRoi} %</span>
                 </div>
                 <div className="flex justify-between text-sm items-center">
                   <span className="text-gray-600">Adjusted skóre</span>
