@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { calculateFlipResults, calculateItemizedRenovation } from "@/lib/analysis/flip-costs";
 import { conditionLabel } from "@/lib/utils";
 
@@ -65,13 +65,26 @@ function fmtPrice(v: number) {
 
 export default function PropertyReport({ property, analysis, priceHistory }: { property: PropertyData; analysis: AnalysisData | null; priceHistory: { price: number; recordedAt: number }[] }) {
   const area = property.area ?? 70;
-  const arvValue = analysis?.arv ?? property.price;
-  const renoCost = analysis?.renovationCost ?? 500000;
+
+  const [stored, setStored] = useState<{ arv: number; renovationCost: number; targetRoi: number; costConfig: any } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`report-config-${property.id}`);
+      if (raw) setStored(JSON.parse(raw));
+    } catch {}
+  }, [property.id]);
+
+  const arvValue = stored?.arv ?? analysis?.arv ?? property.price;
+  const renoCost = stored?.renovationCost ?? analysis?.renovationCost ?? 500000;
+  const targetRoi = stored?.targetRoi ?? 15;
+  const costConfig = stored?.costConfig ?? {};
   const verdict = analysis?.verdictLevel ?? "consider";
 
   const flipResults = useMemo(() => {
-    return calculateFlipResults(property.price, arvValue, renoCost, area, 15);
-  }, [property.price, arvValue, renoCost, area]);
+    const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
+    return calculateFlipResults(property.price, arvValue, renoCost, area, targetRoi, adjusted);
+  }, [property.price, arvValue, renoCost, area, targetRoi, costConfig]);
 
   const itemized = useMemo(() => {
     return calculateItemizedRenovation(area, property.condition);

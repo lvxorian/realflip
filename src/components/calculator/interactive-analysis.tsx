@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -186,6 +186,19 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
     return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, adjusted);
   }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, costConfig]);
+
+  const propertyId = l.id ?? dbSavedId;
+  useEffect(() => {
+    if (!propertyId) return;
+    try {
+      localStorage.setItem(`report-config-${propertyId}`, JSON.stringify({
+        arv,
+        renovationCost: currentRenovation,
+        targetRoi,
+        costConfig,
+      }));
+    } catch {}
+  }, [propertyId, arv, currentRenovation, targetRoi, costConfig]);
 
   const handleArvChange = (value: string) => {
     const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
