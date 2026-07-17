@@ -144,6 +144,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
             <span className="text-2xl font-semibold font-mono tracking-tight">{property.price > 0 ? fmtPrice(property.price) : "—"}</span>
           </div>
           <p className="text-sm text-gray-500 mt-1">{property.address || "—"}</p>
+          {property.portalName === "offline" && <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-600 px-2.5 py-0.5 text-xs font-medium mt-2">Offline inzerát</span>}
           <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
             <span>{property.rooms || "—"}</span>
             <span className="w-px h-3 bg-gray-300" />
