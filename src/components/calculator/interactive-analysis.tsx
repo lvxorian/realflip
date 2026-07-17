@@ -200,6 +200,40 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     } catch {}
   }, [propertyId, arv, currentRenovation, targetRoi, costConfig]);
 
+  useEffect(() => {
+    if (!propertyId) return;
+    fetch(`/api/properties/${propertyId}/calc-preset`).then((r) => r.json()).then((data) => {
+      if (data?.preset) {
+        setArv(data.preset.arv ?? arv);
+        setTargetRoi(data.preset.targetRoi ?? targetRoi);
+        if (data.preset.renovationCost) setRenovationTotal(data.preset.renovationCost);
+        if (data.preset.config) setCostConfig({ ...costConfig, ...data.preset.config });
+        localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(data.preset));
+      }
+    }).catch(() => {});
+  }, [propertyId]);
+
+  const savePreset = async () => {
+    if (!propertyId) return;
+    const preset = { arv, renovationCost: currentRenovation, targetRoi, costConfig };
+    try { localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset)); } catch {}
+    await fetch(`/api/properties/${propertyId}/calc-preset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(preset),
+    });
+  };
+
+  const resetPreset = async () => {
+    if (!propertyId) return;
+    try { localStorage.removeItem(`report-config-${propertyId}`); } catch {}
+    await fetch(`/api/properties/${propertyId}/calc-preset`, { method: "DELETE" });
+    setArv(a.arv);
+    setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
+    setTargetRoi(15);
+    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
+  };
+
   const handleArvChange = (value: string) => {
     const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
     setArv(num);
@@ -657,6 +691,18 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               </div>
             )}
           </div>
+
+          {/* ===== SAVE / RESET PRESET ===== */}
+          {propertyId && (
+            <div className="flex gap-2">
+              <button onClick={savePreset} className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-medium text-foreground/80 hover:bg-card-hover hover:border-accent/30 transition-all flex-1 justify-center">
+                💾 Uložit parametry
+              </button>
+              <button onClick={resetPreset} className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-medium text-foreground/80 hover:bg-card-hover hover:border-red-500/30 transition-all flex-1 justify-center">
+                🔄 Obnovit výchozí
+              </button>
+            </div>
+          )}
 
           {/* ===== FEATURE 4: RENOVATION PLANNER ===== */}
           <div className="rounded-xl border border-border/50 p-4 space-y-3">
