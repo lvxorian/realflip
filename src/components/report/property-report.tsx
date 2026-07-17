@@ -55,10 +55,6 @@ const verdictLabels: Record<string, string> = {
   categoricalReject: "Zamítnout",
 };
 
-function fmt(v: number) {
-  return `${(v / 1000000).toFixed(1)} mil. Kč`;
-}
-
 function fmtPrice(v: number) {
   return `${v.toLocaleString()} Kč`;
 }
@@ -80,27 +76,49 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
   const targetRoi = stored?.targetRoi ?? 15;
   const costConfig = stored?.costConfig ?? {};
   const verdict = analysis?.verdictLevel ?? "consider";
+  const score = analysis?.investmentScore ?? 0;
 
-  const flipResults = useMemo(() => {
-    const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
-    return calculateFlipResults(property.price, arvValue, renoCost, area, targetRoi, adjusted);
+  // ===== ORIGINAL: calculation at listing price, no sourcing fee =====
+  const originalResults = useMemo(() => {
+    const base = { ...costConfig, sourcingFee: 0, sourcingEnabled: false };
+    return calculateFlipResults(property.price, arvValue, renoCost, area, targetRoi, base);
   }, [property.price, arvValue, renoCost, area, targetRoi, costConfig]);
 
-  const itemized = useMemo(() => {
-    return calculateItemizedRenovation(area, property.condition);
-  }, [area, property.condition]);
+  // ===== TARGET: calculation at negotiated price with sourcing fee =====
+  const targetResults = useMemo(() => {
+    const targetPrice = originalResults.targetPurchasePrice;
+    if (targetPrice <= 0) return null;
+    const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
+    return calculateFlipResults(targetPrice, arvValue, renoCost, area, targetRoi, adjusted);
+  }, [originalResults.targetPurchasePrice, arvValue, renoCost, area, targetRoi, costConfig]);
+
+  const t = targetResults;
+
+  const targetAdjusted = t && {
+    ...t,
+    costs: { ...t.costs },
+  };
+
+  const adjustedScore = useMemo(() => {
+    if (!t) return score;
+    const roiPoints = Math.min(50, Math.round((t.roi / targetRoi) * 50));
+    const scorePoints = Math.round(score * 0.3);
+    const arvBonus = arvValue > property.price ? 20 : 0;
+    return Math.min(100, Math.round(roiPoints + scorePoints + arvBonus));
+  }, [t, score, targetRoi, arvValue, property.price]);
+
+  const scoreColor = score >= 60 ? "text-emerald-700" : score >= 40 ? "text-amber-700" : "text-red-700";
+  const adjustedScoreColor = adjustedScore >= 60 ? "text-emerald-700" : adjustedScore >= 40 ? "text-amber-700" : "text-red-700";
+
+  const itemized = useMemo(() => calculateItemizedRenovation(area, property.condition), [area, property.condition]);
 
   const redFlags = useMemo(() => {
     try { return JSON.parse(analysis?.redFlagsJson ?? "[]") as { type: string; text: string; severity: string }[]; } catch { return []; }
   }, [analysis?.redFlagsJson]);
 
-  const costs = flipResults.costs;
-  const score = analysis?.investmentScore ?? 0;
-  const lowContrast = score >= 60 ? "text-emerald-700" : score >= 40 ? "text-amber-700" : "text-red-700";
+  function handlePrint() { window.print(); }
 
-  function handlePrint() {
-    window.print();
-  }
+  const oc = originalResults.costs;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -114,12 +132,8 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
       `}</style>
 
       <div className="no-print flex items-center justify-center gap-4 mb-8">
-        <button onClick={handlePrint} className="h-10 px-6 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors">
-          Stáhnout PDF
-        </button>
-        <button onClick={handlePrint} className="h-10 px-6 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
-          Vytisknout
-        </button>
+        <button onClick={handlePrint} className="h-10 px-6 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors">Stáhnout PDF</button>
+        <button onClick={handlePrint} className="h-10 px-6 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">Vytisknout</button>
       </div>
 
       <div className="space-y-6">
@@ -127,7 +141,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
         <div className="rp-card border-b-2 border-gray-200 pb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">{property.title}</h1>
-            <span className="text-2xl font-semibold font-mono tracking-tight">{fmt(property.price)}</span>
+            <span className="text-2xl font-semibold font-mono tracking-tight">{property.price > 0 ? fmtPrice(property.price) : "—"}</span>
           </div>
           <p className="text-sm text-gray-500 mt-1">{property.address || "—"}</p>
           <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
@@ -142,11 +156,14 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
         {/* Score + Verdict */}
         <div className="rp-card flex items-center gap-6 bg-gray-50 border border-gray-200 rounded-xl p-6">
           <div className="flex items-center justify-center h-20 w-20 rounded-full bg-gray-200">
-            <span className={`text-3xl font-bold font-mono ${lowContrast}`}>{score}</span>
+            <span className={`text-3xl font-bold font-mono ${scoreColor}`}>{score}</span>
           </div>
           <div>
             <p className="text-lg font-semibold text-gray-900">{verdictLabels[verdict] ?? verdict}</p>
             {analysis?.verdictSummary && <p className="text-sm text-gray-600 mt-0.5">{analysis.verdictSummary}</p>}
+            {adjustedScore !== score && (
+              <p className="text-xs text-gray-500 mt-1">Při cílové ceně: <span className={`font-semibold ${adjustedScoreColor}`}>{adjustedScore}</span></p>
+            )}
           </div>
           <div className="ml-auto text-right">
             {analysis?.undervaluationPct != null && analysis.undervaluationPct > 0 && (
@@ -156,69 +173,95 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
         </div>
 
-        {/* Financial Overview */}
+        {/* Section: Původní inzerát */}
         <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
           <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Finanční přehled</h2>
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Původní inzerát</h2>
           </div>
           <div className="p-6">
             <table className="w-full text-sm">
               <tbody className="divide-y divide-gray-100">
-                {[
-                  { label: "Kupní cena", value: fmtPrice(property.price) },
-                  { label: "ARV (odhad po rekonstrukci)", value: fmtPrice(arvValue), accent: true },
-                  { label: "Náklady na rekonstrukci", value: fmtPrice(renoCost) },
-                  { label: "Celkové náklady", value: fmtPrice(costs.totalCost) },
-                  { label: "Očekávaný zisk", value: fmtPrice(flipResults.netProfit), highlight: flipResults.netProfit > 0 },
-                  { label: "ROI", value: `${flipResults.roi} %`, highlight: flipResults.roi > 0 },
-                  { label: "Annualizované ROI", value: `${flipResults.annualizedRoi} %` },
-                  { label: "Cílová kupní cena", value: fmtPrice(flipResults.targetPurchasePrice) },
-                  { label: "Nutné snížení ceny", value: `${flipResults.priceReductionPct} %` },
-                ].map((r) => (
-                  <tr key={r.label}>
-                    <td className="py-1.5 pr-4 text-gray-600">{r.label}</td>
-                    <td className={`py-1.5 text-right font-mono font-medium ${r.highlight ? "text-emerald-700" : r.accent ? "text-gray-900" : "text-gray-700"}`}>{r.value}</td>
-                  </tr>
-                ))}
+                <tr><td className="py-1.5 pr-4 text-gray-600">Inzerovaná cena</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(property.price)}</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">ARV</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(arvValue)}</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">Náklady na rekonstrukci</td><td className="py-1.5 text-right font-mono font-medium text-gray-700">{fmtPrice(renoCost)}</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">Celkové náklady</td><td className="py-1.5 text-right font-mono font-medium text-gray-700">{fmtPrice(oc.totalCost)}</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">Očekávaný zisk</td><td className={`py-1.5 text-right font-mono font-medium ${originalResults.netProfit > 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(originalResults.netProfit)}</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">ROI</td><td className={`py-1.5 text-right font-mono font-medium ${originalResults.roi > 0 ? "text-emerald-700" : "text-red-700"}`}>{originalResults.roi} %</td></tr>
+                <tr><td className="py-1.5 pr-4 text-gray-600">Skóre</td><td className="py-1.5 text-right font-mono font-semibold text-gray-900">{score}</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Cost Breakdown */}
-        <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
-          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Detail nákladů</h2>
+        {/* Section: Po vyjednání */}
+        {t && (
+          <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
+            <div className="bg-emerald-50 px-6 py-3 border-b border-emerald-200">
+              <h2 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">Po vyjednání</h2>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4 text-sm">
+                <span className="text-gray-500">Cílová kupní cena</span>
+                <span className="font-semibold font-mono text-gray-900">{fmtPrice(originalResults.targetPurchasePrice)}</span>
+              </div>
+              {originalResults.priceReductionPct > 0 && (
+                <div className="flex items-center justify-between mb-4 text-sm">
+                  <span className="text-gray-500">Snížení o {originalResults.priceReductionPct} %</span>
+                  <span className="font-mono text-emerald-700">-{fmtPrice(originalResults.priceReductionNeeded)}</span>
+                </div>
+              )}
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-1 pr-4 text-gray-600">Kupní cena</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(originalResults.targetPurchasePrice)}</td></tr>
+                  {t.costs.legalFees > 0 && <tr><td className="py-1 pr-4 text-gray-600">Právní služby</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.legalFees)}</td></tr>}
+                  {t.costs.appraisalFee > 0 && <tr><td className="py-1 pr-4 text-gray-600">Znalecký posudek</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.appraisalFee)}</td></tr>}
+                  <tr><td className="py-1 pr-4 text-gray-600">Rekonstrukce</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.renovationCost)}</td></tr>
+                  <tr><td className="py-1 pr-4 text-gray-600">Rezerva 10 %</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.contingency)}</td></tr>
+                  {t.costs.sellingCommission > 0 && <tr><td className="py-1 pr-4 text-gray-600">Provize RK prodejní (4 %)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.sellingCommission)}</td></tr>}
+                  {t.costs.marketingPhoto > 0 && <tr><td className="py-1 pr-4 text-gray-600">Marketing + foto</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.marketingPhoto)}</td></tr>}
+                  <tr><td className="py-1 pr-4 text-gray-600">Provozní náklady (6 měsíců)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.holdingCosts)}</td></tr>
+                  {t.costs.sourcingFee > 0 && <tr><td className="py-1 pr-4 text-gray-600">Sourcing fee</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.sourcingFee)}</td></tr>}
+                  {t.costs.mortgageCost > 0 && <tr><td className="py-1 pr-4 text-gray-600">Náklady na hypotéku</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.mortgageCost)}</td></tr>}
+                  <tr><td className="py-1 pr-4 text-gray-600">Daň z příjmu (15 %)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.incomeTax)}</td></tr>
+                </tbody>
+              </table>
+              <div className="border-t border-gray-300 mt-2 pt-2 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="font-semibold text-gray-900">Náklady celkem</span>
+                  <span className="font-mono font-semibold text-gray-900">{fmtPrice(t.costs.totalCost)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">ARV</span>
+                  <span className="font-mono font-semibold text-gray-900">{fmtPrice(arvValue)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Zisk</span>
+                  <span className={`font-mono font-semibold ${t.netProfit > 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(t.netProfit)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">ROI</span>
+                  <span className={`font-mono font-semibold ${t.roi >= targetRoi ? "text-emerald-700" : "text-gray-700"}`}>{t.roi} %</span>
+                </div>
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-gray-600">Cílové ROI</span>
+                  <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-700 px-2.5 py-0.5 text-xs font-semibold font-mono">{targetRoi} %</span>
+                </div>
+                <div className="flex justify-between text-sm items-center">
+                  <span className="text-gray-600">Adjusted skóre</span>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold font-mono ${
+                    adjustedScore >= 60 ? "bg-emerald-50 text-emerald-700" : adjustedScore >= 40 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
+                  }`}>{adjustedScore}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="p-6">
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-gray-100">
-                {[
-                  { label: "Kupní cena", value: costs.purchasePrice },
-                  { label: "Provize makléře", value: costs.sellingCommission },
-                  { label: "Právní služby", value: costs.legalFees },
-                  { label: "Znalecký posudek", value: costs.appraisalFee },
-                  { label: "Provozní náklady", value: costs.holdingCosts },
-                  { label: "Náklady na rekonstrukci", value: costs.renovationCost },
-                  { label: "Rezerva (10 %)", value: costs.contingency },
-                  { label: "Marketing + foto", value: costs.marketingPhoto },
-                  { label: "Provize za zprostředkování", value: costs.sourcingFee },
-                  { label: "Náklady na hypotéku", value: costs.mortgageCost },
-                  { label: "Daň z příjmu", value: costs.incomeTax },
-                ].filter((r) => r.value > 0).map((r) => (
-                  <tr key={r.label}>
-                    <td className="py-1 pr-4 text-gray-600">{r.label}</td>
-                    <td className="py-1 text-right font-mono text-gray-700">{fmtPrice(r.value)}</td>
-                  </tr>
-                ))}
-                <tr className="border-t border-gray-300">
-                  <td className="py-2 pr-4 font-semibold text-gray-900">Celkem</td>
-                  <td className="py-2 text-right font-mono font-semibold text-gray-900">{fmtPrice(costs.totalCost)}</td>
-                </tr>
-              </tbody>
-            </table>
+        )}
+
+        {!t && (
+          <div className="rp-card border border-gray-200 rounded-xl p-6 text-center text-sm text-gray-500">
+            Cílová cena je nižší než 0 – výpočet není možný.
           </div>
-        </div>
+        )}
 
         {/* Renovation items */}
         {itemized.length > 0 && (
