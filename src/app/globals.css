@@ -110,6 +110,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
 ::selection {
   background: var(--color-accent);
   color: white;

@@ -11,8 +11,13 @@ interface ImageGalleryProps {
 
 export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [errored, setErrored] = useState<Set<number>>(new Set());
 
-  if (!images || images.length === 0) {
+  const handleImgError = (i: number) => {
+    setErrored((prev) => new Set(prev).add(i));
+  };
+
+  if (!images || images.length === 0 || errored.size >= images.length) {
     return (
       <div className="relative h-64 property-image-shimmer flex items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
@@ -40,8 +45,14 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
           alt={`${alt} - foto ${activeIndex + 1}`}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
           referrerPolicy="no-referrer"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          onError={() => handleImgError(activeIndex)}
         />
+
+        {errored.has(activeIndex) && (
+          <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
+            <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
+          </div>
+        )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
@@ -87,7 +98,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
                 alt={`${alt} thumbnail ${i + 1}`}
                 className="h-full w-full object-cover"
                 referrerPolicy="no-referrer"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                onError={() => handleImgError(i)}
               />
             </button>
           ))}

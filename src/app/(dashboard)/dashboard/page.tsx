@@ -417,6 +417,8 @@ export default function DashboardPage() {
                         src={p.imageUrls[0]}
                         alt={p.title}
                         className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     ) : (
                       <div className="h-full w-full property-image-shimmer flex items-center justify-center">
@@ -498,6 +500,8 @@ export default function DashboardPage() {
                         src={p.imageUrls[0]}
                         alt={p.title}
                         className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     ) : (
                       <div className="h-full w-full property-image-shimmer flex items-center justify-center">

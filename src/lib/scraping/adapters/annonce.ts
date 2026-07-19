@@ -178,6 +178,17 @@ export class AnnonceAdapter extends PortalAdapter {
         // optional
       }
 
+      const galleryImages: string[] = [];
+      $("a[data-lightbox], a[data-fslightbox], a[href*='foto' i] img, .gallery img, .detail-photo img, div[id*='gallery'] img").each((_i, el) => {
+        const src = $(el).attr("src") || $(el).attr("data-src") || "";
+        if (src && src.length > 5 && !src.startsWith("data:")) {
+          galleryImages.push(src);
+        }
+      });
+      if (galleryImages.length > 0) {
+        listing.imageUrls = filterImages([...listing.imageUrls, ...galleryImages], this.config.name);
+      }
+
       return listing;
     } catch {
       return listing;
