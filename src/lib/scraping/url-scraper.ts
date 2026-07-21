@@ -27,32 +27,90 @@ function inferBuildingType(description: string | null, title: string | null): st
   return null;
 }
 
-async function fetchHtml(url: string, portal: string): Promise<string> {
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+];
+
+let cookieJar: string | null = null;
+let cookieExpiry = 0;
+
+async function ensureCookie(portal: string): Promise<void> {
+  if (cookieJar && Date.now() < cookieExpiry) return;
   await rateLimiter.wait(portal, 2000);
-  const response = await globalThis.fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "cs,en;q=0.9,sk;q=0.8",
-    },
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
-  return response.text();
+  try {
+    const res = await globalThis.fetch("https://www.sreality.cz/", {
+      headers: {
+        "User-Agent": USER_AGENTS[0],
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "cs,en;q=0.9",
+      },
+    });
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) {
+      cookieJar = setCookie.split(";")[0];
+      cookieExpiry = Date.now() + 600_000;
+    }
+  } catch {
+    // cookies are optional
+  }
+}
+
+async function fetchWithRetry(url: string, portal: string, accept: string, referer?: string, maxRetries = 2): Promise<{ text: string; status: number }> {
+  let lastErr: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await rateLimiter.wait(portal, 2000);
+      const ua = USER_AGENTS[attempt % USER_AGENTS.length];
+      const headers: Record<string, string> = {
+        "User-Agent": ua,
+        Accept: accept,
+        "Accept-Language": "cs,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": accept.startsWith("application/json") ? "empty" : "document",
+        "Sec-Fetch-Mode": accept.startsWith("application/json") ? "cors" : "navigate",
+        "Sec-Fetch-Site": "same-origin",
+      };
+      if (referer) headers.Referer = referer;
+      if (cookieJar) headers.Cookie = cookieJar;
+
+      const response = await globalThis.fetch(url, { headers });
+
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After");
+        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : 30000;
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+
+      if (response.ok) {
+        return { text: await response.text(), status: response.status };
+      }
+
+      lastErr = new Error(`HTTP ${response.status}: ${url}`);
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+    }
+
+    if (attempt < maxRetries) {
+      await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
+    }
+  }
+  throw lastErr ?? new Error(`Failed to fetch: ${url}`);
+}
+
+async function fetchHtml(url: string, portal: string): Promise<string> {
+  const { text } = await fetchWithRetry(url, portal, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", url);
+  return text;
 }
 
 async function fetchJson(url: string, portal: string, headers?: Record<string, string>): Promise<any> {
-  await rateLimiter.wait(portal, 2000);
-  const response = await globalThis.fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "cs,en;q=0.9",
-      Referer: "https://www.sreality.cz/",
-      ...headers,
-    },
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
-  return response.json();
+  const { text } = await fetchWithRetry(url, portal, "application/json, text/plain, */*", "https://www.sreality.cz/");
+  return JSON.parse(text);
 }
 
 function cleanText(text: string | null): string | null {
@@ -86,6 +144,8 @@ async function scrapeSreality(url: string): Promise<RawListing> {
   const segments = url.replace(/\/+$/, "").split("/");
   const id = segments[segments.length - 1];
   if (!/^\d+$/.test(id)) throw new Error("Nelze parsovat ID inzerátu z URL");
+
+  await ensureCookie("sreality");
 
   let data: any;
   try {
