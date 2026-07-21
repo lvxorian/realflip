@@ -22,9 +22,15 @@ export class IdnesRealityAdapter extends PortalAdapter {
       results.push(...items);
     }
 
-    const enriched = await Promise.all(
-      results.map((l) => this.enrichListing(l).catch(() => l))
-    );
+    const enriched: RawListing[] = [];
+    const concurrency = 3;
+    for (let i = 0; i < results.length; i += concurrency) {
+      const batch = results.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map((l) => this.enrichListing(l).catch(() => l))
+      );
+      enriched.push(...batchResults);
+    }
 
     return enriched;
   }
