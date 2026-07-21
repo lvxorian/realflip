@@ -198,9 +198,13 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         renovationCost: currentRenovation,
         targetRoi,
         costConfig,
+        renovationMode,
+        renovationLevel,
+        renovationPerSqm,
+        renovationItems,
       }));
     } catch {}
-  }, [propertyId, arv, currentRenovation, targetRoi, costConfig]);
+  }, [propertyId, arv, currentRenovation, targetRoi, costConfig, renovationMode, renovationLevel, renovationPerSqm, renovationItems]);
 
   useEffect(() => {
     if (!propertyId) return;
@@ -209,7 +213,14 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         setArv(data.preset.arv ?? arv);
         setTargetRoi(data.preset.targetRoi ?? targetRoi);
         if (data.preset.renovationCost) setRenovationTotal(data.preset.renovationCost);
-        if (data.preset.config) setCostConfig({ ...costConfig, ...data.preset.config });
+        const cfg = data.preset.config;
+        if (cfg) {
+          setCostConfig({ ...costConfig, ...cfg });
+          if (cfg.renovationMode) setRenovationMode(cfg.renovationMode);
+          if (cfg.renovationLevel) setRenovationLevel(cfg.renovationLevel);
+          if (cfg.renovationPerSqm) setRenovationPerSqm(cfg.renovationPerSqm);
+          if (cfg.renovationItems) setRenovationItems(cfg.renovationItems);
+        }
         localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(data.preset));
       }
     }).catch(() => {});
@@ -218,7 +229,10 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const savePreset = async () => {
     if (!propertyId) return;
     setPresetSaving(true);
-    const preset = { arv, renovationCost: currentRenovation, targetRoi, costConfig };
+    const preset = {
+      arv, renovationCost: currentRenovation, targetRoi, costConfig,
+      renovationMode, renovationLevel, renovationPerSqm, renovationItems,
+    };
     try {
       localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset));
       await fetch(`/api/properties/${propertyId}/calc-preset`, {

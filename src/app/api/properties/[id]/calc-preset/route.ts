@@ -75,7 +75,7 @@ export async function POST(
           arv: body.arv ?? null,
           renovationCost: body.renovationCost ?? null,
           targetRoi: body.targetRoi ?? 15,
-          config: body.costConfig ? JSON.stringify(body.costConfig) : "{}",
+          config: JSON.stringify({ ...(body.costConfig || {}), renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
           updatedAt: now,
         })
         .where(eq(calculatorPresets.id, existing.id));
@@ -87,7 +87,7 @@ export async function POST(
         arv: body.arv ?? null,
         renovationCost: body.renovationCost ?? null,
         targetRoi: body.targetRoi ?? 15,
-        config: body.costConfig ? JSON.stringify(body.costConfig) : "{}",
+        config: JSON.stringify({ ...(body.costConfig || {}), renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
         createdAt: now,
         updatedAt: now,
       });
