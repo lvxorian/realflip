@@ -654,26 +654,28 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                <label className="text-xs text-foreground/80 whitespace-nowrap">Daň z příjmu</label>
-                <input
-                  type="number"
-                  value={costConfig.taxRate}
-                  onChange={(e) => setCostConfig((prev) => ({ ...prev, taxRate: parseInt(e.target.value) || 0 }))}
-                  className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                />
-                <span className="text-xs text-muted">%</span>
-              </div>
-              <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                <label className="text-xs text-foreground/80 whitespace-nowrap">DPH</label>
-                <input
-                  type="number"
-                  value={costConfig.vatRate}
-                  onChange={(e) => setCostConfig((prev) => ({ ...prev, vatRate: parseInt(e.target.value) || 0 }))}
-                  className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                />
-                <span className="text-xs text-muted">%</span>
-                <span className="text-[10px] text-muted/50 ml-1">(zjednodušený výpočet)</span>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/30">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-foreground/80 whitespace-nowrap">Daň z příjmu</label>
+                  <input
+                    type="number"
+                    value={costConfig.taxRate}
+                    onChange={(e) => setCostConfig((prev) => ({ ...prev, taxRate: parseInt(e.target.value) || 0 }))}
+                    className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
+                  />
+                  <span className="text-xs text-muted">%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-foreground/80 whitespace-nowrap">DPH</label>
+                  <input
+                    type="number"
+                    value={costConfig.vatRate}
+                    onChange={(e) => setCostConfig((prev) => ({ ...prev, vatRate: parseInt(e.target.value) || 0 }))}
+                    className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
+                  />
+                  <span className="text-xs text-muted">%</span>
+                  <span className="text-[10px] text-muted/50">(zjednodušený výpočet)</span>
+                </div>
               </div>
             </div>
 
