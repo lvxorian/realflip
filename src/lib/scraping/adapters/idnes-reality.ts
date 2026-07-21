@@ -168,8 +168,8 @@ export class IdnesRealityAdapter extends PortalAdapter {
       const priceStr = $(`p.b-detail__price strong`).text();
       const price = this.parsePrice(priceStr) ?? raw.price;
 
-      const descEl = $(`div.b-desc`);
-      const description = descEl.length ? descEl.text().trim() : null;
+      const descEl = $(`div.b-desc p`);
+      const description = descEl.length ? descEl.text().replace(/\s+/g, " ").trim() : null;
 
       const images: string[] = [];
       $(`a.carousel__item img[data-lazy]`).each((_, el) => {
@@ -200,7 +200,11 @@ export class IdnesRealityAdapter extends PortalAdapter {
         buildingType: params.buildingType,
         address,
         description,
-        imageUrls: images.length > 0 ? filterImages(images, this.config.name) : raw.imageUrls,
+        imageUrls: images.length > 0
+          ? filterImages(images, this.config.name).map(
+              (url) => url.includes("?") ? url : url + "?fl=res,1200,900,1"
+            )
+          : raw.imageUrls,
         contactPhone: phone,
         contactName: name,
         contactEmail: email,

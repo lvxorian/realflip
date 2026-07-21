@@ -560,8 +560,8 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
   const priceStr = $("p.b-detail__price strong").text();
   const price = extractPrice(priceStr);
 
-  const descEl = $("div.b-desc");
-  const description = descEl.length ? cleanText(descEl.text()) : null;
+  const descEl = $("div.b-desc p");
+  const description = descEl.length ? descEl.text().replace(/\s+/g, " ").trim() : null;
 
   let images: string[] = [];
   $("a.carousel__item img[data-lazy]").each((_, el) => {
@@ -574,7 +574,9 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
       if (src && !src.includes("no-image")) images.push(src);
     });
   }
-  images = filterImages(images, "idnes-reality");
+  images = filterImages(images, "idnes-reality").map(
+    (url) => url.includes("?") ? url : url + "?fl=res,1200,900,1"
+  );
 
   const paramMap: Record<string, string> = {};
   $("div.b-definition-columns dl dt").each((i, dtEl) => {
