@@ -17,23 +17,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "propertyId and purchasePrice required" }, { status: 400 });
     }
 
-    const existing = await db
-      .select()
-      .from(deals)
-      .where(eq(deals.propertyId, propertyId))
-      .limit(1)
-      .then((r) => r[0]);
+    const [existing, analysis] = await Promise.all([
+      db
+        .select({ id: deals.id })
+        .from(deals)
+        .where(eq(deals.propertyId, propertyId))
+        .limit(1)
+        .then((r) => r[0]),
+
+      db
+        .select({ renovationCost: propertyAnalysis.renovationCost })
+        .from(propertyAnalysis)
+        .where(eq(propertyAnalysis.propertyId, propertyId))
+        .limit(1)
+        .then((r) => r[0]),
+    ]);
 
     if (existing) {
       return NextResponse.json({ error: "Deal already exists for this property" }, { status: 409 });
     }
-
-    const analysis = await db
-      .select()
-      .from(propertyAnalysis)
-      .where(eq(propertyAnalysis.propertyId, propertyId))
-      .limit(1)
-      .then((r) => r[0]);
 
     const id = generateId();
     await db.insert(deals).values({

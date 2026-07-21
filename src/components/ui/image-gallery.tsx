@@ -45,6 +45,8 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
           alt={`${alt} - foto ${activeIndex + 1}`}
           className="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
           referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
           onError={() => handleImgError(activeIndex)}
         />
 
@@ -98,6 +100,8 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
                 alt={`${alt} thumbnail ${i + 1}`}
                 className="h-full w-full object-cover"
                 referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
                 onError={() => handleImgError(i)}
               />
             </button>

@@ -17,23 +17,33 @@ export async function POST(
 
     const { id: propertyId } = await params;
 
-    const property = await db
-      .select()
-      .from(properties)
-      .where(eq(properties.id, propertyId))
-      .limit(1)
-      .then((r) => r[0]);
+    const [property, existing] = await Promise.all([
+      db
+        .select({
+          id: properties.id,
+          contactName: properties.contactName,
+          contactPhone: properties.contactPhone,
+          contactEmail: properties.contactEmail,
+        })
+        .from(properties)
+        .where(eq(properties.id, propertyId))
+        .limit(1)
+        .then((r) => r[0]),
+
+      db
+        .select({
+          id: leads.id,
+          contactId: leads.contactId,
+        })
+        .from(leads)
+        .where(and(eq(leads.propertyId, propertyId), eq(leads.userId, session.user.id)))
+        .limit(1)
+        .then((r) => r[0]),
+    ]);
 
     if (!property) {
       return NextResponse.json({ error: "Property not found" }, { status: 404 });
     }
-
-    const existing = await db
-      .select()
-      .from(leads)
-      .where(and(eq(leads.propertyId, propertyId), eq(leads.userId, session.user.id)))
-      .limit(1)
-      .then((r) => r[0]);
 
     if (existing) {
       return NextResponse.json({ leadId: existing.id, contactId: existing.contactId });
@@ -45,7 +55,7 @@ export async function POST(
     if (property.contactName) {
       const existingContact = property.contactPhone
         ? await db
-            .select()
+            .select({ id: contacts.id })
             .from(contacts)
             .where(eq(contacts.phone, property.contactPhone))
             .limit(1)

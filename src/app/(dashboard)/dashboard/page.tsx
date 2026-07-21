@@ -418,6 +418,8 @@ export default function DashboardPage() {
                         alt={p.title}
                         className="h-full w-full object-cover"
                         referrerPolicy="no-referrer"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     ) : (
@@ -427,7 +429,7 @@ export default function DashboardPage() {
                     )}
                     <div className="absolute top-2 left-2">
                       <Badge variant="success" size="sm">
-                        -{p.undervaluationPct} %
+                        {p.undervaluationPct > 0 ? `-${p.undervaluationPct} %` : ""}
                       </Badge>
                     </div>
                     <div className="absolute top-2 right-2">
@@ -501,6 +503,8 @@ export default function DashboardPage() {
                         alt={p.title}
                         className="h-full w-full object-cover"
                         referrerPolicy="no-referrer"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                     ) : (

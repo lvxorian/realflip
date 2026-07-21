@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, leads, propertyAnalysis, activityLog, searches } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, count, sql } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -34,56 +34,81 @@ export async function GET() {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayTs = today.getTime();
 
-    const allProperties = await db
-      .select()
-      .from(properties)
-      .where(eq(properties.isActive, 1));
+    const [props, analyses, leadCount, searchCount, recentActivity] = await Promise.all([
+      db
+        .select({
+          id: properties.id,
+          title: properties.title,
+          price: properties.price,
+          firstSeen: properties.firstSeen,
+          imageUrls: properties.imageUrls,
+          rooms: properties.rooms,
+          area: properties.area,
+          lat: properties.lat,
+          isActive: properties.isActive,
+        })
+        .from(properties)
+        .where(eq(properties.isActive, 1)),
 
-    const todayProperties = allProperties.filter(
-      (p) => p.firstSeen && new Date(p.firstSeen) >= today
+      db
+        .select({
+          propertyId: propertyAnalysis.propertyId,
+          investmentScore: propertyAnalysis.investmentScore,
+          undervaluationPct: propertyAnalysis.undervaluationPct,
+          netProfit: propertyAnalysis.netProfit,
+          roi: propertyAnalysis.roi,
+          arv: propertyAnalysis.arv,
+          verdictLevel: propertyAnalysis.verdictLevel,
+        })
+        .from(propertyAnalysis),
+
+      db
+        .select({ val: count() })
+        .from(leads)
+        .where(eq(leads.assignedTo, session.user.id))
+        .then((r) => r[0]?.val ?? 0),
+
+      db
+        .select({ val: count() })
+        .from(searches)
+        .where(eq(searches.userId, session.user.id))
+        .then((r) => r[0]?.val ?? 0),
+
+      db
+        .select({
+          id: activityLog.id,
+          message: activityLog.message,
+          createdAt: activityLog.createdAt,
+          type: activityLog.type,
+        })
+        .from(activityLog)
+        .where(eq(activityLog.userId, session.user.id))
+        .orderBy(desc(activityLog.createdAt))
+        .limit(5),
+    ]);
+
+    const todayProperties = props.filter(
+      (p) => p.firstSeen && new Date(p.firstSeen).getTime() >= todayTs
     );
 
-    const allAnalysis = await db.select().from(propertyAnalysis);
+    const n = analyses.length;
+    const avgScore = n > 0
+      ? Math.round(analyses.reduce((s, a) => s + a.investmentScore, 0) / n)
+      : 0;
+    const avgUndervaluation = n > 0
+      ? analyses.reduce((s, a) => s + a.undervaluationPct, 0) / n
+      : 0;
+    const pipelineProfit = analyses.reduce((s, a) => s + (a.netProfit || 0), 0);
 
-    const avgScore =
-      allAnalysis.length > 0
-        ? Math.round(
-            allAnalysis.reduce((s, a) => s + a.investmentScore, 0) /
-              allAnalysis.length
-          )
-        : 0;
+    const activeDeals = props.filter((p) => p.lat !== null).length;
 
-    const avgUndervaluation =
-      allAnalysis.length > 0
-        ? allAnalysis.reduce((s, a) => s + a.undervaluationPct, 0) /
-          allAnalysis.length
-        : 0;
-
-    const pipelineProfit = allAnalysis.reduce(
-      (s, a) => s + (a.netProfit || 0),
-      0
-    );
-
-    const allLeads = await db
-      .select()
-      .from(leads)
-      .where(eq(leads.assignedTo, session.user.id));
-    const allSearches = await db
-      .select()
-      .from(searches)
-      .where(eq(searches.userId, session.user.id));
-
-    const activeDeals = allProperties.filter((p) => p.lat !== null).length;
-
-    const recentProps = allProperties
-      .sort(
-        (a, b) =>
-          new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime()
-      )
+    const recentProps = props
+      .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
       .slice(0, 4)
       .map((p) => {
-        const analysis = allAnalysis.find((a) => a.propertyId === p.id);
+        const analysis = analyses.find((a) => a.propertyId === p.id);
         const daysOnMarket = Math.floor(
           (Date.now() - new Date(p.firstSeen).getTime()) / 86400000
         );
@@ -100,19 +125,12 @@ export async function GET() {
         };
       });
 
-    const recentActivities = await db
-      .select()
-      .from(activityLog)
-      .where(eq(activityLog.userId, session.user.id))
-      .orderBy(desc(activityLog.createdAt))
-      .limit(5);
-
-    const topUndervalued = allAnalysis
+    const topUndervalued = analyses
       .filter((a) => a.undervaluationPct > 0)
       .sort((a, b) => b.undervaluationPct - a.undervaluationPct)
       .slice(0, 8)
       .map((a) => {
-        const p = allProperties.find((prop) => prop.id === a.propertyId);
+        const p = props.find((prop) => prop.id === a.propertyId);
         if (!p) return null;
         return {
           id: p.id,
@@ -128,7 +146,7 @@ export async function GET() {
       })
       .filter(Boolean);
 
-    const activities = recentActivities.map((a) => ({
+    const activities = recentActivity.map((a) => ({
       id: a.id,
       text: a.message,
       time: fmtTime(a.createdAt),
@@ -144,19 +162,19 @@ export async function GET() {
     }));
 
     const portfolioData = [
-      { label: "Prům. ROI", value: allAnalysis.length > 0 ? Math.round(allAnalysis.reduce((s, a) => s + (a.roi || 0), 0) / allAnalysis.length) : 0 },
-      { label: "ARV celkem", value: allAnalysis.reduce((s, a) => s + (a.arv || 0), 0) },
+      { label: "Prům. ROI", value: n > 0 ? Math.round(analyses.reduce((s, a) => s + (a.roi || 0), 0) / n) : 0 },
+      { label: "ARV celkem", value: analyses.reduce((s, a) => s + (a.arv || 0), 0) },
       { label: "Zisk celkem", value: pipelineProfit },
-      { label: "Počet analýz", value: allAnalysis.length },
+      { label: "Počet analýz", value: n },
     ];
 
     return NextResponse.json({
-      totalProperties: allProperties.length,
+      totalProperties: props.length,
       todayProperties: todayProperties.length,
-      totalSearches: allSearches.length,
+      totalSearches: searchCount,
       avgUndervaluation: Math.round(avgUndervaluation * 10) / 10,
       pipelineProfit,
-      totalLeads: allLeads.length,
+      totalLeads: leadCount,
       activeDeals,
       avgScore,
       recentProperties: recentProps,

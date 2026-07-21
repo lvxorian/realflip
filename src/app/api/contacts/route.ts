@@ -12,7 +12,15 @@ export async function GET() {
     }
 
     const rows = await db
-      .select()
+      .select({
+        id: contacts.id,
+        name: contacts.name,
+        phone: contacts.phone,
+        email: contacts.email,
+        type: contacts.type,
+        tags: contacts.tags,
+        notes: contacts.notes,
+      })
       .from(contacts)
       .orderBy(desc(contacts.createdAt));
 

@@ -17,7 +17,17 @@ export async function GET(
     const { id } = await params;
 
     const contact = await db
-      .select()
+      .select({
+        id: contacts.id,
+        name: contacts.name,
+        phone: contacts.phone,
+        email: contacts.email,
+        type: contacts.type,
+        tags: contacts.tags,
+        notes: contacts.notes,
+        createdAt: contacts.createdAt,
+        updatedAt: contacts.updatedAt,
+      })
       .from(contacts)
       .where(eq(contacts.id, id))
       .limit(1)
