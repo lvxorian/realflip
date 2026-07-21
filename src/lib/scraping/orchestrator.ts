@@ -223,7 +223,11 @@ export class ScrapingOrchestrator {
         continue;
       }
 
-      await this.crawlSearch(search.id, filters);
+      try {
+        await this.crawlSearch(search.id, filters);
+      } catch (err) {
+        console.error(`[scraping] Scheduled search ${search.id} (${search.name}) failed:`, err);
+      }
     }
   }
 
