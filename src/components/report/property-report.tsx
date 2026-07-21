@@ -227,7 +227,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   {t.costs.appraisalFee > 0 && <tr><td className="py-1 pr-4 text-gray-600">Znalecký posudek</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.appraisalFee)}</td></tr>}
                   <tr><td className="py-1 pr-4 text-gray-600">Rekonstrukce</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.renovationCost)}</td></tr>
                   <tr><td className="py-1 pr-4 text-gray-600">Rezerva 10 %</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.contingency)}</td></tr>
-                  {t.costs.sellingCommission > 0 && <tr><td className="py-1 pr-4 text-gray-600">Provize RK prodejní (4 %)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.sellingCommission)}</td></tr>}
+                  {t.costs.sellingCommission > 0 && <tr><td className="py-1 pr-4 text-gray-600">Provize RK prodejní (5 %)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.sellingCommission)}</td></tr>}
                   {t.costs.marketingPhoto > 0 && <tr><td className="py-1 pr-4 text-gray-600">Marketing + foto</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.marketingPhoto)}</td></tr>}
                   <tr><td className="py-1 pr-4 text-gray-600">Provozní náklady (6 měsíců)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.holdingCosts)}</td></tr>
                   {t.costs.sourcingFee > 0 && <tr><td className="py-1 pr-4 text-gray-600">Sourcing fee</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.sourcingFee)}</td></tr>}

@@ -588,7 +588,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Provize RK prodejní (4 %)</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Provize RK prodejní (5 %)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
@@ -673,6 +673,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
                 />
                 <span className="text-xs text-muted">%</span>
+                <span className="text-[10px] text-muted/50 ml-1">(zjednodušený výpočet)</span>
               </div>
             </div>
 
@@ -701,7 +702,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       ...(costConfig.appraisal ? [{ label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee }] : []),
                       { label: "Rekonstrukce", value: currentRenovation },
                       { label: "Rezerva 10 %", value: targetFlipResults.costs.contingency },
-                      ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (4 %)", value: targetFlipResults.costs.sellingCommission }] : []),
+                      ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (5 %)", value: targetFlipResults.costs.sellingCommission }] : []),
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),

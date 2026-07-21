@@ -1,8 +1,8 @@
 import { DetailedCosts, RenovationItem } from "./types";
 
 export const COST_CONSTANTS = {
-  sellingCommissionRate: 0.04,
-  legalFees: 20000,
+  sellingCommissionRate: 0.05,
+  legalFees: 25000,
   appraisalFee: 5000,
   holdingCostPerSqm: 120,
   marketingPhoto: 20000,
