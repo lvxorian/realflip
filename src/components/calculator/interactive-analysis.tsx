@@ -165,6 +165,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [dbSavedMessage, setDbSavedMessage] = useState("");
   const [dbSavedId, setDbSavedId] = useState<string | null>(null);
   const [dbInitiateSaving, setDbInitiateSaving] = useState(false);
+  const [presetSaving, setPresetSaving] = useState(false);
+  const [presetSaved, setPresetSaved] = useState(false);
 
   const itemsTotal = useMemo(() => renovationItems.reduce((s, i) => s + i.estimatedCost, 0), [renovationItems]);
 
@@ -215,13 +217,19 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
   const savePreset = async () => {
     if (!propertyId) return;
+    setPresetSaving(true);
     const preset = { arv, renovationCost: currentRenovation, targetRoi, costConfig };
-    try { localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset)); } catch {}
-    await fetch(`/api/properties/${propertyId}/calc-preset`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(preset),
-    });
+    try {
+      localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset));
+      await fetch(`/api/properties/${propertyId}/calc-preset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(preset),
+      });
+      setPresetSaved(true);
+      setTimeout(() => setPresetSaved(false), 2000);
+    } catch {}
+    setPresetSaving(false);
   };
 
   const resetPreset = async () => {
@@ -696,8 +704,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           {/* ===== SAVE / RESET PRESET ===== */}
           {propertyId && (
             <div className="flex gap-2">
-              <button onClick={savePreset} className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-medium text-foreground/80 hover:bg-card-hover hover:border-accent/30 transition-all flex-1 justify-center">
-                💾 Uložit parametry
+              <button onClick={savePreset} disabled={presetSaving} className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-medium text-foreground/80 hover:bg-card-hover hover:border-accent/30 transition-all flex-1 justify-center disabled:opacity-50">
+                {presetSaving ? "⏳ Ukládám..." : presetSaved ? "✅ Uloženo" : "💾 Uložit parametry"}
               </button>
               <button onClick={resetPreset} className="flex items-center gap-1.5 rounded-xl border border-border/50 bg-card px-4 py-2 text-xs font-medium text-foreground/80 hover:bg-card-hover hover:border-red-500/30 transition-all flex-1 justify-center">
                 🔄 Obnovit výchozí
