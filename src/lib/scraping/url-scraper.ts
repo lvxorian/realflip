@@ -185,7 +185,7 @@ async function scrapeSreality(url: string): Promise<RawListing> {
   const images: string[] = filterImages(
     (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
     "sreality",
-  );
+  ).map((url) => url + "?fl=res,1200,1200,1|wrm,/watermark/sreality.png,10|shr,,20|webp,80");
 
   const floorNumber = typeof r.floor_number === "number" ? r.floor_number : null;
   const usableArea = typeof r.usable_area === "number" ? r.usable_area : typeof r.floor_area === "number" ? r.floor_area : null;

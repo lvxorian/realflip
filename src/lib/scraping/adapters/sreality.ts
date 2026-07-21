@@ -94,6 +94,8 @@ function normalizeBuildingType(raw: string | null): string | null {
   return null;
 }
 
+const SREALITY_CDN_PARAMS = "?fl=res,1200,1200,1|wrm,/watermark/sreality.png,10|shr,,20|webp,80";
+
 export class SrealityAdapter extends PortalAdapter {
   private baseApi = "https://www.sreality.cz/api/v1/estates";
   private resultsPerPage = 20;
@@ -215,7 +217,7 @@ export class SrealityAdapter extends PortalAdapter {
       listing.imageUrls = filterImages(
         (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
         this.config.name,
-      );
+      ).map((url) => url + SREALITY_CDN_PARAMS);
 
       if (r.user) {
         listing.contactName = r.user.user_name ?? null;
@@ -246,7 +248,7 @@ export class SrealityAdapter extends PortalAdapter {
               listing.imageUrls = filterImages(
                 (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
                 this.config.name,
-              );
+              ).map((url) => url + SREALITY_CDN_PARAMS);
             }
           }
         }
