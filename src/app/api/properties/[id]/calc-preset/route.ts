@@ -75,7 +75,7 @@ export async function POST(
           arv: body.arv ?? null,
           renovationCost: body.renovationCost ?? null,
           targetRoi: body.targetRoi ?? 15,
-          config: body.config ? JSON.stringify(body.config) : "{}",
+          config: body.costConfig ? JSON.stringify(body.costConfig) : "{}",
           updatedAt: now,
         })
         .where(eq(calculatorPresets.id, existing.id));
@@ -87,7 +87,7 @@ export async function POST(
         arv: body.arv ?? null,
         renovationCost: body.renovationCost ?? null,
         targetRoi: body.targetRoi ?? 15,
-        config: body.config ? JSON.stringify(body.config) : "{}",
+        config: body.costConfig ? JSON.stringify(body.costConfig) : "{}",
         createdAt: now,
         updatedAt: now,
       });
