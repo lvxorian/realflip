@@ -136,7 +136,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     hasMortgage: false,
     mortgageAmount: 0,
     mortgageRate: 5,
-    taxRate: 19,
+    taxRate: 21,
   });
 
   const toggleConfig = (key: keyof typeof costConfig) =>
@@ -254,7 +254,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setArv(a.arv);
     setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setTargetRoi(15);
-    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5, taxRate: 19 });
+    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5, taxRate: 21 });
   };
 
   const handleArvChange = (value: string) => {

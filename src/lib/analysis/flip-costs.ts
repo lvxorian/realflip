@@ -37,7 +37,7 @@ const DEFAULT_CONFIG: FlipCostConfig = {
   hasMortgage: false,
   mortgageAmount: 0,
   mortgageRate: 0,
-  taxRate: 19,
+  taxRate: 21,
 };
 
 function calculateRawROI(
