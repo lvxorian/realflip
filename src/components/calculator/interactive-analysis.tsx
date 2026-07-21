@@ -612,11 +612,11 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   />
                   <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
                     <button
-                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: false }))}
+                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFee: 100000, sourcingFeeIsPct: false }))}
                       className={`px-2 py-1 transition-colors ${!costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
                     >Kč</button>
                     <button
-                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFeeIsPct: true }))}
+                      onClick={() => setCostConfig((prev) => ({ ...prev, sourcingFee: 5, sourcingFeeIsPct: true }))}
                       className={`px-2 py-1 transition-colors ${costConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
                     >%</button>
                   </div>
