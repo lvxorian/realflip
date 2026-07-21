@@ -72,8 +72,17 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **VAT toggle removed**: `isVatPayer` from `FlipCostConfig`, `vatDeduction` from `DetailedCosts`, checkbox + table row from UI.
 - **Tests**: Vitest installed, 126 unit tests across 4 files (`flip-costs`, `utils`, `condition`, `location`). `npm test` passes.
 - **Performance**: Dead deps removed. All `<img>` → `loading="lazy"` + `decoding="async"`. Dashboard stats rewritten: 6 sequential → parallel `Promise.all` with column selects + `count()`. Parallelized property initiate + deals + contacts routes.
-- **idnes-reality adapter**: Cheerio-based scraping for `reality.idnes.cz`. Registered in both trigger routes.
-- **Design polish**: `loading.tsx` for 4 async server routes (market, portfolio, portfolio/[id], contacts/[id]). Empty state for market page. Cleanup unused imports in market page.
+- **idnes-reality adapter**: Cheerio-based scraping for `reality.idnes.cz`. Registered in both trigger routes. **Image fix**: chyběl `filterImages()` v search i enrich, chybělo `enrichListing()` v `crawlListings()` (ukládaly se jen thumbnaily z vyhledávání). Opraveno.
+- **Design polish**: `loading.tsx` pro 4 async server routes. Empty state market page. Cleanup unused imports.
+
+### Phase 7 — Image Pipeline Fixes (Done)
+- **idnes-reality**: přidán `filterImages()` do search (ř. 106) i enrich (ř. 190). Přidáno `enrichListing()` do `crawlListings()` — předtím se nevolalo, properties měly jen 1 thumbnail → **rozmazané fotky**.
+- **idnes-reality**: přidáno do `PORTAL_BASE_URLS` v `types.ts` — root-relativní URL se správně resolvují.
+- **idnes-reality**: absolutní URL detailu z href (byly relativní, enrichment padal).
+- **url-scraper.ts**: implementován `scrapeIdnesReality()` — nahrazuje `makeNotImplementedScraper`.
+- **orchestrator.ts**: `imageUrls` se při updatu nepřepisují, když nový listing má míň fotek než stávající — **prevence ztráty kvalitních fotek při selhání enrichmentu**.
+- **Testy**: 10 unit testů pro `filterImages()` (placeholdery, base URL, root-relative, atd.). Celkem 136 testů.
+- **Statistika v Neon**: idnes-reality má 25 properties, všechny s fotkama (díky orchestrator bezpečnostní síti).
 
 ## Remaining
 - `checkScoreThresholdAlert` not yet called in orchestrator

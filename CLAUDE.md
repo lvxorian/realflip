@@ -26,7 +26,14 @@ Currently using `data.db` — to switch: update `src/db/index.ts`.
 ## Dead Deps Removed
 `lucide-react` (29 MB), `react-leaflet` — zero imports.
 
-## Portals (9)
+## Image Pipeline
+- **`filterImages()`** in `types.ts` — central gatekeeper. Normalizes URL, strips placeholders/data URIs/svgs.
+- **`PORTAL_BASE_URLS`** in `types.ts` — must have entry for each portal (root-relative → absolute). Currently: sreality, reality-cz, hyperinzerce, annonce, bazos, mmreality, idnes-reality.
+- **Orchestrator** also calls `filterImages()` on save (safety net). Protects against overwriting good images with fewer ones.
+- **idnes-reality** had missing enrichment + filterImages — fixed.
+- All adapters must call `enrichListing()` in `crawlListings()` for full-res gallery images (not just search thumbnails).
+
+## Portals (10)
 sreality, bezrealitky, bazos, remax, century21, reality-cz, hyperreality, mmreality, annonce, idnes-reality
 
 ## Key FIles
