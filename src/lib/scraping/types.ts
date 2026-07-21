@@ -147,7 +147,7 @@ const PLACEHOLDER_IMAGE_PATTERNS = [
   /blank\.(gif|png|jpg)/i, /pixel\.(gif|png|jpg)/i,
   /1x1\.(gif|png|jpg)/i, /transparent/i, /default_img/i,
   /noimage/i, /no-image/i, /image_not_found/i,
-  /not-available/i, /not_available/i,
+  /not-available/i, /not_available/i, /virtual-play/i,
 ];
 
 const PORTAL_BASE_URLS: Record<string, string> = {

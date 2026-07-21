@@ -196,7 +196,7 @@ export class IdnesRealityAdapter extends PortalAdapter {
         description,
         imageUrls: images.length > 0
           ? filterImages(images, this.config.name).map(
-              (url) => url.includes("?") ? url : url + "?fl=res,1200,900,1"
+              (url) => url + (url.includes("?") ? "&" : "?") + "fl=res,1200,900,1"
             )
           : raw.imageUrls,
         contactPhone: phone,

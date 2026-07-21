@@ -569,7 +569,7 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
     if (src && !src.includes("no-image")) images.push(src);
   });
   images = filterImages(images, "idnes-reality").map(
-    (url) => url.includes("?") ? url : url + "?fl=res,1200,900,1"
+    (url) => url + (url.includes("?") ? "&" : "?") + "fl=res,1200,900,1"
   );
 
   const paramMap: Record<string, string> = {};
