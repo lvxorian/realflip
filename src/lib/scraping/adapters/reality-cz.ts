@@ -202,6 +202,12 @@ export class RealityCzAdapter extends PortalAdapter {
       const phone = this.cleanText($("#divrkrol span.fs13.bld").text());
       if (phone) listing.contactPhone = phone;
 
+      const name = this.cleanText($("#divrkrol b:first, #divrkrol strong:first, .jmenoprodavajiciho").first().text());
+      if (name) listing.contactName = name;
+
+      const email = $('a[href^="mailto:"]').attr("href")?.replace("mailto:", "").trim() || "";
+      if (email) listing.contactEmail = email;
+
       const dateText = this.cleanText(
         $("div.moreobal div.fss").first().text()
       );

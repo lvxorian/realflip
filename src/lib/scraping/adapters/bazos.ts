@@ -16,61 +16,69 @@ export class BazosAdapter extends PortalAdapter {
   }
 
   async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
-    const html = await this.fetch(this.getSearchUrl());
-    const $ = cheerio.load(html);
-    const listings: RawListing[] = [];
+    const all: RawListing[] = [];
 
-    $("div.inzeraty.inzeratyflex").each((_i, el) => {
-      const $el = $(el);
-      const linkEl = $el.find("h2.nadpis a");
-      const link = linkEl.attr("href") || "";
-      const title = linkEl.text().trim();
-      if (!link || !title) return;
+    for (let page = 1; page <= 5; page++) {
+      const pageUrl = page === 1 ? this.getSearchUrl() : `${this.getSearchUrl()}strana/${page}/`;
+      const html = await this.fetch(pageUrl);
+      const $ = cheerio.load(html);
 
-      const fullUrl = link.startsWith("http")
-        ? link
-        : `${this.config.baseUrl}${link}`;
+      let pageCount = 0;
+      $("div.inzeraty.inzeratyflex").each((_i, el) => {
+        pageCount++;
+        const $el = $(el);
+        const linkEl = $el.find("h2.nadpis a");
+        const link = linkEl.attr("href") || "";
+        const title = linkEl.text().trim();
+        if (!link || !title) return;
 
-      const imgThumb = $el.find("img.obrazek").attr("src") || "";
+        const fullUrl = link.startsWith("http")
+          ? link
+          : `${this.config.baseUrl}${link}`;
 
-      const priceText = $el.find("div.inzeratycena b").text().trim();
-      const price = this.parsePrice(priceText);
+        const imgThumb = $el.find("img.obrazek").attr("src") || "";
 
-      const locText = $el.find("div.inzeratylok").text().trim();
-      const address = locText.replace(/\s*(\d{3}\s?\d{2})/, (_, ps) => `, ${ps.trim()}`);
+        const priceText = $el.find("div.inzeratycena b").text().trim();
+        const price = this.parsePrice(priceText);
 
-      const descShort = this.cleanText($el.find("div.popis").text()) || "";
+        const locText = $el.find("div.inzeratylok").text().trim();
+        const address = locText.replace(/\s*(\d{3}\s?\d{2})/, (_, ps) => `, ${ps.trim()}`);
 
-      const dateText = $el.find("span.velikost10").text();
+        const descShort = this.cleanText($el.find("div.popis").text()) || "";
 
-      listings.push({
-        portalName: "bazos",
-        url: fullUrl,
-        title,
-        price,
-        pricePerSqm: null,
-        area: this.extractArea(title),
-        rooms: this.extractRooms(title),
-        floor: null,
-        condition: null,
-        buildingType: null,
-        yearBuilt: null,
-        address,
-        lat: null,
-        lng: null,
-        contactPhone: null,
-        contactName: null,
-        contactEmail: null,
-        description: descShort,
-        imageUrls: imgThumb ? filterImages([imgThumb], this.config.name) : [],
-        publishedAt: this.parseDate(dateText),
-        updatedAt: Date.now(),
+        const dateText = $el.find("span.velikost10").text();
+
+        all.push({
+          portalName: "bazos",
+          url: fullUrl,
+          title,
+          price,
+          pricePerSqm: null,
+          area: this.extractArea(title),
+          rooms: this.extractRooms(title),
+          floor: null,
+          condition: null,
+          buildingType: null,
+          yearBuilt: null,
+          address,
+          lat: null,
+          lng: null,
+          contactPhone: null,
+          contactName: null,
+          contactEmail: null,
+          description: descShort,
+          imageUrls: imgThumb ? filterImages([imgThumb], this.config.name) : [],
+          publishedAt: this.parseDate(dateText),
+          updatedAt: Date.now(),
+        });
       });
-    });
+
+      if (pageCount === 0) break;
+    }
 
     // Enrich with detail page info (GPS, full description, name, more images)
     const enriched = await Promise.all(
-      listings.map((l) => this.enrichListing(l))
+      all.map((l) => this.enrichListing(l))
     );
 
     return enriched;
@@ -150,6 +158,12 @@ export class BazosAdapter extends PortalAdapter {
           .trim();
         if (loc) listing.address = loc;
       }
+
+      const phone = this.cleanText($("a[href^='tel:']").first().text());
+      if (phone) listing.contactPhone = phone;
+
+      const email = $('a[href^="mailto:"]').attr("href")?.replace("mailto:", "").trim() || "";
+      if (email) listing.contactEmail = email;
 
       return listing;
     } catch {

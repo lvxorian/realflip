@@ -97,7 +97,7 @@ function normalizeBuildingType(raw: string | null): string | null {
 export class SrealityAdapter extends PortalAdapter {
   private baseApi = "https://www.sreality.cz/api/v1/estates";
   private resultsPerPage = 20;
-  private maxPages = 25;
+  private maxPages = 5;
 
   constructor() {
     super("sreality");
@@ -108,7 +108,11 @@ export class SrealityAdapter extends PortalAdapter {
 
     for (let page = 0; page < this.maxPages; page++) {
       const offset = page * this.resultsPerPage;
-      const url = `${this.baseApi}/search?category_main_cb=1&category_type_cb=1&limit=${this.resultsPerPage}&offset=${offset}`;
+      let url = `${this.baseApi}/search?category_main_cb=1&category_type_cb=1&limit=${this.resultsPerPage}&offset=${offset}`;
+      if (filters?.priceMin) url += `&price_min=${filters.priceMin}`;
+      if (filters?.priceMax) url += `&price_max=${filters.priceMax}`;
+      if (filters?.areaMin) url += `&usable_area_min=${filters.areaMin}`;
+      if (filters?.areaMax) url += `&usable_area_max=${filters.areaMax}`;
 
       const data = await this.fetchJson(url);
       const items: SrealitySearchResult[] = data?.results ?? [];
@@ -154,8 +158,11 @@ export class SrealityAdapter extends PortalAdapter {
     }
 
     const enriched: RawListing[] = [];
-    for (const l of all) {
-      enriched.push(await this.enrichListing(l));
+    const concurrency = 3;
+    for (let i = 0; i < all.length; i += concurrency) {
+      const batch = all.slice(i, i + concurrency);
+      const results = await Promise.all(batch.map((l) => this.enrichListing(l)));
+      enriched.push(...results);
     }
     return enriched;
   }

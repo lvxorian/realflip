@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { ScrapingOrchestrator } from "@/lib/scraping/orchestrator";
+import { BazosAdapter } from "@/lib/scraping/adapters/bazos";
+import { MmrealityAdapter } from "@/lib/scraping/adapters/mmreality";
+import { AnnonceAdapter } from "@/lib/scraping/adapters/annonce";
+import { RealityCzAdapter } from "@/lib/scraping/adapters/reality-cz";
+import { HyperinzerceAdapter } from "@/lib/scraping/adapters/hyperinzerce";
+import { SrealityAdapter } from "@/lib/scraping/adapters/sreality";
 
-export async function POST() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function POST(req: Request) {
+  const isCron = req.headers.get("x-vercel-cron") === "1";
+  if (!isCron) {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   try {
-    const { ScrapingOrchestrator } = await import("@/lib/scraping/orchestrator");
-    const { BazosAdapter } = await import("@/lib/scraping/adapters/bazos");
-    const { MmrealityAdapter } = await import("@/lib/scraping/adapters/mmreality");
-    const { AnnonceAdapter } = await import("@/lib/scraping/adapters/annonce");
-    const { RealityCzAdapter } = await import("@/lib/scraping/adapters/reality-cz");
-    const { HyperinzerceAdapter } = await import("@/lib/scraping/adapters/hyperinzerce");
-    const { SrealityAdapter } = await import("@/lib/scraping/adapters/sreality");
- 
     const orchestrator = new ScrapingOrchestrator((portal, found, errors) => {
       console.log(`[scraping] ${portal}: ${found} listings, ${errors.length} errors`);
     });

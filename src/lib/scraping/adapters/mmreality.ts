@@ -163,6 +163,15 @@ export class MmrealityAdapter extends PortalAdapter {
       });
       if (images.length > 0) listing.imageUrls = filterImages(images, this.config.name);
 
+      const phone = this.cleanText($('a[href^="tel:"]').first().text());
+      if (phone) listing.contactPhone = phone;
+
+      const email = $('a[href^="mailto:"]').attr("href")?.replace("mailto:", "").trim() || "";
+      if (email) listing.contactEmail = email;
+
+      const name = this.cleanText($(".rds-agent-name, .rds-contact-name, [class*='agent'] .name, [class*='contact'] .name").first().text());
+      if (name) listing.contactName = name;
+
       return listing;
     } catch {
       return listing;

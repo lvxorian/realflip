@@ -154,23 +154,25 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
         </div>
 
-        {/* Score + Verdict */}
-        <div className="rp-card flex items-center gap-6 bg-gray-50 border border-gray-200 rounded-xl p-6">
-          <div className="flex items-center justify-center h-20 w-20 rounded-full bg-gray-200">
-            <span className={`text-3xl font-bold font-mono ${scoreColor}`}>{score}</span>
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-gray-900">{verdictLabels[verdict] ?? verdict}</p>
-            {analysis?.verdictSummary && <p className="text-sm text-gray-600 mt-0.5">{analysis.verdictSummary}</p>}
-            {adjustedScore !== score && (
-              <p className="text-xs text-gray-500 mt-1">Při cílové ceně: <span className={`font-semibold ${adjustedScoreColor}`}>{adjustedScore}</span></p>
-            )}
-          </div>
-          <div className="ml-auto text-right">
-            {analysis?.undervaluationPct != null && analysis.undervaluationPct > 0 && (
-              <p className="text-sm font-semibold text-emerald-700">Podhodnoceno o {analysis.undervaluationPct} %</p>
-            )}
-            {analysis?.rentalYield && <p className="text-xs text-gray-500 mt-0.5">Výnos: {analysis.rentalYield} %</p>}
+        {/* Comparison Scoring Box */}
+        <div className="rp-card border border-gray-200 rounded-xl p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center border-r border-gray-200 pr-4">
+              <div className="flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gray-200">
+                <span className={`text-3xl font-bold font-mono ${scoreColor}`}>{score}</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900 mt-3">{verdictLabels[verdict] ?? verdict}</p>
+              {analysis?.verdictSummary && <p className="text-sm text-gray-600 mt-1">{analysis.verdictSummary}</p>}
+            </div>
+            <div className="text-center pl-4">
+              <div className="flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gray-200">
+                <span className={`text-3xl font-bold font-mono ${adjustedScoreColor}`}>{adjustedScore}</span>
+              </div>
+              <p className="text-lg font-semibold text-gray-900 mt-3">
+                {adjustedScore >= 70 ? "Silně doporučeno" : adjustedScore >= 50 ? "Doporučeno" : adjustedScore >= 30 ? "Zvážit" : "Zamítnout"}
+              </p>
+              {t && <p className="text-sm text-gray-600 mt-1">Cílová cena: {fmtPrice(originalResults.targetPurchasePrice)}</p>}
+            </div>
           </div>
         </div>
 
@@ -253,7 +255,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   <span className={`font-mono font-semibold ${t.roi >= targetRoi ? "text-emerald-700" : "text-gray-700"}`}>{t.roi} %</span>
                 </div>
                 <div className="flex justify-between text-sm items-center">
-                  <span className="text-gray-600">Adjusted skóre</span>
+                  <span className="text-gray-600">Nové skóre</span>
                   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold font-mono ${
                     adjustedScore >= 60 ? "bg-emerald-50 text-emerald-700" : adjustedScore >= 40 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
                   }`}>{adjustedScore}</span>

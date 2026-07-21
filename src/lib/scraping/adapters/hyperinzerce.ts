@@ -187,6 +187,12 @@ export class HyperinzerceAdapter extends PortalAdapter {
       const sellerName = this.cleanText($("a.c-ad-detail__info-seller-name").text());
       if (sellerName) listing.contactName = sellerName;
 
+      const phone = this.cleanText($('a[href^="tel:"]').first().text());
+      if (phone) listing.contactPhone = phone;
+
+      const email = $('a[href^="mailto:"]').attr("href")?.replace("mailto:", "").trim() || "";
+      if (email) listing.contactEmail = email;
+
       return listing;
     } catch {
       return listing;

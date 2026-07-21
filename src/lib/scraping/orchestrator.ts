@@ -35,6 +35,7 @@ export class ScrapingOrchestrator {
 
       const errors: string[] = [];
       let found = 0;
+      const foundUrls: Set<string> = new Set();
 
       const jobId = generateId();
       await db.insert(scrapingJobs).values({
@@ -52,15 +53,45 @@ export class ScrapingOrchestrator {
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
           if (!isValidPrice(listing.price)) {
-            errors.push(`Skipped listing with invalid price (${listing.price} KÄŤ): ${listing.url}`);
+            errors.push(`Skipped listing with invalid price (${listing.price} Kc): ${listing.url}`);
             continue;
           }
+
+          foundUrls.add(listing.url);
 
           try {
             await this.saveListing(listing);
             total++;
           } catch (err) {
             errors.push(`Failed to save listing ${listing.url}: ${err}`);
+          }
+        }
+
+        // Deactivate stale listings not found in this crawl
+        if (foundUrls.size > 0) {
+          const activeStale = await db
+            .select({ id: properties.id })
+            .from(properties)
+            .where(
+              and(
+                eq(properties.portalName, portal),
+                eq(properties.isActive, 1),
+              ),
+            );
+
+          for (const row of activeStale) {
+            const prop = await db
+              .select({ url: properties.url })
+              .from(properties)
+              .where(eq(properties.id, row.id))
+              .limit(1)
+              .then((r) => r[0]);
+            if (prop && !foundUrls.has(prop.url)) {
+              await db
+                .update(properties)
+                .set({ isActive: 0, lastSeen: ts() })
+                .where(eq(properties.id, row.id));
+            }
           }
         }
       } catch (err) {
@@ -83,7 +114,7 @@ export class ScrapingOrchestrator {
       await db.insert(activityLog).values({
         id: generateId(),
         type: "scraping",
-        message: `Scraping ${portal} dokonÄŤen (${found} inzerĂˇtĹŻ)`,
+        message: `Scraping ${portal} dokoncen (${found} inzeratu)`,
         data: JSON.stringify({ portal, found, errors: errors.length }),
         createdAt: ts(),
       });
@@ -108,6 +139,8 @@ export class ScrapingOrchestrator {
       const errors: string[] = [];
       let found = 0;
 
+      const foundUrls: Set<string> = new Set();
+
       try {
         let listings = await adapter.crawlListings(filters);
         found = listings.length;
@@ -118,11 +151,41 @@ export class ScrapingOrchestrator {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
           if (!isValidPrice(listing.price)) continue;
 
+          foundUrls.add(listing.url);
+
           try {
             const propertyId = await this.saveListing(listing, searchId);
             if (propertyId) total++;
           } catch (err) {
             errors.push(`Failed to save listing ${listing.url}: ${err}`);
+          }
+        }
+
+        // Deactivate stale listings not found in this crawl
+        if (foundUrls.size > 0) {
+          const activeStale = await db
+            .select({ id: properties.id })
+            .from(properties)
+            .where(
+              and(
+                eq(properties.portalName, portal),
+                eq(properties.isActive, 1),
+              ),
+            );
+
+          for (const row of activeStale) {
+            const prop = await db
+              .select({ url: properties.url })
+              .from(properties)
+              .where(eq(properties.id, row.id))
+              .limit(1)
+              .then((r) => r[0]);
+            if (prop && !foundUrls.has(prop.url)) {
+              await db
+                .update(properties)
+                .set({ isActive: 0, lastSeen: ts() })
+                .where(eq(properties.id, row.id));
+            }
           }
         }
       } catch (err) {
@@ -141,12 +204,18 @@ export class ScrapingOrchestrator {
   }
 
   async crawlAllScheduled(): Promise<void> {
+    const now = Date.now();
     const scheduled = await db
       .select()
       .from(searches)
       .where(ne(searches.schedule, "manual"))
 
     for (const search of scheduled) {
+      if (search.lastRunAt) {
+        const intervalMs = search.schedule === "weekly" ? 604800000 : 86400000;
+        if (now - search.lastRunAt < intervalMs) continue;
+      }
+
       let filters: SearchFilters = {};
       try {
         filters = JSON.parse(search.filters) as SearchFilters;
@@ -184,7 +253,7 @@ export class ScrapingOrchestrator {
           await db.insert(activityLog).values({
             id: generateId(),
             type: "price",
-            message: `SnĂ­ĹľenĂ­ ceny o ${dropPct.toFixed(1)}% â€“ ${listing.title}`,
+            message: `Snizeni ceny o ${dropPct.toFixed(1)}% - ${listing.title}`,
             propertyId: existing.id,
             createdAt: ts(),
           });
@@ -212,8 +281,16 @@ export class ScrapingOrchestrator {
           pricePerSqm: listing.pricePerSqm,
           area: listing.area ?? existing.area,
           rooms: listing.rooms ?? existing.rooms,
+          floor: listing.floor ?? existing.floor,
           condition: listing.condition ?? existing.condition,
+          buildingType: listing.buildingType ?? existing.buildingType,
+          yearBuilt: listing.yearBuilt ?? existing.yearBuilt,
           address: listing.address ?? existing.address,
+          lat: listing.lat ?? existing.lat,
+          lng: listing.lng ?? existing.lng,
+          contactPhone: listing.contactPhone ?? existing.contactPhone,
+          contactName: listing.contactName ?? existing.contactName,
+          contactEmail: listing.contactEmail ?? existing.contactEmail,
           description: listing.description ?? existing.description,
           imageUrls: JSON.stringify(filterImages(listing.imageUrls)),
           lastSeen: ts(),
@@ -236,6 +313,29 @@ export class ScrapingOrchestrator {
             updatedAt: ts(),
           })
           .where(eq(propertyAnalysis.propertyId, existing.id));
+
+        // AI re-analysis on price change
+        if (process.env.GEMINI_API_KEY) {
+          try {
+            const { analyzeListing: aiAnalyzeListing } = await import("@/lib/ai/analyzer");
+            const aiResult = await aiAnalyzeListing({
+              title: listing.title,
+              description: listing.description ?? "",
+              price: listing.price,
+              pricePerSqm: listing.pricePerSqm,
+              area: listing.area,
+              rooms: listing.rooms,
+              address: listing.address,
+              condition: listing.condition,
+            });
+            await db
+              .update(propertyAnalysis)
+              .set({ aiReport: JSON.stringify(aiResult), updatedAt: ts() })
+              .where(eq(propertyAnalysis.propertyId, existing.id));
+          } catch {
+            // AI analysis is optional
+          }
+        }
       }
 
       if (searchId) {
@@ -334,7 +434,7 @@ export class ScrapingOrchestrator {
         cashOnCash: analysis.cashOnCash,
         breakEvenPrice: analysis.breakEvenPrice,
         recommendation: analysis.recommendation,
-        // NovĂˇ rozĹˇĂ­Ĺ™enĂˇ pole
+        // Nova rozsirena pole
         pricePerSqm: analysis.pricePerSqm,
         marketPriceMin: analysis.marketPricePerSqmLow,
         marketPriceMax: analysis.marketPricePerSqmHigh,
@@ -363,7 +463,7 @@ export class ScrapingOrchestrator {
       await db.insert(activityLog).values({
         id: generateId(),
         type: "new_property",
-        message: `Nalezen novĂ˝ inzerĂˇt â€“ ${listing.title}`,
+        message: `Nalezen novy inzerat - ${listing.title}`,
         propertyId: id,
         createdAt: ts(),
       });

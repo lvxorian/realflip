@@ -189,6 +189,15 @@ export class AnnonceAdapter extends PortalAdapter {
         listing.imageUrls = filterImages([...listing.imageUrls, ...galleryImages], this.config.name);
       }
 
+      const phone = this.cleanText($('a[href^="tel:"]').first().text());
+      if (phone) listing.contactPhone = phone;
+
+      const email = $('a[href^="mailto:"]').attr("href")?.replace("mailto:", "").trim() || "";
+      if (email) listing.contactEmail = email;
+
+      const name = this.cleanText($(".jmeno, .prodavajici, .contact-name, .seller-name, #jmeno, [class*='jmeno']").first().text());
+      if (name) listing.contactName = name;
+
       return listing;
     } catch {
       return listing;
