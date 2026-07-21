@@ -12,6 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
+- **Testing**: Vitest v4 + jsdom + @testing-library/react
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -24,9 +25,10 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - Timestamps as epoch ms numbers (aligned SQLite + PG)
 - `ts()` helper = `Date.now()` for all DB timestamps
 - Condition/buildingType stored as English keys, displayed via `conditionLabel()`/`buildingTypeLabel()` helpers
-- Sell commission: 4% (realistic CZ rate)
-- Buyer commission: removed (seller pays in CZ)
-- EnergyCert: removed, replaced with `sourcingFee` (Provize za zprostředkování)
+- Sell commission: 5% (configurable), buyer commission removed (seller pays in CZ)
+- **VAT rule**: Pure flip (FO → FO) = sale VAT-exempt without deduction right (§51 ZDPH). Input VAT on renovation CANNOT be claimed. `isVatPayer` toggle removed entirely.
+- **Phone formatting**: `formatPhone()` → `+420 608 033 397`
+- **Dead deps removed**: `lucide-react` (29 MB), `react-leaflet` — zero imports
 
 ## Progress
 
@@ -48,36 +50,35 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - Description truncation (500 chars) removed from API + component
 
 ### Phase 3 — Mock Pages → Real Data (Done)
-- **Alerts**: presets → real DB, toggle/delete/edit, `rules` JSON column, AlertMatcher service for price drop notifications
-- **Contacts**: API route, search, contact detail page `/contacts/[id]` with property/lead table
-- **Leads/Pipeline**: kanban with real DB, drag & drop updates stage, "Převést na deal" for closed leads
+- **Alerts**: presets → real DB, toggle/delete/edit, `rules` JSON column, AlertMatcher service
+- **Contacts**: API route, search, contact detail page with property/lead table
+- **Leads/Pipeline**: kanban with real DB, drag & drop, "Převést na deal"
 - **Call Mode**: real leads queue from DB, outcomes update lead stage
 - **Settings**: auth + session data, calculator preferences
 
 ### Phase 4 — Deal/Pipeline Flow (Done)
-- "Zahájit jednání" button (replaces "Uložit do portfolia")
-- Creates lead + contact from property data
-- Pipeline stages: new → contacted → meeting → offer → negotiation → closed → convert to deal
-- Lost leads archived (filtered, harmless)
+- "Zahájit jednání" button, creates lead + contact from property
+- Pipeline stages: new → contacted → meeting → offer → negotiation → closed → deal
 - Portfolio: delete deal with confirmation
-- `userId` column added to `leads` table (multi-tenant)
+- `userId` column added to `leads` table
 
 ### Phase 5 — PDF Report & Analyzer (Done)
-- `/report/[id]` — standalone investment analysis report, printable (A4), BW-safe design
-- "Uložit do databáze" and "Uložit a zahájit jednání" buttons in analyzer
+- `/report/[id]` — standalone A4 printable report
+- "Uložit do databáze" + "Uložit a zahájit jednání"
 - `POST /api/properties/create-from-url` with duplicate detection
-- "Již v databázi ✅" message for existing properties
 
-### Phase 6 — Sourcing Fee & Price Drop (Done)
-- `energyCert` removed, `sourcingFee` added (Provize za zprostředkování) with Kč/% toggle
-- Price drop badge on property detail: `Cena snížena o X % (z Y Kč)`
-- `lastRunAt` always updated after every search run
-- Cron: 3× daily (6/14/22 UTC)
+### Phase 6 — Scraper Audit & Polishing (Done)
+- **P0.1-P0.7**: cron bypass, UPDATE all fields, AI re-analysis on price change, stale deactivation, parallel enrichment (concurrency=3), maxPages 25→5, contact extraction on all adapters, UTF-8 fix, schedule interval check, search filters in URL params, bazos pagination (5 pages).
+- **VAT toggle removed**: `isVatPayer` from `FlipCostConfig`, `vatDeduction` from `DetailedCosts`, checkbox + table row from UI.
+- **Tests**: Vitest installed, 126 unit tests across 4 files (`flip-costs`, `utils`, `condition`, `location`). `npm test` passes.
+- **Performance**: Dead deps removed. All `<img>` → `loading="lazy"` + `decoding="async"`. Dashboard stats rewritten: 6 sequential → parallel `Promise.all` with column selects + `count()`. Parallelized property initiate + deals + contacts routes.
+- **idnes-reality adapter**: Cheerio-based scraping for `reality.idnes.cz`. Registered in both trigger routes.
+- **Design polish**: `loading.tsx` for 4 async server routes (market, portfolio, portfolio/[id], contacts/[id]). Empty state for market page. Cleanup unused imports in market page.
 
 ## Remaining
-- Czech labels all converted (buildingType, occupancy, locationCategory, Walk-away price → Max. nabídka)
-- Contact duplicated in sidebar fixed (moved up, merged styling)
-- AlertMatcher: `score_threshold` rule type implemented but `checkScoreThresholdAlert` not yet called in orchestrator
+- `checkScoreThresholdAlert` not yet called in orchestrator
+- Broader dedup/cache persistence (Redis or DB-based)
+- url-scraper routing for idnes-reality URLs (currently handled by orchestrator only)
 
 ## Key Files
 
@@ -85,26 +86,36 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - `src/db/index.ts` — DB connection
 - `src/db/schema/*.ts` — SQLite + `src/db/pg/*.ts` — PG
 - `src/lib/auth.ts` — NextAuth config
-- `src/lib/utils.ts` — `ts()`, `formatPrice`, `conditionLabel`, `buildingTypeLabel`, `occupancyLabel`, `locationCategoryLabel`, `safeJsonParse`
+- `src/lib/utils.ts` — helpers
 
 ### Scraping
-- `src/lib/scraping/orchestrator.ts` — main orchestrator, now with AlertMatcher integration
-- `src/lib/scraping/url-scraper.ts` — single URL scraper (used by analyzer)
-- `src/lib/alert-matcher.ts` — Alert rule matching for price drops
+- `src/lib/scraping/orchestrator.ts` — main orchestrator
+- `src/lib/scraping/url-scraper.ts` — single URL scraper
+- `src/lib/scraping/adapters/idnes-reality.ts` — newest adapter
+- `src/lib/alert-matcher.ts` — Alert rule matching
 
 ### Analysis
-- `src/lib/analysis/flip-costs.ts` — flip calculator with `sourcingFee`
-- `src/lib/analysis/types.ts` — `DetailedCosts` now has `sourcingFee`
-- `src/components/calculator/interactive-analysis.tsx` — main analysis card UI
+- `src/lib/analysis/flip-costs.ts` — flip calculator (no VAT)
+- `src/lib/analysis/types.ts` — types (no VAT fields)
+- `src/components/calculator/interactive-analysis.tsx` — main analysis card
+- `src/components/report/property-report.tsx` — PDF report (no VAT row)
 
-### Reports
-- `src/components/report/property-report.tsx` — PDF report component
-- `src/app/report/[id]/page.tsx` — standalone report page
+### API
+- `src/app/api/scraping/trigger/route.ts` — cron trigger, registers all 10 adapters
+- `src/app/api/searches/[id]/run/route.ts` — dynamic search run, all 10 adapters
+- `src/app/api/dashboard/stats/route.ts` — parallel queries
+- `src/app/api/properties/[id]/initiate/route.ts` — parallelized
 
-### Features
-- `src/app/(dashboard)/alerts/page.tsx` — alerts with presets
-- `src/app/(dashboard)/leads/page.tsx` — pipeline kanban
+### Pages
+- `src/app/(dashboard)/properties/[id]/page.tsx` — property detail w/ price history
+- `src/app/(dashboard)/market/page.tsx` — market overview w/ empty state
 - `src/app/(dashboard)/contacts/[id]/page.tsx` — contact detail
-- `src/app/(dashboard)/call-mode/page.tsx` — call queue
-- `src/app/(dashboard)/properties/[id]/page.tsx` — property detail with price drop badge
-- `src/app/(dashboard)/searches/[id]/page.tsx` — search detail with run button
+- `src/app/(dashboard)/portfolio/page.tsx` — portfolio overview
+- `src/app/(dashboard)/portfolio/[id]/page.tsx` — portfolio detail
+
+### Tests
+- `vitest.config.ts` — Vitest configuration
+- `src/lib/__tests__/flip-costs.test.ts` — 57 tests
+- `src/lib/__tests__/utils.test.ts`
+- `src/lib/__tests__/condition.test.ts`
+- `src/lib/__tests__/location.test.ts`
