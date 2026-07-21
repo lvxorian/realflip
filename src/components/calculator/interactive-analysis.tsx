@@ -137,7 +137,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     mortgageAmount: 0,
     mortgageRate: 5,
     taxRate: 21,
-    isVatPayer: false,
   });
 
   const toggleConfig = (key: keyof typeof costConfig) =>
@@ -255,7 +254,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setArv(a.arv);
     setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setTargetRoi(15);
-    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5, taxRate: 21, isVatPayer: false });
+    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5, taxRate: 21 });
   };
 
   const handleArvChange = (value: string) => {
@@ -654,24 +653,15 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/30">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-foreground/80 whitespace-nowrap">Daň z příjmu</label>
-                  <input
-                    type="number"
-                    value={costConfig.taxRate}
-                    onChange={(e) => setCostConfig((prev) => ({ ...prev, taxRate: parseInt(e.target.value) || 0 }))}
-                    className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                  />
-                  <span className="text-xs text-muted">%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={costConfig.isVatPayer} onChange={() => toggleConfig("isVatPayer")} className="accent-accent" />
-                    <span className="text-xs text-foreground/80 whitespace-nowrap">Plátce DPH</span>
-                  </label>
-                  {costConfig.isVatPayer && <span className="text-[10px] text-accent">(odečet DPH)</span>}
-                </div>
+              <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                <label className="text-xs text-foreground/80 whitespace-nowrap">Daň z příjmu</label>
+                <input
+                  type="number"
+                  value={costConfig.taxRate}
+                  onChange={(e) => setCostConfig((prev) => ({ ...prev, taxRate: parseInt(e.target.value) || 0 }))}
+                  className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
+                />
+                <span className="text-xs text-muted">%</span>
               </div>
             </div>
 
@@ -706,7 +696,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
                       ...(costConfig.sourcingEnabled && targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: targetFlipResults.costs.sourcingFee }] : []),
                       { label: `Daň z příjmu (${costConfig.taxRate} %)`, value: targetFlipResults.costs.incomeTax },
-                      ...(costConfig.isVatPayer && targetFlipResults.costs.vatDeduction > 0 ? [{ label: "Odečet DPH (vstupní)", value: -targetFlipResults.costs.vatDeduction }] : []),
                     ].map((row) => (
                       <tr key={row.label} className="border-b border-emerald-500/10">
                         <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>

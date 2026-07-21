@@ -451,7 +451,6 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
       marketingPhoto: 0,
       sourcingFee: 0,
     incomeTax,
-    vatDeduction: 0,
     totalCost: price + legalFees + appraisalFee + renovationTotal + contingency + holdingCosts + sellingCommission + incomeTax,
   };
 
