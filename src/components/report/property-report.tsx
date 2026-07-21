@@ -158,6 +158,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
         <div className="rp-card border border-gray-200 rounded-xl p-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center border-r border-gray-200 pr-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Původní inzerát</p>
               <div className="flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gray-200">
                 <span className={`text-3xl font-bold font-mono ${scoreColor}`}>{score}</span>
               </div>
@@ -165,6 +166,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
               {analysis?.verdictSummary && <p className="text-sm text-gray-600 mt-1">{analysis.verdictSummary}</p>}
             </div>
             <div className="text-center pl-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Po vyjednání</p>
               <div className="flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gray-200">
                 <span className={`text-3xl font-bold font-mono ${adjustedScoreColor}`}>{adjustedScore}</span>
               </div>
