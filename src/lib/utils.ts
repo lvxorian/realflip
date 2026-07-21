@@ -179,3 +179,13 @@ const PORTAL_LABELS: Record<string, string> = {
 export function portalLabel(name: string | null): string {
   return name ? PORTAL_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1) : "—";
 }
+
+export function formatPhone(phone: string | null): string {
+  if (!phone) return "";
+  const cleaned = phone.replace(/\s+/g, "");
+  const match = cleaned.match(/^(\+\d{3})(\d{3})(\d{3})(\d{3})$/);
+  if (match) return `${match[1]} ${match[2]} ${match[3]} ${match[4]}`;
+  const localMatch = cleaned.match(/^(\d{3})(\d{3})(\d{3})$/);
+  if (localMatch) return `${localMatch[1]} ${localMatch[2]} ${localMatch[3]}`;
+  return phone;
+}

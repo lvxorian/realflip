@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { safeJsonParse, conditionLabel } from "@/lib/utils";
+import { safeJsonParse, conditionLabel, formatPhone } from "@/lib/utils";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
@@ -246,7 +246,7 @@ export default async function PropertyDetailPage({
                     href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
                     className="rounded-lg bg-card-hover border border-accent/30 px-3 py-1.5 text-xs text-accent font-mono hover:bg-accent/10 transition-colors"
                   >
-                    {property.contactPhone}
+                    {formatPhone(property.contactPhone)}
                   </a>
                 )}
                 {property.contactEmail && (
