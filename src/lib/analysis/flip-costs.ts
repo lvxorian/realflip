@@ -26,6 +26,7 @@ export interface FlipCostConfig {
   mortgageAmount: number;
   mortgageRate: number;
   taxRate: number;
+  vatRate: number;
 }
 
 const DEFAULT_CONFIG: FlipCostConfig = {
@@ -38,6 +39,7 @@ const DEFAULT_CONFIG: FlipCostConfig = {
   mortgageAmount: 0,
   mortgageRate: 0,
   taxRate: 21,
+  vatRate: 0,
 };
 
 function calculateRawROI(
@@ -60,8 +62,9 @@ function calculateRawROI(
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
   const sourcingFee = cfg.sourcingFeeIsPct ? Math.round(purchasePrice * (cfg.sourcingFee / 100)) : cfg.sourcingFee;
+  const vatCost = Math.round(arv * (cfg.vatRate / 100));
 
-  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee + vatCost;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * (cfg.taxRate / 100)) : 0;
   const totalCost = subTotal + incomeTax;
@@ -108,8 +111,9 @@ export function calculateFlipCosts(
   const sellingCommission = cfg.sellCommission ? Math.round(arv * c.sellingCommissionRate) : 0;
   const marketingPhoto = cfg.sellCommission ? 0 : c.marketingPhoto;
   const sourcingFee = cfg.sourcingFeeIsPct ? Math.round(purchasePrice * (cfg.sourcingFee / 100)) : cfg.sourcingFee;
+  const vatCost = Math.round(arv * (cfg.vatRate / 100));
 
-  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee;
+  const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee + vatCost;
   const grossProfit = arv - subTotal;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * (cfg.taxRate / 100)) : 0;
   const totalCost = subTotal + incomeTax;
@@ -126,6 +130,7 @@ export function calculateFlipCosts(
     marketingPhoto,
     sourcingFee,
     incomeTax,
+    vatCost,
     totalCost,
   };
 }

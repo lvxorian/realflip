@@ -50,6 +50,7 @@ export interface DetailedCosts {
   marketingPhoto: number;
   sourcingFee: number;
   incomeTax: number;
+  vatCost: number;
   totalCost: number;
 }
 

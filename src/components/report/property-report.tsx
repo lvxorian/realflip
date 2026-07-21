@@ -233,6 +233,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   {t.costs.sourcingFee > 0 && <tr><td className="py-1 pr-4 text-gray-600">Sourcing fee</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.sourcingFee)}</td></tr>}
                   {t.costs.mortgageCost > 0 && <tr><td className="py-1 pr-4 text-gray-600">Náklady na hypotéku</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.mortgageCost)}</td></tr>}
                   <tr><td className="py-1 pr-4 text-gray-600">Daň z příjmu (21 %)</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.incomeTax)}</td></tr>
+                  {t.costs.vatCost > 0 && <tr><td className="py-1 pr-4 text-gray-600">DPH</td><td className="py-1 text-right font-mono text-gray-700">{fmtPrice(t.costs.vatCost)}</td></tr>}
                 </tbody>
               </table>
               <div className="border-t border-gray-300 mt-2 pt-2 space-y-1">
