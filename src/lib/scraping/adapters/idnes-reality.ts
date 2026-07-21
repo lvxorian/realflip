@@ -172,16 +172,10 @@ export class IdnesRealityAdapter extends PortalAdapter {
       const description = descEl.length ? descEl.text().replace(/\s+/g, " ").trim() : null;
 
       const images: string[] = [];
-      $(`a.carousel__item img[data-lazy]`).each((_, el) => {
-        const src = $(el).attr("data-lazy");
-        if (src) images.push(src);
+      $(`a.carousel__item img`).each((_, el) => {
+        const src = $(el).attr("data-lazy") || $(el).attr("src");
+        if (src && !src.includes("no-image")) images.push(src);
       });
-      if (images.length === 0) {
-        $(`a.carousel__item img[src]`).each((_, el) => {
-          const src = $(el).attr("src");
-          if (src && !src.includes("no-image")) images.push(src);
-        });
-      }
 
       const params = this.parseParams($);
 

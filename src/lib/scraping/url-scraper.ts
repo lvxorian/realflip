@@ -564,16 +564,10 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
   const description = descEl.length ? descEl.text().replace(/\s+/g, " ").trim() : null;
 
   let images: string[] = [];
-  $("a.carousel__item img[data-lazy]").each((_, el) => {
-    const src = $(el).attr("data-lazy");
-    if (src) images.push(src);
+  $("a.carousel__item img").each((_, el) => {
+    const src = $(el).attr("data-lazy") || $(el).attr("src");
+    if (src && !src.includes("no-image")) images.push(src);
   });
-  if (images.length === 0) {
-    $("a.carousel__item img[src]").each((_, el) => {
-      const src = $(el).attr("src");
-      if (src && !src.includes("no-image")) images.push(src);
-    });
-  }
   images = filterImages(images, "idnes-reality").map(
     (url) => url.includes("?") ? url : url + "?fl=res,1200,900,1"
   );
