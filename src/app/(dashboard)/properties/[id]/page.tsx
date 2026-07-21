@@ -1,20 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, priceHistory, propertyAnalysis } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { properties, priceHistory, propertyAnalysis, favorites } from "@/db/schema";
+import { and, eq, desc } from "drizzle-orm";
 import { safeJsonParse, conditionLabel, formatPhone } from "@/lib/utils";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
 import { ImageGallery } from "@/components/ui/image-gallery";
+import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import {
   ArrowLeft,
   ArrowUpRight,
   Phone,
   ShareNetwork,
-  Star,
   MapPin,
   Clock,
 } from "@phosphor-icons/react/ssr";
@@ -83,6 +84,23 @@ export default async function PropertyDetailPage({
     .limit(1)
     .then((r) => r[0]);
 
+  const session = await auth();
+  let isFavorited = false;
+  if (session?.user?.id) {
+    const fav = await db
+      .select()
+      .from(favorites)
+      .where(
+        and(
+          eq(favorites.userId, session.user.id),
+          eq(favorites.propertyId, id)
+        )
+      )
+      .limit(1)
+      .then((r) => r[0]);
+    isFavorited = !!fav;
+  }
+
   const imageUrls: string[] = safeJsonParse<string[]>(property.imageUrls, []);
   const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
   const hasRealUrl = property.url && property.url.startsWith("http");
@@ -120,9 +138,12 @@ export default async function PropertyDetailPage({
                 <button className="glass h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
                   <ShareNetwork size={14} weight="bold" />
                 </button>
-                <button className="glass h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
-                  <Star size={14} weight="bold" />
-                </button>
+                <FavoriteButton
+                  propertyId={id}
+                  initialFavorited={isFavorited}
+                  size={14}
+                  className="glass h-8 w-8"
+                />
               </div>
               {analysis?.investmentScore !== undefined && (
                 <div className="absolute top-4 left-4 z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">

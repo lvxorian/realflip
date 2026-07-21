@@ -1,11 +1,12 @@
 import { db, schema } from "@/db";
 import { eq, desc, inArray } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
+import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { PropertiesExplorer, type PropertyListItem } from "@/components/ui/properties-explorer";
 import { SearchFilter } from "@/components/ui/search-filter";
 
-const { properties, propertyAnalysis, searchProperties, searches } = schema;
+const { properties, propertyAnalysis, searchProperties, searches, favorites } = schema;
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,16 @@ export default async function PropertiesPage({
 
   const rows = await baseQuery;
 
+  const session = await auth();
+  let favoritedIds: string[] = [];
+  if (session?.user?.id) {
+    const favRows = await db
+      .select({ propertyId: favorites.propertyId })
+      .from(favorites)
+      .where(eq(favorites.userId, session.user.id));
+    favoritedIds = favRows.map((r) => r.propertyId);
+  }
+
   const now = Date.now();
   const items: PropertyListItem[] = rows.map((r) => ({
     id: r.id,
@@ -134,7 +145,7 @@ export default async function PropertiesPage({
         itemsCount={items.length}
       />
 
-      <PropertiesExplorer items={items} />
+      <PropertiesExplorer items={items} favoritedIds={favoritedIds} />
     </div>
   );
   } catch (e) {

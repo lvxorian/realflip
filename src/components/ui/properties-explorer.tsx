@@ -3,9 +3,10 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
+import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { X, ArrowDown, CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { X, ArrowDown, CaretLeft, CaretRight, Star } from "@phosphor-icons/react/dist/ssr";
 import {
   MagnifyingGlass,
   SquaresFour,
@@ -84,13 +85,14 @@ const INITIAL_FILTERS: FilterState = {
   areaMax: "",
 };
 
-export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
+export function PropertiesExplorer({ items, favoritedIds = [] }: { items: PropertyListItem[]; favoritedIds?: string[] }) {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [sort, setSort] = useState<SortMode>("newest");
   const [undervaluedOnly, setUndervaluedOnly] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [page, setPage] = useState(0);
 
   const cities = useMemo(() => {
@@ -127,6 +129,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
       if (filters.areaMin && (p.area ?? 0) < parseFloat(filters.areaMin)) return false;
       if (filters.areaMax && (p.area ?? 0) > parseFloat(filters.areaMax)) return false;
       if (undervaluedOnly && (p.undervaluationPct ?? 0) <= 0) return false;
+      if (favoritesOnly && !favoritedIds.includes(p.id)) return false;
       return true;
     });
 
@@ -137,7 +140,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
     }
 
     return result;
-  }, [items, search, filters, sort, undervaluedOnly]);
+  }, [items, search, filters, sort, undervaluedOnly, favoritesOnly, favoritedIds]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -152,6 +155,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
     setSearch("");
     setSort("newest");
     setUndervaluedOnly(false);
+    setFavoritesOnly(false);
     setPage(0);
   };
 
@@ -187,15 +191,28 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
           </select>
           <button
             onClick={() => { setUndervaluedOnly(!undervaluedOnly); setPage(0); }}
+          className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+            undervaluedOnly
+              ? "bg-success/10 text-success border-success/30"
+              : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
+          }`}
+        >
+          <ArrowDown size={14} weight="bold" />
+          Podhodnocené
+        </button>
+        {favoritedIds.length > 0 && (
+          <button
+            onClick={() => { setFavoritesOnly(!favoritesOnly); setPage(0); }}
             className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
-              undervaluedOnly
-                ? "bg-success/10 text-success border-success/30"
+              favoritesOnly
+                ? "bg-accent/10 text-accent border-accent/30"
                 : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
             }`}
           >
-            <ArrowDown size={14} weight="bold" />
-            Podhodnocené
+            <Star size={14} weight={favoritesOnly ? "fill" : "regular"} />
+            Oblíbené
           </button>
+        )}
           <div className="flex items-center rounded-lg border border-border/50 p-0.5 bg-card">
             <button
               onClick={() => setView("grid")}
@@ -422,6 +439,7 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                     pricePerSqm={p.pricePerSqm ?? undefined}
                     address={p.address ?? "Neznámá adresa"}
                     score={p.score ?? 0}
+                    isFavorited={favoritedIds.includes(p.id)}
                     status={
                       p.recommendation === "buy"
                         ? "Doporučeno"
@@ -472,6 +490,9 @@ export function PropertiesExplorer({ items }: { items: PropertyListItem[] }) {
                             </span>
                           </div>
                         )}
+                        <div className="absolute top-0.5 right-0.5">
+                          <FavoriteButton propertyId={p.id} initialFavorited={favoritedIds.includes(p.id)} size={10} className="h-4 w-4" />
+                        </div>
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{p.title}</p>
