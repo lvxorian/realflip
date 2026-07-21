@@ -3,12 +3,10 @@ export const dynamic = "force-dynamic";
 import { db } from "@/db";
 import { properties, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { Badge } from "@/components/ui/badge";
-import { ArrowUp, ArrowDown, Clock, SealCheck } from "@phosphor-icons/react/dist/ssr";
+import { ArrowUp, ArrowDown, ChartBar } from "@phosphor-icons/react/dist/ssr";
 
 function fmtPrice(v: number) { return `${(v / 1000).toFixed(0)}k`; }
 
-function trendClass(change: number) { return change >= 0 ? "text-emerald-400" : "text-red-400"; }
 function trendIcon(change: number) { return change >= 0 ? ArrowUp : ArrowDown; }
 
 export default async function MarketPage() {
@@ -66,6 +64,21 @@ export default async function MarketPage() {
     return new Date(p.properties.lastSeen).getTime() - new Date(p.properties.firstSeen).getTime() > 86400000 * 14;
   }).length;
 
+  if (totalListings === 0) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Trh</h1>
+          <p className="text-sm text-muted mt-1">Zatím žádná data – spusťte scraping pro sběr inzerátů</p>
+        </div>
+        <div className="rounded-2xl border border-border/50 bg-card p-12 text-center">
+          <ChartBar size={40} className="mx-auto text-muted mb-4" weight="duotone" />
+          <p className="text-muted">Jakmile naskrabeme první inzeráty, zobrazí se zde tržní přehled.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -75,15 +88,15 @@ export default async function MarketPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Aktivních inzerátů", value: activeListings.length.toString(), sub: `z ${totalListings} celkem`, icon: ArrowUp },
+          { label: "Aktivních inzerátů", value: activeListings.length.toString(), sub: `z ${totalListings} celkem` },
           { label: "Ø cena/m²", value: fmtPrice(avgPricePerSqm), sub: `${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}% trend`, icon: trendIcon(trendPct) },
-          { label: "Ø dny na trhu", value: avgDays.toString(), sub: "dní", icon: Clock },
-          { label: "Potenciální dropy", value: `${Math.round((priceDrops / Math.max(activeListings.length, 1)) * 100)}%`, sub: "inzerátů 14+ dní", icon: SealCheck },
-        ].map((s, i) => (
+          { label: "Ø dny na trhu", value: avgDays.toString(), sub: "dní" },
+          { label: "Potenciální dropy", value: `${Math.round((priceDrops / Math.max(activeListings.length, 1)) * 100)}%`, sub: "inzerátů 14+ dní" },
+        ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-border/50 bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-muted">{s.label}</span>
-              <s.icon size={16} className="text-muted" weight="duotone" />
+              {s.icon ? <s.icon size={16} className="text-muted" weight="duotone" /> : <ChartBar size={16} className="text-muted" weight="duotone" />}
             </div>
             <p className="text-xl font-semibold font-mono tracking-tight">{s.value}</p>
             <p className="text-xs text-muted mt-1">{s.sub}</p>
