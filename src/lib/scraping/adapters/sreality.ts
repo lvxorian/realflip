@@ -206,7 +206,7 @@ export class SrealityAdapter extends PortalAdapter {
       listing.url = buildSrealityDetailUrl(parseInt(hashId) || 0, enrichedRooms, r.locality);
 
       listing.imageUrls = filterImages(
-        (r.advert_images ?? []).map((img) => img.url ?? ""),
+        (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
         this.config.name,
       );
 
@@ -222,6 +222,30 @@ export class SrealityAdapter extends PortalAdapter {
       if (listing.price === 0 && r.price_czk) listing.price = r.price_czk;
     } catch {
       // enrichment is optional
+    }
+
+    // Fallback: extract images from HTML __NEXT_DATA__ if API returned none
+    if (listing.imageUrls.length === 0) {
+      try {
+        const html = await this.fetch(listing.url);
+        const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
+        if (match) {
+          const nextData = JSON.parse(match[1]);
+          const queries = nextData.props?.pageProps?.dehydratedState?.queries ?? [];
+          const detailQuery = queries.find((q: any) => q.state?.data?.result?.advert_name);
+          if (detailQuery) {
+            const r = detailQuery.state.data.result;
+            if (r?.advert_images) {
+              listing.imageUrls = filterImages(
+                (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
+                this.config.name,
+              );
+            }
+          }
+        }
+      } catch {
+        // HTML fallback is optional
+      }
     }
 
     return listing;

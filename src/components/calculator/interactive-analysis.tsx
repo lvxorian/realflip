@@ -122,7 +122,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [arv, setArv] = useState(a.arv);
   const [renovationMode, setRenovationMode] = useState<"preset" | "perSqm" | "total">("preset");
   const [renovationLevel, setRenovationLevel] = useState<"light" | "medium" | "full">("medium");
-  const [renovationPerSqm, setRenovationPerSqm] = useState(Math.round(a.scenarios?.conservative?.renovationCost / area) || 10000);
+  const [renovationPerSqm, setRenovationPerSqm] = useState(Math.round(a.scenarios?.conservative?.renovationCost / area) || 12500);
   const [renovationTotal, setRenovationTotal] = useState(a.scenarios?.conservative?.renovationCost || 700000);
   const [targetRoi, setTargetRoi] = useState(15);
 
