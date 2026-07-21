@@ -215,6 +215,7 @@ export class ScrapingOrchestrator {
           condition: listing.condition ?? existing.condition,
           address: listing.address ?? existing.address,
           description: listing.description ?? existing.description,
+          imageUrls: JSON.stringify(filterImages(listing.imageUrls)),
           lastSeen: ts(),
           isActive: 1,
         })

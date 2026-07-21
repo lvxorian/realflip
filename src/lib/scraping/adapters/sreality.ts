@@ -153,10 +153,10 @@ export class SrealityAdapter extends PortalAdapter {
       if (items.length < this.resultsPerPage) break;
     }
 
-    const enriched = await Promise.all(
-      all.map((l) => this.enrichListing(l))
-    );
-
+    const enriched: RawListing[] = [];
+    for (const l of all) {
+      enriched.push(await this.enrichListing(l));
+    }
     return enriched;
   }
 
