@@ -192,6 +192,7 @@ export class IdnesRealityAdapter extends PortalAdapter {
         floor: params.floor,
         condition: params.condition,
         buildingType: params.buildingType,
+        yearBuilt: params.yearBuilt ?? raw.yearBuilt,
         address,
         description,
         imageUrls: images.length > 0
@@ -215,12 +216,14 @@ export class IdnesRealityAdapter extends PortalAdapter {
     floor: number | null;
     condition: string | null;
     buildingType: string | null;
+    yearBuilt: number | null;
   } {
     let area: number | null = null;
     let rooms: string | null = null;
     let floor: number | null = null;
     let condition: string | null = null;
     let buildingType: string | null = null;
+    let yearBuilt: number | null = null;
 
     const paramMap: Record<string, string> = {};
     const dts = $(`div.b-definition-columns dl dt`);
@@ -269,7 +272,13 @@ export class IdnesRealityAdapter extends PortalAdapter {
       else if (/novos?tavba/.test(buildStr)) buildingType = "new";
     }
 
-    return { area, rooms, floor, condition, buildingType };
+    const yearStr = paramMap["rok kolaudace"] || paramMap["rok výstavby"] || paramMap["rok vystavby"] || "";
+    if (yearStr) {
+      const ym = yearStr.match(/(\d{4})/);
+      if (ym) yearBuilt = parseInt(ym[1]);
+    }
+
+    return { area, rooms, floor, condition, buildingType, yearBuilt };
   }
 
   private parsePrice(str: string): number | null {
