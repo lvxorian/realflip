@@ -154,30 +154,6 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
         </div>
 
-        {/* Cena po vyjednání */}
-        {originalResults.targetPurchasePrice > 0 && originalResults.targetPurchasePrice < property.price && (
-          <div className="rp-card border border-emerald-200 rounded-xl overflow-hidden">
-            <div className="bg-emerald-50 px-6 py-3 border-b border-emerald-200 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">CENA PO VYJEDNÁNÍ</h2>
-              <span className="text-xs font-medium text-emerald-700">{originalResults.priceReductionPct} % pod inzerovanou cenou</span>
-            </div>
-            <div className="p-5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Cílová kupní cena</span>
-                <span className="text-xl font-bold font-mono text-gray-900">{fmtPrice(originalResults.targetPurchasePrice)}</span>
-              </div>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-emerald-100">
-                <span className="text-sm text-gray-500">Inzerovaná cena</span>
-                <span className="text-sm font-mono text-gray-600 line-through">{fmtPrice(property.price)}</span>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-sm font-medium text-emerald-700">Úspora</span>
-                <span className="text-base font-bold font-mono text-emerald-700">-{fmtPrice(originalResults.priceReductionNeeded)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Score + Verdict */}
         <div className="rp-card flex items-center gap-6 bg-gray-50 border border-gray-200 rounded-xl p-6">
           <div className="flex items-center justify-center h-20 w-20 rounded-full bg-gray-200">
