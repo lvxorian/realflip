@@ -95,12 +95,11 @@ describe("calculateFlipCosts", () => {
     expect(costs.sourcingFee).toBe(Math.round(defaults.purchasePrice * 0.05));
   });
 
-  it("applies tax rate", () => {
-    const costs = calculateFlipCosts(defaults.purchasePrice, defaults.arv, defaults.renovationCost, defaults.area, {
-      taxRate: 10,
-    });
-    const costsFull = calculateFlipCosts(defaults.purchasePrice, defaults.arv, defaults.renovationCost, defaults.area);
-    expect(costs.incomeTax).toBeLessThan(costsFull.incomeTax);
+  it("always uses 21% income tax rate", () => {
+    const costs = calculateFlipCosts(defaults.purchasePrice, defaults.arv, defaults.renovationCost, defaults.area);
+    const grossProfit = defaults.arv - (defaults.purchasePrice + defaults.renovationCost + defaults.renovationCost * 0.1 + COST_CONSTANTS.legalFees + COST_CONSTANTS.holdingPeriodMonths * defaults.area * COST_CONSTANTS.holdingCostPerSqm + Math.round(defaults.arv * COST_CONSTANTS.sellingCommissionRate));
+    const expectedTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
+    expect(costs.incomeTax).toBe(expectedTax);
   });
 
   it("totalCost includes all items plus income tax", () => {

@@ -25,7 +25,6 @@ export interface FlipCostConfig {
   hasMortgage: boolean;
   mortgageAmount: number;
   mortgageRate: number;
-  taxRate: number;
 }
 
 const DEFAULT_CONFIG: FlipCostConfig = {
@@ -37,7 +36,6 @@ const DEFAULT_CONFIG: FlipCostConfig = {
   hasMortgage: false,
   mortgageAmount: 0,
   mortgageRate: 0,
-  taxRate: 21,
 };
 
 function calculateRawROI(
@@ -63,7 +61,7 @@ function calculateRawROI(
 
   const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee;
   const grossProfit = arv - subTotal;
-  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * (cfg.taxRate / 100)) : 0;
+  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
   const totalCost = subTotal + incomeTax;
   const netProfit = arv - totalCost;
   return totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
@@ -111,7 +109,7 @@ export function calculateFlipCosts(
 
   const subTotal = purchasePrice + legalFees + appraisalFee + renovationCost + contingency + holding + mortgageCost + sellingCommission + marketingPhoto + sourcingFee;
   const grossProfit = arv - subTotal;
-  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * (cfg.taxRate / 100)) : 0;
+  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
   const totalCost = subTotal + incomeTax;
 
   return {

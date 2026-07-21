@@ -136,7 +136,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     hasMortgage: false,
     mortgageAmount: 0,
     mortgageRate: 5,
-    taxRate: 21,
   });
 
   const toggleConfig = (key: keyof typeof costConfig) =>
@@ -254,7 +253,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setArv(a.arv);
     setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setTargetRoi(15);
-    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5, taxRate: 21 });
+    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
   };
 
   const handleArvChange = (value: string) => {
@@ -653,16 +652,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                <label className="text-xs text-foreground/80 whitespace-nowrap">Daň z příjmu</label>
-                <input
-                  type="number"
-                  value={costConfig.taxRate}
-                  onChange={(e) => setCostConfig((prev) => ({ ...prev, taxRate: parseInt(e.target.value) || 0 }))}
-                  className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                />
-                <span className="text-xs text-muted">%</span>
-              </div>
             </div>
 
             {/* Target Price Highlight */}
@@ -695,7 +684,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
                       ...(costConfig.sourcingEnabled && targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: targetFlipResults.costs.sourcingFee }] : []),
-                      { label: `Daň z příjmu (${costConfig.taxRate} %)`, value: targetFlipResults.costs.incomeTax },
+                      { label: `Daň z příjmu (21 %)`, value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (
                       <tr key={row.label} className="border-b border-emerald-500/10">
                         <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
@@ -866,16 +855,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       <p className="font-mono font-semibold text-red-400">{formatPrice(negotiation.walkAwayPrice)}</p>
                     </div>
               )}
-              <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                <label className="text-xs text-foreground/80 whitespace-nowrap">Daň z příjmu</label>
-                <input
-                  type="number"
-                  value={costConfig.taxRate}
-                  onChange={(e) => setCostConfig((prev) => ({ ...prev, taxRate: parseInt(e.target.value) || 0 }))}
-                  className="w-16 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                />
-                <span className="text-xs text-muted">%</span>
-              </div>
             </div>
                 {negotiation.arguments?.length > 0 && (
                   <div>
