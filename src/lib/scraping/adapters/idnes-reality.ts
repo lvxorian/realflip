@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters } from "../types";
+import { RawListing, SearchFilters, filterImages } from "../types";
 import { generateId } from "@/lib/utils";
 
 export class IdnesRealityAdapter extends PortalAdapter {
@@ -22,7 +22,11 @@ export class IdnesRealityAdapter extends PortalAdapter {
       results.push(...items);
     }
 
-    return results;
+    const enriched = await Promise.all(
+      results.map((l) => this.enrichListing(l).catch(() => l))
+    );
+
+    return enriched;
   }
 
   private buildSearchPath(filters?: SearchFilters): string {
@@ -62,7 +66,10 @@ export class IdnesRealityAdapter extends PortalAdapter {
     $("div.c-products__item").each((_, el) => {
       try {
         const link = $(el).find("a.c-products__link");
-        const detailUrl = link.attr("href");
+        let detailUrl = link.attr("href") || "";
+        if (detailUrl && !detailUrl.startsWith("http")) {
+          detailUrl = `https://reality.idnes.cz${detailUrl.startsWith("/") ? "" : "/"}${detailUrl}`;
+        }
         if (!detailUrl) return;
 
         const titleEl = $(el).find("h2.c-products__title");
@@ -103,7 +110,7 @@ export class IdnesRealityAdapter extends PortalAdapter {
           contactName: null,
           contactEmail: null,
           description: null,
-          imageUrls: imageUrl ? [imageUrl] : [],
+          imageUrls: imageUrl ? filterImages([imageUrl], this.config.name) : [],
           publishedAt: now,
           updatedAt: now,
         });
@@ -187,7 +194,7 @@ export class IdnesRealityAdapter extends PortalAdapter {
         buildingType: params.buildingType,
         address,
         description,
-        imageUrls: images.length > 0 ? images : raw.imageUrls,
+        imageUrls: images.length > 0 ? filterImages(images, this.config.name) : raw.imageUrls,
         contactPhone: phone,
         contactName: name,
         contactEmail: email,

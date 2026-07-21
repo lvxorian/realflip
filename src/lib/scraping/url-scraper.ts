@@ -550,6 +550,131 @@ function makeNotImplementedScraper(portal: string, hint: string) {
   };
 }
 
+async function scrapeIdnesReality(url: string): Promise<RawListing> {
+  const html = await fetchHtml(url, "idnes-reality");
+  const $ = cheerio.load(html);
+
+  const title = cleanText($("h1.b-detail__title span").text()) ?? cleanText($("title").text()) ?? "";
+  const address = cleanText($("p.b-detail__info").text()) ?? title;
+
+  const priceStr = $("p.b-detail__price strong").text();
+  const price = extractPrice(priceStr);
+
+  const descEl = $("div.b-desc");
+  const description = descEl.length ? cleanText(descEl.text()) : null;
+
+  let images: string[] = [];
+  $("a.carousel__item img[data-lazy]").each((_, el) => {
+    const src = $(el).attr("data-lazy");
+    if (src) images.push(src);
+  });
+  if (images.length === 0) {
+    $("a.carousel__item img[src]").each((_, el) => {
+      const src = $(el).attr("src");
+      if (src && !src.includes("no-image")) images.push(src);
+    });
+  }
+  images = filterImages(images, "idnes-reality");
+
+  const paramMap: Record<string, string> = {};
+  $("div.b-definition-columns dl dt").each((i, dtEl) => {
+    const key = $(dtEl).text().trim().toLowerCase();
+    const dd = $(dtEl).next("dd");
+    const val = dd.text().trim();
+    paramMap[key] = val;
+  });
+
+  let area: number | null = null;
+  const areaStr = paramMap["užitná plocha"];
+  if (areaStr) {
+    const m = areaStr.match(/(\d[\s\d]*)/);
+    if (m) area = parseInt(m[1].replace(/\s/g, ""));
+  }
+  if (!area) {
+    const areaMatch = title.match(/(\d+)\s*m/i);
+    if (areaMatch) area = parseInt(areaMatch[1]);
+  }
+
+  let rooms = extractRooms(title);
+  if (!rooms) {
+    const rm = title.match(/(\d+\+kk|\d+\+1|\d\+kk|\d\+1|garsonka|atypick[eé]ho)/i);
+    if (rm) {
+      rooms = rm[1].toLowerCase();
+      if (rooms === "garsonka" || rooms === "atypického") rooms = "1+kk";
+    }
+  }
+
+  const floorStr = paramMap["podlaží"];
+  let floor: number | null = null;
+  if (floorStr) {
+    const fm = floorStr.match(/(\d+)\./);
+    if (fm) floor = parseInt(fm[1]);
+  }
+
+  const conditionStr = paramMap["stav bytu"] || paramMap["stav budovy"] || "";
+  let condition: string | null = null;
+  if (conditionStr) {
+    if (/velmi dobr[ýy]/.test(conditionStr) || /dobr[ýy]/.test(conditionStr)) condition = "good";
+    else if (/novos?tavba|nov[ýy]/.test(conditionStr)) condition = "new";
+    else if (/rekonstru/.test(conditionStr)) condition = "renovated";
+    else if (/původn[íi]/.test(conditionStr)) condition = "original";
+    else if (/špatn[ýy]|zchátral/.test(conditionStr) || /k demolici/.test(conditionStr)) condition = "dilapidated";
+  }
+  if (!condition) condition = inferConditionFromText(description, title);
+
+  const buildStr = paramMap["konstrukce budovy"] || "";
+  let buildingType: string | null = null;
+  if (buildStr) {
+    if (/panel/.test(buildStr)) buildingType = "panel";
+    else if (/cihl/.test(buildStr)) buildingType = "brick";
+    else if (/smíšen/.test(buildStr)) buildingType = "mixed";
+    else if (/novos?tavba/.test(buildStr)) buildingType = "new";
+  }
+  if (!buildingType) buildingType = inferBuildingType(description, title);
+
+  let contactPhone: string | null = null;
+  let contactEmail: string | null = null;
+  let contactName: string | null = null;
+  $('a[href^="tel:"]').each((_, el) => {
+    const tel = $(el).attr("href")?.replace("tel:", "").trim() || null;
+    if (tel) contactPhone = tel;
+  });
+  $('a[href^="mailto:"]').each((_, el) => {
+    const mail = $(el).attr("href")?.replace("mailto:", "").trim() || null;
+    if (mail) contactEmail = mail;
+  });
+  const nameText = $("div.b-detail__user-text").text().trim() ||
+    $("p.b-detail__user-name").text().trim() ||
+    $("span.b-detail__user-name").text().trim() ||
+    $("a[href^='tel:']").closest("div").parent().find("p, span, a").not("[href]").first().text().trim() ||
+    null;
+  if (nameText) contactName = nameText;
+
+  return {
+    portalName: "idnes-reality" as PortalName,
+    url,
+    title,
+    price,
+    pricePerSqm: area && area > 0 ? Math.round(price / area) : null,
+    area,
+    rooms,
+    floor,
+    condition,
+    buildingType,
+    yearBuilt: null,
+    address,
+    lat: null,
+    lng: null,
+    contactPhone,
+    contactName,
+    contactEmail,
+    description,
+    imageUrls: images,
+    publishedAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
 const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) => Promise<RawListing> }[] = [
   { pattern: /sreality\.cz/, portal: "sreality", scrape: scrapeSreality },
   { pattern: /\breality\.cz/, portal: "reality-cz", scrape: scrapeRealityCz },
@@ -558,7 +683,7 @@ const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) 
   { pattern: /bazos\.cz/, portal: "bazos", scrape: scrapeBazos },
   { pattern: /mmreality\.cz/, portal: "mmreality", scrape: scrapeMmreality },
   { pattern: /bezrealitky\.cz/, portal: "bezrealitky", scrape: makeNotImplementedScraper("bezrealitky", "Next.js SPA — detail scraper není implementován") },
-  { pattern: /idnes-reality\.cz/, portal: "idnes-reality", scrape: makeNotImplementedScraper("idnes-reality", "JS SPA — detail scraper není implementován") },
+  { pattern: /idnes-reality\.cz/, portal: "idnes-reality", scrape: scrapeIdnesReality },
   { pattern: /hyperreality\.cz/, portal: "hyperreality", scrape: makeNotImplementedScraper("hyperreality", "Portál není dostupný") },
   { pattern: /remax\.cz/, portal: "remax", scrape: makeNotImplementedScraper("remax", "Detail scraper není implementován") },
   { pattern: /century21\.cz/, portal: "century21", scrape: makeNotImplementedScraper("century21", "Detail scraper není implementován") },

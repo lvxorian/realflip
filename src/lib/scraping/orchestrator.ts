@@ -7,7 +7,7 @@ import { eq, and, ne } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
-import { generateId, ts } from "@/lib/utils";
+import { generateId, ts, safeJsonParse } from "@/lib/utils";
 import { checkPriceDropAlert } from "@/lib/alert-matcher";
 
 export class ScrapingOrchestrator {
@@ -292,7 +292,13 @@ export class ScrapingOrchestrator {
           contactName: listing.contactName ?? existing.contactName,
           contactEmail: listing.contactEmail ?? existing.contactEmail,
           description: listing.description ?? existing.description,
-          imageUrls: JSON.stringify(filterImages(listing.imageUrls)),
+          imageUrls: JSON.stringify(
+            (() => {
+              const newImgs = filterImages(listing.imageUrls);
+              const oldImgs: string[] = existing.imageUrls ? safeJsonParse<string[]>(existing.imageUrls, []) : [];
+              return newImgs.length >= oldImgs.length ? newImgs : oldImgs;
+            })()
+          ),
           lastSeen: ts(),
           isActive: 1,
         })

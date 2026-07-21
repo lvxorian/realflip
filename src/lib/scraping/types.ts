@@ -157,6 +157,7 @@ const PORTAL_BASE_URLS: Record<string, string> = {
   annonce: "https://www.annonce.cz",
   bazos: "https://reality.bazos.cz",
   mmreality: "https://www.mmreality.cz",
+  "idnes-reality": "https://reality.idnes.cz",
 };
 
 export function normalizeImageUrl(url: string | null | undefined, portalName?: string): string {
