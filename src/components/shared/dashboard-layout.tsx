@@ -4,7 +4,6 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, getInitials } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/notification-bell";
@@ -23,8 +22,6 @@ import {
   Calculator,
   Sidebar,
   SignOut,
-  Sun,
-  Moon,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -46,7 +43,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(true);
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { theme, setTheme } = useTheme();
 
   return (
     <div className="flex min-h-[100dvh]">
@@ -62,12 +58,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className={cn("flex h-14 items-center border-b border-border/50", collapsed ? "justify-center" : "gap-1 px-3")}>
           {!collapsed && (
             <>
-              <button
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
-              >
-                {theme === "dark" ? <Sun size={16} weight="duotone" /> : <Moon size={16} weight="duotone" />}
-              </button>
               <NotificationBell />
               <motion.span
                 initial={{ opacity: 0 }}
