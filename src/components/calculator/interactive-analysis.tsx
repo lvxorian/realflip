@@ -531,7 +531,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               </div>
               <div className="flex gap-2 items-center">
                 <div className="flex gap-1.5 text-xs text-muted">
-                  <button onClick={() => setRenovationMode("perSqm")} className={`px-2 py-1 rounded border ${renovationMode === "perSqm" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Kč/m²</button>
+                  <button onClick={() => { setRenovationMode("perSqm"); setRenovationPerSqm(12500); }} className={`px-2 py-1 rounded border ${renovationMode === "perSqm" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Kč/m²</button>
                   <button onClick={() => setRenovationMode("total")} className={`px-2 py-1 rounded border ${renovationMode === "total" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Celkem</button>
                 </div>
                 {renovationMode === "perSqm" ? (
