@@ -7,6 +7,7 @@ import { AnnonceAdapter } from "@/lib/scraping/adapters/annonce";
 import { RealityCzAdapter } from "@/lib/scraping/adapters/reality-cz";
 import { HyperinzerceAdapter } from "@/lib/scraping/adapters/hyperinzerce";
 import { SrealityAdapter } from "@/lib/scraping/adapters/sreality";
+import { IdnesRealityAdapter } from "@/lib/scraping/adapters/idnes-reality";
 
 export async function POST(req: Request) {
   const isCron = req.headers.get("x-vercel-cron") === "1";
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
     orchestrator.registerAdapter("reality-cz", new RealityCzAdapter());
     orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
     orchestrator.registerAdapter("sreality", new SrealityAdapter());
+    orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
 
     await orchestrator.crawlAllScheduled();
 
