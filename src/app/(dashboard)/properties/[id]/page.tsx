@@ -22,10 +22,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function formatDays(firstSeen: Date | number | null | undefined) {
-  if (!firstSeen) return "—";
-  const days = Math.floor((Date.now() - new Date(firstSeen).getTime()) / 86400000);
-  if (isNaN(days) || days < 0) return "—";
+function formatDays(firstSeen: unknown) {
+  if (firstSeen == null) return "—";
+  const ts = typeof firstSeen === "string" ? parseInt(firstSeen) : Number(firstSeen);
+  if (isNaN(ts) || ts <= 0) return "—";
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days < 0) return "—";
   if (days === 0) return "dnes";
   if (days === 1) return "1 den";
   if (days < 5) return `${days} dny`;
