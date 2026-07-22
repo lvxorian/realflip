@@ -97,19 +97,37 @@ def map_auction_to_lead(auction: dict[str, Any], source: str) -> dict[str, Any]:
         Lead dict ready for API submission.
     """
     item = auction.get("item", {})
-    location = auction.get("location_district", {}) or {}
-    county = auction.get("location_county_name") or location.get("county", {}).get("county_name", "")
-    city = location.get("city", {}).get("city_name", "") if isinstance(location.get("city"), dict) else ""
-    district = location.get("district_name", "")
-    
-    parts = [city, district, county]
-    address = ", ".join(p for p in parts if p) or None
+    title = item.get("title", "")
+
+    loc = auction.get("location_district") or item.get("location_district") or {}
+
+    county_name = auction.get("location_county_name") or ""
+    if not county_name and isinstance(loc.get("county"), dict):
+        county_name = loc["county"].get("county_name", "")
+
+    city = ""
+    if isinstance(loc.get("city"), dict):
+        city = loc["city"].get("city_name", "")
+
+    district = loc.get("district_name", "")
+
+    # Fallback: extract location from title
+    if not city and not district and title:
+        import re
+        m = re.search(r'okres\s+([A-ZÁ-Ž][a-zá-ž]+(?:\s+[A-ZÁ-Ž][a-zá-ž]+)?)', title)
+        if m:
+            district = m.group(1)
+            if not county_name:
+                county_name = district
+
+    parts = [p for p in [city, district, county_name] if p]
+    address = ", ".join(parts) if parts else None
 
     return {
         "debtorName": item.get("title", "Neznama nemovitost"),
         "caseNumber": auction.get("number", ""),
         "address": address,
-        "region": county.lower() if county else None,
+        "region": county_name.lower() if county_name else None,
         "rawData": {
             "source": source,
             "link": auction.get("link"),

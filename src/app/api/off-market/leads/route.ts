@@ -40,6 +40,16 @@ export async function POST(req: Request) {
         .then((r) => r[0]);
 
       if (existing) {
+        // Update address/region if they were NULL before
+        const updates: Record<string, unknown> = { updatedAt: ts() };
+        if (item.address) updates.address = item.address;
+        if (item.region) updates.region = item.region;
+        if (Object.keys(updates).length > 1) {
+          await db
+            .update(offMarketLeads)
+            .set(updates)
+            .where(eq(offMarketLeads.caseNumber, item.caseNumber));
+        }
         skipped++;
         continue;
       }
