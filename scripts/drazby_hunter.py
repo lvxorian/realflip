@@ -139,13 +139,10 @@ def map_auction_to_lead(auction: dict[str, Any], source: str) -> dict[str, Any]:
                     if len(last) > 2 and last[0].isupper() and '/' not in last:
                         city = last
 
-    parts = [p for p in [city, district, county_name] if p]
-    address = ", ".join(parts) if parts else None
-
     return {
         "debtorName": item.get("title", "Neznama nemovitost"),
         "caseNumber": auction.get("number", ""),
-        "address": address,
+        "address": city or None,
         "region": county_name.lower() if county_name else None,
         "rawData": {
             "source": source,
@@ -155,6 +152,7 @@ def map_auction_to_lead(auction: dict[str, Any], source: str) -> dict[str, Any]:
             "status": auction.get("status"),
             "startAt": auction.get("start_at"),
             "auctioneer": auction.get("auctioneer_office", {}).get("title"),
+            "district": district,
         },
     }
 

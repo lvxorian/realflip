@@ -25,6 +25,7 @@ interface OffMarketLead {
   address: string | null;
   region: string | null;
   status: string;
+  rawData: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -54,6 +55,16 @@ function formatDate(ts: number | null | string) {
     month: "short",
     year: "numeric",
   });
+}
+
+function formatPrice(rawData: string) {
+  try {
+    const d = JSON.parse(rawData);
+    if (d?.estimatedPrice) {
+      return new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(d.estimatedPrice) + " Kč";
+    }
+  } catch {}
+  return "—";
 }
 
 export default function OffMarketPage() {
@@ -161,10 +172,11 @@ export default function OffMarketPage() {
               <thead>
                 <tr className="border-b border-border/30">
                   <th className="text-left p-4 text-xs text-muted font-medium">Datum</th>
-                  <th className="text-left p-4 text-xs text-muted font-medium">Jméno dlužníka</th>
+                  <th className="text-left p-4 text-xs text-muted font-medium">Nemovitost</th>
                   <th className="text-left p-4 text-xs text-muted font-medium">Spisová značka</th>
-                  <th className="text-left p-4 text-xs text-muted font-medium">Adresa</th>
-                  <th className="text-left p-4 text-xs text-muted font-medium">Region</th>
+                  <th className="text-left p-4 text-xs text-muted font-medium">Město</th>
+                  <th className="text-left p-4 text-xs text-muted font-medium">Kraj</th>
+                  <th className="text-right p-4 text-xs text-muted font-medium">Cena</th>
                   <th className="text-left p-4 text-xs text-muted font-medium">Stav</th>
                 </tr>
               </thead>
@@ -176,10 +188,11 @@ export default function OffMarketPage() {
                     onClick={() => router.push(`/off-market/${lead.id}`)}
                   >
                     <td className="p-4 text-xs text-muted whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="p-4 font-medium">{lead.debtorName}</td>
+                    <td className="p-4 font-medium max-w-[200px] truncate">{lead.debtorName}</td>
                     <td className="p-4 font-mono text-xs">{lead.caseNumber}</td>
-                    <td className="p-4 text-muted text-xs max-w-[200px] truncate">{lead.address || "—"}</td>
+                    <td className="p-4 text-muted text-xs">{lead.address || "—"}</td>
                     <td className="p-4 text-xs text-muted capitalize">{lead.region || "—"}</td>
+                    <td className="p-4 text-xs font-mono text-right">{formatPrice(lead.rawData)}</td>
                     <td className="p-4">
                       <Badge variant={STATUS_VARIANTS[lead.status] || "default"} size="sm">
                         {STATUS_LABELS[lead.status] || lead.status}
