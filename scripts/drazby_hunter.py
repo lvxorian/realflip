@@ -114,11 +114,30 @@ def map_auction_to_lead(auction: dict[str, Any], source: str) -> dict[str, Any]:
     # Fallback: extract location from title
     if not city and not district and title:
         import re
+        # Pattern: "okres X"
         m = re.search(r'okres\s+([A-ZÁ-Ž][a-zá-ž]+(?:\s+[A-ZÁ-Ž][a-zá-ž]+)?)', title)
         if m:
             district = m.group(1)
             if not county_name:
                 county_name = district
+        else:
+            # Pattern: last significant word = city/municipality
+            # "Rodinný dům Zaječí, podíl 1/10" → "Zaječí"
+            # "Pozemky Lovosice" → "Lovosice"
+            before_comma = title.split(",")[0].strip()
+            words = before_comma.split()
+            candidates = [w for w in words if len(w) > 2 and w[0].isupper()
+                         and not re.match(r'^\d', w) and '/' not in w
+                         and w.lower() not in ('s', 'v', 'u', 'o', 'k', 'z', 'za', 'na', 'pro')]
+            if candidates:
+                city = candidates[-1]
+            else:
+                # Fallback: last word from full title
+                words_all = title.split()
+                if words_all:
+                    last = words_all[-1].strip(",. ")
+                    if len(last) > 2 and last[0].isupper() and '/' not in last:
+                        city = last
 
     parts = [p for p in [city, district, county_name] if p]
     address = ", ".join(parts) if parts else None
