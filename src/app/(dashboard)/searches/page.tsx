@@ -37,9 +37,9 @@ const itemVariants = {
   },
 };
 
-function formatDate(ts: number | null) {
-  if (!ts) return "Nikdy";
-  return new Date(ts).toLocaleDateString("cs-CZ", {
+function formatDate(ts: number | null | undefined) {
+  if (ts == null || typeof ts !== "number" || isNaN(ts)) return "Nikdy";
+  return new Date(ts).toLocaleString("cs-CZ", {
     day: "numeric",
     month: "short",
     hour: "2-digit",

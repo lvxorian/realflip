@@ -127,24 +127,26 @@ export class ScrapingOrchestrator {
     searchId: string,
     filters: SearchFilters
   ): Promise<{ total: number; errors: string[] }> {
+    // Mark as run immediately so UI shows something even if timeout happens later
+    await db
+      .update(searches)
+      .set({ lastRunAt: ts() })
+      .where(eq(searches.id, searchId));
+
     const portals = Object.keys(PORTAL_CONFIGS) as PortalName[];
     let total = 0;
     const allErrors: string[] = [];
 
-    for (const portal of portals) {
+    const crawlPortal = async (portal: PortalName): Promise<void> => {
       const adapter = this.adapters.get(portal);
-      if (!adapter) continue;
-      if (!PORTAL_CONFIGS[portal].enabled) continue;
+      if (!adapter) return;
+      if (!PORTAL_CONFIGS[portal].enabled) return;
 
       const errors: string[] = [];
-      let found = 0;
-
       const foundUrls: Set<string> = new Set();
 
       try {
         let listings = await adapter.crawlListings(filters);
-        found = listings.length;
-
         listings = listings.filter((l) => matchFilters(l, filters));
 
         for (const listing of listings) {
@@ -189,16 +191,21 @@ export class ScrapingOrchestrator {
           }
         }
       } catch (err) {
-        errors.push(`Crawl error: ${err}`);
+        errors.push(`Crawl error (${portal}): ${err}`);
       }
 
       allErrors.push(...errors);
-    }
+    };
 
-    await db
-      .update(searches)
-      .set({ lastRunAt: ts() })
-      .where(eq(searches.id, searchId));
+    const results = await Promise.allSettled(
+      portals.map((portal) => crawlPortal(portal))
+    );
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        allErrors.push(`Portal crawl rejected: ${result.reason}`);
+      }
+    }
 
     return { total, errors: allErrors };
   }
