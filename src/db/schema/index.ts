@@ -10,4 +10,4 @@ export { marketData, scrapingJobs } from "./market";
 export { activityLog } from "./activity";
 export { searches, searchProperties } from "./searches";
 export { calculatorPresets } from "./presets";
-export { offMarketLeads } from "./off-market";
+export { offMarketLeads, offMarketRegions } from "./off-market";

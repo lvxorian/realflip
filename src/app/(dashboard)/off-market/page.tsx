@@ -14,7 +14,9 @@ import {
   FileText,
   Funnel,
   MagnifyingGlass,
+  Plus,
 } from "@phosphor-icons/react";
+import { RegionManagerModal } from "@/components/off-market/region-manager-modal";
 
 interface OffMarketLead {
   id: string;
@@ -62,6 +64,7 @@ export default function OffMarketPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showRegions, setShowRegions] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -95,6 +98,7 @@ export default function OffMarketPage() {
   }
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -105,6 +109,10 @@ export default function OffMarketPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Off-Market</h1>
           <p className="text-sm text-muted mt-1">Insolvenční řízení a neveřejné příležitosti</p>
         </div>
+        <Button variant="secondary" size="sm" onClick={() => setShowRegions(true)}>
+          <Plus weight="bold" />
+          Spravovat lokality
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -188,5 +196,7 @@ export default function OffMarketPage() {
         </div>
       )}
     </motion.div>
+      <RegionManagerModal open={showRegions} onClose={() => setShowRegions(false)} />
+    </>
   );
 }

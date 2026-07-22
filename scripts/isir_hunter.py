@@ -29,15 +29,43 @@ ISIR_WSDL = os.getenv(
     "ISIR_WSDL",
     "https://isir.justice.cz/isir_ws/services/IsirPub001?wsdl",
 )
-REGIONS = [
-    r.strip() for r in os.getenv("ISIR_REGIONS", "cheb,plzen,karlovy vary").split(",")
-    if r.strip()
-]
 API_URL = os.getenv(
     "OFF_MARKET_API_URL",
     "http://localhost:3000/api/off-market/leads",
 )
 API_TOKEN = os.getenv("OFF_MARKET_API_TOKEN")
+
+REGIONS_ENV_FALLBACK = [
+    r.strip() for r in os.getenv("ISIR_REGIONS", "cheb,plzen,karlovy vary").split(",")
+    if r.strip()
+]
+
+
+def fetch_regions() -> list[str]:
+    """Fetch region list from the Off-Market API, fall back to env var."""
+    regions_url = API_URL.rstrip("/leads") + "/regions"
+
+    if API_TOKEN:
+        try:
+            log.info("Stahuji regiony z API: %s", regions_url)
+            resp = requests.get(
+                regions_url,
+                headers={"Authorization": f"Bearer {API_TOKEN}"},
+                timeout=15,
+            )
+            if resp.ok:
+                data = resp.json()
+                if isinstance(data, list) and len(data) > 0:
+                    log.info("Nacteno %d regionu z API", len(data))
+                    return data
+                log.warning("API vratilo prazdny seznam regionu")
+            else:
+                log.warning("API regiony: HTTP %d, fallback na env", resp.status_code)
+        except requests.RequestException as e:
+            log.warning("Nelze nacist regiony z API: %s, fallback na env", e)
+
+    log.info("Pouzivam regiony z env fallback: %s", REGIONS_ENV_FALLBACK)
+    return REGIONS_ENV_FALLBACK
 
 
 def query_isir(region: str) -> list[dict[str, Any]]:
@@ -156,15 +184,16 @@ def send_to_api(leads: list[dict[str, Any]]) -> None:
 def main() -> None:
     """Main entry point."""
     log.info("=== ISIR Hunter spusten ===")
-    log.info("Regiony: %s", ", ".join(REGIONS))
 
     if not API_URL:
         log.error("OFF_MARKET_API_URL neni nastaven")
         sys.exit(1)
 
+    regions = fetch_regions()
+    log.info("Regiony: %s", ", ".join(regions))
     all_leads: list[dict[str, Any]] = []
 
-    for region in REGIONS:
+    for region in regions:
         try:
             leads = query_isir(region)
             all_leads.extend(leads)

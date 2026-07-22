@@ -12,3 +12,9 @@ export const offMarketLeads = sqliteTable("off_market_leads", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
+
+export const offMarketRegions = sqliteTable("off_market_regions", {
+  id: text("id").primaryKey(),
+  region: text("region").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+});

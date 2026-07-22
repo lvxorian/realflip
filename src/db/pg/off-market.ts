@@ -12,3 +12,9 @@ export const offMarketLeads = pgTable("off_market_leads", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
+
+export const offMarketRegions = pgTable("off_market_regions", {
+  id: text("id").primaryKey(),
+  region: text("region").notNull().unique(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});
