@@ -34,6 +34,21 @@ API_URL = os.getenv(
 )
 API_TOKEN = os.getenv("OFF_MARKET_API_TOKEN")
 
+# Map Czech cities/municipalities to their kraj (fallback when API has no region)
+CITY_TO_REGION = {
+    "zajecí": "jihomoravský kraj",
+    "lovosice": "ústecký kraj",
+    "vrbětice": "zlínský kraj",
+    "radovesice": "ústecký kraj",
+    "blatná": "jihočeský kraj",
+    "zábřeh": "olomoucký kraj",
+    "velké karlovice": "zlínský kraj",
+    "chrudim": "pardubický kraj",
+    "teplice": "ústecký kraj",
+    "zaječí": "jihomoravský kraj",
+    "neštěmice": "ústecký kraj",
+}
+
 ENDPOINTS = [
     "pripravovane.json",
     "probihajici.json",
@@ -138,6 +153,10 @@ def map_auction_to_lead(auction: dict[str, Any], source: str) -> dict[str, Any]:
                     last = words_all[-1].strip(",. ")
                     if len(last) > 2 and last[0].isupper() and '/' not in last:
                         city = last
+
+    # Fallback: look up city in region map
+    if not county_name and city:
+        county_name = CITY_TO_REGION.get(city.lower(), "")
 
     return {
         "debtorName": item.get("title", "Neznama nemovitost"),
