@@ -23,7 +23,7 @@ export function LetterModal({ open, onClose, debtorName, caseNumber, address }: 
 
   const letter = `Vážený/á ${debtorName},
 
-obraťte se na nás, prosím, v souvislosti s insolvenčním řízením vedeným pod sp. zn. ${caseNumber}${address ? `, týkajícím se nemovitosti v ${address}` : ""}.
+obraťte se na nás, prosím, v souvislosti s dražbou vedenou pod sp. zn. ${caseNumber}${address ? `, týkající se nemovitosti v ${address}` : ""}.
 
 Máme vážný zájem o odkup Vaší nemovitosti a jsme připraveni jednat rychle a bez zbytečných průtahů.
 

@@ -59,6 +59,16 @@ function formatDate(ts: number | null | string) {
   });
 }
 
+function formatPrice(rawData: string) {
+  try {
+    const d = JSON.parse(rawData);
+    if (d?.estimatedPrice) {
+      return new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(d.estimatedPrice) + " Kč";
+    }
+  } catch {}
+  return "—";
+}
+
 export default function OffMarketDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -144,32 +154,39 @@ export default function OffMarketDetailPage() {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted">Adresa</span>
-                  <p className="font-medium mt-0.5">{lead.address || "Neuvedena"}</p>
+                  <span className="text-muted">Město</span>
+                  <p className="font-medium mt-0.5">{lead.address || "Neuvedeno"}</p>
                 </div>
                 <div>
-                  <span className="text-muted">Region</span>
+                  <span className="text-muted">Kraj</span>
                   <p className="font-medium mt-0.5 capitalize">{lead.region || "Neuveden"}</p>
+                </div>
+                <div>
+                  <span className="text-muted">Cena</span>
+                  <p className="font-medium mt-0.5">{formatPrice(lead.rawData)}</p>
                 </div>
                 <div>
                   <span className="text-muted">Zachyceno</span>
                   <p className="font-medium mt-0.5">{formatDate(lead.createdAt)}</p>
                 </div>
-                <div>
-                  <span className="text-muted">Poslední změna</span>
-                  <p className="font-medium mt-0.5">{formatDate(lead.updatedAt)}</p>
-                </div>
               </div>
 
-              <a
-                href={`https://isir.justice.cz/isir/ueu/evidence_upadcu_detail.do?id=${encodeURIComponent(lead.caseNumber)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-accent hover:underline"
-              >
-                <ArrowSquareOut size={14} weight="bold" />
-                Zobrazit detail v ISIR
-              </a>
+              {(() => {
+                try { var r = JSON.parse(lead.rawData); } catch { return null; }
+                var link = r?.link;
+                if (!link) return null;
+                return (
+                  <a
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-accent hover:underline"
+                  >
+                    <ArrowSquareOut size={14} weight="bold" />
+                    Zobrazit detail dražby
+                  </a>
+                );
+              })()}
             </CardContent>
           </Card>
 
