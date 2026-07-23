@@ -57,13 +57,11 @@ function formatDate(ts: number | null | string) {
   });
 }
 
-function formatPrice(rawData: string) {
-  try {
-    const d = JSON.parse(rawData);
-    if (d?.estimatedPrice) {
-      return new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(d.estimatedPrice) + " Kč";
-    }
-  } catch {}
+function formatPrice(rawData: unknown) {
+  const d = (rawData as unknown as Record<string, unknown>) || {};
+  if (typeof d?.estimatedPrice === "number") {
+    return new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(d.estimatedPrice) + " Kč";
+  }
   return "—";
 }
 
@@ -188,7 +186,7 @@ export default function OffMarketPage() {
                     onClick={() => router.push(`/off-market/${lead.id}`)}
                   >
                     <td className="p-4 text-xs text-muted whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="p-4 font-medium max-w-[200px] truncate">{lead.debtorName}</td>
+                    <td className="p-4 font-medium">{lead.debtorName}</td>
                     <td className="p-4 font-mono text-xs">{lead.caseNumber}</td>
                     <td className="p-4 text-muted text-xs">{lead.address || "—"}</td>
                     <td className="p-4 text-xs text-muted capitalize">{lead.region || "—"}</td>

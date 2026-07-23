@@ -59,13 +59,11 @@ function formatDate(ts: number | null | string) {
   });
 }
 
-function formatPrice(rawData: string) {
-  try {
-    const d = JSON.parse(rawData);
-    if (d?.estimatedPrice) {
-      return new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(d.estimatedPrice) + " Kč";
-    }
-  } catch {}
+function formatPrice(rawData: unknown) {
+  const d = (rawData as unknown as Record<string, unknown>) || {};
+  if (typeof d?.estimatedPrice === "number") {
+    return new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(d.estimatedPrice) + " Kč";
+  }
   return "—";
 }
 
@@ -172,9 +170,9 @@ export default function OffMarketDetailPage() {
               </div>
 
               {(() => {
-                try { var r = JSON.parse(lead.rawData); } catch { return null; }
-                var link = r?.link;
-                if (!link) return null;
+                const r = (lead.rawData as unknown as Record<string, unknown>) || {};
+                const link = r?.link;
+                if (!link || typeof link !== "string") return null;
                 return (
                   <a
                     href={link}
