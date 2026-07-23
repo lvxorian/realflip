@@ -48,9 +48,16 @@ async function ensureCookie(portal: string): Promise<void> {
         "Accept-Language": "cs,en;q=0.9",
       },
     });
-    const setCookie = res.headers.get("set-cookie");
-    if (setCookie) {
-      cookieJar = setCookie.split(";")[0];
+    const cookies: string[] = [];
+    const setCookieHeader = res.headers.get("set-cookie");
+    if (setCookieHeader) cookies.push(setCookieHeader.split(";")[0]);
+    const setCookieMulti = res.headers.getSetCookie;
+    if (setCookieMulti) {
+      const extra = setCookieMulti.call(res.headers).map((c: string) => c.split(";")[0]);
+      cookies.push(...extra);
+    }
+    if (cookies.length > 0) {
+      cookieJar = [...new Set(cookies)].join("; ");
       cookieExpiry = Date.now() + 600_000;
     }
   } catch {
@@ -69,11 +76,6 @@ async function fetchWithRetry(url: string, portal: string, accept: string, refer
         Accept: accept,
         "Accept-Language": "cs,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
-        Connection: "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": accept.startsWith("application/json") ? "empty" : "document",
-        "Sec-Fetch-Mode": accept.startsWith("application/json") ? "cors" : "navigate",
-        "Sec-Fetch-Site": "same-origin",
       };
       if (referer) headers.Referer = referer;
       if (cookieJar) headers.Cookie = cookieJar;
@@ -141,7 +143,8 @@ function extractRooms(text: string): string | null {
 }
 
 async function scrapeSreality(url: string): Promise<RawListing> {
-  const segments = url.replace(/\/+$/, "").split("/");
+  const cleanUrl = url.split("?")[0].split("#")[0];
+  const segments = cleanUrl.replace(/\/+$/, "").split("/");
   const id = segments[segments.length - 1];
   if (!/^\d+$/.test(id)) throw new Error("Nelze parsovat ID inzerátu z URL");
 
