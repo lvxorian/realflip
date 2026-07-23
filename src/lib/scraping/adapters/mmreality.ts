@@ -92,9 +92,6 @@ export class MmrealityAdapter extends PortalAdapter {
 
       const offer = offers[i];
 
-      // Skip non-apartment listings
-      if (offer && offer.group?.name && offer.group.name !== "Byty") return;
-
       const rooms = this.extractRooms(offer?.type?.name || title);
       const area = offer?.totalArea || this.extractArea(title) || 0;
       const addressParts = [offer?.street, offer?.municipality].filter(Boolean);

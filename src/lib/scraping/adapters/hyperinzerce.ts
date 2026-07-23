@@ -120,8 +120,8 @@ export class HyperinzerceAdapter extends PortalAdapter {
 
       $(".c-ad-detail__parameters-container > .c-ad-detail__parameters-item").each((_i, el) => {
         const $el = $(el);
-        const label = this.cleanText($el.find(".c-ad-detail__parameters-item-label").text()) || "";
-        const value = this.cleanText($el.find(".c-ad-detail__parameters-item-content").text()) || "";
+        const label = this.cleanText($el.find(".c-ad-detail__parameters-item__label").text()) || "";
+        const value = this.cleanText($el.find(".c-ad-detail__parameters-item__value").text()) || "";
         if (!label || !value) return;
 
         if (/dispozice/i.test(label)) {

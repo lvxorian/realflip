@@ -3,7 +3,7 @@ import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, fi
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, notInArray } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
@@ -28,10 +28,10 @@ export class ScrapingOrchestrator {
     let total = 0;
     const allErrors: string[] = [];
 
-    for (const portal of portals) {
+    const crawlPortal = async (portal: PortalName): Promise<void> => {
       const adapter = this.adapters.get(portal);
-      if (!adapter) continue;
-      if (!PORTAL_CONFIGS[portal].enabled) continue;
+      if (!adapter) return;
+      if (!PORTAL_CONFIGS[portal].enabled) return;
 
       const errors: string[] = [];
       let found = 0;
@@ -67,35 +67,21 @@ export class ScrapingOrchestrator {
           }
         }
 
-        // Deactivate stale listings not found in this crawl
+        // Bulk deactivate stale listings not found in this crawl
         if (foundUrls.size > 0) {
-          const activeStale = await db
-            .select({ id: properties.id })
-            .from(properties)
+          await db
+            .update(properties)
+            .set({ isActive: 0, lastSeen: ts() })
             .where(
               and(
                 eq(properties.portalName, portal),
                 eq(properties.isActive, 1),
+                notInArray(properties.url, Array.from(foundUrls)),
               ),
             );
-
-          for (const row of activeStale) {
-            const prop = await db
-              .select({ url: properties.url })
-              .from(properties)
-              .where(eq(properties.id, row.id))
-              .limit(1)
-              .then((r) => r[0]);
-            if (prop && !foundUrls.has(prop.url)) {
-              await db
-                .update(properties)
-                .set({ isActive: 0, lastSeen: ts() })
-                .where(eq(properties.id, row.id));
-            }
-          }
         }
       } catch (err) {
-        errors.push(`Crawl error: ${err}`);
+        errors.push(`Crawl error (${portal}): ${err}`);
       }
 
       await db
@@ -118,6 +104,16 @@ export class ScrapingOrchestrator {
         data: JSON.stringify({ portal, found, errors: errors.length }),
         createdAt: ts(),
       });
+    };
+
+    const results = await Promise.allSettled(
+      portals.map((portal) => crawlPortal(portal))
+    );
+
+    for (const result of results) {
+      if (result.status === "rejected") {
+        allErrors.push(`Portal crawl rejected: ${result.reason}`);
+      }
     }
 
     return { total, errors: allErrors };
@@ -163,32 +159,18 @@ export class ScrapingOrchestrator {
           }
         }
 
-        // Deactivate stale listings not found in this crawl
+        // Bulk deactivate stale listings not found in this crawl
         if (foundUrls.size > 0) {
-          const activeStale = await db
-            .select({ id: properties.id })
-            .from(properties)
+          await db
+            .update(properties)
+            .set({ isActive: 0, lastSeen: ts() })
             .where(
               and(
                 eq(properties.portalName, portal),
                 eq(properties.isActive, 1),
+                notInArray(properties.url, Array.from(foundUrls)),
               ),
             );
-
-          for (const row of activeStale) {
-            const prop = await db
-              .select({ url: properties.url })
-              .from(properties)
-              .where(eq(properties.id, row.id))
-              .limit(1)
-              .then((r) => r[0]);
-            if (prop && !foundUrls.has(prop.url)) {
-              await db
-                .update(properties)
-                .set({ isActive: 0, lastSeen: ts() })
-                .where(eq(properties.id, row.id));
-            }
-          }
         }
       } catch (err) {
         errors.push(`Crawl error (${portal}): ${err}`);
@@ -274,16 +256,6 @@ export class ScrapingOrchestrator {
       }
 
       const area = existing.area ?? listing.area ?? 70;
-      const renoCostEstimate = Math.round(area * 10000) + 180000 + 140000;
-
-      const existingAnalysis = await db
-        .select({ arv: propertyAnalysis.arv })
-        .from(propertyAnalysis)
-        .where(eq(propertyAnalysis.propertyId, existing.id))
-        .limit(1)
-        .then((r) => r[0]);
-      const estimatedArv = existingAnalysis?.arv ?? Math.round(listing.price * 1.15);
-      const freshAnalysis = calculateFlipResults(listing.price, estimatedArv, renoCostEstimate, area, 15);
 
       await db
         .update(properties)
@@ -305,7 +277,7 @@ export class ScrapingOrchestrator {
           description: listing.description ?? existing.description,
           imageUrls: JSON.stringify(
             (() => {
-              const newImgs = filterImages(listing.imageUrls);
+              const newImgs = filterImages(listing.imageUrls, listing.portalName);
               const oldImgs: string[] = existing.imageUrls ? safeJsonParse<string[]>(existing.imageUrls, []) : [];
               return newImgs.length >= oldImgs.length ? newImgs : oldImgs;
             })()
@@ -315,8 +287,17 @@ export class ScrapingOrchestrator {
         })
         .where(eq(properties.id, existing.id));
 
-      // Re-analyze on price change
-      if (existing.price !== listing.price && freshAnalysis) {
+      // Re-analyze only on price change
+      if (existing.price !== listing.price) {
+        const renoCostEstimate = Math.round(area * 10000) + 180000 + 140000;
+        const existingAnalysis = await db
+          .select({ arv: propertyAnalysis.arv })
+          .from(propertyAnalysis)
+          .where(eq(propertyAnalysis.propertyId, existing.id))
+          .limit(1)
+          .then((r) => r[0]);
+        const estimatedArv = existingAnalysis?.arv ?? Math.round(listing.price * 1.15);
+        const freshAnalysis = calculateFlipResults(listing.price, estimatedArv, renoCostEstimate, area, 15);
         await db
           .update(propertyAnalysis)
           .set({
@@ -398,7 +379,7 @@ export class ScrapingOrchestrator {
         contactName: listing.contactName,
         contactEmail: listing.contactEmail,
         description: listing.description,
-        imageUrls: JSON.stringify(filterImages(listing.imageUrls)),
+        imageUrls: JSON.stringify(filterImages(listing.imageUrls, listing.portalName)),
         status: "active",
         firstSeen: listing.publishedAt ? new Date(listing.publishedAt).getTime() : ts(),
         lastSeen: ts(),
