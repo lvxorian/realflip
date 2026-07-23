@@ -172,6 +172,7 @@ def map_auction_to_lead(auction: dict[str, Any], source: str) -> dict[str, Any]:
             "startAt": auction.get("start_at"),
             "auctioneer": auction.get("auctioneer_office", {}).get("title"),
             "district": district,
+            "category": item.get("category"),
         },
     }
 

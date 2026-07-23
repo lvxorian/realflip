@@ -72,6 +72,7 @@ export default function OffMarketPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showRegions, setShowRegions] = useState(false);
 
@@ -91,11 +92,34 @@ export default function OffMarketPage() {
       .finally(() => setLoading(false));
   }, [status, statusFilter, regionFilter, searchQuery, router]);
 
+  function getCategory(rawData: unknown): string | null {
+    const r = (rawData as unknown as Record<string, unknown>) || {};
+    const fullPath = (r as any)?.item?.category?.full_path || (r as any)?.category?.full_path || "";
+    if (typeof fullPath === "string" && fullPath.startsWith("/Nemovitosti/")) {
+      return fullPath.replace("/Nemovitosti/", "");
+    }
+    return null;
+  }
+
   const regions = useMemo(() => {
     const set = new Set<string>();
     leads.forEach((l) => { if (l.region) set.add(l.region); });
     return Array.from(set).sort();
   }, [leads]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    leads.forEach((l) => {
+      const c = getCategory(l.rawData);
+      if (c) set.add(c);
+    });
+    return Array.from(set).sort();
+  }, [leads]);
+
+  const filtered = useMemo(() => {
+    if (!categoryFilter) return leads;
+    return leads.filter((l) => getCategory(l.rawData) === categoryFilter);
+  }, [leads, categoryFilter]);
 
   if (loading) {
     return (
@@ -155,9 +179,19 @@ export default function OffMarketPage() {
             <option key={r} value={r}>{r}</option>
           ))}
         </select>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+        >
+          <option value="">Všechny kategorie</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
       </div>
 
-      {leads.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState
           icon={<FileText className="w-6 h-6" />}
           title="Žádné off-market příležitosti"
@@ -179,7 +213,7 @@ export default function OffMarketPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/20">
-                {leads.map((lead) => (
+                {filtered.map((lead) => (
                   <tr
                     key={lead.id}
                     className="hover:bg-card-hover transition-colors cursor-pointer"
@@ -202,7 +236,7 @@ export default function OffMarketPage() {
             </table>
           </div>
           <div className="p-4 text-xs text-muted border-t border-border/30">
-            {leads.length} záznamů
+            {filtered.length} záznamů
           </div>
         </div>
       )}

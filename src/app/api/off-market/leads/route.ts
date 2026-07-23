@@ -44,12 +44,11 @@ export async function POST(req: Request) {
         const updates: Record<string, unknown> = { updatedAt: ts() };
         if (item.address) updates.address = item.address;
         if (item.region) updates.region = item.region;
-        if (Object.keys(updates).length > 1) {
-          await db
-            .update(offMarketLeads)
-            .set(updates)
-            .where(eq(offMarketLeads.caseNumber, item.caseNumber));
-        }
+        updates.rawData = JSON.stringify(item.rawData ?? {});
+        await db
+          .update(offMarketLeads)
+          .set(updates)
+          .where(eq(offMarketLeads.caseNumber, item.caseNumber));
         skipped++;
         continue;
       }
