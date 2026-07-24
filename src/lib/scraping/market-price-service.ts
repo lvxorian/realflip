@@ -1,7 +1,8 @@
-import { RateLimiter } from "./rate-limiter";
 import { db } from "@/db";
-import { properties } from "@/db/schema";
-import { and, eq, gte } from "drizzle-orm";
+import { marketCache, properties } from "@/db/schema";
+import { eq, and, gte } from "drizzle-orm";
+import { RateLimiter } from "./rate-limiter";
+import { MARKET_DATA } from "@/lib/analysis/market-data";
 import { CITY_ALIASES } from "@/lib/analysis/location";
 
 interface MarketStats {
@@ -10,23 +11,24 @@ interface MarketStats {
   median: number;
 }
 
-interface CachedMarketData {
+interface CachedData {
   city: string;
-  source: "sreality" | "db";
-  medianPricePerSqm: number;
-  p25PricePerSqm: number;
-  p75PricePerSqm: number;
+  low: number;
+  high: number;
+  median: number;
   sampleSize: number;
+  source: "sreality_api" | "db" | "market_data";
   fetchedAt: number;
 }
 
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MEMORY_TTL_MS = 15 * 60 * 1000;
+const DB_TTL_MS = 24 * 60 * 60 * 1000;
 const rateLimiter = RateLimiter.getInstance();
-let memoryCache: Map<string, CachedMarketData> = new Map();
+let memCache = new Map<string, CachedData>();
 
-function computeStats(pricePerSqms: number[]): { median: number; p25: number; p75: number } | null {
-  if (pricePerSqms.length < 3) return null;
-  const sorted = [...pricePerSqms].sort((a, b) => a - b);
+function computeStats(prices: number[]): { median: number; p25: number; p75: number } | null {
+  if (prices.length < 3) return null;
+  const sorted = [...prices].sort((a, b) => a - b);
   const n = sorted.length;
   return {
     median: sorted[Math.floor(n / 2)],
@@ -35,87 +37,99 @@ function computeStats(pricePerSqms: number[]): { median: number; p25: number; p7
   };
 }
 
-function cacheAndReturn(data: CachedMarketData): MarketStats {
-  memoryCache.set(data.city, data);
-  return { low: data.p25PricePerSqm, high: data.p75PricePerSqm, median: data.medianPricePerSqm };
+function toCacheEntry(city: string, stats: { median: number; p25: number; p75: number }, sampleSize: number, source: CachedData["source"]): CachedData {
+  return {
+    city,
+    low: stats.p25,
+    high: stats.p75,
+    median: stats.median,
+    sampleSize,
+    source,
+    fetchedAt: Date.now(),
+  };
 }
 
-// ── Layer 1: Sreality HTML search page (location-filtered, __NEXT_DATA__) ──
+function marketDataFallback(cityKey: string): CachedData | null {
+  const cityData = MARKET_DATA[cityKey];
+  if (!cityData) return null;
+  const segs = cityData.segments;
+  const allLows = [segs.panel_needs_renov.low, segs.panel_renovated.low, segs.brick_needs_renov.low, segs.brick_renovated.low];
+  const allHighs = [segs.panel_needs_renov.high, segs.panel_renovated.high, segs.brick_needs_renov.high, segs.brick_renovated.high];
+  const medians = [
+    (segs.panel_needs_renov.low + segs.panel_needs_renov.high) / 2,
+    (segs.panel_renovated.low + segs.panel_renovated.high) / 2,
+    (segs.brick_needs_renov.low + segs.brick_needs_renov.high) / 2,
+    (segs.brick_renovated.low + segs.brick_renovated.high) / 2,
+  ];
+  const overallMedian = Math.round(medians.reduce((a, b) => a + b, 0) / medians.length);
+  return {
+    city: cityKey,
+    low: Math.min(...allLows),
+    high: Math.max(...allHighs),
+    median: overallMedian,
+    sampleSize: 0,
+    source: "market_data",
+    fetchedAt: Date.now(),
+  };
+}
 
-async function fetchWithRetry(url: string, retries = 2): Promise<string | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
+async function fetchFromSrealityApi(cityKey: string): Promise<CachedData | null> {
+  await rateLimiter.wait("sreality", 3000);
+  const slug = cityKey.replace(/_/g, "-");
+  const url = `https://www.sreality.cz/api/v1/estates/search?category_main_cb=1&category_type_cb=1&locality_district_cz=${slug}&limit=500&offset=0`;
+
+  const headers: Record<string, string> = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    Accept: "application/json, text/plain, */*",
+    "Accept-Language": "cs,en;q=0.9",
+    Referer: "https://www.sreality.cz/",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
+  };
+
+  for (let attempt = 0; attempt <= 2; attempt++) {
     try {
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "cs,en;q=0.9",
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (res.ok) return res.text();
+      const res = await globalThis.fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) {
+        if (res.status === 429 || res.status === 403) {
+          const waitMs = res.status === 429 ? 30000 : 15000;
+          await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+        return null;
+      }
+      const data = await res.json();
+      const items: any[] = data?.results ?? [];
+      const prices = items
+        .map((r: any) => r.price_czk_m2)
+        .filter((p: number) => typeof p === "number" && p > 0);
+      const stats = computeStats(prices);
+      if (!stats) return null;
+      return toCacheEntry(cityKey, stats, prices.length, "sreality_api");
     } catch {
-      if (attempt < retries) await new Promise((r) => setTimeout(r, 1000));
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
     }
   }
   return null;
 }
 
-function extractNextData(html: string): any {
-  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
-  if (!match) return null;
-  try { return JSON.parse(match[1]); } catch { return null; }
-}
-
-function extractPricesFromNextData(data: any): number[] {
-  const queries = data.props?.pageProps?.dehydratedState?.queries ?? [];
-  const searchQuery = queries.find((q: any) => q.queryKey?.[0] === "estatesSearch");
-  if (!searchQuery) return [];
-  const results = searchQuery.state?.data?.results ?? [];
-  return results
-    .map((r: any) => r.priceCzkPerSqM ?? r.price_czk_m2)
-    .filter((p: number) => typeof p === "number" && p > 0);
-}
-
-async function fetchFromSreality(cityKey: string): Promise<CachedMarketData | null> {
-  await rateLimiter.wait("sreality", 3000);
-  const slug = cityKey.replace(/_/g, "-");
-  const html = await fetchWithRetry(`https://www.sreality.cz/hledani/prodej/byty/${slug}`);
-  if (!html) return null;
-  const data = extractNextData(html);
-  if (!data) return null;
-  const prices = extractPricesFromNextData(data);
-  const stats = computeStats(prices);
-  if (!stats) return null;
-  return {
-    city: cityKey,
-    source: "sreality",
-    medianPricePerSqm: stats.median,
-    p25PricePerSqm: stats.p25,
-    p75PricePerSqm: stats.p75,
-    sampleSize: prices.length,
-    fetchedAt: Date.now(),
-  };
-}
-
-// ── Layer 2: Own DB (recent scraped listings in the same city) ──
-
-async function fetchFromLocalDb(cityKey: string): Promise<CachedMarketData | null> {
+async function fetchFromOwnDb(cityKey: string): Promise<CachedData | null> {
   const cityNames = [cityKey.replace(/_/g, " ")];
   for (const [alias, normalized] of Object.entries(CITY_ALIASES)) {
     if (normalized === cityKey) cityNames.push(alias);
   }
 
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
   const rows = await db
     .select({ price: properties.price, area: properties.area, address: properties.address })
     .from(properties)
     .where(and(
       eq(properties.isActive, 1),
-      gte(properties.lastSeen, thirtyDaysAgo),
+      gte(properties.lastSeen, ninetyDaysAgo),
     ))
-    .limit(200);
+    .limit(500);
 
   const pricePerSqms: number[] = [];
   for (const row of rows) {
@@ -128,41 +142,112 @@ async function fetchFromLocalDb(cityKey: string): Promise<CachedMarketData | nul
 
   const stats = computeStats(pricePerSqms);
   if (!stats) return null;
-
-  return {
-    city: cityKey,
-    source: "db",
-    medianPricePerSqm: stats.median,
-    p25PricePerSqm: stats.p25,
-    p75PricePerSqm: stats.p75,
-    sampleSize: pricePerSqms.length,
-    fetchedAt: Date.now(),
-  };
+  return toCacheEntry(cityKey, stats, pricePerSqms.length, "db");
 }
 
-// ── Main entry point ──
+async function persistCache(entry: CachedData): Promise<void> {
+  try {
+    await db
+      .insert(marketCache)
+      .values({
+        city: entry.city,
+        low: entry.low,
+        high: entry.high,
+        median: entry.median,
+        sampleSize: entry.sampleSize,
+        source: entry.source,
+        fetchedAt: entry.fetchedAt,
+      })
+      .onConflictDoUpdate({
+        target: marketCache.city,
+        set: {
+          low: entry.low,
+          high: entry.high,
+          median: entry.median,
+          sampleSize: entry.sampleSize,
+          source: entry.source,
+          fetchedAt: entry.fetchedAt,
+        },
+      });
+  } catch {
+    // silent — cache persistence is best-effort
+  }
+}
 
-export async function getMarketPriceRange(
-  cityKey: string
-): Promise<MarketStats | null> {
-  // Check cache first
-  const cached = memoryCache.get(cityKey);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return { low: cached.p25PricePerSqm, high: cached.p75PricePerSqm, median: cached.medianPricePerSqm };
+async function readFromDbCache(cityKey: string): Promise<CachedData | null> {
+  try {
+    const row = await db
+      .select()
+      .from(marketCache)
+      .where(eq(marketCache.city, cityKey))
+      .limit(1)
+      .then((r) => r[0]);
+    if (!row) return null;
+    return {
+      city: row.city,
+      low: row.low,
+      high: row.high,
+      median: row.median,
+      sampleSize: row.sampleSize,
+      source: row.source as CachedData["source"],
+      fetchedAt: row.fetchedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function refreshMarketData(cityKey: string): Promise<CachedData | null> {
+  const apiData = await fetchFromSrealityApi(cityKey);
+  if (apiData) {
+    memCache.set(apiData.city, apiData);
+    await persistCache(apiData);
+    return apiData;
   }
 
-  // Layer 1: Sreality live data
-  const srealityData = await fetchFromSreality(cityKey);
-  if (srealityData) return cacheAndReturn(srealityData);
+  const dbData = await fetchFromOwnDb(cityKey);
+  if (dbData) {
+    memCache.set(dbData.city, dbData);
+    await persistCache(dbData);
+    return dbData;
+  }
 
-  // Layer 2: Own DB
-  const dbData = await fetchFromLocalDb(cityKey);
-  if (dbData) return cacheAndReturn(dbData);
+  const fallback = marketDataFallback(cityKey);
+  if (fallback) {
+    memCache.set(fallback.city, fallback);
+    await persistCache(fallback);
+  }
+  return fallback;
+}
 
-  // Layer 3: null → caller falls back to MARKET_DATA
-  return null;
+export async function refreshAllMarketData(): Promise<number> {
+  const cities = Object.keys(MARKET_DATA);
+  let count = 0;
+  for (const city of cities) {
+    const result = await refreshMarketData(city);
+    if (result) count++;
+  }
+  return count;
+}
+
+export async function getMarketPriceRange(cityKey: string): Promise<MarketStats | null> {
+  const cityData = MARKET_DATA[cityKey];
+  if (!cityData) return null;
+
+  const cached = memCache.get(cityKey);
+  if (cached && Date.now() - cached.fetchedAt < MEMORY_TTL_MS) {
+    return { low: cached.low, high: cached.high, median: cached.median };
+  }
+
+  const dbCached = await readFromDbCache(cityKey);
+  if (dbCached && Date.now() - dbCached.fetchedAt < DB_TTL_MS) {
+    memCache.set(dbCached.city, dbCached);
+    return { low: dbCached.low, high: dbCached.high, median: dbCached.median };
+  }
+
+  return refreshMarketData(cityKey).then((r) => r ? { low: r.low, high: r.high, median: r.median } : null);
 }
 
 export function clearCache() {
-  memoryCache.clear();
+  memCache.clear();
 }

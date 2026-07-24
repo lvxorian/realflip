@@ -10,6 +10,16 @@ export const marketData = pgTable("market_data", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
+export const marketCache = pgTable("market_cache", {
+  city: text("city").primaryKey(),
+  low: integer("low").notNull(),
+  high: integer("high").notNull(),
+  median: integer("median").notNull(),
+  sampleSize: integer("sample_size").notNull(),
+  source: text("source", { enum: ["sreality_api", "db", "market_data"] }).notNull(),
+  fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
+});
+
 export const scrapingJobs = pgTable("scraping_jobs", {
   id: text("id").primaryKey(),
   portal: text("portal").notNull(),

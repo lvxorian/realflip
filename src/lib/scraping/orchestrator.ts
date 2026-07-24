@@ -9,6 +9,8 @@ import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts, safeJsonParse } from "@/lib/utils";
 import { checkPriceDropAlert } from "@/lib/alert-matcher";
+import { classifyLocation } from "@/lib/analysis/location";
+import { getMarketPriceRange, refreshAllMarketData } from "@/lib/scraping/market-price-service";
 
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
@@ -232,6 +234,9 @@ export class ScrapingOrchestrator {
         console.error(`[scraping] Scheduled search ${search.id} (${search.name}) failed:`, err);
       }
     }
+
+    // Refresh market price cache after all searches complete
+    refreshAllMarketData().catch(() => {});
   }
 
   private async saveListing(listing: RawListing, searchId?: string): Promise<string | null> {
@@ -408,8 +413,12 @@ export class ScrapingOrchestrator {
         recordedAt: listing.publishedAt ? new Date(listing.publishedAt).getTime() : ts(),
       });
 
-      // Enhanced analysis
-      const analysis = analyzeListing(listing);
+      // Enhanced analysis with live market data
+      const location = classifyLocation(listing.address, listing.title);
+      const dynamicRange = location.city !== "Neznámá"
+        ? await getMarketPriceRange(location.city).catch(() => null)
+        : null;
+      const analysis = analyzeListing(listing, dynamicRange, undefined, location);
 
       // AI analysis (only if API key available)
       let aiReport: string | null = null;

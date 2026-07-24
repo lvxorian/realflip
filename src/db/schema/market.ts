@@ -10,6 +10,16 @@ export const marketData = sqliteTable("market_data", {
   createdAt: integer("created_at").notNull(),
 });
 
+export const marketCache = sqliteTable("market_cache", {
+  city: text("city").primaryKey(),
+  low: integer("low").notNull(),
+  high: integer("high").notNull(),
+  median: integer("median").notNull(),
+  sampleSize: integer("sample_size").notNull(),
+  source: text("source", { enum: ["sreality_api", "db", "market_data"] }).notNull(),
+  fetchedAt: integer("fetched_at").notNull(),
+});
+
 export const scrapingJobs = sqliteTable("scraping_jobs", {
   id: text("id").primaryKey(),
   portal: text("portal").notNull(),

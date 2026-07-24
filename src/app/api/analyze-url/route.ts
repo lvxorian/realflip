@@ -84,7 +84,7 @@ export async function POST(req: Request) {
               condition: listing.condition,
               address: listing.address,
               description: listing.description,
-              imageUrls: listing.imageUrls.slice(0, 3),
+              imageUrls: listing.imageUrls,
               contactPhone: listing.contactPhone,
               contactName: listing.contactName,
               contactEmail: listing.contactEmail,
