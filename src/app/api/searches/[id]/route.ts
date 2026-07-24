@@ -36,7 +36,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .from(searchProperties)
       .innerJoin(properties, eq(searchProperties.propertyId, properties.id))
       .leftJoin(propertyAnalysis, eq(searchProperties.propertyId, propertyAnalysis.propertyId))
-      .where(eq(searchProperties.searchId, id));
+      .where(
+        and(
+          eq(searchProperties.searchId, id),
+          eq(properties.isActive, 1),
+        ),
+      );
 
     return NextResponse.json({
       ...search,

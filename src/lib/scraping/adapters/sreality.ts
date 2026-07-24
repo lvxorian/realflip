@@ -267,15 +267,27 @@ export class SrealityAdapter extends PortalAdapter {
 
   private async fetchJson(url: string): Promise<any> {
     await this.rateLimiter.wait(this.config.name);
-    const response = await globalThis.fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        Accept: "application/json, text/plain, */*",
-        "Accept-Language": "cs,en;q=0.9",
-        Referer: "https://www.sreality.cz/",
-      },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${url}`);
-    return response.json();
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "cs,en;q=0.9",
+      Referer: "https://www.sreality.cz/",
+      "Sec-Fetch-Site": "same-origin",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Dest": "empty",
+    };
+
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      const response = await globalThis.fetch(url, { headers });
+      if (response.ok) return response.json();
+      if (response.status === 429 || response.status === 403 || response.status === 404) {
+        const retryAfter = response.headers.get("Retry-After");
+        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : response.status === 429 ? 30000 : 15000;
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      throw new Error(`HTTP ${response.status}: ${url}`);
+    }
+    throw new Error(`HTTP failed after retries: ${url}`);
   }
 }

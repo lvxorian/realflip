@@ -3,7 +3,7 @@ import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, fi
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
-import { eq, and, ne, notInArray } from "drizzle-orm";
+import { eq, and, ne, notInArray, inArray } from "drizzle-orm";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
@@ -132,6 +132,7 @@ export class ScrapingOrchestrator {
     const portals = Object.keys(PORTAL_CONFIGS) as PortalName[];
     let total = 0;
     const allErrors: string[] = [];
+    const allFoundUrls: Set<string> = new Set();
 
     const crawlPortal = async (portal: PortalName): Promise<void> => {
       const adapter = this.adapters.get(portal);
@@ -139,7 +140,6 @@ export class ScrapingOrchestrator {
       if (!PORTAL_CONFIGS[portal].enabled) return;
 
       const errors: string[] = [];
-      const foundUrls: Set<string> = new Set();
 
       try {
         let listings = await adapter.crawlListings(filters);
@@ -149,7 +149,7 @@ export class ScrapingOrchestrator {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
           if (!isValidPrice(listing.price)) continue;
 
-          foundUrls.add(listing.url);
+          allFoundUrls.add(listing.url);
 
           try {
             const propertyId = await this.saveListing(listing, searchId);
@@ -157,20 +157,6 @@ export class ScrapingOrchestrator {
           } catch (err) {
             errors.push(`Failed to save listing ${listing.url}: ${err}`);
           }
-        }
-
-        // Bulk deactivate stale listings not found in this crawl
-        if (foundUrls.size > 0) {
-          await db
-            .update(properties)
-            .set({ isActive: 0, lastSeen: ts() })
-            .where(
-              and(
-                eq(properties.portalName, portal),
-                eq(properties.isActive, 1),
-                notInArray(properties.url, Array.from(foundUrls)),
-              ),
-            );
         }
       } catch (err) {
         errors.push(`Crawl error (${portal}): ${err}`);
@@ -186,6 +172,34 @@ export class ScrapingOrchestrator {
     for (const result of results) {
       if (result.status === "rejected") {
         allErrors.push(`Portal crawl rejected: ${result.reason}`);
+      }
+    }
+
+    // Cleanup: remove search property links for listings no longer matching filters
+    if (allFoundUrls.size > 0) {
+      try {
+        const linked = await db
+          .select({ id: properties.id, url: properties.url })
+          .from(searchProperties)
+          .innerJoin(properties, eq(searchProperties.propertyId, properties.id))
+          .where(eq(searchProperties.searchId, searchId));
+
+        const staleIds = linked
+          .filter((l) => !allFoundUrls.has(l.url))
+          .map((l) => l.id);
+
+        if (staleIds.length > 0) {
+          await db
+            .delete(searchProperties)
+            .where(
+              and(
+                eq(searchProperties.searchId, searchId),
+                inArray(searchProperties.propertyId, staleIds),
+              ),
+            );
+        }
+      } catch (err) {
+        allErrors.push(`Search link cleanup error: ${err}`);
       }
     }
 

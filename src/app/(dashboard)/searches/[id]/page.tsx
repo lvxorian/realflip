@@ -183,7 +183,7 @@ export default function SearchDetailPage() {
               try { return JSON.parse(r.property.imageUrls); } catch { return []; }
             })();
             return (
-              <motion.div key={r.propertyId} variants={containerVariants}>
+                  <motion.div key={r.propertyId} variants={containerVariants}>
                 <PropertyCard
                   id={r.property.id}
                   title={r.property.title}
@@ -193,7 +193,7 @@ export default function SearchDetailPage() {
                   score={r.analysis?.investmentScore ?? 0}
                   area={r.property.area ? `${r.property.area} m²` : undefined}
                   rooms={r.property.rooms ?? undefined}
-                  days={0}
+                  days={r.lastSeen ? Math.round((Date.now() - r.lastSeen) / 86400000) : 0}
                   imageUrl={images[0]}
                   undervaluationPct={
                     r.analysis?.undervaluationPct != null && r.analysis.undervaluationPct > 0
