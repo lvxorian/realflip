@@ -273,7 +273,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
   const handleRoiChange = (value: string) => {
     const num = parseInt(value) || 0;
-    setTargetRoi(Math.max(5, Math.min(50, num)));
+    setTargetRoi(Math.max(5, Math.min(100, num)));
   };
 
   const handleItemCostChange = (index: number, value: string) => {
@@ -572,7 +572,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <input
                 type="range"
                 min={5}
-                max={40}
+                max={100}
                 value={targetRoi}
                 onChange={(e) => setTargetRoi(parseInt(e.target.value))}
                 className="flex-1 accent-accent h-1.5"
