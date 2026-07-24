@@ -3,6 +3,7 @@ import { classifyLocation } from "./location";
 import { EUPHEMISMS, MARKET_DATA } from "./market-data";
 import { normalizeCondition } from "./condition";
 import { RawListing } from "../scraping/types";
+import { calculateItemizedRenovation } from "./flip-costs";
 
 function detectBuildingType(description: string | null, title: string | null, scrapedBuildingType?: string | null): BuildingType {
   if (scrapedBuildingType) return scrapedBuildingType as BuildingType;
@@ -131,7 +132,7 @@ function calculateMarketPriceRange(
     };
   }
 
-  const useBrick = buildingType === "brick" || buildingType === "new";
+  const useBrick = buildingType === "brick" || buildingType === "new" || buildingType === "mixed";
   const other = buildingType === "panel" || buildingType === null;
 
   let low = 0, high = 0;
@@ -213,42 +214,6 @@ function calculateRentalYield(price: number, area: number | null): number | null
   return (annualRent / price) * 100;
 }
 
-function calculateItemizedRenovation(area: number, condition: string | null): RenovationItem[] {
-  const needsFull = condition === "original" || condition === "dilapidated";
-  const needsMedium = condition === "good" || !condition;
-  const needsLight = condition === "new" || condition === "renovated";
-
-  const items: RenovationItem[] = [];
-
-  // Bourání
-  items.push({ category: "Bourání a přípravné práce", estimatedCost: Math.round(area * (needsFull ? 600 : 300)), note: needsFull ? "Plné bourání" : "Částečné úpravy" });
-
-  // Elektrika
-  items.push({ category: "Elektroinstalace", estimatedCost: Math.round(area * (needsFull ? 1800 : needsMedium ? 1200 : 400)), note: needsFull ? "Kompletní nová" : needsMedium ? "Částečná" : "Drobné úpravy" });
-
-  // Voda + topení
-  items.push({ category: "Vodoinstalace a topení", estimatedCost: Math.round(area * (needsFull ? 2000 : needsMedium ? 1400 : 500)), note: needsFull ? "Kompletní nové" : needsMedium ? "Částečná" : "Drobné úpravy" });
-
-  // Podlahy
-  items.push({ category: "Podlahy", estimatedCost: Math.round(area * (needsFull ? 1500 : needsMedium ? 1000 : 600)), note: needsFull ? "Včetně vyrovnání" : "Přebroušení/položení" });
-
-  // Malby + omítky
-  items.push({ category: "Malby a omítky", estimatedCost: Math.round(area * (needsFull ? 800 : needsMedium ? 500 : 300)), note: needsFull ? "Nové omítky" : "Přemalování" });
-
-  // Koupelna (estimated as flat cost based on condition)
-  const bathroomCost = needsFull ? 250000 : needsMedium ? 180000 : 80000;
-  items.push({ category: "Koupelna", estimatedCost: bathroomCost, note: needsFull ? "Kompletní rekonstrukce" : "Částečná" });
-
-  // Kuchyně
-  const kitchenCost = needsFull ? 200000 : needsMedium ? 140000 : 60000;
-  items.push({ category: "Kuchyně", estimatedCost: kitchenCost, note: needsFull ? "Nová kuchyně vč. spotřebičů" : needsMedium ? "Nová linka" : "Drobné úpravy" });
-
-  // Okna + dveře
-  items.push({ category: "Okna a dveře", estimatedCost: Math.round(area * (needsFull ? 1200 : needsMedium ? 600 : 200)), note: needsFull ? "Nová okna" : needsMedium ? "Částečná výměna" : "Údržba" });
-
-  return items;
-}
-
 function calculateScenario(
   label: string,
   purchasePrice: number,
@@ -267,11 +232,11 @@ function calculateScenario(
   const legalFees = 25000;
   const appraisalFee = 8000;
   const holdingCosts = Math.round((purchasePrice + renovationCost) * 0.005 * timelineMonths);
-  const sellingCommission = Math.round(arv * 0.04);
+  const sellingCommission = Math.round(arv * 0.05);
   const homeStaging = 35000;
   const certificates = 10000;
   const grossProfit = arv - purchasePrice - commission - legalFees - appraisalFee - renovationCost - holdingCosts - sellingCommission - homeStaging - certificates;
-  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.15) : 0;
+  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
   const totalCost = purchasePrice + commission + legalFees + appraisalFee + renovationCost + holdingCosts + sellingCommission + homeStaging + certificates + incomeTax;
   const netProfit = arv - totalCost;
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
@@ -286,7 +251,7 @@ export function calculateTargetPurchasePrice(
   targetROI?: number
 ): number {
   const roi = (targetROI ?? 15) / 100;
-  const taxRate = 0.15;
+  const taxRate = 0.21;
   const grossTargetRatio = roi / (1 - taxRate);
   const targetMultiple = 1 + grossTargetRatio;
   const targetTotalCost = arv / targetMultiple;
@@ -431,13 +396,16 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   const flip = scenarios.conservative;
   const renovationTotal = flip.renovationCost;
 
-  const legalFees = 20000;
-  const appraisalFee = 5000;
+  const commission = Math.round(price * 0.04);
+  const legalFees = 25000;
+  const appraisalFee = 8000;
   const contingency = Math.round(renovationTotal * 0.10);
-  const holdingCosts = 6 * usableArea * 120;
-  const sellingCommission = Math.round(flip.arv * 0.04);
-  const grossProfit = flip.arv - price - legalFees - appraisalFee - renovationTotal - contingency - holdingCosts - sellingCommission;
-  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.15) : 0;
+  const holdingCosts = Math.round((price + renovationTotal) * 0.005 * 6);
+  const sellingCommission = Math.round(flip.arv * 0.05);
+  const homeStaging = 35000;
+  const certificates = 10000;
+  const grossProfit = flip.arv - price - commission - legalFees - appraisalFee - renovationTotal - contingency - holdingCosts - sellingCommission - homeStaging - certificates;
+  const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
 
   const costs: DetailedCosts = {
     purchasePrice: price,
@@ -448,10 +416,10 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     holdingCosts,
     mortgageCost: 0,
     sellingCommission,
-      marketingPhoto: 0,
-      sourcingFee: 0,
+    marketingPhoto: 0,
+    sourcingFee: 0,
     incomeTax,
-    totalCost: price + legalFees + appraisalFee + renovationTotal + contingency + holdingCosts + sellingCommission + incomeTax,
+    totalCost: price + commission + legalFees + appraisalFee + renovationTotal + contingency + holdingCosts + sellingCommission + homeStaging + certificates + incomeTax,
   };
 
   const netProfit = flip.arv - costs.totalCost;

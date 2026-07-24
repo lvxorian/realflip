@@ -11,9 +11,8 @@ import { IdnesRealityAdapter } from "@/lib/scraping/adapters/idnes-reality";
 
 export async function POST(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
-  const isVercelCron = req.headers.get("x-vercel-cron") === "1";
   const isExternalCron = cronSecret ? req.headers.get("x-cron-secret") === cronSecret : false;
-  if (!isVercelCron && !isExternalCron) {
+  if (!isExternalCron) {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -17,10 +17,15 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
+    const allowed = ["name", "conditions", "rules", "channels", "isActive"];
+    const update: Record<string, unknown> = { updatedAt: ts() };
+    for (const key of allowed) {
+      if (body[key] !== undefined) update[key] = body[key];
+    }
 
     await db
       .update(alerts)
-      .set({ ...body, updatedAt: ts() })
+      .set(update)
       .where(and(eq(alerts.id, id), eq(alerts.userId, session.user.id)));
 
     return NextResponse.json({ ok: true });
