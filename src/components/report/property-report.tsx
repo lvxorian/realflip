@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { calculateFlipResults, calculateItemizedRenovation } from "@/lib/analysis/flip-costs";
+import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { conditionLabel } from "@/lib/utils";
 
 interface PropertyData {
@@ -118,18 +118,11 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
     return Math.min(100, Math.round(roiPoints + scorePoints + arvBonus));
   }, [t, score, targetRoi, arvValue, property.price]);
 
-  const scoreColor = score >= 60 ? "text-emerald-700" : score >= 40 ? "text-amber-700" : "text-red-700";
-  const adjustedScoreColor = adjustedScore >= 60 ? "text-emerald-700" : adjustedScore >= 40 ? "text-amber-700" : "text-red-700";
-
-  const itemized = useMemo(() => calculateItemizedRenovation(area, property.condition), [area, property.condition]);
-
   const redFlags = useMemo(() => {
     try { return JSON.parse(analysis?.redFlagsJson ?? "[]") as { type: string; text: string; severity: string }[]; } catch { return []; }
   }, [analysis?.redFlagsJson]);
 
   function handlePrint() { window.print(); }
-
-  const oc = originalResults.costs;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -176,10 +169,6 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                 <tr><td className="py-1.5 pr-4 text-gray-600">Inzerovaná cena</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(property.price)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">Cena za m²</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(area > 0 ? Math.round(property.price / area) : 0)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">ARV</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(arvValue)}</td></tr>
-                <tr><td className="py-1.5 pr-4 text-gray-600">Náklady na rekonstrukci</td><td className="py-1.5 text-right font-mono font-medium text-gray-700">{fmtPrice(renoCost)}</td></tr>
-                <tr><td className="py-1.5 pr-4 text-gray-600">Celkové náklady</td><td className="py-1.5 text-right font-mono font-medium text-gray-700">{fmtPrice(oc.totalCost)}</td></tr>
-                <tr><td className="py-1.5 pr-4 text-gray-600">Očekávaný zisk</td><td className={`py-1.5 text-right font-mono font-medium ${originalResults.netProfit > 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(originalResults.netProfit)}</td></tr>
-                <tr><td className="py-1.5 pr-4 text-gray-600">ROI</td><td className={`py-1.5 text-right font-mono font-medium ${originalResults.roi > 0 ? "text-emerald-700" : "text-red-700"}`}>{originalResults.roi} %</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">Skóre</td><td className="py-1.5 text-right font-mono font-semibold text-gray-900">{score}</td></tr>
               </tbody>
             </table>
