@@ -260,27 +260,6 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
         )}
 
-        {/* Renovation items */}
-        {itemized.length > 0 && (
-          <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
-            <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Položky rekonstrukce</h2>
-            </div>
-            <div className="p-6">
-              <table className="w-full text-sm">
-                <tbody className="divide-y divide-gray-100">
-                  {itemized.map((item) => (
-                    <tr key={item.category}>
-                      <td className="py-1 pr-4 text-gray-600">{item.category}</td>
-                      <td className="py-1 text-right font-mono text-gray-700">{fmtPrice(item.estimatedCost)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {/* Red Flags */}
         {redFlags.length > 0 && (
           <div className="rp-card border border-red-200 rounded-xl p-6 bg-red-50">
@@ -303,13 +282,6 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{property.description}</p>
           </div>
         )}
-
-        {/* Footer */}
-        <div className="border-t border-gray-200 pt-4 text-center">
-          <p className="text-xs text-gray-400">
-            Vygenerováno prostřednictvím investorské aplikace RealFlip – {new Date().toLocaleDateString("cs-CZ")}
-          </p>
-        </div>
       </div>
     </div>
   );
