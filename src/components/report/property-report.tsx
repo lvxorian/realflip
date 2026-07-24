@@ -165,30 +165,6 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
         </div>
 
-        {/* Comparison Scoring Box */}
-        <div className="rp-card border border-gray-200 rounded-xl p-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center border-r border-gray-200 pr-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Původní inzerát</p>
-              <div className="flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gray-200">
-                <span className={`text-3xl font-bold font-mono ${scoreColor}`}>{score}</span>
-              </div>
-              <p className="text-lg font-semibold text-gray-900 mt-3">{verdictLabels[verdict] ?? verdict}</p>
-              {analysis?.verdictSummary && <p className="text-sm text-gray-600 mt-1">{analysis.verdictSummary}</p>}
-            </div>
-            <div className="text-center pl-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Po vyjednání</p>
-              <div className="flex items-center justify-center h-20 w-20 mx-auto rounded-full bg-gray-200">
-                <span className={`text-3xl font-bold font-mono ${adjustedScoreColor}`}>{adjustedScore}</span>
-              </div>
-              <p className="text-lg font-semibold text-gray-900 mt-3">
-                {adjustedScore >= 70 ? "Silně doporučeno" : adjustedScore >= 50 ? "Doporučeno" : adjustedScore >= 30 ? "Zvážit" : "Zamítnout"}
-              </p>
-              {t && <p className="text-sm text-gray-600 mt-1">Cílová cena: {fmtPrice(originalResults.targetPurchasePrice)}</p>}
-            </div>
-          </div>
-        </div>
-
         {/* Section: Původní inzerát */}
         <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
           <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
