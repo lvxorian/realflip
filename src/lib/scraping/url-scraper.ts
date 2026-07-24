@@ -37,9 +37,69 @@ const USER_AGENTS = [
 let cookieJar: string | null = null;
 let cookieExpiry = 0;
 
-async function ensureCookie(portal: string): Promise<void> {
+async function fetchWithRetry(
+  url: string,
+  portal: string,
+  accept: string,
+  referer?: string,
+  maxRetries = 2,
+  useCookies = false,
+): Promise<{ text: string; status: number }> {
+  let lastErr: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await rateLimiter.wait(portal, 2000);
+      const ua = USER_AGENTS[attempt % USER_AGENTS.length];
+      const headers: Record<string, string> = {
+        "User-Agent": ua,
+        Accept: accept,
+        "Accept-Language": "cs,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+      };
+      if (referer) headers.Referer = referer;
+      if (useCookies && cookieJar) {
+        headers.Cookie = cookieJar;
+      }
+
+      const response = await globalThis.fetch(url, { headers });
+
+      if (response.status === 429 || response.status === 403) {
+        const retryAfter = response.headers.get("Retry-After");
+        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : response.status === 429 ? 30000 : 10000;
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+
+      if (response.ok) {
+        return { text: await response.text(), status: response.status };
+      }
+
+      lastErr = new Error(`HTTP ${response.status}: ${url}`);
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+    }
+
+    if (attempt < maxRetries) {
+      await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
+    }
+  }
+  throw lastErr ?? new Error(`Failed to fetch: ${url}`);
+}
+
+async function fetchHtml(url: string, portal: string, useCookies = false): Promise<string> {
+  const { text } = await fetchWithRetry(url, portal, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", url, 2, useCookies);
+  return text;
+}
+
+async function fetchJson(url: string, portal: string, extraHeaders?: Record<string, string>, useCookies = false): Promise<any> {
+  const accept = extraHeaders?.Accept ?? "application/json, text/plain, */*";
+  const referer = extraHeaders?.Referer ?? "https://www.sreality.cz/";
+  const { text } = await fetchWithRetry(url, portal, accept, referer, 2, useCookies);
+  return JSON.parse(text);
+}
+
+async function ensureCookies(): Promise<void> {
   if (cookieJar && Date.now() < cookieExpiry) return;
-  await rateLimiter.wait(portal, 2000);
   try {
     const res = await globalThis.fetch("https://www.sreality.cz/", {
       headers: {
@@ -63,56 +123,6 @@ async function ensureCookie(portal: string): Promise<void> {
   } catch {
     // cookies are optional
   }
-}
-
-async function fetchWithRetry(url: string, portal: string, accept: string, referer?: string, maxRetries = 2): Promise<{ text: string; status: number }> {
-  let lastErr: Error | null = null;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      await rateLimiter.wait(portal, 2000);
-      const ua = USER_AGENTS[attempt % USER_AGENTS.length];
-      const headers: Record<string, string> = {
-        "User-Agent": ua,
-        Accept: accept,
-        "Accept-Language": "cs,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-      };
-      if (referer) headers.Referer = referer;
-      if (cookieJar) headers.Cookie = cookieJar;
-
-      const response = await globalThis.fetch(url, { headers });
-
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After");
-        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : 30000;
-        await new Promise((r) => setTimeout(r, waitMs));
-        continue;
-      }
-
-      if (response.ok) {
-        return { text: await response.text(), status: response.status };
-      }
-
-      lastErr = new Error(`HTTP ${response.status}: ${url}`);
-    } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e));
-    }
-
-    if (attempt < maxRetries) {
-      await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
-    }
-  }
-  throw lastErr ?? new Error(`Failed to fetch: ${url}`);
-}
-
-async function fetchHtml(url: string, portal: string): Promise<string> {
-  const { text } = await fetchWithRetry(url, portal, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", url);
-  return text;
-}
-
-async function fetchJson(url: string, portal: string, headers?: Record<string, string>): Promise<any> {
-  const { text } = await fetchWithRetry(url, portal, "application/json, text/plain, */*", "https://www.sreality.cz/");
-  return JSON.parse(text);
 }
 
 function cleanText(text: string | null): string | null {
@@ -142,29 +152,40 @@ function extractRooms(text: string): string | null {
   return null;
 }
 
+async function trySrealityApi(id: string, useCookies: boolean): Promise<any> {
+  return fetchJson(`https://www.sreality.cz/api/v1/estates/${id}`, "sreality", undefined, useCookies);
+}
+
+async function trySrealityHtml(url: string): Promise<any> {
+  const html = await fetchHtml(url, "sreality");
+  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
+  if (!match) throw new Error("Nepodařilo se načíst data inzerátu");
+  const nextData = JSON.parse(match[1]);
+  const queries = nextData.props?.pageProps?.dehydratedState?.queries ?? [];
+  const detailQuery = queries.find((q: any) => q.state?.data?.result?.advert_name);
+  if (!detailQuery) throw new Error("Nepodařilo se najít data inzerátu v HTML");
+  return { result: detailQuery.state.data.result };
+}
+
 async function scrapeSreality(url: string): Promise<RawListing> {
   const cleanUrl = url.split("?")[0].split("#")[0];
   const segments = cleanUrl.replace(/\/+$/, "").split("/");
   const id = segments[segments.length - 1];
   if (!/^\d+$/.test(id)) throw new Error("Nelze parsovat ID inzerátu z URL");
 
-  await ensureCookie("sreality");
-
   let data: any;
   try {
-    data = await fetchJson(`https://www.sreality.cz/api/v1/estates/${id}`, "sreality");
+    data = await trySrealityApi(id, false);
   } catch {
-    const html = await fetchHtml(url, "sreality");
-    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
-    if (!match) throw new Error("Nepodařilo se načíst data inzerátu");
-    const nextData = JSON.parse(match[1]);
-    const queries = nextData.props?.pageProps?.dehydratedState?.queries ?? [];
-    const detailQuery = queries.find((q: any) => q.state?.data?.result?.advert_name);
-    if (!detailQuery) throw new Error("Nepodařilo se najít data inzerátu v HTML");
-    data = { result: detailQuery.state.data.result };
+    try {
+      await ensureCookies();
+      data = await trySrealityApi(id, true);
+    } catch {
+      data = await trySrealityHtml(url);
+    }
   }
   const r = data.result;
-  if (!r) throw new Error("API nevrátilo data inzerátu");
+  if (!r) throw new Error("SrealityAPI nevrátilo data inzerátu");
 
   const locality = r.locality ?? {};
   const city = locality.city ?? null;

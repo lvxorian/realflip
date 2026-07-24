@@ -120,8 +120,15 @@ export async function POST(req: Request) {
             aiHiddenInfo,
           };
         } catch (error) {
-          console.error(`Analyze URL error for ${url}:`, error);
-          return { url, success: false, error: error instanceof Error ? error.message : "Analysis failed" };
+          const msg = error instanceof Error ? error.message : "Analysis failed";
+          console.error(`Analyze URL error for ${url}: ${msg}`);
+          const portal = url.includes("sreality") ? "sreality.cz" : url.includes("reality.cz") ? "reality.cz" : url.includes("hyperinzerce") ? "hyperinzerce.cz" : "neznámý portál";
+          const userMsg = msg.startsWith("HTTP 404")
+            ? `Inzerát na ${portal} nebyl nalezen (404). Zkontrolujte, zda URL existuje.`
+            : msg.startsWith("HTTP 403")
+            ? `Přístup na ${portal} byl zamítnut (403). Zkuste to prosím později.`
+            : msg;
+          return { url, success: false, error: userMsg };
         }
       })
     );

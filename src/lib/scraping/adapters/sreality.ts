@@ -169,92 +169,93 @@ export class SrealityAdapter extends PortalAdapter {
     return enriched;
   }
 
-  private async enrichListing(listing: RawListing): Promise<RawListing> {
-    try {
-      const id = listing.url.split("/").pop();
-      if (!id || !/^\d+$/.test(id)) return listing;
+  private tryEnrichFromApi(id: string): Promise<SrealityDetail> {
+    return this.fetchJson(`${this.baseApi}/${id}`);
+  }
 
-      const data: SrealityDetail = await this.fetchJson(`${this.baseApi}/${id}`);
-      const r = data.result;
-      if (!r) return listing;
+  private async tryEnrichFromHtml(url: string, listing: RawListing): Promise<void> {
+    const html = await this.fetch(listing.url);
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
+    if (!match) return;
+    const nextData = JSON.parse(match[1]);
+    const queries = nextData.props?.pageProps?.dehydratedState?.queries ?? [];
+    const detailQuery = queries.find((q: any) => q.state?.data?.result?.advert_name);
+    if (!detailQuery) return;
+    const r = detailQuery.state.data.result;
+    if (!r) return;
 
-      if (r.advert_name) listing.title = r.advert_name;
-      if (r.advert_description) listing.description = r.advert_description;
+    const hashId = url.split("/").pop() ?? "";
+    this.applyEnrichedData(listing, r, hashId);
+  }
 
-      const roomsLabel: string = r.category_sub_cb?.name ?? "";
-      listing.rooms = roomsLabel ? roomsLabel.replace(/^(\d+\+\w+).*$/, "$1") : null;
+  private applyEnrichedData(listing: RawListing, r: any, hashId: string): void {
+    if (r.advert_name) listing.title = r.advert_name;
+    if (r.advert_description) listing.description = r.advert_description;
 
-      const buildingConditionRaw = r.building_condition?.name ?? null;
-      listing.condition = inferConditionFromText(
-        listing.description ?? "",
-        listing.title,
-        buildingConditionRaw,
-      );
+    const roomsLabel = r.category_sub_cb?.name ?? "";
+    listing.rooms = roomsLabel ? roomsLabel.replace(/^(\d+\+\w+).*$/, "$1") : null;
 
-      listing.buildingType = normalizeBuildingType(r.building_type?.name ?? null);
-      listing.yearBuilt = r.acceptance_year ?? null;
-      listing.floor = r.floor_number ?? null;
-      listing.pricePerSqm = r.price_czk_m2 ?? listing.pricePerSqm;
-      listing.area = r.usable_area ?? r.floor_area ?? listing.area;
+    const buildingConditionRaw = r.building_condition?.name ?? null;
+    listing.condition = inferConditionFromText(
+      listing.description ?? "",
+      listing.title,
+      buildingConditionRaw,
+    );
 
-      const detailLocality = r.locality;
-      if (detailLocality) {
-        const city = detailLocality.city ?? null;
-        const street = detailLocality.street ?? null;
-        const streetNumber = detailLocality.streetnumber ?? null;
-        listing.address = [street, streetNumber, city].filter(Boolean).join(" ") || listing.address;
-        listing.lat = detailLocality.gps_lat ?? listing.lat;
-        listing.lng = detailLocality.gps_lon ?? listing.lng;
-      }
+    listing.buildingType = normalizeBuildingType(r.building_type?.name ?? null);
+    listing.yearBuilt = r.acceptance_year ?? null;
+    listing.floor = r.floor_number ?? null;
+    listing.pricePerSqm = r.price_czk_m2 ?? listing.pricePerSqm;
+    listing.area = r.usable_area ?? r.floor_area ?? listing.area;
 
-      // Fix URL with enriched data (rooms + location slug)
-      const hashId = listing.url.split("/").pop() ?? "";
-      const enrichedRooms = r.category_sub_cb?.name
-        ? r.category_sub_cb.name.replace(/^(\d+\+\w+).*$/, "$1").toLowerCase()
-        : "";
-      listing.url = buildSrealityDetailUrl(parseInt(hashId) || 0, enrichedRooms, r.locality);
-
-      listing.imageUrls = filterImages(
-        (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
-        this.config.name,
-      ).map((url) => url + SREALITY_CDN_PARAMS);
-
-      if (r.user) {
-        listing.contactName = r.user.user_name ?? null;
-        listing.contactEmail = r.user.user_email ?? null;
-        listing.contactPhone = r.user.user_phones?.[0]?.phone ?? null;
-      }
-
-      if (r.since) listing.publishedAt = new Date(r.since).getTime();
-      if (r.edited) listing.updatedAt = new Date(r.edited).getTime();
-
-      if (listing.price === 0 && r.price_czk) listing.price = r.price_czk;
-    } catch {
-      // enrichment is optional
+    if (r.locality) {
+      const city = r.locality.city ?? null;
+      const street = r.locality.street ?? null;
+      const streetNumber = r.locality.streetnumber ?? null;
+      listing.address = [street, streetNumber, city].filter(Boolean).join(" ") || listing.address;
+      listing.lat = r.locality.gps_lat ?? listing.lat;
+      listing.lng = r.locality.gps_lon ?? listing.lng;
     }
 
-    // Fallback: extract images from HTML __NEXT_DATA__ if API returned none
-    if (listing.imageUrls.length === 0) {
-      try {
-        const html = await this.fetch(listing.url);
-        const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
-        if (match) {
-          const nextData = JSON.parse(match[1]);
-          const queries = nextData.props?.pageProps?.dehydratedState?.queries ?? [];
-          const detailQuery = queries.find((q: any) => q.state?.data?.result?.advert_name);
-          if (detailQuery) {
-            const r = detailQuery.state.data.result;
-            if (r?.advert_images) {
-              listing.imageUrls = filterImages(
-                (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
-                this.config.name,
-              ).map((url) => url + SREALITY_CDN_PARAMS);
-            }
-          }
-        }
-      } catch {
-        // HTML fallback is optional
+    const enrichedRooms = r.category_sub_cb?.name
+      ? r.category_sub_cb.name.replace(/^(\d+\+\w+).*$/, "$1").toLowerCase()
+      : "";
+    listing.url = buildSrealityDetailUrl(parseInt(hashId) || 0, enrichedRooms, r.locality);
+
+    listing.imageUrls = filterImages(
+      (r.advert_images ?? []).map((img: any) => img.url ?? img.advert_image_sdn_url ?? ""),
+      this.config.name,
+    ).map((url) => url + SREALITY_CDN_PARAMS);
+
+    if (r.user) {
+      listing.contactName = r.user.user_name ?? null;
+      listing.contactEmail = r.user.user_email ?? null;
+      listing.contactPhone = r.user.user_phones?.[0]?.phone ?? null;
+    }
+
+    if (r.since) listing.publishedAt = new Date(r.since).getTime();
+    if (r.edited) listing.updatedAt = new Date(r.edited).getTime();
+    if (listing.price === 0 && r.price_czk) listing.price = r.price_czk;
+  }
+
+  private async enrichListing(listing: RawListing): Promise<RawListing> {
+    const id = listing.url.split("/").pop();
+    if (!id || !/^\d+$/.test(id)) return listing;
+
+    try {
+      const data = await this.tryEnrichFromApi(id);
+      if (data?.result) {
+        this.applyEnrichedData(listing, data.result, id);
+        return listing;
       }
+    } catch {
+      // API failed, try HTML fallback
+    }
+
+    try {
+      await this.tryEnrichFromHtml(listing.url, listing);
+    } catch {
+      // HTML fallback is optional
     }
 
     return listing;
