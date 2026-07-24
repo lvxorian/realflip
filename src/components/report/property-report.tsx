@@ -67,8 +67,19 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
   useEffect(() => {
     try {
       const raw = localStorage.getItem(`report-config-${property.id}`);
-      if (raw) setStored(JSON.parse(raw));
+      if (raw) { setStored(JSON.parse(raw)); return; }
     } catch {}
+
+    // Fallback: load from calc-preset API
+    fetch(`/api/properties/${property.id}/calc-preset`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.preset) {
+          setStored(data.preset);
+          try { localStorage.setItem(`report-config-${property.id}`, JSON.stringify(data.preset)); } catch {}
+        }
+      })
+      .catch(() => {});
   }, [property.id]);
 
   const arvValue = stored?.arv ?? analysis?.arv ?? property.price;
@@ -78,9 +89,9 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
   const verdict = analysis?.verdictLevel ?? "consider";
   const score = analysis?.investmentScore ?? 0;
 
-  // ===== ORIGINAL: calculation at listing price, no sourcing fee =====
+  // ===== ORIGINAL: calculation at listing price =====
   const originalResults = useMemo(() => {
-    const base = { ...costConfig, sourcingFee: 0, sourcingEnabled: false };
+    const base = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
     return calculateFlipResults(property.price, arvValue, renoCost, area, targetRoi, base);
   }, [property.price, arvValue, renoCost, area, targetRoi, costConfig]);
 
