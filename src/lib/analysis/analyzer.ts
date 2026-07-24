@@ -228,16 +228,12 @@ function calculateScenario(
   const renovationCost = Math.round(items.reduce((s, i) => s + i.estimatedCost, 0) * renovationMultiplier);
   const arv = Math.round(marketPriceHigh * area * arvMultiplier);
 
-  const commission = Math.round(purchasePrice * 0.04);
   const legalFees = 25000;
-  const appraisalFee = 8000;
   const holdingCosts = Math.round((purchasePrice + renovationCost) * 0.005 * timelineMonths);
   const sellingCommission = Math.round(arv * 0.05);
-  const homeStaging = 35000;
-  const certificates = 10000;
-  const grossProfit = arv - purchasePrice - commission - legalFees - appraisalFee - renovationCost - holdingCosts - sellingCommission - homeStaging - certificates;
+  const grossProfit = arv - purchasePrice - legalFees - renovationCost - holdingCosts - sellingCommission;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
-  const totalCost = purchasePrice + commission + legalFees + appraisalFee + renovationCost + holdingCosts + sellingCommission + homeStaging + certificates + incomeTax;
+  const totalCost = purchasePrice + legalFees + renovationCost + holdingCosts + sellingCommission + incomeTax;
   const netProfit = arv - totalCost;
   const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
   const annualizedRoi = timelineMonths > 0 ? (roi / timelineMonths) * 12 : 0;
@@ -258,7 +254,7 @@ export function calculateTargetPurchasePrice(
   const acqCostRate = 0.04;
   const holdingCostRate = 0.005 * 6;
   const fixedAcqCosts = 33000;
-  const sellingCosts = Math.round(arv * 0.04) + 45000;
+  const sellingCosts = Math.round(arv * 0.05) + 45000;
   const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
   return Math.round(
     (targetTotalCost - (1 + holdingCostRate) * renovationCost - sellingCosts - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov
@@ -396,21 +392,17 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   const flip = scenarios.conservative;
   const renovationTotal = flip.renovationCost;
 
-  const commission = Math.round(price * 0.04);
   const legalFees = 25000;
-  const appraisalFee = 8000;
   const contingency = Math.round(renovationTotal * 0.10);
   const holdingCosts = Math.round((price + renovationTotal) * 0.005 * 6);
   const sellingCommission = Math.round(flip.arv * 0.05);
-  const homeStaging = 35000;
-  const certificates = 10000;
-  const grossProfit = flip.arv - price - commission - legalFees - appraisalFee - renovationTotal - contingency - holdingCosts - sellingCommission - homeStaging - certificates;
+  const grossProfit = flip.arv - price - legalFees - renovationTotal - contingency - holdingCosts - sellingCommission;
   const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
 
   const costs: DetailedCosts = {
     purchasePrice: price,
     legalFees,
-    appraisalFee,
+    appraisalFee: 0,
     renovationCost: renovationTotal,
     contingency,
     holdingCosts,
@@ -419,7 +411,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     marketingPhoto: 0,
     sourcingFee: 0,
     incomeTax,
-    totalCost: price + commission + legalFees + appraisalFee + renovationTotal + contingency + holdingCosts + sellingCommission + homeStaging + certificates + incomeTax,
+    totalCost: price + legalFees + renovationTotal + contingency + holdingCosts + sellingCommission + incomeTax,
   };
 
   const netProfit = flip.arv - costs.totalCost;
