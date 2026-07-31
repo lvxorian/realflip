@@ -154,7 +154,7 @@ Odpověz jako JSON:
 }`;
 
   const response = await client.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: process.env.GEMINI_MODEL ?? "gemini-flash-latest",
     contents: [
       { role: "user", parts: [{ text: "Jsi expert na realitní vyjednávání v ČR. Odpovídej vždy česky. Výstup formátuj striktně jako JSON." }] },
       { role: "user", parts: [{ text: prompt }] },

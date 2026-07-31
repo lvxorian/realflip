@@ -148,7 +148,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
       asIsTmv: data.appraisalPrice ?? prev.asIsTmv,
       arv: data.appraisalPrice ?? prev.arv,
       td: data.debtEstimate ?? prev.td,
-      area: data.area ?? prev.area,
+      area: data.area ?? 0,
     }));
   }, [data]);
 

@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/ai/gemini";
 
 let _client: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
@@ -161,7 +162,7 @@ export async function analyzeListing(input: AiAnalysisInput): Promise<AiAnalysis
 
   try {
     const response = await getClient().models.generateContent({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       contents: [
         { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
         { role: "user", parts: [{ text: prompt }] },
@@ -200,7 +201,7 @@ export async function analyzeDealDescription(description: string): Promise<DealA
 
   try {
     const response = await getClient().models.generateContent({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       contents: [
         { role: "user", parts: [{ text: prompt }] },
       ],

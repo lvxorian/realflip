@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { GEMINI_MODEL } from "@/lib/ai/gemini";
 
 /**
  * Pipeline pro automatickou due diligence dražeb z portaldrazeb.cz.
@@ -224,6 +225,42 @@ function inferRooms(title: string | null): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * Fallback extrakce plochy z popisu nemovitosti (funguje i bez AI/PDF).
+ * Hledá vzory typu "užitná plocha ... 38 m²", "plocha jednotky je 38 m2",
+ * "zastavěná plocha ... m²" apod. Bere první věrohodnou hodnotu (typicky jednotka).
+ */
+export function extractAreaFromDescription(description: string | null): number | null {
+  if (!description) return null;
+  const text = description.replace(/\u00a0/g, " ").toLowerCase();
+
+  // Užitná/podlahová plocha – ohebný kmen "ploch" pokryje skloňování (plocha, ploše, plochy…)
+  const unitKeywords =
+    /(?:u\u017eitn|podlahov|plocha jednotky|plocha bytu|v\u00fdm\u011bra jednotky|v\u00fdm\u011bra bytu)/;
+  // m2 i m² (horní index)
+  const m2 = "m\\s*(?:\\u00b2|2)";
+  const unitPatterns = [
+    new RegExp(unitKeywords.source + ".{0,60}?(\\d{1,4}(?:[.,]\\d+)?)\\s*" + m2),
+    new RegExp("(\\d{1,4}(?:[.,]\\d+)?)\\s*" + m2 + ".{0,40}" + unitKeywords.source),
+  ];
+  for (const re of unitPatterns) {
+    const m = text.match(re);
+    if (m) {
+      const v = parseFloat(m[1].replace(",", "."));
+      if (v > 5 && v < 2000) return Math.round(v);
+    }
+  }
+
+  // Obecný vzor "plocha ... X m²"
+  const generic = text.match(new RegExp("(?:plocha|v\\u00fdm\\u011bra|rozloha).{0,40}?(\\d{1,4}(?:[.,]\\d+)?)\\s*" + m2));
+  if (generic) {
+    const v = parseFloat(generic[1].replace(",", "."));
+    if (v > 5 && v < 2000) return Math.round(v);
+  }
+
+  return null;
+}
+
 /** 4. LLM extrakce rozšířených dat z popisu + PDF (dlužník, stav, plocha, dluhy). Fallback = null. */
 export async function extractWithGemini(
   data: RawAuctionJson,
@@ -272,7 +309,7 @@ Pravidla:
 
   try {
     const response = await getClient().models.generateContent({
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }, ...pdfParts] }],
       config: { responseMimeType: "application/json", temperature: 0.1 },
     });
@@ -325,6 +362,10 @@ export async function parseAuction(url: string): Promise<ParseAuctionResult> {
   const county = data.item?.location_district?.county?.county_name ?? null;
   const title = data.item?.title ?? "Dražba – nemovitost";
   const exekutorOffice = data.auctioneer_office;
+  const rawDescription = data.item?.description_plaintext ?? null;
+
+  // Plocha: AI → regex fallback z popisu → null
+  const area = ai.area ?? extractAreaFromDescription(rawDescription);
 
   const parsed: ParsedAuction = {
     title,
@@ -344,12 +385,12 @@ export async function parseAuction(url: string): Promise<ParseAuctionResult> {
         }
       : null,
     debtor: ai.debtor ?? null,
-    area: ai.area ?? null,
+    area,
     rooms: ai.rooms ?? inferRooms(title),
     condition: ai.condition ?? null,
     debtEstimate: ai.debtEstimate ?? null,
     liens: ai.liens ?? [],
-    description: ai.description ?? data.item?.description_plaintext ?? null,
+    description: ai.description ?? rawDescription,
     documents,
     imageUrls: buildImageUrls(data),
     sourceUrl: url,
