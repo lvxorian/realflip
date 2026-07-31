@@ -103,6 +103,55 @@ export const CITY_ALIASES: Record<string, string> = {
   "cesky brod": "cesky_brod",
 };
 
+export function cityNamesFor(cityKey: string): string[] {
+  const names: string[] = [];
+  const key = cityKey.toLowerCase().replace(/[_\-]/g, " ");
+  names.push(key);
+  for (const [alias, normalized] of Object.entries(CITY_ALIASES)) {
+    if (normalized === key.replace(/\s/g, "_")) names.push(alias);
+  }
+  if (key === "praha") names.push("prague");
+  if (key === "plzen") names.push("plzeň");
+  if (key === "ceske budejovice") { names.push("české budějovice"); names.push("budejovice"); }
+  if (key === "karlovy vary") names.push("karlovy vary");
+  if (key === "usti") { names.push("ústí nad labem"); names.push("usti nad labem"); }
+  if (key === "hradec") names.push("hradec králové");
+  if (key === "zlin") names.push("zlín");
+  if (key === "decin") names.push("děčín");
+  if (key === "prerov") names.push("přerov");
+  if (key === "breclav") names.push("břeclav");
+  if (key === "kromeriz") names.push("kroměříž");
+  if (key === "trebic") names.push("třebíč");
+  if (key === "benesov") names.push("benešov");
+  if (key === "havirov") names.push("havířov");
+  if (key === "karvina") names.push("karviná");
+  if (key === "litvinov") names.push("litvínov");
+  return [...new Set(names)];
+}
+
+export function addressMatchesCity(address: string | null | undefined, cityNames: string[]): boolean {
+  if (!address) return false;
+  const addr = address.toLowerCase();
+  return cityNames.some((name) => addr.includes(name));
+}
+
+export function findCityKey(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const n = normalize(name);
+  const direct = n.replace(/\s+/g, "_");
+  if (CITY_ALIASES[n]) return CITY_ALIASES[n];
+  if (CITY_ALIASES[direct]) return CITY_ALIASES[direct];
+  let best: string | null = null;
+  let bestLen = 0;
+  for (const [alias, key] of Object.entries(CITY_ALIASES)) {
+    if (alias.length > bestLen && n.includes(alias)) {
+      best = key;
+      bestLen = alias.length;
+    }
+  }
+  return best;
+}
+
 function normalize(text: string): string {
   return text
     .toLowerCase()

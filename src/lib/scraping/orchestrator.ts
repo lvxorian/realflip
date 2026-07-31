@@ -10,8 +10,8 @@ import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts, safeJsonParse } from "@/lib/utils";
 import { checkPriceDropAlert } from "@/lib/alert-matcher";
-import { classifyLocation } from "@/lib/analysis/location";
-import { getMarketPriceRange, refreshAllMarketData } from "@/lib/scraping/market-price-service";
+import { classifyLocation, findCityKey } from "@/lib/analysis/location";
+import { getPropertyMarketRange, refreshAllMarketData } from "@/lib/scraping/market-price-service";
 
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
@@ -145,7 +145,13 @@ export class ScrapingOrchestrator {
       const errors: string[] = [];
 
       try {
-        let listings = await adapter.crawlListings(filters);
+        const cityKey = filters.location ? findCityKey(filters.location) : null;
+        let listings: RawListing[];
+        if (cityKey && typeof adapter.crawlCityListings === "function") {
+          listings = await adapter.crawlCityListings(cityKey);
+        } else {
+          listings = await adapter.crawlListings(filters);
+        }
         listings = listings.filter((l) => matchFilters(l, filters));
 
         for (const listing of listings) {
@@ -419,7 +425,15 @@ export class ScrapingOrchestrator {
       // Enhanced analysis with live market data
       const location = classifyLocation(listing.address, listing.title);
       const dynamicRange = location.city !== "Neznámá"
-        ? await getMarketPriceRange(location.city).catch(() => null)
+        ? await getPropertyMarketRange({
+            cityKey: location.city,
+            lat: listing.lat,
+            lng: listing.lng,
+            condition: listing.condition,
+            buildingType: listing.buildingType,
+            area: listing.area,
+            category: location.category,
+          }).catch(() => null)
         : null;
       const analysis = analyzeListing(listing, dynamicRange, undefined, location);
 

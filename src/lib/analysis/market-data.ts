@@ -250,6 +250,58 @@ export const RISKY_CITIES = [
   "Krnov", "Jeseník", "Litvínov", "Osek", "Jirkov",
 ];
 
+export function conditionMultiplier(condition: string | null): number {
+  switch (condition) {
+    case "new": return 1.15;
+    case "renovated": return 1.08;
+    case "good": return 1.0;
+    case "original": return 0.85;
+    case "dilapidated": return 0.7;
+    case "project": return 0.75;
+    default: return 1.0;
+  }
+}
+
+export function buildingTypeMultiplier(buildingType: string | null): number {
+  return buildingType === "panel" ? 0.75 : 1.0;
+}
+
+export function categoryMultiplier(category: string | null | undefined): number {
+  return category === "premium" ? 1.2 : category === "risky" ? 0.7 : 1.0;
+}
+
+const FALLBACK_RANGES: Record<"brick" | "other", Record<string, [number, number]>> = {
+  brick: {
+    new: [50000, 80000],
+    renovated: [40000, 70000],
+    good: [35000, 60000],
+    original: [25000, 45000],
+    dilapidated: [15000, 30000],
+    default: [30000, 50000],
+  },
+  other: {
+    new: [35000, 60000],
+    renovated: [28000, 50000],
+    good: [25000, 45000],
+    original: [18000, 32000],
+    dilapidated: [10000, 20000],
+    default: [20000, 35000],
+  },
+};
+
+export function hardcodedFallbackRange(
+  condition: string | null,
+  buildingType: string | null,
+  category: string | null | undefined
+): { low: number; high: number } {
+  const useBrick = buildingType === "brick" || buildingType === "new" || buildingType === "mixed";
+  const key = (condition ?? "default") as string;
+  const table = useBrick ? FALLBACK_RANGES.brick : FALLBACK_RANGES.other;
+  const range = table[key] ?? table.default;
+  const cat = categoryMultiplier(category);
+  return { low: Math.round(range[0] * cat), high: Math.round(range[1] * cat) };
+}
+
 export const EUPHEMISMS: { pattern: RegExp; meaning: string }[] = [
   { pattern: /specifický\s+charakter\s+lokality/i, meaning: "Problematická čtvrť" },
   { pattern: /oblíbená\s+lokalita/i, meaning: "RK nechce jmenovat konkrétní čtvrť" },

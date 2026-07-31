@@ -7,7 +7,7 @@ import { scrapeUrl } from "@/lib/scraping/url-scraper";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
-import { getMarketPriceRange } from "@/lib/scraping/market-price-service";
+import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -43,7 +43,15 @@ export async function POST(req: Request) {
 
           const location = classifyLocation(listing.address, listing.title);
           const dynamicRange = location.city !== "Neznámá"
-            ? await getMarketPriceRange(location.city).catch(() => null)
+            ? await getPropertyMarketRange({
+                cityKey: location.city,
+                lat: listing.lat,
+                lng: listing.lng,
+                condition: listing.condition,
+                buildingType: listing.buildingType,
+                area: listing.area,
+                category: location.category,
+              }).catch(() => null)
             : null;
           const analysis = analyzeListing(listing, dynamicRange, prefs ? { targetROI: prefs.minRoi ?? 15 } : undefined, location);
 

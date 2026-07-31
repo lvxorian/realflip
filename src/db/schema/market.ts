@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const marketData = sqliteTable("market_data", {
   id: text("id").primaryKey(),
@@ -10,15 +10,21 @@ export const marketData = sqliteTable("market_data", {
   createdAt: integer("created_at").notNull(),
 });
 
-export const marketCache = sqliteTable("market_cache", {
-  city: text("city").primaryKey(),
-  low: integer("low").notNull(),
-  high: integer("high").notNull(),
-  median: integer("median").notNull(),
-  sampleSize: integer("sample_size").notNull(),
-  source: text("source", { enum: ["sreality_api", "db", "market_data"] }).notNull(),
-  fetchedAt: integer("fetched_at").notNull(),
-});
+export const marketCache = sqliteTable(
+  "market_cache",
+  {
+    city: text("city").notNull(),
+    segment: text("segment").notNull().default("any"),
+    low: integer("low").notNull(),
+    high: integer("high").notNull(),
+    median: integer("median").notNull(),
+    sampleSize: integer("sample_size").notNull(),
+    source: text("source").notNull(),
+    fetchedAt: integer("fetched_at").notNull(),
+    payload: text("payload"),
+  },
+  (t) => [primaryKey({ columns: [t.city, t.segment] })]
+);
 
 export const scrapingJobs = sqliteTable("scraping_jobs", {
   id: text("id").primaryKey(),

@@ -5,7 +5,7 @@ import { properties, propertyAnalysis } from "@/db/schema";
 import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
-import { getMarketPriceRange } from "@/lib/scraping/market-price-service";
+import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
 
 export async function POST(req: Request) {
   try {
@@ -50,7 +50,15 @@ export async function POST(req: Request) {
 
     const location = classifyLocation(rawListing.address, rawListing.title);
     const dynamicRange = location.city !== "Neznámá"
-      ? await getMarketPriceRange(location.city).catch(() => null)
+      ? await getPropertyMarketRange({
+          cityKey: city ?? location.city,
+          lat: null,
+          lng: null,
+          condition: rawListing.condition,
+          buildingType: rawListing.buildingType,
+          area: rawListing.area,
+          category: location.category,
+        }).catch(() => null)
       : null;
     const analysis = analyzeListing(rawListing, dynamicRange, undefined, location);
 

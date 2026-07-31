@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyLocation } from "../analysis/location";
+import { classifyLocation, findCityKey, cityNamesFor, addressMatchesCity } from "../analysis/location";
 
 describe("classifyLocation", () => {
   it("classifies Prague premium district", () => {
@@ -65,5 +65,30 @@ describe("classifyLocation", () => {
   it("returns null when district not matched", () => {
     const loc = classifyLocation("praha", "SomeUnknownDistrict");
     expect(loc.district).toBeNull();
+  });
+});
+
+describe("findCityKey", () => {
+  it("resolves display name to city key", () => {
+    expect(findCityKey("Brno")).toBe("brno");
+    expect(findCityKey("Mladá Boleslav")).toBe("mlada_boleslav");
+    expect(findCityKey("karlovy vary")).toBe("karlovy_vary");
+    expect(findCityKey("Ústí nad Labem")).toBe("usti");
+    expect(findCityKey("Most")).toBe("most");
+  });
+
+  it("returns null for unknown city", () => {
+    expect(findCityKey("NekdeUprostredNic")).toBeNull();
+    expect(findCityKey(null)).toBeNull();
+  });
+});
+
+describe("cityNamesFor + addressMatchesCity", () => {
+  it("matches Sreality locality city names", () => {
+    expect(addressMatchesCity("Brno", cityNamesFor("brno"))).toBe(true);
+    expect(addressMatchesCity("Brno-město", cityNamesFor("brno"))).toBe(true);
+    expect(addressMatchesCity("Praha", cityNamesFor("brno"))).toBe(false);
+    expect(addressMatchesCity("Prague", cityNamesFor("praha"))).toBe(true);
+    expect(addressMatchesCity("Plzeň", cityNamesFor("plzen"))).toBe(true);
   });
 });

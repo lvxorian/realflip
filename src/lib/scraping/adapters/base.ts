@@ -11,6 +11,7 @@ export abstract class PortalAdapter {
   }
 
   abstract crawlListings(filters?: SearchFilters): Promise<RawListing[]>;
+  async crawlCityListings?(cityKey: string, limit?: number): Promise<RawListing[]>;
   abstract extractContact(html: string): { phone: string | null; name: string | null; email: string | null };
 
   protected async fetch(url: string): Promise<string> {

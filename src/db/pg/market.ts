@@ -1,4 +1,4 @@
-﻿import { pgTable, text, integer, real, bigint } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, real, bigint, primaryKey } from "drizzle-orm/pg-core";
 
 export const marketData = pgTable("market_data", {
   id: text("id").primaryKey(),
@@ -10,15 +10,21 @@ export const marketData = pgTable("market_data", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
-export const marketCache = pgTable("market_cache", {
-  city: text("city").primaryKey(),
-  low: integer("low").notNull(),
-  high: integer("high").notNull(),
-  median: integer("median").notNull(),
-  sampleSize: integer("sample_size").notNull(),
-  source: text("source", { enum: ["sreality_api", "db", "market_data"] }).notNull(),
-  fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
-});
+export const marketCache = pgTable(
+  "market_cache",
+  {
+    city: text("city").notNull(),
+    segment: text("segment").notNull().default("any"),
+    low: integer("low").notNull(),
+    high: integer("high").notNull(),
+    median: integer("median").notNull(),
+    sampleSize: integer("sample_size").notNull(),
+    source: text("source").notNull(),
+    fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
+    payload: text("payload"),
+  },
+  (t) => [primaryKey({ columns: [t.city, t.segment] })]
+);
 
 export const scrapingJobs = pgTable("scraping_jobs", {
   id: text("id").primaryKey(),

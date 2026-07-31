@@ -1,6 +1,8 @@
 import { PortalAdapter } from "./base";
 import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
+import { getSrealitySitemapIds, pickSrealitySampleIds } from "../sreality-sitemap";
+import { cityNamesFor, addressMatchesCity, findCityKey } from "@/lib/analysis/location";
 
 interface SrealitySearchResult {
   hash_id: number;
@@ -107,6 +109,9 @@ export class SrealityAdapter extends PortalAdapter {
 
   async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const all: RawListing[] = [];
+    const cityNames = filters?.location
+      ? cityNamesFor(findCityKey(filters.location) ?? filters.location.toLowerCase().replace(/\s+/g, "_"))
+      : null;
 
     for (let page = 0; page < this.maxPages; page++) {
       const offset = page * this.resultsPerPage;
@@ -126,6 +131,7 @@ export class SrealityAdapter extends PortalAdapter {
         const street = locality?.street ?? null;
         const streetNumber = locality?.housenumber ?? null;
         const address = [street, streetNumber, city].filter(Boolean).join(" ") || null;
+        if (cityNames && !addressMatchesCity(address, cityNames)) continue;
 
         const rawPrice = item.price ?? 0;
         if (!isValidPrice(rawPrice)) continue;
@@ -167,6 +173,59 @@ export class SrealityAdapter extends PortalAdapter {
       enriched.push(...results);
     }
     return enriched;
+  }
+
+  async crawlCityListings(cityKey: string, limit = 40): Promise<RawListing[]> {
+    const ids = await getSrealitySitemapIds();
+    if (ids.length === 0) return [];
+
+    const cityNames = cityNamesFor(cityKey);
+    const sampleIds = pickSrealitySampleIds(cityKey, Math.max(limit * 2, 60));
+    const listings: RawListing[] = [];
+
+    for (const id of sampleIds) {
+      try {
+        const data = await this.tryEnrichFromApi(String(id));
+        const r = data?.result;
+        if (!r) continue;
+
+        const city = r.locality?.city ?? null;
+        if (!city || !addressMatchesCity(city, cityNames)) continue;
+
+        const base: RawListing = {
+          portalName: "sreality",
+          url: `https://www.sreality.cz/detail/prodej/byt/${id}`,
+          title: "",
+          price: 0,
+          pricePerSqm: null,
+          area: null,
+          rooms: null,
+          floor: null,
+          condition: null,
+          buildingType: null,
+          yearBuilt: null,
+          address: null,
+          lat: null,
+          lng: null,
+          contactPhone: null,
+          contactName: null,
+          contactEmail: null,
+          description: null,
+          imageUrls: [],
+          publishedAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        this.applyEnrichedData(base, r, String(id));
+        if (!isValidPrice(base.price)) continue;
+
+        listings.push(base);
+        if (listings.length >= limit) break;
+      } catch {
+        // skip failed detail
+      }
+    }
+
+    return listings;
   }
 
   private tryEnrichFromApi(id: string): Promise<SrealityDetail> {

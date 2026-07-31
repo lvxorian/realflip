@@ -84,22 +84,6 @@ function detectSegmentKey(condition: string | null, buildingType: BuildingType):
   return "brick_renovated";
 }
 
-function conditionMultiplier(condition: string | null): number {
-  switch (condition) {
-    case "new": return 1.15;
-    case "renovated": return 1.08;
-    case "good": return 1.0;
-    case "original": return 0.85;
-    case "dilapidated": return 0.7;
-    case "project": return 0.75;
-    default: return 1.0;
-  }
-}
-
-function buildingTypeMultiplier(buildingType: BuildingType): number {
-  return buildingType === "panel" ? 0.75 : 1.0;
-}
-
 function categoryMultiplier(category: LocationCategory): number {
   return category === "premium" ? 1.2 : category === "risky" ? 0.7 : 1.0;
 }
@@ -112,13 +96,11 @@ function calculateMarketPriceRange(
   dynamicRange?: { low: number; high: number; median: number } | null
 ): { low: number; high: number } {
   if (dynamicRange) {
-    const cm = conditionMultiplier(condition);
-    const bt = buildingTypeMultiplier(buildingType);
-    const cat = categoryMultiplier(locationCategory);
-    const adj = cm * bt * cat;
+    // Kaskáda v market-price-service vrací finální rozmezí (segment + multiplikátory
+    // jsou už zohledněny uvnitř service) — používáme ho tak, jak je.
     return {
-      low: Math.round(dynamicRange.low * adj),
-      high: Math.round(dynamicRange.high * adj),
+      low: dynamicRange.low,
+      high: dynamicRange.high,
     };
   }
 
@@ -380,8 +362,9 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   // Krok 8: Itemizovaná rekonstrukce
   const renovationItems = calculateItemizedRenovation(usableArea, condition);
 
-  // Krok 9: 3 scénáře (ARV počítáme z midpointu = realistická tržní hodnota po rekonstrukci)
-  const marketPriceForArv = marketMid > 0 ? marketMid : marketRange.high;
+  // Krok 9: 3 scénáře (ARV počítáme z horní hranice tržního rozmezí s 5% redukcí
+  // = konzervativní tržní hodnota po rekonstrukci)
+  const marketPriceForArv = marketRange.high > 0 ? Math.round(marketRange.high * 0.95) : 0;
   const scenarios = {
     optimistic: calculateScenario("Optimistický", price, usableArea, condition, marketPriceForArv, 0.85, 1.2, 4),
     conservative: calculateScenario("Konzervativní", price, usableArea, condition, marketPriceForArv, 1.0, 1.05, 6),

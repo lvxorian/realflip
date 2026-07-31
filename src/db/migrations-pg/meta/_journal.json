@@ -43,6 +43,13 @@
       "when": 1784279614812,
       "tag": "0005_flat_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784400000000,
+      "tag": "0006_agile_wing_collosus",
+      "breakpoints": true
     }
   ]
 }
