@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (136 tests)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (174 tests, 9 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -80,11 +80,28 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Saved to localStorage + calc-preset API.
 - Loaded by PDF report.
 
+### Phase 14 — Market Price Cascade Tier 1-5 (Done)
+- `src/lib/scraping/market-price-service.ts` kaskáda: `market_cache` (PG, TTL 24h) → Sreality API (segment, rate-limited) → vlastní DB kompy z `properties` (bez novostaveb, min 5 000 Kč/m²) → `MARKET_DATA` hardcoded → fallback p25–p75.
+- `market_cache` tabulka PK `(city, segment)`. Na Neonu vytvořena ručně SQL — DB **nemá** `__drizzle_migrations` (založena přes push), migrace se aplikují ručně.
+- `sreality-sitemap.ts` + `SrealityAdapter.crawlCityListings(cityKey)` — city-level vzorky z Sreality.
+- ARV počítán z horní hranice rozmezí. Live check: Praha n=487, Brno 95–145k, Most fallback.
+- Re-analysis: 83/83 aktivních nemovitostí, 0 chyb.
+
+### Phase 15 — Dražby (Auctions) (Done)
+- Refaktor sekce "Off-Market" → "Dražby" (nav label + Gavel, route `/off-market` zachována).
+- **1-Click Due Diligence**: `AuctionAnalyzer` → POST `/api/parse-auction` (URL z portaldrazeb.cz, mock 2s) → vyplní kalkulačku.
+- **Kalkulačka přímého výkupu**: OC, NP, AsIs TMV, TD, sleva (30 %), TC (75k), Sourcing Fee (100k), RC, ARV. `TBP = AsIs × (100−sleva)/100`, `NCO = TBP − TD − TC`, zelený/červený verdikt, Zisk (přímý výkup vs. s rekonstrukcí). localStorage autosave.
+- **PDF export**: `window.print()` + `@media print` sekce (`#auction-print-area`) — bez zápisu do DB.
+- Pipeline kostra `src/lib/auctions/parse-auction.ts` (HTML → PDF → Gemini OCR) — zatím mock, nenapojeno.
+- Leads list (Portál dražeb hunter) přesunut pod kalkulačku jako kolapsovatelná sekce.
+
 ## Remaining
+- `/api/parse-auction` je zatím **mock** — napojit reálnou pipeline (stahování HTML/PDF + LLM extrakce) z `src/lib/auctions/parse-auction.ts`.
 - `checkScoreThresholdAlert` not yet called in orchestrator.
 - Broader dedup/cache persistence (Redis or DB-based).
 - iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
 - DB `target_roi` column is `integer`, should be `real` for decimal precision.
+- Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).
 
 ## Key Files
 
@@ -105,15 +122,25 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/components/report/property-report.tsx`
 - `src/components/calculator/property-detail-analysis.tsx`
 
-### Off-Market
+### Off-Market / Dražby
 - `scripts/drazby_hunter.py`
-- `src/app/(dashboard)/off-market/page.tsx`
+- `src/app/(dashboard)/off-market/page.tsx` (Dražby: analyzer + kalkulačka + leads)
 - `src/app/(dashboard)/off-market/[id]/page.tsx`
 - `src/app/api/off-market/leads/route.ts`
 - `src/app/api/off-market/leads/[id]/route.ts`
 - `src/app/api/off-market/regions/route.ts`
+- `src/app/api/parse-auction/route.ts` — 1-Click DD (mock)
+- `src/components/auctions/auction-analyzer.tsx`
+- `src/components/auctions/auction-calculator.tsx`
+- `src/lib/auctions/parse-auction.ts` — DD pipeline kostra (HTML → PDF → Gemini)
 - `src/components/off-market/letter-modal.tsx`
 - `src/components/off-market/region-manager-modal.tsx`
+
+### Market Data
+- `src/lib/scraping/market-price-service.ts` — kaskáda Tier 1-5
+- `src/lib/scraping/sreality-sitemap.ts` — sitemap parser + city sampling
+- `src/lib/analysis/market-data.ts` — hardcoded city data (Tier 4)
+- `scripts/reanalyze.ts`, `scripts/live-market-check.ts`, `scripts/check-migration.ts`
 
 ### API
 - `src/app/api/scraping/trigger/route.ts`
@@ -127,4 +154,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/__tests__/utils.test.ts`
 - `src/lib/__tests__/condition.test.ts`
 - `src/lib/__tests__/location.test.ts`
+- `src/lib/__tests__/leads.test.ts`
+- `src/lib/analysis/__tests__/analyzer-arv.test.ts`
 - `src/lib/scraping/__tests__/adapters-image.test.ts`
+- `src/lib/scraping/__tests__/filters.test.ts`
+- `src/lib/scraping/__tests__/market-price-service.test.ts`
