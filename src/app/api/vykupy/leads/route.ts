@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { offMarketLeads } from "@/db/schema";
+import { vykupyLeads } from "@/db/schema";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 async function verifyBearer(req: Request) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (token !== process.env.OFF_MARKET_API_TOKEN) {
+  if (token !== process.env.VYKUPY_API_TOKEN) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;
@@ -33,9 +33,9 @@ export async function POST(req: Request) {
       if (!item.caseNumber || !item.debtorName) continue;
 
       const existing = await db
-        .select({ id: offMarketLeads.id })
-        .from(offMarketLeads)
-        .where(eq(offMarketLeads.caseNumber, item.caseNumber))
+        .select({ id: vykupyLeads.id })
+        .from(vykupyLeads)
+        .where(eq(vykupyLeads.caseNumber, item.caseNumber))
         .limit(1)
         .then((r) => r[0]);
 
@@ -46,14 +46,14 @@ export async function POST(req: Request) {
         if (item.region) updates.region = item.region;
         updates.rawData = JSON.stringify(item.rawData ?? {});
         await db
-          .update(offMarketLeads)
+          .update(vykupyLeads)
           .set(updates)
-          .where(eq(offMarketLeads.caseNumber, item.caseNumber));
+          .where(eq(vykupyLeads.caseNumber, item.caseNumber));
         skipped++;
         continue;
       }
 
-      await db.insert(offMarketLeads).values({
+      await db.insert(vykupyLeads).values({
         id: generateId(),
         debtorName: item.debtorName,
         caseNumber: item.caseNumber,
@@ -92,15 +92,15 @@ export async function GET(req: Request) {
 
     const conditions: ReturnType<typeof eq>[] = [];
 
-    if (status) conditions.push(eq(offMarketLeads.status, status));
-    if (region) conditions.push(eq(offMarketLeads.region, region));
+    if (status) conditions.push(eq(vykupyLeads.status, status));
+    if (region) conditions.push(eq(vykupyLeads.region, region));
     if (search) {
       const q = `%${search}%`;
       conditions.push(
         or(
-          like(offMarketLeads.debtorName, q),
-          like(offMarketLeads.caseNumber, q),
-          like(offMarketLeads.address ?? "", q),
+          like(vykupyLeads.debtorName, q),
+          like(vykupyLeads.caseNumber, q),
+          like(vykupyLeads.address ?? "", q),
         ) as any
       );
     }
@@ -110,14 +110,14 @@ export async function GET(req: Request) {
     const [leads, countResult] = await Promise.all([
       db
         .select()
-        .from(offMarketLeads)
+        .from(vykupyLeads)
         .where(where)
-        .orderBy(desc(offMarketLeads.createdAt))
+        .orderBy(desc(vykupyLeads.createdAt))
         .limit(limit)
         .offset(offset),
       db
         .select({ count: sql<number>`count(*)` })
-        .from(offMarketLeads)
+        .from(vykupyLeads)
         .where(where)
         .then((r) => r[0].count),
     ]);

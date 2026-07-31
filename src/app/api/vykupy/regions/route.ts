@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { offMarketRegions } from "@/db/schema";
+import { vykupyRegions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-const SECRET_TOKEN = process.env.OFF_MARKET_API_TOKEN;
+const SECRET_TOKEN = process.env.VYKUPY_API_TOKEN;
 
 async function verifyBearerOrSession(req: Request) {
   const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -23,9 +23,9 @@ export async function GET(req: Request) {
 
   try {
     const rows = await db
-      .select({ region: offMarketRegions.region })
-      .from(offMarketRegions)
-      .orderBy(offMarketRegions.region);
+      .select({ region: vykupyRegions.region })
+      .from(vykupyRegions)
+      .orderBy(vykupyRegions.region);
 
     return NextResponse.json(rows.map((r) => r.region));
   } catch (error) {
@@ -52,9 +52,9 @@ export async function POST(req: Request) {
     }
 
     const existing = await db
-      .select({ id: offMarketRegions.id })
-      .from(offMarketRegions)
-      .where(eq(offMarketRegions.region, slug))
+      .select({ id: vykupyRegions.id })
+      .from(vykupyRegions)
+      .where(eq(vykupyRegions.region, slug))
       .limit(1)
       .then((r) => r[0]);
 
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Region already exists" }, { status: 409 });
     }
 
-    await db.insert(offMarketRegions).values({
+    await db.insert(vykupyRegions).values({
       id: generateId(),
       region: slug,
       createdAt: ts(),
@@ -90,8 +90,8 @@ export async function DELETE(req: Request) {
     }
 
     await db
-      .delete(offMarketRegions)
-      .where(eq(offMarketRegions.region, region));
+      .delete(vykupyRegions)
+      .where(eq(vykupyRegions.region, region));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

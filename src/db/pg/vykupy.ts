@@ -1,6 +1,6 @@
 import { pgTable, text, bigint, jsonb } from "drizzle-orm/pg-core";
 
-export const offMarketLeads = pgTable("off_market_leads", {
+export const vykupyLeads = pgTable("vykupy_leads", {
   id: text("id").primaryKey(),
   debtorName: text("debtor_name").notNull(),
   caseNumber: text("case_number").notNull().unique(),
@@ -13,7 +13,7 @@ export const offMarketLeads = pgTable("off_market_leads", {
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });
 
-export const offMarketRegions = pgTable("off_market_regions", {
+export const vykupyRegions = pgTable("vykupy_regions", {
   id: text("id").primaryKey(),
   region: text("region").notNull().unique(),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),

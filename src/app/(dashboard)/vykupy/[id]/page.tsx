@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LetterModal } from "@/components/off-market/letter-modal";
+import { LetterModal } from "@/components/vykupy/letter-modal";
 import {
   ArrowLeft,
   FileText,
@@ -82,21 +82,21 @@ export default function OffMarketDetailPage() {
     if (status === "unauthenticated") router.push("/login");
     if (status !== "authenticated" || !params.id) return;
 
-    fetch(`/api/off-market/leads/${params.id}`)
+    fetch(`/api/vykupy/leads/${params.id}`)
       .then((r) => r.json())
       .then((data) => {
         setLead(data);
         setNewStatus(data.status);
         setNotes(data.notes ?? "");
       })
-      .catch(() => router.push("/off-market"))
+      .catch(() => router.push("/vykupy"))
       .finally(() => setLoading(false));
   }, [status, params.id, router]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/off-market/leads/${params.id}`, {
+      const res = await fetch(`/api/vykupy/leads/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus, notes }),
@@ -124,7 +124,7 @@ export default function OffMarketDetailPage() {
       className="space-y-6"
     >
       <Link
-        href="/off-market"
+        href="/vykupy"
         className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
       >
         <ArrowLeft size={14} weight="bold" />

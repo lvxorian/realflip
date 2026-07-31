@@ -49,12 +49,12 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `crawlAllScheduled()`: try/catch per search (failure isolation).
 
 ### Phase 10 — Off-Market Module (Done)
-- DB: `off_market_leads` (standalone, no FK) + `off_market_regions`.
+- DB: `vykupy_leads` (standalone, no FK) + `vykupy_regions`.
 - API: CRUD endpoints for leads + regions, Bearer token + session auth.
 - Data source: Portál dražeb public JSON API (real estate auctions).
 - Python script: `scripts/drazby_hunter.py` — fetches auctions → POST to API.
 - GitHub Actions: `.github/workflows/drazby-hunter.yml` — daily cron.
-- UI: `/off-market` table with filters (status, region, category), detail page with status management, letter template modal. Region management modal.
+- UI: `/vykupy` table with filters (status, region, category), detail page with status management, letter template modal. Region management modal.
 - ISIR Hunter removed (ISIR SOAP API not publicly accessible).
 
 ### Phase 11 — Scraper Revize (Done)
@@ -88,7 +88,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Re-analysis: 83/83 aktivních nemovitostí, 0 chyb.
 
 ### Phase 15 — Dražby (Auctions) (Done)
-- Refaktor sekce "Off-Market" → "Dražby" (nav label + Gavel, route `/off-market` zachována).
+- Refaktor sekce "Off-Market" → "Výkupy" (nav label + Gavel, route `/vykupy`, stará `/off-market` redirectuje).
 - **1-Click Due Diligence**: `AuctionAnalyzer` → POST `/api/parse-auction` (URL z portaldrazeb.cz, mock 2s) → vyplní kalkulačku.
 - **Kalkulačka přímého výkupu**: OC, NP, AsIs TMV, TD, sleva (30 %), TC (75k), Sourcing Fee (100k), RC, ARV. `TBP = AsIs × (100−sleva)/100`, `NCO = TBP − TD − TC`, zelený/červený verdikt, Zisk (přímý výkup vs. s rekonstrukcí). localStorage autosave.
 - **PDF export**: `window.print()` + `@media print` sekce (`#auction-print-area`) — bez zápisu do DB.
@@ -122,19 +122,19 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/components/report/property-report.tsx`
 - `src/components/calculator/property-detail-analysis.tsx`
 
-### Off-Market / Dražby
+### Off-Market / Výkupy
 - `scripts/drazby_hunter.py`
-- `src/app/(dashboard)/off-market/page.tsx` (Dražby: analyzer + kalkulačka + leads)
-- `src/app/(dashboard)/off-market/[id]/page.tsx`
-- `src/app/api/off-market/leads/route.ts`
-- `src/app/api/off-market/leads/[id]/route.ts`
-- `src/app/api/off-market/regions/route.ts`
-- `src/app/api/parse-auction/route.ts` — 1-Click DD (mock)
+- `src/app/(dashboard)/vykupy/page.tsx` (Výkupy: analyzer + kalkulačka + leads)
+- `src/app/(dashboard)/vykupy/[id]/page.tsx`
+- `src/app/api/vykupy/leads/route.ts`
+- `src/app/api/vykupy/leads/[id]/route.ts`
+- `src/app/api/vykupy/regions/route.ts`
+- `src/app/api/parse-auction/route.ts` — 1-Click DD (reálná pipeline)
 - `src/components/auctions/auction-analyzer.tsx`
 - `src/components/auctions/auction-calculator.tsx`
 - `src/lib/auctions/parse-auction.ts` — DD pipeline kostra (HTML → PDF → Gemini)
-- `src/components/off-market/letter-modal.tsx`
-- `src/components/off-market/region-manager-modal.tsx`
+- `src/components/vykupy/letter-modal.tsx`
+- `src/components/vykupy/region-manager-modal.tsx`
 
 ### Market Data
 - `src/lib/scraping/market-price-service.ts` — kaskáda Tier 1-5

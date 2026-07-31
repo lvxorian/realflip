@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
-export const offMarketLeads = sqliteTable("off_market_leads", {
+export const vykupyLeads = sqliteTable("vykupy_leads", {
   id: text("id").primaryKey(),
   debtorName: text("debtor_name").notNull(),
   caseNumber: text("case_number").notNull().unique(),
@@ -13,7 +13,7 @@ export const offMarketLeads = sqliteTable("off_market_leads", {
   updatedAt: integer("updated_at").notNull(),
 });
 
-export const offMarketRegions = sqliteTable("off_market_regions", {
+export const vykupyRegions = sqliteTable("vykupy_regions", {
   id: text("id").primaryKey(),
   region: text("region").notNull().unique(),
   createdAt: integer("created_at").notNull(),

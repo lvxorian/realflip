@@ -36,8 +36,8 @@ export default function AuctionReportPreviewPage() {
     return (
       <div className="max-w-3xl mx-auto text-center py-20">
         <p className="text-sm text-gray-500">Pro vygenerování reportu nejprve analyzujte dražbu a otevřete report z kalkulačky.</p>
-        <Link href="/off-market" className="inline-block mt-4 text-sm text-gray-900 font-medium underline">
-          Zpět na Dražby
+        <Link href="/vykupy" className="inline-block mt-4 text-sm text-gray-900 font-medium underline">
+          Zpět na Výkupy
         </Link>
       </div>
     );

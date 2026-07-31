@@ -19,7 +19,7 @@ export function RegionManagerModal({ open, onClose }: RegionManagerModalProps) {
   const loadRegions = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/off-market/regions");
+      const res = await fetch("/api/vykupy/regions");
       if (res.ok) setRegions(await res.json());
     } catch {}
     setLoading(false);
@@ -35,7 +35,7 @@ export function RegionManagerModal({ open, onClose }: RegionManagerModalProps) {
     setAdding(true);
     setError("");
     try {
-      const res = await fetch("/api/off-market/regions", {
+      const res = await fetch("/api/vykupy/regions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ region: slug }),
@@ -53,7 +53,7 @@ export function RegionManagerModal({ open, onClose }: RegionManagerModalProps) {
 
   const handleDelete = async (region: string) => {
     try {
-      const res = await fetch(`/api/off-market/regions?region=${encodeURIComponent(region)}`, { method: "DELETE" });
+      const res = await fetch(`/api/vykupy/regions?region=${encodeURIComponent(region)}`, { method: "DELETE" });
       if (res.ok) setRegions((prev) => prev.filter((r) => r !== region));
     } catch {}
   };

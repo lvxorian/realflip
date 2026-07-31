@@ -29,10 +29,10 @@ DRAZBY_API_BASE = os.getenv(
     "https://www.portaldrazeb.cz/drazby",
 )
 API_URL = os.getenv(
-    "OFF_MARKET_API_URL",
-    "http://localhost:3000/api/off-market/leads",
+    "VYKUPY_API_URL",
+    "http://localhost:3000/api/vykupy/leads",
 )
-API_TOKEN = os.getenv("OFF_MARKET_API_TOKEN")
+API_TOKEN = os.getenv("VYKUPY_API_TOKEN")
 
 # Map Czech cities/municipalities to their kraj (fallback when API has no region)
 CITY_TO_REGION = {
@@ -184,7 +184,7 @@ def send_to_api(leads: list[dict[str, Any]]) -> None:
         leads: List of lead dicts to insert.
     """
     if not API_TOKEN:
-        log.error("OFF_MARKET_API_TOKEN neni nastaven — nelze odeslat data")
+        log.error("VYKUPY_API_TOKEN neni nastaven — nelze odeslat data")
         return
 
     log.info("Odesilam %d zaznamu na %s", len(leads), API_URL)
@@ -224,7 +224,7 @@ def main() -> None:
     log.info("=== Drazby Hunter spusten ===")
 
     if not API_URL:
-        log.error("OFF_MARKET_API_URL neni nastaven")
+        log.error("VYKUPY_API_URL neni nastaven")
         sys.exit(1)
 
     all_leads: list[dict[str, Any]] = []

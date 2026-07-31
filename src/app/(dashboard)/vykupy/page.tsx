@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AuctionAnalyzer } from "@/components/auctions/auction-analyzer";
 import { AuctionCalculator } from "@/components/auctions/auction-calculator";
-import { RegionManagerModal } from "@/components/off-market/region-manager-modal";
+import { RegionManagerModal } from "@/components/vykupy/region-manager-modal";
 import { Gavel, FileText, Funnel, MagnifyingGlass, Plus, CaretDown, CaretUp } from "@phosphor-icons/react";
 import type { ParsedAuction } from "@/lib/auctions/parse-auction";
 
@@ -84,7 +84,7 @@ export default function OffMarketPage() {
     if (regionFilter) params.set("region", regionFilter);
     if (searchQuery) params.set("search", searchQuery);
 
-    fetch(`/api/off-market/leads?${params.toString()}`)
+    fetch(`/api/vykupy/leads?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => setLeads(data.leads ?? []))
       .catch(() => {})
@@ -130,9 +130,9 @@ export default function OffMarketPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2.5">
             <Gavel size={24} weight="duotone" className="text-accent" />
-            Dražby
+            Výkupy
           </h1>
-          <p className="text-sm text-muted mt-1">1-Click Due Diligence a kalkulačka přímého výkupu</p>
+          <p className="text-sm text-muted mt-1">Výkup nemovitostí před dražbou za 70 % trhu</p>
         </div>
       </div>
 
@@ -221,7 +221,7 @@ export default function OffMarketPage() {
                       {filtered.length === 0 ? (
                         <EmptyState
                           icon={<FileText className="w-6 h-6" />}
-                          title="Žádné off-market příležitosti"
+                          title="Žádné výkupní příležitosti"
                           description="Zatím nebyly naskenovány žádné insolvenční záznamy. Po spuštění ISIR Hunter se zde objeví."
                         />
                       ) : (
@@ -244,7 +244,7 @@ export default function OffMarketPage() {
                                   <tr
                                     key={lead.id}
                                     className="hover:bg-card-hover transition-colors cursor-pointer"
-                                    onClick={() => router.push(`/off-market/${lead.id}`)}
+                                    onClick={() => router.push(`/vykupy/${lead.id}`)}
                                   >
                                     <td className="p-4 text-xs text-muted whitespace-nowrap">{formatDate(lead.createdAt)}</td>
                                     <td className="p-4 font-medium">{lead.debtorName}</td>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { offMarketLeads } from "@/db/schema";
+import { vykupyLeads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ts } from "@/lib/utils";
 
@@ -20,8 +20,8 @@ export async function GET(
     const { id } = await params;
     const lead = await db
       .select()
-      .from(offMarketLeads)
-      .where(eq(offMarketLeads.id, id))
+      .from(vykupyLeads)
+      .where(eq(vykupyLeads.id, id))
       .limit(1)
       .then((r) => r[0]);
 
@@ -54,9 +54,9 @@ export async function PATCH(
     if (body.notes !== undefined) update.notes = body.notes;
 
     await db
-      .update(offMarketLeads)
+      .update(vykupyLeads)
       .set(update)
-      .where(eq(offMarketLeads.id, id));
+      .where(eq(vykupyLeads.id, id));
 
     return NextResponse.json({ ok: true });
   } catch (error) {
