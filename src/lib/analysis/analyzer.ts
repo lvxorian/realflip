@@ -251,10 +251,10 @@ export function calculateTargetPurchasePrice(
   const grossTargetRatio = roi / (1 - taxRate);
   const targetMultiple = 1 + grossTargetRatio;
   const targetTotalCost = arv / targetMultiple;
-  const acqCostRate = 0.04;
+  const acqCostRate = 0;
   const holdingCostRate = 0.005 * 6;
-  const fixedAcqCosts = 33000;
-  const sellingCosts = Math.round(arv * 0.05) + 45000;
+  const fixedAcqCosts = 25000;
+  const sellingCosts = Math.round(arv * 0.05);
   const totalCostNoRenov = 1 + acqCostRate + holdingCostRate * (1 + acqCostRate);
   return Math.round(
     (targetTotalCost - (1 + holdingCostRate) * renovationCost - sellingCosts - fixedAcqCosts * (1 + holdingCostRate)) / totalCostNoRenov

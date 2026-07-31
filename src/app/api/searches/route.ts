@@ -1,9 +1,9 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { searches, searchProperties } from "@/db/schema";
+import { searches } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { generateId, ts } from "@/lib/utils";
+import { generateId, ts, safeJsonParse } from "@/lib/utils";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ id, name, filters, schedule: schedule ?? "manual" }, { status: 201 });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -52,13 +52,18 @@ export async function GET() {
       .where(eq(searches.userId, userId))
       .orderBy(searches.createdAt);
 
+    const num = (v: unknown) => (v == null ? v : Number(v));
+
     const parsed = items.map((s) => ({
       ...s,
-      filters: typeof s.filters === "string" ? JSON.parse(s.filters) : s.filters,
+      filters: safeJsonParse<Record<string, unknown>>(s.filters, {}),
+      lastRunAt: num(s.lastRunAt),
+      createdAt: Number(s.createdAt),
+      updatedAt: Number(s.updatedAt),
     }));
 
     return NextResponse.json(parsed);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

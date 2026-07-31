@@ -190,3 +190,17 @@ export function renovationCostFromPreset(area: number, level: "light" | "medium"
   if (level === "medium") return base + 180000 + 140000;
   return base + 80000 + 60000;
 }
+
+export type RenovationMode = "preset" | "perSqm" | "total";
+
+export function resolveRenovationCost(
+  mode: RenovationMode,
+  level: "light" | "medium" | "full",
+  perSqm: number,
+  total: number,
+  area: number
+): number {
+  if (mode === "preset") return renovationCostFromPreset(area, level);
+  if (mode === "perSqm") return Math.round(perSqm * area);
+  return total;
+}

@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { toast } from "sonner";
 import { MagnifyingGlass, Plus, Clock, Play } from "@phosphor-icons/react";
 
 interface SearchItem {
@@ -64,7 +65,7 @@ function filterSummary(filters: Record<string, unknown>): string {
 }
 
 export default function SearchesPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,11 +84,22 @@ export default function SearchesPage() {
 
   const runSearch = async (id: string) => {
     setRunning(id);
-    await fetch(`/api/searches/${id}/run`, { method: "POST" });
-    setRunning(null);
-    const res = await fetch("/api/searches");
-    const data = await res.json();
-    setSearches(data);
+    try {
+      const res = await fetch(`/api/searches/${id}/run`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error || "Skenování selhalo");
+      } else {
+        toast.success(`Skenování dokončeno (${data?.total ?? 0} inzerátů)`);
+      }
+    } catch {
+      toast.error("Skenování selhalo");
+    } finally {
+      setRunning(null);
+      const res = await fetch("/api/searches");
+      const data = await res.json();
+      setSearches(data);
+    }
   };
 
   if (loading) {

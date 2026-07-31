@@ -4,23 +4,14 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowsLeftRight, Check, X } from "@phosphor-icons/react";
 import { formatRelative } from "@/lib/utils";
-
-const stages = [
-  { key: "new", label: "Nový", color: "border-l-accent" },
-  { key: "contacted", label: "Kontaktován", color: "border-l-blue-500" },
-  { key: "meeting", label: "Schůzka", color: "border-l-amber-500" },
-  { key: "offer", label: "Nabídka", color: "border-l-emerald-500" },
-  { key: "negotiation", label: "Vyjednávání", color: "border-l-emerald-400" },
-  { key: "closed", label: "Uzavřeno", color: "border-l-emerald-600" },
-  { key: "lost", label: "Ztraceno", color: "border-l-red-500" },
-];
+import { LEAD_STAGES } from "@/lib/leads";
+import { toast } from "sonner";
 
 interface LeadItem {
   id: string;
@@ -39,7 +30,7 @@ interface LeadItem {
 }
 
 export default function LeadsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [leads, setLeads] = useState<LeadItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +52,7 @@ export default function LeadsPage() {
   }, [status]);
 
   const grouped: Record<string, LeadItem[]> = {};
-  for (const stage of stages) grouped[stage.key] = [];
+  for (const stage of LEAD_STAGES) grouped[stage.key] = [];
   for (const lead of leads) {
     if (grouped[lead.stage]) grouped[lead.stage].push(lead);
   }
@@ -70,11 +61,19 @@ export default function LeadsPage() {
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, stage: toStage } : l))
     );
-    await fetch(`/api/leads/${leadId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: toStage }),
-    });
+    try {
+      const res = await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: toStage }),
+      });
+      if (!res.ok) throw new Error("PATCH failed");
+    } catch {
+      setLeads((prev) =>
+        prev.map((l) => (l.id === leadId ? { ...l, stage: fromStage } : l))
+      );
+      toast.error("Přesun fáze selhal");
+    }
   }
 
   function handleDragStart(e: React.DragEvent, leadId: string, fromStage: string) {
@@ -93,15 +92,28 @@ export default function LeadsPage() {
   }
 
   async function convertToDeal(leadId: string) {
-    const price = parseInt(convertPrice);
-    if (!price) return;
-    await fetch(`/api/leads/${leadId}/convert`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ purchasePrice: price, renovationBudget: parseInt(convertRenovation) || null }),
-    });
-    setLeads((prev) => prev.filter((l) => l.id !== leadId));
-    setConverting(null);
+    const price = parseInt(convertPrice, 10);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast.error("Zadejte platnou kupní cenu");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/leads/${leadId}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purchasePrice: price, renovationBudget: parseInt(convertRenovation, 10) || null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Převod na deal selhal");
+        return;
+      }
+      toast.success("Lead převeden na deal");
+      setLeads((prev) => prev.filter((l) => l.id !== leadId));
+      setConverting(null);
+    } catch {
+      toast.error("Převod na deal selhal");
+    }
   }
 
     if (status !== "authenticated" || loading) {
@@ -122,12 +134,12 @@ export default function LeadsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-          <p className="text-sm text-muted mt-1">{leads.length} leadů napříč {stages.length} fázemi</p>
+          <p className="text-sm text-muted mt-1">{leads.length} leadů napříč {LEAD_STAGES.length} fázemi</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7 gap-3 min-h-[70dvh]">
-        {stages.map((stage) => {
+        {LEAD_STAGES.map((stage) => {
           const stageLeads = grouped[stage.key] ?? [];
           const stageTotal = leads.length || 1;
           const pct = Math.round((stageLeads.length / stageTotal) * 100);

@@ -34,7 +34,12 @@ export async function GET() {
       .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
       .orderBy(desc(leads.updatedAt));
 
-    return NextResponse.json(rows);
+    const normalized = rows.map((row) => ({
+      ...row,
+      updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,
+    }));
+
+    return NextResponse.json(normalized);
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

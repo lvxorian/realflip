@@ -4,6 +4,7 @@ import { leads } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { ts } from "@/lib/utils";
+import { isValidLeadStage } from "@/lib/leads";
 
 export async function PATCH(
   req: Request,
@@ -17,6 +18,11 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
+
+    if (body.stage !== undefined && !isValidLeadStage(body.stage)) {
+      return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
+    }
+
     const allowed = ["stage", "priority", "notes", "assignedTo"];
     const update: Record<string, unknown> = { updatedAt: ts() };
     for (const key of allowed) {

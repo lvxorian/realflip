@@ -4,11 +4,11 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { PropertyCard } from "@/components/ui/property-card";
 import {
   MagnifyingGlass,
@@ -36,6 +36,7 @@ interface SearchResult {
     condition: string | null;
     url: string;
     isActive: number;
+    firstSeen: number;
   };
   analysis: {
     investmentScore: number | null;
@@ -66,16 +67,25 @@ const containerVariants = {
   },
 };
 
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring" as const, stiffness: 100, damping: 20 },
+  },
+};
+
 export default function SearchDetailPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const params = useParams();
+  const [now] = useState(() => Date.now());
   const [data, setData] = useState<SearchDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const res = await fetch(`/api/searches/${params.id}`);
       if (!res.ok) { router.push("/searches"); return; }
@@ -88,16 +98,50 @@ export default function SearchDetailPage() {
   };
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
     if (status !== "authenticated") return;
-    fetchData();
-  }, [status, params.id]);
+
+    let cancelled = false;
+
+    fetch(`/api/searches/${params.id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("not found");
+        return res.json();
+      })
+      .then((d: SearchDetail) => {
+        if (!cancelled) setData(d);
+      })
+      .catch(() => {
+        if (!cancelled) router.push("/searches");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, router, params.id]);
 
   const runSearch = async () => {
     setRunning(true);
-    await fetch(`/api/searches/${params.id}/run`, { method: "POST" });
-    setRunning(false);
-    fetchData();
+    try {
+      const res = await fetch(`/api/searches/${params.id}/run`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error || "Skenování selhalo");
+      } else {
+        toast.success(`Skenování dokončeno (${data?.total ?? 0} inzerátů)`);
+      }
+    } catch {
+      toast.error("Skenování selhalo");
+    } finally {
+      setRunning(false);
+      fetchData();
+    }
   };
 
   if (loading || !data) {
@@ -183,7 +227,7 @@ export default function SearchDetailPage() {
               try { return JSON.parse(r.property.imageUrls); } catch { return []; }
             })();
             return (
-                  <motion.div key={r.propertyId} variants={containerVariants}>
+              <motion.div key={r.propertyId} variants={itemVariants}>
                 <PropertyCard
                   id={r.property.id}
                   title={r.property.title}
@@ -193,7 +237,7 @@ export default function SearchDetailPage() {
                   score={r.analysis?.investmentScore ?? 0}
                   area={r.property.area ? `${r.property.area} m²` : undefined}
                   rooms={r.property.rooms ?? undefined}
-                  days={r.lastSeen ? Math.round((Date.now() - r.lastSeen) / 86400000) : 0}
+                  days={r.property.firstSeen ? Math.round((now - r.property.firstSeen) / 86400000) : 0}
                   imageUrl={images[0]}
                   undervaluationPct={
                     r.analysis?.undervaluationPct != null && r.analysis.undervaluationPct > 0

@@ -1,5 +1,6 @@
 ﻿import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
+import { matchFilters } from "./filters";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
@@ -177,8 +178,10 @@ export class ScrapingOrchestrator {
       }
     }
 
-    // Cleanup: remove search property links for listings no longer matching filters
-    if (allFoundUrls.size > 0) {
+    // Cleanup: remove search property links for listings no longer matching filters.
+    // Only when the crawl completed without errors - a failed portal would otherwise
+    // wipe out links to listings that are still live (e.g. page 2+ or temporarily down).
+    if (allErrors.length === 0 && allFoundUrls.size > 0) {
       try {
         const linked = await db
           .select({ id: properties.id, url: properties.url })
@@ -501,17 +504,4 @@ export class ScrapingOrchestrator {
       return id;
     }
   }
-}
-
-function matchFilters(listing: RawListing, filters: SearchFilters): boolean {
-  if (filters.location) {
-    const loc = filters.location.toLowerCase().trim();
-    const parts = [listing.address, listing.title].filter(Boolean).join(" ").toLowerCase();
-    if (parts && loc && !parts.includes(loc)) return false;
-  }
-  if (filters.priceMin != null && listing.price < filters.priceMin) return false;
-  if (filters.priceMax != null && listing.price > filters.priceMax) return false;
-  if (filters.areaMin != null && (listing.area ?? 0) < filters.areaMin) return false;
-  if (filters.areaMax != null && (listing.area ?? 0) > filters.areaMax) return false;
-  return true;
 }

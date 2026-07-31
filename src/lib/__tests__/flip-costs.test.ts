@@ -5,6 +5,7 @@ import {
   calculateTargetPurchasePrice,
   renovationCostFromPreset,
   calculateItemizedRenovation,
+  resolveRenovationCost,
   COST_CONSTANTS,
   RENOVATION_PRESETS,
 } from "../analysis/flip-costs";
@@ -233,6 +234,29 @@ describe("renovationCostFromPreset", () => {
     const small = renovationCostFromPreset(40, "medium");
     const large = renovationCostFromPreset(120, "medium");
     expect(large).toBeGreaterThan(small);
+  });
+});
+
+describe("resolveRenovationCost", () => {
+  it("preset mode returns preset cost for the level", () => {
+    expect(resolveRenovationCost("preset", "medium", 0, 0, 70)).toBe(renovationCostFromPreset(70, "medium"));
+  });
+
+  it("perSqm mode returns perSqm * area", () => {
+    expect(resolveRenovationCost("perSqm", "medium", 12500, 999, 70)).toBe(875000);
+  });
+
+  it("total mode returns the entered total, ignoring plan/preset values", () => {
+    expect(resolveRenovationCost("total", "medium", 999, 500000, 70)).toBe(500000);
+    expect(resolveRenovationCost("total", "full", 999, 1200000, 70)).toBe(1200000);
+  });
+
+  it("total mode accepts 0 (no renovation)", () => {
+    expect(resolveRenovationCost("total", "medium", 999, 0, 70)).toBe(0);
+  });
+
+  it("perSqm mode accepts 0", () => {
+    expect(resolveRenovationCost("perSqm", "medium", 0, 999, 70)).toBe(0);
   });
 });
 

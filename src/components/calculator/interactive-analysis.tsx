@@ -9,7 +9,7 @@ import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locatio
 import {
   calculateFlipResults,
   calculateItemizedRenovation,
-  renovationCostFromPreset,
+  resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
 import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp } from "@phosphor-icons/react";
 
@@ -168,14 +168,10 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [presetSaving, setPresetSaving] = useState(false);
   const [presetSaved, setPresetSaved] = useState(false);
 
-  const itemsTotal = useMemo(() => renovationItems.reduce((s, i) => s + i.estimatedCost, 0), [renovationItems]);
-
-  const currentRenovation = useMemo(() => {
-    if (renovationMode === "preset") return renovationCostFromPreset(area, renovationLevel);
-    if (renovationMode === "perSqm") return Math.round(renovationPerSqm * area);
-    if (renovationMode === "total") return itemsTotal;
-    return renovationTotal;
-  }, [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area, itemsTotal]);
+  const currentRenovation = useMemo(
+    () => resolveRenovationCost(renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area),
+    [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area]
+  );
 
   const flipResults = useMemo(() => {
     const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
@@ -212,7 +208,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       if (data?.preset) {
         setArv(data.preset.arv ?? arv);
         setTargetRoi(data.preset.targetRoi ?? targetRoi);
-        if (data.preset.renovationCost) setRenovationTotal(data.preset.renovationCost);
+        if (data.preset.renovationCost != null) setRenovationTotal(data.preset.renovationCost);
         const cfg = data.preset.config;
         if (cfg) {
           setCostConfig({ ...costConfig, ...cfg });

@@ -2,10 +2,11 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PROPERTY_TYPES = [
   { value: "flat", label: "Byt" },
@@ -22,7 +23,7 @@ const SCHEDULE_OPTIONS = [
 ];
 
 export default function NewSearchPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -37,10 +38,21 @@ export default function NewSearchPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return null;
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login");
+  }, [status, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="p-6 max-w-2xl mx-auto space-y-4">
+        <Skeleton className="h-8 w-48 rounded-lg" />
+        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+      </div>
+    );
   }
+
+  if (status === "unauthenticated") return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,8 +2,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { searches, searchProperties, properties, propertyAnalysis } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { ts } from "@/lib/utils";
+import { eq, and, desc } from "drizzle-orm";
+import { ts, safeJsonParse } from "@/lib/utils";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,15 +41,32 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           eq(searchProperties.searchId, id),
           eq(properties.isActive, 1),
         ),
-      );
+      )
+      .orderBy(desc(searchProperties.lastSeen));
+
+    const num = (v: unknown) => (v == null ? v : Number(v));
+
+    const results = linked.map((r) => ({
+      ...r,
+      firstSeen: Number(r.firstSeen),
+      lastSeen: Number(r.lastSeen),
+      property: {
+        ...r.property,
+        firstSeen: Number(r.property.firstSeen),
+        lastSeen: Number(r.property.lastSeen),
+      },
+    }));
 
     return NextResponse.json({
       ...search,
-      filters: typeof search.filters === "string" ? JSON.parse(search.filters) : search.filters,
-      results: linked,
-      total: linked.length,
+      filters: safeJsonParse<Record<string, unknown>>(search.filters, {}),
+      lastRunAt: num(search.lastRunAt),
+      createdAt: Number(search.createdAt),
+      updatedAt: Number(search.updatedAt),
+      results,
+      total: results.length,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -76,7 +93,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       .where(and(eq(searches.id, id), eq(searches.userId, userId)));
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -95,7 +112,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       .where(and(eq(searches.id, id), eq(searches.userId, userId)));
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

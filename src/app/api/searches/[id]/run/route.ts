@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { searches } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { safeJsonParse } from "@/lib/utils";
+import type { SearchFilters } from "@/lib/scraping/types";
+
+export const maxDuration = 60;
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,8 +28,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    let filters: Record<string, unknown> = {};
-    try { filters = JSON.parse(search.filters); } catch { /* empty */ }
+    const filters = safeJsonParse<SearchFilters>(search.filters, {});
 
     const { ScrapingOrchestrator } = await import("@/lib/scraping/orchestrator");
     const { BazosAdapter } = await import("@/lib/scraping/adapters/bazos");
@@ -45,14 +48,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     orchestrator.registerAdapter("sreality", new SrealityAdapter());
     orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
 
-    const result = await orchestrator.crawlSearch(id, filters as any);
+    const result = await orchestrator.crawlSearch(id, filters);
 
     return NextResponse.json({
       success: true,
       total: result.total,
       errors: result.errors,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
