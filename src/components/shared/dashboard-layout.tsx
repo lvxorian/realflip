@@ -22,7 +22,7 @@ import {
   Calculator,
   Sidebar,
   SignOut,
-  FileText,
+  Gavel,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -35,7 +35,7 @@ const navItems = [
   { href: "/call-mode", label: "Call Mode", icon: Phone },
   { href: "/contacts", label: "Kontakty", icon: UsersThree },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
-  { href: "/off-market", label: "Off-Market", icon: FileText },
+  { href: "/off-market", label: "Dražby", icon: Gavel },
   { href: "/market", label: "Trh", icon: ChartBar },
   { href: "/alerts", label: "Alerty", icon: Bell },
   { href: "/settings", label: "Nastavení", icon: GearSix },

@@ -65,6 +65,10 @@ async function main() {
 
       const analysis = analyzeListing(listing, dynamicRange, undefined, location);
 
+      console.log(
+        `  ${p.id.slice(0, 12)} | ${location.city} | ${dynamicRange ? `${dynamicRange.source} ${dynamicRange.low}-${dynamicRange.high}` : "no-range"} | score=${analysis.investmentScore} arv=${analysis.arv}`
+      );
+
       const now = ts();
       await db
         .insert(propertyAnalysis)
