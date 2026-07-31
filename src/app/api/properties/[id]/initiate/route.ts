@@ -19,12 +19,13 @@ export async function POST(
 
     const [property, existing] = await Promise.all([
       db
-        .select({
-          id: properties.id,
-          contactName: properties.contactName,
-          contactPhone: properties.contactPhone,
-          contactEmail: properties.contactEmail,
-        })
+      .select({
+        id: properties.id,
+        contactName: properties.contactName,
+        contactPhone: properties.contactPhone,
+        contactEmail: properties.contactEmail,
+        portalName: properties.portalName,
+      })
         .from(properties)
         .where(eq(properties.id, propertyId))
         .limit(1)
@@ -62,6 +63,7 @@ export async function POST(
             .then((r) => r[0])
         : null;
 
+      const isAuction = property.portalName === "portaldrazeb";
       if (existingContact) {
         contactId = existingContact.id;
       } else {
@@ -71,8 +73,8 @@ export async function POST(
           name: property.contactName,
           phone: property.contactPhone,
           email: property.contactEmail,
-          type: "owner",
-          tags: JSON.stringify(["z inzerátu"]),
+          type: isAuction ? "debtor" : "owner",
+          tags: JSON.stringify(isAuction ? ["z dražby"] : ["z inzerátu"]),
           createdAt: now,
           updatedAt: now,
         });

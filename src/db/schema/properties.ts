@@ -26,6 +26,7 @@ export const properties = sqliteTable("properties", {
   firstSeen: integer("first_seen").notNull(),
   lastSeen: integer("last_seen").notNull(),
   isActive: integer("is_active").default(1),
+  auctionDataJson: text("auction_data_json"),
 });
 
 export const priceHistory = sqliteTable("price_history", {

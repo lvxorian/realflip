@@ -42,6 +42,7 @@ export interface PropertyListItem {
   overpricingPct?: number | null;
   marketPriceMin?: number | null;
   marketPriceMax?: number | null;
+  isAuction?: boolean;
 }
 
 type SortMode = "newest" | "highestScore" | "mostUndervalued";
@@ -70,6 +71,7 @@ const PORTAL_LABELS: Record<string, string> = {
   "reality-cz": "Reality.cz",
   remax: "RE/MAX",
   century21: "Century 21",
+  portaldrazeb: "Portál dražeb",
 };
 
 const INITIAL_FILTERS: FilterState = {
@@ -453,6 +455,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     index={i}
                     imageUrl={p.imageUrls?.[0]}
                     undervaluationPct={p.undervaluationPct ?? undefined}
+                    isAuction={p.portalName === "portaldrazeb"}
                   />
                 ))}
               </motion.div>

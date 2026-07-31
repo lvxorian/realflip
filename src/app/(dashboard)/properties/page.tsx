@@ -21,6 +21,7 @@ const PORTAL_LABELS: Record<string, string> = {
   "reality-cz": "Reality.cz",
   remax: "RE/MAX",
   century21: "Century 21",
+  portaldrazeb: "Portál dražeb",
 };
 
 export default async function PropertiesPage({

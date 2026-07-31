@@ -25,6 +25,7 @@ interface PropertyCardProps {
   index?: number;
   imageUrl?: string;
   undervaluationPct?: number;
+  isAuction?: boolean;
 }
 
 export function PropertyCard({
@@ -42,6 +43,7 @@ export function PropertyCard({
   index = 0,
   imageUrl,
   undervaluationPct,
+  isAuction = false,
 }: PropertyCardProps) {
   const statusVariant =
     status === "Nový" ? "success" :
@@ -85,6 +87,9 @@ export function PropertyCard({
             <FavoriteButton propertyId={id} initialFavorited={isFavorited} size={14} className="h-6 w-6 bg-card/50 backdrop-blur-sm rounded-full" />
           </div>
           <div className="absolute top-3 left-3 flex flex-col gap-1">
+            {isAuction && (
+              <Badge variant="danger" size="sm">Dražba</Badge>
+            )}
             {status && (
               <Badge variant={statusVariant} size="sm">{status}</Badge>
             )}

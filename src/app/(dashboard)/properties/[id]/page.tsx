@@ -4,13 +4,15 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis, favorites } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
-import { safeJsonParse, conditionLabel, formatPhone } from "@/lib/utils";
+import { safeJsonParse, conditionLabel, formatPhone, formatPrice } from "@/lib/utils";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
+import { InitiateButton } from "@/components/properties/initiate-button";
+import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -53,6 +55,7 @@ const PORTAL_LABELS: Record<string, string> = {
   hyperreality: "Hyperreality",
   mmreality: "MM Reality",
   annonce: "Annonce",
+  portaldrazeb: "Portál dražeb",
 };
 
 export default async function PropertyDetailPage({
@@ -106,6 +109,22 @@ export default async function PropertyDetailPage({
   const imageUrls: string[] = safeJsonParse<string[]>(property.imageUrls, []);
   const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
   const hasRealUrl = property.url && property.url.startsWith("http");
+
+  const auctionData = property.auctionDataJson
+    ? (safeJsonParse(property.auctionDataJson, null) as Record<string, unknown> | null)
+    : null;
+  const isAuction = property.portalName === "portaldrazeb";
+
+  function daysToAuction(): number | null {
+    if (!auctionData?.auctionDate) return null;
+    const d = new Date(String(auctionData.auctionDate));
+    if (isNaN(d.getTime())) return null;
+    return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
+  }
+
+  function fmtAuctionPrice(v: unknown): string {
+    return typeof v === "number" && v > 0 ? formatPrice(v) : "—";
+  }
 
   return (
     <div className="space-y-6">
@@ -167,6 +186,22 @@ export default async function PropertyDetailPage({
                   <span className="w-1 h-1 rounded-full bg-border" />
                   <Clock size={14} weight="bold" />
                   {formatDays(property.firstSeen)} na trhu
+                  {isAuction && (() => {
+                    const days = daysToAuction();
+                    return (
+                      <>
+                        <span className="w-1 h-1 rounded-full bg-border" />
+                        <span className="rounded-lg bg-red-500/10 border border-red-500/30 px-2 py-0.5 text-[11px] text-red-400 font-semibold">
+                          Dražba
+                        </span>
+                        {days !== null && (
+                          <span className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[11px] text-amber-400 font-semibold">
+                            {days === 0 ? "Dnes dražba" : `${days} dní do dražby`}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -256,6 +291,82 @@ export default async function PropertyDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Zahájit jednání */}
+          <InitiateButton propertyId={id} />
+
+          {/* Dražba – výkup před dražbou */}
+          {isAuction && auctionData && (
+            <div className="rounded-2xl border border-red-500/20 bg-card p-5">
+              <div className="flex items-center gap-2 text-sm mb-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-400 text-base">⚖️</span>
+                <span className="font-medium">Výkup před dražbou</span>
+              </div>
+              <div className="space-y-2 text-sm">
+                {Boolean(auctionData.caseNumber) && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted">Spisová značka</span>
+                    <span className="font-mono text-xs">{String(auctionData.caseNumber)}</span>
+                  </div>
+                )}
+                {Boolean(auctionData.auctionDate) && (
+                  <div className="flex justify-between gap-2">
+                    <span className="text-muted">Termín dražby</span>
+                    <span className="font-mono text-xs">{formatDate(new Date(String(auctionData.auctionDate)))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">OC</span>
+                  <span className="font-mono text-xs">{fmtAuctionPrice(auctionData.oc)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">NP</span>
+                  <span className="font-mono text-xs">{fmtAuctionPrice(auctionData.np)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">TD (dluhy)</span>
+                  <span className="font-mono text-xs">{fmtAuctionPrice(auctionData.td)}</span>
+                </div>
+                <div className="flex justify-between gap-2 border-t border-border/30 pt-2">
+                  <span className="text-muted">TBP (ideál)</span>
+                  <span className="font-mono text-xs font-semibold text-accent">{fmtAuctionPrice(auctionData.tbp)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">NCO (dlužníkovi)</span>
+                  <span className="font-mono text-xs font-semibold text-success">{fmtAuctionPrice(auctionData.nco)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Model</span>
+                  <span className="font-mono text-xs capitalize">{auctionData.strategy === "fifty-fifty" ? "50/50" : "Sourcing fee"}</span>
+                </div>
+                {(auctionData.exekutor as Record<string, unknown> | null) && (() => {
+                  const ex = auctionData.exekutor as Record<string, unknown>;
+                  const phone = ex.phone;
+                  const email = ex.email;
+                  return (
+                    <div className="border-t border-border/30 pt-2">
+                      <p className="text-muted text-xs mb-1">Exekutor: {String(ex.name ?? "—")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {typeof phone === "string" && phone && (
+                          <a href={`tel:${phone}`} className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent font-mono hover:bg-accent/10 transition-colors">
+                            {phone}
+                          </a>
+                        )}
+                        {typeof email === "string" && email && (
+                          <a href={`mailto:${email}`} className="rounded-lg bg-card-hover border border-accent/30 px-2.5 py-1 text-xs text-accent hover:bg-accent/10 transition-colors">
+                            {email}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="mt-4 border-t border-border/30 pt-4">
+                <AuctionOwnerReportButton propertyId={id} />
+              </div>
+            </div>
+          )}
+
           {/* Contact */}
           {(property.contactName || property.contactPhone || property.contactEmail) && (
             <div className="rounded-2xl border border-border/50 bg-card p-5">
