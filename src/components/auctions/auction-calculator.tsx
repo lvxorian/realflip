@@ -61,7 +61,7 @@ const DEFAULT_FORM: AuctionForm = {
   renovationPerSqm: 10000,
   renovationTotal: 700000,
   targetRoi: 15,
-  sellCommission: true,
+  sellCommission: false,
   sourcingEnabled: false,
   sourcingFee: 100000,
   sourcingFeeIsPct: false,
@@ -558,24 +558,11 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
                     %
                   </button>
                 </div>
-                <span className="text-[11px] text-muted">
-                  Nezaškrtnuto = model 50/50
-                </span>
               </div>
             )}
-            {!form.sourcingEnabled && (
-              <div className="flex items-center gap-2 pl-6">
-                <input
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={form.holdingMonths}
-                  onChange={(e) => update("holdingMonths", parseInt(e.target.value) || 6)}
-                  className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
-                />
-                <span className="text-[11px] text-muted">měsíců držení (50/50)</span>
-              </div>
-            )}
+            <p className="text-[10px] text-muted/70 pt-1 border-t border-border/30">
+              Zaškrtnuto = sourcing fee (odměna dealmakera platí investor) · nezaškrtnuto = model 50/50
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -597,23 +584,22 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-border/50 bg-card-hover p-4">
-                  <p className="text-xs text-muted mb-1">TBP – ideální výkupní cena ({(100 - form.discount)} % trhu)</p>
-                  <p className="text-xl font-mono font-semibold text-accent">
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
+                  <p className="text-xs text-emerald-400 mb-1">🎯 IDEÁLNÍ VÝKUPNÍ CENA ({(100 - form.discount)} % trhu)</p>
+                  <p className="text-2xl font-bold text-emerald-400 font-mono">
                     {formatPrice(results.tbp)}
                   </p>
-                  <p className="text-[11px] text-muted/70 mt-1">
-                    AsIs TMV × (100 − {form.discount} %) / 100
+                  <p className="text-[10px] text-emerald-400/60 mt-0.5">
+                    {form.area > 0 ? `${formatPrice(Math.round(results.tbp / form.area))} Kč/m²` : ""}
                   </p>
+                  <div className="flex items-center justify-center gap-3 mt-2 text-xs">
+                    <span className="text-muted">AsIs TMV: {formatPrice(form.asIsTmv)}</span>
+                    <span className="text-red-400">↓ {form.discount} %</span>
+                  </div>
                 </div>
                 <div className="rounded-xl border border-border/50 bg-card-hover p-4">
                   <p className="text-xs text-muted mb-1">NCO – zůstane dlužníkovi na ruku</p>
-                  <p
-                    className={cn(
-                      "text-xl font-mono font-semibold",
-                      results.feasible ? "text-success" : "text-danger"
-                    )}
-                  >
+                  <p className="text-xl font-mono font-semibold text-emerald-400">
                     {formatPrice(results.nco)}
                   </p>
                   <p className="text-[11px] text-muted/70 mt-1">TBP − TD − TC</p>
@@ -744,8 +730,8 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
               </div>
 
               {/* Cost breakdown */}
-              <div className="rounded-xl border border-border/50 overflow-hidden">
-                <div className="bg-card-hover border-b border-border/50 px-3 py-2 text-xs font-semibold text-muted">
+              <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 overflow-hidden">
+                <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">
                   Nákladová struktura při výkupní ceně {formatPrice(results.tbp)}
                 </div>
                 <table className="w-full text-xs">
@@ -765,27 +751,31 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
                         : []),
                       { label: "Daň z příjmu (21 %)", value: results.costs.incomeTax },
                     ].map((row) => (
-                      <tr key={row.label} className="border-b border-border/20">
+                      <tr key={row.label} className="border-b border-emerald-500/10">
                         <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
                         <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
                       </tr>
                     ))}
-                    <tr className="bg-card-hover">
-                      <td className="px-3 py-2 font-semibold">Náklady celkem</td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold">{formatPrice(results.costs.totalCost)}</td>
-                    </tr>
-                    <tr className="border-t border-border/30">
-                      <td className="px-3 py-2">ARV</td>
-                      <td className="px-3 py-2 text-right font-mono">{formatPrice(form.arv)}</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-medium">Zisk</td>
-                      <td className={cn("px-3 py-2 text-right font-mono font-medium", results.netProfit >= 0 ? "text-success" : "text-danger")}>
-                        {formatPrice(results.netProfit)}
-                      </td>
+                    <tr className="bg-emerald-500/10">
+                      <td className="px-3 py-2 font-semibold text-emerald-400">Náklady celkem</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(results.costs.totalCost)}</td>
                     </tr>
                   </tbody>
                 </table>
+                <div className="border-t border-emerald-500/20 px-3 py-2 text-xs space-y-1 bg-emerald-500/5">
+                  <div className="flex justify-between">
+                    <span className="text-emerald-400/70">ARV</span>
+                    <span className="font-mono text-emerald-400">{formatPrice(form.arv)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-emerald-400/70">Zisk</span>
+                    <span className={`font-mono ${results.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(results.netProfit)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span className="text-emerald-400/70">ROI</span>
+                    <span className={`font-mono ${results.roi >= form.targetRoi ? "text-emerald-400" : results.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{results.roi.toFixed(1)}%</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
