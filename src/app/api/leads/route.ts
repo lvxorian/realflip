@@ -31,6 +31,9 @@ export async function GET() {
         propertyYearBuilt: properties.yearBuilt,
         propertyPortalName: properties.portalName,
         propertyUrl: properties.url,
+        propertyContactName: properties.contactName,
+        propertyContactPhone: properties.contactPhone,
+        propertyContactEmail: properties.contactEmail,
         contactId: contacts.id,
         contactName: contacts.name,
         contactPhone: contacts.phone,
@@ -50,6 +53,9 @@ export async function GET() {
         row.propertyPrice != null && row.propertyArea != null && row.propertyArea > 0
           ? Math.round(row.propertyPrice / row.propertyArea)
           : null,
+      contactName: row.propertyContactName ?? row.contactName,
+      contactPhone: row.propertyContactPhone ?? row.contactPhone,
+      contactEmail: row.propertyContactEmail ?? row.contactEmail,
       createdAt: row.createdAt != null ? Number(row.createdAt) : null,
       updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,
     }));

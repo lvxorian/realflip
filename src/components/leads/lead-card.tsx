@@ -47,12 +47,13 @@ export function LeadCard({
       className={cn(
         "group rounded-xl border border-border/50 bg-card p-3 cursor-grab active:cursor-grabbing transition-all",
         "hover:bg-card-hover hover:border-accent/20 hover:shadow-lg hover:shadow-black/20",
+        "@max-[240px]:p-2.5",
         isDragging && "opacity-40"
       )}
       title={lead.propertyTitle ?? undefined}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h3 className="text-xs font-medium leading-snug line-clamp-2 text-foreground group-hover:text-accent transition-colors">
+        <h3 className="text-xs font-medium leading-snug line-clamp-2 @max-[240px]:line-clamp-1 text-foreground group-hover:text-accent transition-colors">
           {lead.propertyTitle ?? "Neznámá nemovitost"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
@@ -64,16 +65,16 @@ export function LeadCard({
       </div>
 
       <div className="flex items-baseline justify-between gap-2 mb-1.5">
-        <span className="text-sm font-semibold font-mono text-amber-400">
+        <span className="text-sm font-semibold font-mono text-amber-400 @max-[240px]:text-xs">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
         {lead.propertyPricePerSqm != null && (
-          <span className="text-[10px] text-muted font-mono">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
+          <span className="text-[10px] text-muted font-mono @max-[240px]:hidden">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
         )}
       </div>
 
       {!compact && (
-        <div className="flex flex-wrap items-center gap-1 mb-2">
+        <div className="flex flex-wrap items-center gap-1 mb-2 @max-[240px]:hidden">
           {lead.propertyArea != null && (
             <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">{lead.propertyArea} m²</span>
           )}
@@ -87,7 +88,7 @@ export function LeadCard({
       )}
 
       {!compact && (lead.contactName || lead.contactPhone) && (
-        <div className="flex items-center gap-1.5 mb-1.5">
+        <div className="flex items-center gap-1.5 mb-1.5 @max-[240px]:hidden">
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-accent text-[9px] font-bold">
             {initials(lead.contactName)}
           </span>
@@ -98,7 +99,7 @@ export function LeadCard({
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[10px] text-muted/50">
+      <div className="flex items-center justify-between text-[10px] text-muted/50 @max-[240px]:hidden">
         <span className="flex items-center gap-1 min-w-0">
           {lead.propertyAddress ? (
             <>

@@ -58,7 +58,12 @@ export async function POST(
         ? await db
             .select({ id: contacts.id })
             .from(contacts)
-            .where(eq(contacts.phone, property.contactPhone))
+            .where(
+              and(
+                eq(contacts.phone, property.contactPhone),
+                eq(contacts.name, property.contactName)
+              )
+            )
             .limit(1)
             .then((r) => r[0])
         : null;

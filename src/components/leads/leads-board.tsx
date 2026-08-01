@@ -24,9 +24,9 @@ import type { LeadItem } from "./types";
 
 function BoardSkeleton() {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="flex gap-2.5 overflow-x-auto pb-4">
       {LEAD_STAGES.map((s) => (
-        <div key={s.key} className="flex w-[300px] shrink-0 flex-col gap-2">
+        <div key={s.key} className="flex min-w-[170px] flex-1 basis-0 flex-col gap-2">
           <div className="h-6 w-24 rounded-lg bg-border/20 animate-pulse" />
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-32 rounded-xl bg-border/10 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
@@ -233,27 +233,27 @@ export function LeadsBoard() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4 snap-x">
+        <div className="flex gap-2.5 overflow-x-auto pb-4 snap-x">
           {LEAD_STAGES.map((stage) => {
             const items = byStage.get(stage.key) ?? [];
             const sum = items.reduce((acc, l) => acc + (l.propertyPrice ?? 0), 0);
             const pct = items.length > 0 ? Math.round((items.length / maxCount) * 100) : 0;
 
             return (
-              <div key={stage.key} className="flex w-[300px] shrink-0 flex-col snap-start">
+              <div key={stage.key} className="flex min-w-[170px] max-w-[360px] flex-1 basis-0 flex-col snap-start @container">
                 <div className="mb-2 flex items-center gap-2 px-1">
-                  <span className={`h-2.5 w-2.5 rounded-full ${stage.dot} shadow-sm`} />
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">{stage.label}</h2>
-                  <span className="ml-auto rounded-md bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted">
+                  <span className={`h-2.5 w-2.5 rounded-full ${stage.dot} shadow-sm shrink-0`} />
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground truncate">{stage.label}</h2>
+                  <span className="ml-auto shrink-0 rounded-md bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted">
                     {items.length}
                   </span>
                 </div>
                 <div className="h-1 rounded-full bg-border/15 mb-3 overflow-hidden">
                   <div className={`h-full rounded-full ${stage.dot} transition-all duration-300`} style={{ width: `${pct}%` }} />
                 </div>
-                {sum > 0 && (
-                  <div className="mb-2 px-1 text-[10px] font-mono text-muted/60">{formatCompactPrice(sum)} celkem</div>
-                )}
+                <div className="mb-2 px-1 text-[10px] font-mono text-muted/60 @max-[240px]:hidden">
+                  {sum > 0 ? `${formatCompactPrice(sum)} celkem` : "\u00A0"}
+                </div>
                 <SortableContext items={items.map((l) => l.id)} strategy={verticalListSortingStrategy}>
                   <div className="flex flex-col gap-2.5 min-h-20">
                     {items.map((lead) => (
@@ -279,7 +279,7 @@ export function LeadsBoard() {
 
         <DragOverlay>
           {activeLead && (
-            <div className="w-[300px] rotate-2 shadow-2xl shadow-black/40">
+            <div className="w-[280px] rotate-2 shadow-2xl shadow-black/40">
               <LeadCard lead={activeLead} compact onOpen={() => {}} />
             </div>
           )}
