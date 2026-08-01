@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -383,13 +384,20 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         }),
       });
       const data = await res.json();
+      if (!res.ok || !data.propertyId) {
+        toast.error(data?.error || "Uložení se nezdařilo");
+        setDbSaving(false);
+        return;
+      }
       if (data.propertyId) {
         setDbSaved(true);
         setDbSavedId(data.propertyId);
         if (data.existed) setDbSavedMessage("Již v databázi ✅");
         else setDbSavedMessage("Uloženo ✅");
       }
-    } catch {}
+    } catch {
+      toast.error("Uložení se nezdařilo — zkontrolujte připojení");
+    }
     setDbSaving(false);
   };
 
@@ -421,6 +429,11 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         }),
       });
       const data = await res.json();
+      if (!res.ok || !data.propertyId) {
+        toast.error(data?.error || "Uložení se nezdařilo");
+        setDbInitiateSaving(false);
+        return;
+      }
       if (data.propertyId) {
         const initRes = await fetch(`/api/properties/${data.propertyId}/initiate`, { method: "POST" });
         const initData = await initRes.json();
@@ -428,7 +441,9 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         setDbSaved(true);
         setDbSavedId(data.propertyId);
       }
-    } catch {}
+    } catch {
+      toast.error("Uložení se nezdařilo — zkontrolujte připojení");
+    }
     setDbInitiateSaving(false);
   };
 

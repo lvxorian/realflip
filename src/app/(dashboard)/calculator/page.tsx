@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -151,8 +152,8 @@ export default function CalculatorPage() {
     } as any;
   }, [title, price, area, rooms, condition, floor, description, marketLow, marketHigh]);
 
-  async function saveToDb() {
-    if (!result) return;
+  async function saveToDb(): Promise<string | null> {
+    if (!result) return null;
     setSaving(true);
     try {
       const res = await fetch("/api/calculator/save", {
@@ -177,12 +178,33 @@ export default function CalculatorPage() {
         }),
       });
       const data = await res.json();
-      if (data.propertyId) {
-        setSavedId(data.propertyId);
-        router.push(`/properties/${data.propertyId}`);
+      if (!res.ok || !data.propertyId) {
+        toast.error(data?.error || "Uložení se nezdařilo");
+        return null;
       }
-    } catch {}
-    setSaving(false);
+      return data.propertyId as string;
+    } catch {
+      toast.error("Uložení se nezdařilo — zkuste to prosím znovu");
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSave() {
+    const id = await saveToDb();
+    if (id) {
+      setSavedId(id);
+      router.push(`/properties/${id}`);
+    }
+  }
+
+  async function handleReport() {
+    const id = await saveToDb();
+    if (id) {
+      setSavedId(id);
+      router.push(`/report/${id}`);
+    }
   }
 
   if (status === "unauthenticated") {
@@ -261,18 +283,18 @@ export default function CalculatorPage() {
 
         {result && !savedId && (
           <div className="flex gap-3 mt-4">
-            <Button onClick={saveToDb} disabled={saving} className="flex-1 text-sm gap-2">
+            <Button onClick={handleSave} disabled={saving} className="flex-1 text-sm gap-2">
               {saving ? "Ukládám..." : "💾 Uložit do databáze"}
             </Button>
-            <Button variant="secondary" disabled className="flex-1 text-sm gap-2">
-              📄 Export PDF
+            <Button variant="secondary" onClick={handleReport} disabled={saving} className="flex-1 text-sm gap-2">
+              📄 PDF report
             </Button>
           </div>
         )}
 
         {savedId && (
           <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 p-4 text-center mt-4">
-            <p className="text-sm text-emerald-400 font-medium">✅ Uloženo. Přesměrovávám na detail...</p>
+            <p className="text-sm text-emerald-400 font-medium">✅ Uloženo. Přesměrovávám...</p>
           </div>
         )}
       </motion.div>

@@ -8,9 +8,9 @@ const rateLimiter = RateLimiter.getInstance();
 function normalizeBuildingType(raw: string | null): string | null {
   if (!raw) return null;
   const v = raw.toLowerCase().trim();
-  if (/cihlov/i.test(v)) return "brick";
-  if (/panelov/i.test(v)) return "panel";
-  if (/skletov|skeletov/i.test(v)) return "mixed";
+  if (/cihl/i.test(v)) return "brick";
+  if (/panel/i.test(v)) return "panel";
+  if (/skelet/i.test(v)) return "mixed";
   if (/sm[íi]šen/i.test(v)) return "mixed";
   if (/montovan/i.test(v)) return "panel";
   if (/d[řr]evostavba|modul[áa]rn/i.test(v)) return "new";
@@ -577,6 +577,156 @@ function makeNotImplementedScraper(portal: string, hint: string) {
   };
 }
 
+const BEZREALITKY_DISPOSITION: Record<string, string> = {
+  GARSONET: "1+kk",
+  GARSONKA: "1+kk",
+  DISP_1_KK: "1+kk",
+  DISP_1_1: "1+1",
+  DISP_2_KK: "2+kk",
+  DISP_2_1: "2+1",
+  DISP_3_KK: "3+kk",
+  DISP_3_1: "3+1",
+  DISP_4_KK: "4+kk",
+  DISP_4_1: "4+1",
+  DISP_5_KK: "5+kk",
+  DISP_5_1: "5+1",
+  DISP_6: "6+",
+};
+
+const BEZREALITKY_OFFER_LABEL: Record<string, string> = {
+  PRODEJ: "Prodej",
+  PRONAJEM: "Pronájem",
+  DRAZBA: "Dražba",
+};
+
+const BEZREALITKY_ESTATE_LABEL: Record<string, string> = {
+  BYT: "bytu",
+  DUM: "domu",
+  POZEMEK: "pozemku",
+  GARAZ: "garáže",
+  NEZISTENO: "nemovitosti",
+};
+
+const BEZREALITKY_CONDITION: Record<string, string> = {
+  NEW_BUILDING: "new",
+  AFTER_RENOVATION: "renovated",
+  GOOD: "good",
+  ORIGINAL: "original",
+  BEFORE_RENOVATION: "dilapidated",
+  BAD: "dilapidated",
+  DEMOLITION: "dilapidated",
+  UNDER_CONSTRUCTION: "new",
+};
+
+interface BezrealitkyAdvert {
+  __typename?: string;
+  uri?: string;
+  offerType?: string | null;
+  estateType?: string | null;
+  disposition?: string | null;
+  surface?: number | null;
+  price?: number | null;
+  originalPrice?: number | null;
+  currency?: string | null;
+  condition?: string | null;
+  construction?: string | null;
+  age?: string | null;
+  address?: string | null;
+  city?: string | null;
+  street?: string | null;
+  houseNumber?: string | null;
+  description?: string | null;
+  etage?: number | null;
+  totalFloors?: number | null;
+  gps?: { lat?: number | null; lng?: number | null } | null;
+  publicImages?: { url?: string | null }[] | null;
+  regionTree?: { name?: string | null }[] | null;
+}
+
+async function scrapeBezrealitky(url: string): Promise<RawListing> {
+  const html = await fetchHtml(url, "bezrealitky");
+  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
+  if (!match) throw new Error("Nepodařilo se načíst data inzerátu (BezRealitky)");
+
+  let nextData: any;
+  try {
+    nextData = JSON.parse(match[1]);
+  } catch {
+    throw new Error("Nepodařilo se přečíst data inzerátu (BezRealitky)");
+  }
+
+  const pageProps = nextData.props?.pageProps;
+  let advert: BezrealitkyAdvert | null = pageProps?.origAdvert ?? null;
+  if (!advert) {
+    const cache = pageProps?.apolloCache;
+    if (cache && typeof cache === "object") {
+      const matchId = url.match(/\/(\d{4,})/);
+      const key = matchId ? `Advert:${matchId[1]}` : null;
+      advert = (key && cache[key]) ?? Object.values(cache).find((v: any) => v?.__typename === "Advert") ?? null;
+    }
+  }
+  if (!advert) throw new Error("Nepodařilo se najít data inzerátu (BezRealitky)");
+
+  const surface = typeof advert.surface === "number" && advert.surface > 0 ? advert.surface : null;
+  const rawPrice = typeof advert.price === "number" ? advert.price : null;
+  const price = isValidPrice(rawPrice ?? 0) ? rawPrice! : isValidPrice(advert.originalPrice ?? 0) ? advert.originalPrice! : 0;
+
+  const disposition = (advert.disposition ?? "").toUpperCase();
+  const rooms = BEZREALITKY_DISPOSITION[disposition] ?? null;
+
+  const regionParts = (advert.regionTree ?? []).map((r) => r.name).filter(Boolean) as string[];
+  const district = regionParts.length > 1 ? regionParts[regionParts.length - 1] : null;
+  const address = advert.address ?? (advert.street ? [advert.street, advert.houseNumber].filter(Boolean).join(" ") : null);
+
+  const titleParts = [
+    BEZREALITKY_OFFER_LABEL[advert.offerType ?? ""] ?? advert.offerType ?? "",
+    BEZREALITKY_ESTATE_LABEL[advert.estateType ?? ""] ?? (advert.estateType ? advert.estateType.toLowerCase() : ""),
+    rooms,
+    surface ? `${surface} m²` : null,
+    address,
+  ].filter(Boolean);
+  const title = titleParts.join(" ").trim();
+
+  const description = advert.description ? cheerio.load(advert.description).text().replace(/\s+/g, " ").trim() : null;
+
+  let condition: string | null = BEZREALITKY_CONDITION[(advert.condition ?? "").toUpperCase()] ?? null;
+  if (!condition) condition = inferConditionFromText(description, title);
+
+  const buildingType = normalizeBuildingType(advert.construction ?? null);
+
+  const yearMatch = (advert.age ?? "").match(/\b(19|20)\d{2}\b/);
+  const yearBuilt = yearMatch ? parseInt(yearMatch[0]) : null;
+
+  const floor = typeof advert.etage === "number" ? advert.etage : null;
+
+  const images = filterImages((advert.publicImages ?? []).map((img) => img.url ?? ""), "bezrealitky");
+
+  const now = Date.now();
+  return {
+    portalName: "bezrealitky" as PortalName,
+    url,
+    title,
+    price,
+    pricePerSqm: price > 0 && surface ? Math.round(price / surface) : null,
+    area: surface,
+    rooms,
+    floor,
+    condition,
+    buildingType,
+    yearBuilt,
+    address: address ?? advert.city ?? null,
+    lat: advert.gps?.lat ?? null,
+    lng: advert.gps?.lng ?? null,
+    contactPhone: null,
+    contactName: null,
+    contactEmail: null,
+    description,
+    imageUrls: images,
+    publishedAt: now,
+    updatedAt: now,
+  };
+}
+
 async function scrapeIdnesReality(url: string): Promise<RawListing> {
   const html = await fetchHtml(url, "idnes-reality");
   const $ = cheerio.load(html);
@@ -705,7 +855,7 @@ const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) 
   { pattern: /annonce\.cz/, portal: "annonce", scrape: scrapeAnnonce },
   { pattern: /bazos\.cz/, portal: "bazos", scrape: scrapeBazos },
   { pattern: /mmreality\.cz/, portal: "mmreality", scrape: scrapeMmreality },
-  { pattern: /bezrealitky\.cz/, portal: "bezrealitky", scrape: makeNotImplementedScraper("bezrealitky", "Next.js SPA — detail scraper není implementován") },
+  { pattern: /bezrealitky\.cz/, portal: "bezrealitky", scrape: scrapeBezrealitky },
   { pattern: /idnes-reality\.cz/, portal: "idnes-reality", scrape: scrapeIdnesReality },
   { pattern: /hyperreality\.cz/, portal: "hyperreality", scrape: makeNotImplementedScraper("hyperreality", "Portál není dostupný") },
   { pattern: /remax\.cz/, portal: "remax", scrape: makeNotImplementedScraper("remax", "Detail scraper není implementován") },
@@ -728,7 +878,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     }
   }
 
-  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz");
+  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, bezrealitky.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz, idnes-reality.cz");
 }
 
 export function detectPortal(url: string): string | null {

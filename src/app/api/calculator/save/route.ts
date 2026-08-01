@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, propertyAnalysis } from "@/db/schema";
@@ -6,6 +8,12 @@ import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
 import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
+
+function offlineDedupUrl(title: string, price: number, area: number, address: string | null, city: string | null): string {
+  const key = [title, price, area, address ?? "", city ?? ""].map((v) => String(v).trim().toLowerCase()).join("|");
+  const hash = createHash("sha1").update(key).digest("hex").slice(0, 12);
+  return `offline://${hash}`;
+}
 
 export async function POST(req: Request) {
   try {
@@ -22,7 +30,16 @@ export async function POST(req: Request) {
     }
 
     const now = ts();
-    const propertyId = generateId();
+    const url = offlineDedupUrl(title, price, area, address, city);
+
+    const existing = await db
+      .select({ id: properties.id })
+      .from(properties)
+      .where(eq(properties.url, url))
+      .limit(1)
+      .then((r) => r[0]);
+
+    const propertyId = existing?.id ?? generateId();
 
     const rawListing: any = {
       portalName: "offline",
@@ -40,7 +57,7 @@ export async function POST(req: Request) {
       lng: null,
       description: description ?? null,
       imageUrls: [],
-      url: "",
+      url,
       contactName: null,
       contactPhone: null,
       contactEmail: null,
@@ -62,11 +79,65 @@ export async function POST(req: Request) {
       : null;
     const analysis = analyzeListing(rawListing, dynamicRange, undefined, location);
 
+    if (existing) {
+      await db.update(properties).set({
+        title,
+        price,
+        pricePerSqm: rawListing.pricePerSqm,
+        area: area ?? null,
+        rooms: rooms ?? null,
+        floor: floor ?? null,
+        condition: condition ?? null,
+        buildingType: buildingType ?? null,
+        address: address ?? null,
+        description: description ?? null,
+        status: "active",
+        lastSeen: now,
+        isActive: 1,
+      }).where(eq(properties.id, propertyId));
+
+      await db.update(propertyAnalysis).set({
+        marketValue: analysis.arv,
+        undervaluationPct: analysis.undervaluationPct,
+        investmentScore: analysis.investmentScore,
+        arv: arv ?? analysis.arv,
+        renovationCost: renovationCost ?? analysis.costs.renovationCost,
+        totalCost: analysis.costs.totalCost,
+        netProfit: netProfit ?? analysis.netProfit,
+        roi: roi ?? analysis.roi,
+        annualizedRoi: analysis.annualizedRoi,
+        cashOnCash: analysis.cashOnCash,
+        breakEvenPrice: analysis.breakEvenPrice,
+        recommendation: analysis.recommendation,
+        pricePerSqm: analysis.pricePerSqm,
+        marketPriceMin: analysis.marketPricePerSqmLow,
+        marketPriceMax: analysis.marketPricePerSqmHigh,
+        overpricingPct: analysis.overpricingPct,
+        locationCategory: analysis.location.category,
+        locationCity: city ?? analysis.location.city,
+        locationDistrict: analysis.location.district,
+        segmentRating: analysis.segmentRating,
+        occupancy: analysis.occupancy,
+        buildingType: analysis.buildingType,
+        energyLabel: analysis.energyLabel,
+        technicalScore: analysis.technicalScore,
+        verdictLevel: analysis.verdictLevel,
+        verdictSummary: analysis.verdictSummary,
+        redFlagsJson: JSON.stringify(analysis.redFlags),
+        costsJson: JSON.stringify(analysis.costs),
+        alternativeStrategiesJson: JSON.stringify(analysis.alternativeStrategies),
+        rentalYield: analysis.rentalYield,
+        updatedAt: now,
+      }).where(eq(propertyAnalysis.propertyId, propertyId));
+
+      return NextResponse.json({ propertyId, existed: true });
+    }
+
     await db.insert(properties).values({
       id: propertyId,
       portalId: `offline_${generateId().slice(0, 8)}`,
       portalName: "offline",
-      url: "",
+      url,
       title,
       price,
       pricePerSqm: rawListing.pricePerSqm,
