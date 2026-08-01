@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractAreaFromDescription, extractSlug } from "../parse-auction";
+import { extractAreaFromDescription, extractPdfLinks, extractSlug } from "../parse-auction";
 
 describe("extractAreaFromDescription", () => {
   it("extracts area from 'užitná plocha ... X m²'", () => {
@@ -54,5 +54,72 @@ describe("extractSlug", () => {
 
   it("returns null for invalid URL", () => {
     expect(extractSlug("https://example.com/other")).toBeNull();
+  });
+});
+
+describe("extractPdfLinks", () => {
+  it("builds correct public download URLs and maps document types", () => {
+    const data = {
+      documents: {
+        aaa11: {
+          mime_type: "application/pdf",
+          hash: "aaa11",
+          document_type: "auction_decree",
+          original_name: "DV.pdf",
+        },
+        bbb22: {
+          mime_type: "application/pdf",
+          hash: "bbb22",
+          document_type: "expert_report",
+          original_name: "ZP.pdf",
+        },
+      },
+    };
+    const docs = extractPdfLinks(data as never);
+    expect(docs).toEqual([
+      { type: "vyhlaska", url: "https://www.portaldrazeb.cz/upload/auction-document/aaa11" },
+      { type: "posudek", url: "https://www.portaldrazeb.cz/upload/auction-document/bbb22" },
+    ]);
+  });
+
+  it("skips non-PDF documents and unknown types", () => {
+    const data = {
+      documents: {
+        img1: { mime_type: "image/jpeg", hash: "img1", document_type: "other_doc" },
+        pdf3: { mime_type: "application/pdf", hash: "pdf3", document_type: "resolution_pre" },
+      },
+    };
+    const docs = extractPdfLinks(data as never);
+    expect(docs).toEqual([
+      { type: "other", url: "https://www.portaldrazeb.cz/upload/auction-document/pdf3" },
+    ]);
+  });
+
+  it("prioritizes vyhlaska before posudek", () => {
+    const data = {
+      documents: {
+        expert1: { mime_type: "application/pdf", hash: "expert1", document_type: "expert_report" },
+        decree1: { mime_type: "application/pdf", hash: "decree1", document_type: "auction_decree" },
+      },
+    };
+    const docs = extractPdfLinks(data as never);
+    expect(docs.map((d) => d.type)).toEqual(["vyhlaska", "posudek"]);
+  });
+
+  it("falls back to document key when hash is missing", () => {
+    const data = {
+      documents: {
+        fallbackKey: { mime_type: "application/pdf", document_type: "auction_decree" },
+      },
+    };
+    const docs = extractPdfLinks(data as never);
+    expect(docs).toEqual([
+      { type: "vyhlaska", url: "https://www.portaldrazeb.cz/upload/auction-document/fallbackKey" },
+    ]);
+  });
+
+  it("returns empty array when no documents", () => {
+    expect(extractPdfLinks({} as never)).toEqual([]);
+    expect(extractPdfLinks({ documents: {} } as never)).toEqual([]);
   });
 });

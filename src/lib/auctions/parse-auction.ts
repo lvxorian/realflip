@@ -11,8 +11,8 @@ import { GEMINI_MODEL } from "@/lib/ai/gemini";
  * - OC   = estimated_price
  * - NP   = item_price
  * - Fotky = /media/cache/thumb_large + image.pathname  (HTTP 200, image/jpeg)
- * - PDF dokumenty (vyhláška, znalecký posudek) vyžadují přihlášeného uživatele –
- *   při selhání stahování pipeline pokračuje s JSON daty (fallback).
+ * - PDF dokumenty = /upload/auction-document/{hash}  (HTTP 200, application/pdf,
+ *   veřejně dostupné bez přihlášení pro dražby ve stavu draft/upcoming/bidding)
  */
 
 const THUMB_BASE = "https://www.portaldrazeb.cz/media/cache/thumb_large";
@@ -160,7 +160,7 @@ export function extractPdfLinks(data: RawAuctionJson): AuctionDocument[] {
           ? "posudek"
           : "other";
     const hash = doc.hash ?? key;
-    docs.push({ type, url: `${ORIGIN}/dokumenty/${hash}` });
+    docs.push({ type, url: `${ORIGIN}/upload/auction-document/${hash}` });
   }
   // Prioritizovat vyhlášku a posudek
   docs.sort((a, b) => {
@@ -170,7 +170,7 @@ export function extractPdfLinks(data: RawAuctionJson): AuctionDocument[] {
   return docs;
 }
 
-/** 3. Stáhne PDF dokumenty; selhání se tiše přeskočí (dokumenty mohou vyžadovat login). */
+/** 3. Stáhne PDF dokumenty; selhání se tiše přeskočí (fallback na JSON data). */
 export async function downloadPdfBuffers(
   links: AuctionDocument[]
 ): Promise<{ doc: AuctionDocument; buffer: ArrayBuffer }[]> {
@@ -273,13 +273,18 @@ export async function extractWithGemini(
     return {};
   }
 
-  const pdfParts = pdfs.slice(0, 2).map(({ doc, buffer }) => ({
-    text: `[Dokument: ${doc.type === "vyhlaska" ? "Dražební vyhláška" : "Znalecký posudek"}]`,
-    inlineData: {
-      mimeType: "application/pdf" as const,
-      data: Buffer.from(buffer).toString("base64"),
-    },
-  }));
+  const pdfParts: ({ text: string } | { inlineData: { mimeType: "application/pdf"; data: string } })[] = [];
+  for (const { doc, buffer } of pdfs.slice(0, 2)) {
+    pdfParts.push({
+      text: `[Dokument: ${doc.type === "vyhlaska" ? "Dražební vyhláška" : "Znalecký posudek"}]`,
+    });
+    pdfParts.push({
+      inlineData: {
+        mimeType: "application/pdf" as const,
+        data: Buffer.from(buffer).toString("base64"),
+      },
+    });
+  }
 
   const prompt = `Z níže uvedených podkladů exekuční dražby nemovitosti extrahuj strukturovaná data.
 ODPOVÍDEJ VÝHRADNĚ JSON bez komentářů.

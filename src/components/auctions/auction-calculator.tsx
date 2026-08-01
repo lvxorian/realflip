@@ -560,9 +560,6 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
                 </div>
               </div>
             )}
-            <p className="text-[10px] text-muted/70 pt-1 border-t border-border/30">
-              Zaškrtnuto = sourcing fee (odměna dealmakera platí investor) · nezaškrtnuto = model 50/50
-            </p>
           </div>
         </CardContent>
       </Card>
