@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, leads, propertyAnalysis, activityLog, searches } from "@/db/schema";
-import { eq, desc, and, count, sql } from "drizzle-orm";
+import { properties, leads, propertyAnalysis, activityLog, searches, deals } from "@/db/schema";
+import { eq, desc, and, count, sql, ne } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export async function GET() {
     today.setHours(0, 0, 0, 0);
     const todayTs = today.getTime();
 
-    const [props, analyses, leadCount, searchCount, recentActivity] = await Promise.all([
+    const [props, analyses, leadCount, dealsCount, searchCount, recentActivity] = await Promise.all([
       db
         .select({
           id: properties.id,
@@ -67,7 +67,13 @@ export async function GET() {
       db
         .select({ val: count() })
         .from(leads)
-        .where(eq(leads.assignedTo, session.user.id))
+        .where(eq(leads.userId, session.user.id))
+        .then((r) => r[0]?.val ?? 0),
+
+      db
+        .select({ val: count() })
+        .from(deals)
+        .where(ne(deals.status, "sold"))
         .then((r) => r[0]?.val ?? 0),
 
       db
@@ -102,7 +108,7 @@ export async function GET() {
       : 0;
     const pipelineProfit = analyses.reduce((s, a) => s + (a.netProfit || 0), 0);
 
-    const activeDeals = props.filter((p) => p.lat !== null).length;
+    const activeDeals = dealsCount;
 
     const recentProps = props
       .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())

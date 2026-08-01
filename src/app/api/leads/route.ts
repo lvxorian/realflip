@@ -17,14 +17,24 @@ export async function GET() {
         stage: leads.stage,
         priority: leads.priority,
         notes: leads.notes,
+        assignedTo: leads.assignedTo,
+        createdAt: leads.createdAt,
         updatedAt: leads.updatedAt,
         propertyId: properties.id,
         propertyTitle: properties.title,
         propertyPrice: properties.price,
         propertyArea: properties.area,
         propertyRooms: properties.rooms,
+        propertyAddress: properties.address,
+        propertyCondition: properties.condition,
+        propertyBuildingType: properties.buildingType,
+        propertyYearBuilt: properties.yearBuilt,
+        propertyPortalName: properties.portalName,
+        propertyUrl: properties.url,
+        contactId: contacts.id,
         contactName: contacts.name,
         contactPhone: contacts.phone,
+        contactEmail: contacts.email,
         analysisScore: propertyAnalysis.investmentScore,
       })
       .from(leads)
@@ -36,6 +46,11 @@ export async function GET() {
 
     const normalized = rows.map((row) => ({
       ...row,
+      propertyPricePerSqm:
+        row.propertyPrice != null && row.propertyArea != null && row.propertyArea > 0
+          ? Math.round(row.propertyPrice / row.propertyArea)
+          : null,
+      createdAt: row.createdAt != null ? Number(row.createdAt) : null,
       updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,
     }));
 
