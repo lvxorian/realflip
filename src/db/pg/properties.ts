@@ -26,6 +26,7 @@ export const properties = pgTable("properties", {
   firstSeen: bigint("first_seen", { mode: "number" }).notNull(),
   lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
   isActive: integer("is_active").default(1),
+  areaLocked: integer("area_locked").default(0),
   auctionDataJson: text("auction_data_json"),
 });
 

@@ -284,13 +284,19 @@ export class ScrapingOrchestrator {
       }
 
       const area = existing.area ?? listing.area ?? 70;
+      const keepManualArea = existing.areaLocked === 1 && existing.area != null;
+      const effectiveArea = keepManualArea ? existing.area : (listing.area ?? existing.area);
+      const effectivePricePerSqm =
+        keepManualArea && (effectiveArea ?? 0) > 0
+          ? Math.round(listing.price / (effectiveArea as number))
+          : listing.pricePerSqm;
 
       await db
         .update(properties)
         .set({
           price: listing.price,
-          pricePerSqm: listing.pricePerSqm,
-          area: listing.area ?? existing.area,
+          pricePerSqm: effectivePricePerSqm,
+          area: effectiveArea,
           rooms: listing.rooms ?? existing.rooms,
           floor: listing.floor ?? existing.floor,
           condition: listing.condition ?? existing.condition,

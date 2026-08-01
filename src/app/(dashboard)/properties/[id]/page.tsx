@@ -12,6 +12,7 @@ import { ImageGallery } from "@/components/ui/image-gallery";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import { InitiateButton } from "@/components/properties/initiate-button";
+import { EditableArea } from "@/components/properties/editable-area";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import {
   ArrowLeft,
@@ -223,7 +224,6 @@ export default async function PropertyDetailPage({
               <div className="flex flex-wrap gap-3">
                 {[
                   { label: "dispozice", value: property.rooms ?? "—" },
-                  { label: "velikost", value: property.area ? `${property.area} m²` : "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
                   { label: "stav", value: conditionLabel(property.condition) },
                   { label: "rok", value: property.yearBuilt ?? "—" },
@@ -236,6 +236,14 @@ export default async function PropertyDetailPage({
                     <p className="font-semibold text-foreground font-mono mt-0.5">{s.value}</p>
                   </div>
                 ))}
+                <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
+                  <span className="text-muted">velikost</span>
+                  <EditableArea
+                    propertyId={id}
+                    area={property.area}
+                    areaLocked={property.areaLocked === 1}
+                  />
+                </div>
               </div>
 
               <a
