@@ -13,6 +13,7 @@ import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import { InitiateButton } from "@/components/properties/initiate-button";
 import { EditableArea } from "@/components/properties/editable-area";
+import { DeletePropertyButton } from "@/components/properties/delete-property-button";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import {
   ArrowLeft,
@@ -479,6 +480,8 @@ export default async function PropertyDetailPage({
               </div>
             </div>
           </Link>
+
+          <DeletePropertyButton propertyId={id} />
         </div>
       </div>
     </div>

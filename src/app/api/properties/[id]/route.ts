@@ -259,3 +259,37 @@ export async function PATCH(
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const property = await db
+      .select()
+      .from(properties)
+      .where(eq(properties.id, id))
+      .limit(1)
+      .then((r) => r[0]);
+
+    if (!property) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    await db
+      .delete(properties)
+      .where(eq(properties.id, id));
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Property delete error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
