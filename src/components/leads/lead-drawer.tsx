@@ -24,7 +24,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-1.5">
       <span className="text-xs text-muted shrink-0">{label}</span>
-      <span className="text-xs text-foreground font-medium text-right">{value ?? "—"}</span>
+      <span className="text-xs text-foreground font-medium text-right break-words min-w-0">{value ?? "—"}</span>
     </div>
   );
 }

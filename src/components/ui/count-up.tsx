@@ -48,7 +48,10 @@ export function CountUp({
 
   const formatted = formatter
     ? formatter(displayed)
-    : displayed.toFixed(decimals);
+    : new Intl.NumberFormat("cs-CZ", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }).format(displayed);
 
   return (
     <motion.span

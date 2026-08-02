@@ -19,7 +19,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
   if (!images || images.length === 0 || errored.size >= images.length) {
     return (
-      <div className="relative h-64 property-image-shimmer flex items-center justify-center">
+      <div className="relative h-80 property-image-shimmer flex items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
         {score !== undefined && (
           <div className="relative flex flex-col items-center gap-2">
@@ -83,12 +83,12 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
       </div>
 
       {images.length > 1 && (
-        <div className="flex gap-2 p-3 overflow-x-auto">
+        <div className="flex gap-2 p-3 overflow-x-auto snap-x snap-mandatory">
           {images.map((src, i) => (
             <button
               key={i}
               onClick={() => setActiveIndex(i)}
-              className={`relative h-16 w-24 shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
+              className={`relative h-16 w-24 shrink-0 snap-start rounded-lg overflow-hidden border-2 transition-all ${
                 i === activeIndex
                   ? "border-accent opacity-100"
                   : "border-transparent opacity-50 hover:opacity-80"

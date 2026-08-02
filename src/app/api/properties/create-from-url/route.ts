@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     };
 
     const location = classifyLocation(rawListing.address, rawListing.title);
-    const dynamicRange = location.city !== "NeznĂˇmĂˇ"
+    const dynamicRange = location.city !== "Neznámá"
       ? await getPropertyMarketRange({
           cityKey: location.city,
           lat: lat ?? null,
@@ -141,7 +141,7 @@ export async function POST(req: Request) {
       updatedAt: now,
     });
 
-    // LokalitnĂ­ inteligence (offline-safe, vynechĂˇ chybÄ›jĂ­cĂ­ dimenze)
+    // Lokalitní inteligence (offline-safe, vynechá chybějící dimenze)
     await analyzeLocalityAndPersist({
       propertyId,
       cityKey: analysis.location.city,

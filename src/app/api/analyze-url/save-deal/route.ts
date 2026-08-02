@@ -141,7 +141,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Save deal error:", error);
     return NextResponse.json(
-      { success: false, error: "NepodaĹ™ilo se uloĹľit deal" },
+      { success: false, error: "Nepodařilo se uložit deal" },
       { status: 500 }
     );
   }

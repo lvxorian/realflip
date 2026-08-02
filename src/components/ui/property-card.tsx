@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useState } from "react";
 import { ScoreGauge } from "./score-gauge";
 import { PriceTag } from "./price-tag";
 import { Badge } from "./badge";
 import { FavoriteButton } from "./favorite-button";
+import { PropertyImage } from "./property-image";
 import { MapPin } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
 
 interface PropertyCardProps {
   id: string;
@@ -52,8 +51,6 @@ export function PropertyCard({
     "secondary";
 
   const isUndervalued = undervaluationPct !== undefined && undervaluationPct > 0;
-  const [imgError, setImgError] = useState(false);
-  const showImage = imageUrl && !imgError;
 
   return (
     <Link href={`/properties/${id}`}>
@@ -65,22 +62,12 @@ export function PropertyCard({
       >
         {/* Image */}
         <div className="relative h-40 overflow-hidden">
-          {showImage ? (
-            <img
-              src={imageUrl}
-              alt={title}
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="h-full w-full property-image-shimmer flex items-center justify-center">
-              <div className="flex items-center gap-1.5 text-accent/30 text-sm font-mono">
-                <span className="text-2xl">{score}</span>
-                <span className="text-[10px]">skóre</span>
-              </div>
-            </div>
-          )}
+          <PropertyImage
+            src={imageUrl}
+            alt={title}
+            score={score}
+            containerClassName="h-full w-full"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />
           <div className="absolute top-3 right-3 flex flex-col items-center gap-1">
             <ScoreGauge score={score} size={36} strokeWidth={2.5} />
@@ -100,12 +87,12 @@ export function PropertyCard({
         </div>
 
         <div className="p-4 flex-1 flex flex-col">
-          <h3 className="font-semibold tracking-tight text-sm mb-1 group-hover:text-accent transition-colors line-clamp-1">
+          <h3 className="font-semibold tracking-tight text-sm mb-1 group-hover:text-accent transition-colors line-clamp-2" title={title}>
             {title}
           </h3>
-          <div className="flex items-center gap-1 text-[10px] text-muted mb-3">
-            <MapPin size={10} weight="bold" />
-            {address}
+          <div className="flex items-center gap-1 text-[10px] text-muted mb-3 line-clamp-1" title={address}>
+            <MapPin size={10} weight="bold" className="shrink-0" />
+            <span className="truncate">{address}</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted mb-3">

@@ -12,6 +12,7 @@ import { MarketChart } from "@/components/ui/market-chart";
 import { StatusDot } from "@/components/ui/status-dot";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PropertyImage } from "@/components/ui/property-image";
 import {
   House,
   MagnifyingGlass,
@@ -142,7 +143,7 @@ export default function DashboardPage() {
       label: "Pipeline zisk",
       value: data?.pipelineProfit ?? 0,
       prefix: "",
-      suffix: " Kč",
+      suffix: "",
       format: true,
       icon: CurrencyDollar,
       color: "text-amber-400",
@@ -227,7 +228,7 @@ export default function DashboardPage() {
                     formatter={
                       stat.format
                         ? (v: number) =>
-                            (v / 1000000).toFixed(1) + "M"
+                            new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 1 }).format(v / 1000000) + " mil. Kč"
                         : undefined
                     }
                   />
@@ -412,21 +413,7 @@ export default function DashboardPage() {
                   className="rounded-2xl border border-emerald-500/20 bg-card overflow-hidden hover:bg-card-hover hover:border-emerald-500/40 transition-all cursor-pointer group"
                 >
                   <div className="relative h-28 overflow-hidden">
-                    {p.imageUrls?.[0] ? (
-                      <img
-                        src={p.imageUrls[0]}
-                        alt={p.title}
-                        className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    ) : (
-                      <div className="h-full w-full property-image-shimmer flex items-center justify-center">
-                        <ScoreGauge score={p.score} size={32} strokeWidth={2.5} />
-                      </div>
-                    )}
+                    <PropertyImage src={p.imageUrls?.[0]} alt={p.title} score={p.score} containerClassName="h-full w-full" />
                     <div className="absolute top-2 left-2">
                       <Badge variant="success" size="sm">
                         {p.undervaluationPct > 0 ? `-${p.undervaluationPct} %` : ""}
@@ -497,21 +484,7 @@ export default function DashboardPage() {
                   className="rounded-2xl border border-border/50 bg-card overflow-hidden hover:bg-card-hover hover:border-accent/20 transition-all cursor-pointer group"
                 >
                   <div className="relative h-28 overflow-hidden">
-                    {p.imageUrls?.[0] ? (
-                      <img
-                        src={p.imageUrls[0]}
-                        alt={p.title}
-                        className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                      />
-                    ) : (
-                      <div className="h-full w-full property-image-shimmer flex items-center justify-center">
-                        <ScoreGauge score={p.score} size={32} strokeWidth={2.5} />
-                      </div>
-                    )}
+                    <PropertyImage src={p.imageUrls?.[0]} alt={p.title} score={p.score} containerClassName="h-full w-full" />
                     <Badge
                       variant={
                         p.status === "Nový"

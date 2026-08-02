@@ -5,16 +5,16 @@ import { findCityKey, cityNamesFor } from "@/lib/analysis/location";
 function normalize(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[â€“\-â€”]/g, " ")
+    .replace(/[–\-—]/g, " ")
     .replace(/[^\p{L}\p{N}\s]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 /**
- * Mapuje nĂˇzev obce ÄŚSĂš na cityKey POUZE pĹ™i pĹ™esnĂ© shodÄ› (normalizovanÄ›).
- * `findCityKey` pouĹľĂ­vĂˇ substring matching ("plzenec".includes("plzen")),
- * coĹľ by chybnÄ› mapovalo "StarĂ˝ Plzenec", "PlzeĹ-mÄ›sto" apod.
+ * Mapuje název obce ČSÚ na cityKey POUZE při přesné shodě (normalizovaně).
+ * `findCityKey` používá substring matching ("plzenec".includes("plzen")),
+ * což by chybně mapovalo "Starý Plzenec", "Plzeň-město" apod.
  */
 export function cityKeyForMunicipality(name: string): string | null {
   const n = normalize(name);
@@ -38,13 +38,13 @@ interface CzsoRow {
 }
 
 /**
- * RozbalĂ­ prvnĂ­ soubor ze ZIP bufferu (deflate) a vrĂˇtĂ­ jeho obsah.
- * MinimĂˇlnĂ­ ZIP reader: podporuje standardnĂ­ lokĂˇlnĂ­ hlaviÄŤky (bez encryption/multi-disk).
+ * Rozbalí první soubor ze ZIP bufferu (deflate) a vrátí jeho obsah.
+ * Minimální ZIP reader: podporuje standardní lokální hlavičky (bez encryption/multi-disk).
  */
 export function extractZipEntry(buffer: Buffer): Buffer {
   const { inflateRawSync } = require("zlib");
 
-  // ZIP lokĂˇlnĂ­ hlaviÄŤka: 30 bajtĹŻ, offset compressed data = 30 + nameLen + extraLen
+  // ZIP lokální hlavička: 30 bajtů, offset compressed data = 30 + nameLen + extraLen
   for (let pos = 0; pos < buffer.length - 30; ) {
     if (buffer.readUInt32LE(pos) === 0x04034b50) {
       const method = buffer.readUInt16LE(pos + 8);
@@ -117,8 +117,8 @@ function splitCsv(line: string): string[] {
 }
 
 /**
- * NezamÄ›stnanost podle obcĂ­ (ÄŚSĂš): vrĂˇti mapu cityKey -> podĂ­l nezamÄ›stnanĂ˝ch (%).
- * Vezme NEZ0004 (podĂ­l nezamÄ›stnanĂ˝ch osob %) pro uzemi_cis=43 (obce), poslednĂ­ dostupnĂ© obdobĂ­.
+ * Nezaměstnanost podle obcí (ČSÚ): vrátí mapu cityKey -> podíl nezaměstnaných (%).
+ * Vezme NEZ0004 (podíl nezaměstnaných osob %) pro uzemi_cis=43 (obce), poslední dostupné období.
  */
 export async function fetchUnemployment(): Promise<{ byCity: Record<string, number>; period: string }> {
   // Rok 2023 dataset (novější dostupný v NKOD; ČSÚ zveřejňuje s časovým odstupem)
@@ -145,8 +145,8 @@ export async function fetchUnemployment(): Promise<{ byCity: Record<string, numb
 }
 
 /**
- * Pohyb obyvatel podle obcĂ­ (ÄŚSĂš): vrĂˇti mapu cityKey -> { migraceNet, obyvatel, celkovyPrirustek }.
- * PouĹľije DEM0001 (migraÄŤnĂ­ saldo) a DEM0026B (poÄŤet obyvatel k 31.12.) pro rok YYYY.
+ * Pohyb obyvatel podle obcí (ČSÚ): vrátí mapu cityKey -> { migraceNet, obyvatel, celkovyPrirustek }.
+ * Použije DEM0001 (migrační saldo) a DEM0026B (počet obyvatel k 31.12.) pro rok YYYY.
  */
 export async function fetchMigration(): Promise<{
   byCity: Record<string, { migraceNet: number; obyvatel: number; celkovyPrirustek: number }>;

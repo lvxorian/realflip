@@ -63,15 +63,15 @@ export function PriceIndexCard() {
     <div className="rounded-2xl border border-border/50 bg-card p-5">
       <div className="flex items-center gap-2 mb-4">
         <TrendUp size={16} className="text-accent" weight="duotone" />
-        <span className="font-medium">RealFlip cenovĂ˝ index</span>
+        <span className="font-medium">RealFlip cenový index</span>
         <span className="text-xs text-muted ml-auto">
           {data.marketTrend != null ? (
             <span className={cn("font-mono flex items-center gap-1", data.marketTrend >= 0 ? "text-emerald-400" : "text-red-400")}>
               {data.marketTrend >= 0 ? <TrendUp size={12} weight="bold" /> : <TrendDown size={12} weight="bold" />}
-              {data.marketTrend >= 0 ? "+" : ""}{data.marketTrend} % meziroÄŤnÄ›
+              {data.marketTrend >= 0 ? "+" : ""}{data.marketTrend} % meziročně
             </span>
           ) : (
-            "index 100 = zĂˇklad"
+            "index 100 = základ"
           )}
         </span>
       </div>
@@ -81,7 +81,7 @@ export function PriceIndexCard() {
           <div className="flex items-end gap-1 h-24">
             {data.points.map((p) => (
               <div key={p.period} className="flex-1 flex flex-col items-center gap-1 group">
-                <span className="text-[9px] font-mono text-muted/50 opacity-0 group-hover:opacity-100 transition-opacity">{p.value}</span>
+                <span className="text-[10px] font-mono text-muted/50 opacity-0 group-hover:opacity-100 transition-opacity">{p.value}</span>
                 <div
                   className="w-full rounded-t bg-accent/20 hover:bg-accent/40 transition-colors"
                   style={{ height: `${((p.value - min) / range) * 100}%` }}
@@ -90,7 +90,7 @@ export function PriceIndexCard() {
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-[9px] text-muted/40 mt-1 font-mono">
+          <div className="flex justify-between text-[10px] text-muted/40 mt-1 font-mono">
             <span>{data.points[0].period}</span>
             <span>{data.points[data.points.length - 1].period}</span>
           </div>
@@ -101,9 +101,9 @@ export function PriceIndexCard() {
         {visibleSegments.map((s) => (
           <div key={s.key} className="rounded-xl bg-card-hover/60 border border-border/50 px-3 py-2.5">
             <p className="text-[11px] text-muted">{s.label}</p>
-            <p className="text-sm font-semibold font-mono mt-0.5">{fmt(s.current)} KÄŤ/mÂ˛</p>
+            <p className="text-sm font-semibold font-mono mt-0.5">{fmt(s.current)} Kč/m²</p>
             <p className="text-[10px] text-muted/50 font-mono">
-              index {s.indexValue} Â· {s.sampleSize} vzorkĹŻ
+              index {s.indexValue} · {s.sampleSize} vzorků
             </p>
           </div>
         ))}

@@ -97,8 +97,8 @@ export function EditableArea({ propertyId, area, areaLocked }: EditableAreaProps
         <PencilSimple size={13} weight="bold" />
       </button>
       {areaLocked && (
-        <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[9px] text-amber-400 font-medium" title="Plocha upravena ručně — scraper ji nepřepíše">
-          <LockSimple size={9} weight="fill" /> ručně
+        <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400 font-medium" title="Plocha upravena ručně — scraper ji nepřepíše">
+          <LockSimple size={10} weight="fill" /> ručně
         </span>
       )}
     </div>

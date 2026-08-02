@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
+import { PropertyImage } from "@/components/ui/property-image";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -168,7 +169,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
           <h1 className="text-2xl font-semibold tracking-tight">Nemovitosti</h1>
           <p className="text-sm text-muted mt-1">{filtered.length} z {items.length} inzerátů</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <MagnifyingGlass
               size={16}
@@ -244,7 +245,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
             <FadersHorizontal size={14} weight="bold" />
             Filtry
             {hasActiveFilters && (
-              <span className="h-4 w-4 rounded-full bg-accent text-[10px] font-bold text-accent-foreground flex items-center justify-center">
+              <span className="h-4 w-4 rounded-full bg-accent text-[10px] font-bold text-white flex items-center justify-center">
                 {Object.values(filters).filter((v) => v !== "").length}
               </span>
             )}
@@ -477,22 +478,13 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                   >
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="relative h-14 w-20 shrink-0 rounded-lg overflow-hidden bg-card">
-                        {p.imageUrls && p.imageUrls.length > 0 ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={p.imageUrls[0]}
-                            alt={p.title}
-                            className="h-full w-full object-cover"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                          />
-                        ) : (
-                          <div className="h-full w-full property-image-shimmer flex items-center justify-center">
-                            <span className="text-[10px] font-mono text-muted/40">
-                              {p.score}
-                            </span>
-                          </div>
-                        )}
+                        <PropertyImage
+                          src={p.imageUrls?.[0]}
+                          alt={p.title}
+                          score={p.score}
+                          showScore={false}
+                          containerClassName="h-full w-full"
+                        />
                         <div className="absolute top-0.5 right-0.5">
                           <FavoriteButton propertyId={p.id} initialFavorited={favoritedIds.includes(p.id)} size={10} className="h-4 w-4" />
                         </div>
@@ -526,14 +518,14 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                           }).format(p.price)}{" "}
                           Kč
                         </p>
-                        <div className="flex items-center gap-2 justify-end text-[10px] text-muted mt-0.5">
-                          {p.arv != null && p.arv > 0 && (
-                            <span className="text-emerald-400/80">ARV {new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(p.arv)} Kč</span>
-                          )}
+                        <div className="flex items-center gap-2 justify-end text-[11px] mt-0.5">
                           {p.roi != null && (
-                            <span className={p.roi >= 15 ? "text-emerald-400" : p.roi >= 10 ? "text-amber-400" : "text-red-400"}>
-                              {p.roi.toFixed(1)}%
+                            <span className={`font-mono font-semibold ${p.roi >= 15 ? "text-emerald-400" : p.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>
+                              ROI {p.roi.toFixed(1)}%
                             </span>
+                          )}
+                          {p.arv != null && p.arv > 0 && (
+                            <span className="font-mono text-muted">ARV {new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(p.arv)} Kč</span>
                           )}
                         </div>
                       </div>

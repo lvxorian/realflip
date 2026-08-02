@@ -53,7 +53,7 @@ function Dim({
         {empty ? (
           <p className="text-[10px] text-muted/40">bez dostupných dat</p>
         ) : detail ? (
-          <p className="text-[10px] text-muted/50 truncate">{detail}</p>
+          <p className="text-[10px] text-muted/50 truncate" title={detail}>{detail}</p>
         ) : null}
       </div>
       <ScoreGauge score={score} size={30} strokeWidth={2.5} />
@@ -112,9 +112,9 @@ export function LocalityProfile({ cityKey, district, aiVerdict }: LocalityProfil
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-5">
       <div className="flex items-center gap-2 text-sm mb-4">
-        <MapPin size={16} className="text-accent" weight="duotone" />
+        <MapPin size={16} className="text-accent shrink-0" weight="duotone" />
         <span className="font-medium">Socio-ekonomický profil lokality</span>
-        <span className="text-xs text-muted capitalize ml-auto">{cityLabel}{data.district ? ` · ${data.district}` : ""}</span>
+        <span className="text-xs text-muted capitalize ml-auto truncate min-w-0">{cityLabel}{data.district ? ` · ${data.district}` : ""}</span>
       </div>
 
       <div className="flex items-center gap-4 mb-4">

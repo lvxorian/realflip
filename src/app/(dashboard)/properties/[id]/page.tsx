@@ -142,7 +142,7 @@ export default async function PropertyDetailPage({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           {/* Hero with gallery */}
-          <div className="rounded-[2.5rem] border border-border/50 bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="relative">
               <ImageGallery
                 images={imageUrls}
@@ -262,7 +262,7 @@ export default async function PropertyDetailPage({
 
           {/* Description */}
           {property.description && (
-            <div className="rounded-[2.5rem] border border-border/50 bg-card p-6">
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
               <h2 className="font-semibold tracking-tight text-sm mb-3">Popis</h2>
               <p className="text-sm text-muted leading-relaxed whitespace-pre-wrap">{property.description}</p>
             </div>
@@ -270,7 +270,7 @@ export default async function PropertyDetailPage({
 
           {/* Price History */}
           {history.length > 1 && (
-            <div className="rounded-[2.5rem] border border-border/50 bg-card p-6">
+            <div className="rounded-2xl border border-border/50 bg-card p-6">
               <h2 className="font-semibold tracking-tight text-sm mb-4">Historie ceny</h2>
               <div className="space-y-3">
                 {history.map((h) => (
@@ -284,7 +284,7 @@ export default async function PropertyDetailPage({
           )}
 
           {/* Map */}
-          <div className="rounded-[2.5rem] border border-border/50 bg-card overflow-hidden">
+          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="p-6 pb-3">
               <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2">
                 <MapPin size={14} className="text-accent" weight="duotone" />

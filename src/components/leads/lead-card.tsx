@@ -89,7 +89,7 @@ export function LeadCard({
 
       {!compact && (lead.contactName || lead.contactPhone) && (
         <div className="flex items-center gap-1.5 mb-1.5 @max-[240px]:hidden">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-accent text-[9px] font-bold">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-accent text-[10px] font-bold">
             {initials(lead.contactName)}
           </span>
           <span className="text-[11px] text-muted truncate">{lead.contactName ?? "Bez jména"}</span>

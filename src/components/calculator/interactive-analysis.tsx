@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PropertyImage } from "@/components/ui/property-image";
 import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locationCategoryLabel, portalLabel } from "@/lib/utils";
 import {
   calculateFlipResults,
@@ -483,7 +484,13 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           {/* Image */}
           {l.imageUrls.length > 0 && (
             <div className="overflow-hidden rounded-xl">
-              <img src={l.imageUrls[0]} alt={l.title} className="h-48 w-full object-cover" referrerPolicy="no-referrer" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              <PropertyImage
+                src={l.imageUrls[0]}
+                alt={l.title}
+                score={a.investmentScore}
+                showScore={false}
+                containerClassName="h-48 w-full"
+              />
             </div>
           )}
 
@@ -964,9 +971,9 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
 
 function InfoBox({ label, value, highlight }: { label: string; value: string; highlight?: string }) {
   return (
-    <div className="rounded-xl bg-card-hover border border-border/50 p-3">
+    <div className="rounded-xl bg-card-hover border border-border/50 p-3 min-w-0">
       <p className="text-xs text-muted mb-1">{label}</p>
-      <p className={`text-xs font-semibold font-mono whitespace-nowrap leading-snug ${highlight ?? "text-foreground"}`}>{value}</p>
+      <p className={`text-xs font-semibold font-mono leading-snug break-words ${highlight ?? "text-foreground"}`}>{value}</p>
     </div>
   );
 }
