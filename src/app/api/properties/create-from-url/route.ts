@@ -7,6 +7,7 @@ import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
 import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
+import { analyzeLocalityAndPersist } from "@/lib/locality";
 
 export async function POST(req: Request) {
   try {
@@ -139,6 +140,16 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now,
     });
+
+    // Lokalitní inteligence (offline-safe, vynechá chybějící dimenze)
+    await analyzeLocalityAndPersist({
+      propertyId,
+      cityKey: analysis.location.city,
+      district: analysis.location.district,
+      lat: lat ?? null,
+      lng: lng ?? null,
+      currentInvestmentScore: analysis.investmentScore,
+    }).catch(() => null);
 
     return NextResponse.json({ propertyId, existed: false });
   } catch (error) {

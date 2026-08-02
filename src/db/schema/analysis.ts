@@ -41,6 +41,10 @@ export const propertyAnalysis = sqliteTable("property_analysis", {
   alternativeStrategiesJson: text("alternative_strategies_json"),
   rentalYield: real("rental_yield"),
 
+  // Lokalitní inteligence
+  localityScore: integer("locality_score"),
+  localityFactorsJson: text("locality_factors_json"),
+
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

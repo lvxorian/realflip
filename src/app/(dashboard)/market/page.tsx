@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { properties, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ArrowUp, ArrowDown, ChartBar } from "@phosphor-icons/react/dist/ssr";
+import { LocalityMarkets } from "@/components/market/locality-markets";
 
 function fmtPrice(v: number) { return `${(v / 1000).toFixed(0)}k`; }
 
@@ -133,6 +134,8 @@ export default async function MarketPage() {
           </div>
         </div>
       </div>
+
+      <LocalityMarkets cities={Object.keys(byCity)} />
 
       <div>
         <h2 className="font-semibold tracking-tight mb-4">Top lokality podle skóre</h2>

@@ -36,3 +36,27 @@ export const scrapingJobs = pgTable("scraping_jobs", {
   errors: text("errors").default("[]"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
+
+export const localityMetrics = pgTable(
+  "locality_metrics",
+  {
+    cityKey: text("city_key").notNull(),
+    source: text("source").notNull(),
+    period: text("period").notNull(),
+    jsonData: text("json_data").notNull(),
+    fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cityKey, t.source, t.period] })]
+);
+
+export const poiMetrics = pgTable(
+  "poi_metrics",
+  {
+    cityKey: text("city_key").notNull(),
+    district: text("district").notNull().default(""),
+    countsJson: text("counts_json").notNull(),
+    walkability: integer("walkability"),
+    fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cityKey, t.district] })]
+);

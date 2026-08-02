@@ -36,3 +36,27 @@ export const scrapingJobs = sqliteTable("scraping_jobs", {
   errors: text("errors").default("[]"),
   createdAt: integer("created_at").notNull(),
 });
+
+export const localityMetrics = sqliteTable(
+  "locality_metrics",
+  {
+    cityKey: text("city_key").notNull(),
+    source: text("source").notNull(),
+    period: text("period").notNull(),
+    jsonData: text("json_data").notNull(),
+    fetchedAt: integer("fetched_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cityKey, t.source, t.period] })]
+);
+
+export const poiMetrics = sqliteTable(
+  "poi_metrics",
+  {
+    cityKey: text("city_key").notNull(),
+    district: text("district").notNull().default(""),
+    countsJson: text("counts_json").notNull(),
+    walkability: integer("walkability"),
+    fetchedAt: integer("fetched_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cityKey, t.district] })]
+);

@@ -1,0 +1,193 @@
+import { fetchBuffer } from "./http";
+import { resolveNkodDownloadUrl } from "./nkod";
+import { findCityKey, cityNamesFor } from "@/lib/analysis/location";
+
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[â€“\-â€”]/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Mapuje nĂˇzev obce ÄŚSĂš na cityKey POUZE pĹ™i pĹ™esnĂ© shodÄ› (normalizovanÄ›).
+ * `findCityKey` pouĹľĂ­vĂˇ substring matching ("plzenec".includes("plzen")),
+ * coĹľ by chybnÄ› mapovalo "StarĂ˝ Plzenec", "PlzeĹ-mÄ›sto" apod.
+ */
+export function cityKeyForMunicipality(name: string): string | null {
+  const n = normalize(name);
+  if (!n) return null;
+  const direct = findCityKey(n);
+  if (!direct) return null;
+  for (const cityName of cityNamesFor(direct)) {
+    if (normalize(cityName) === n) return direct;
+  }
+  return null;
+}
+
+interface CzsoRow {
+  vuk: string;
+  vuk_text: string;
+  obdobi: string;
+  uzemi_cis: string;
+  uzemi_kod: string;
+  uzemi_txt: string;
+  hodnota: string;
+}
+
+/**
+ * RozbalĂ­ prvnĂ­ soubor ze ZIP bufferu (deflate) a vrĂˇtĂ­ jeho obsah.
+ * MinimĂˇlnĂ­ ZIP reader: podporuje standardnĂ­ lokĂˇlnĂ­ hlaviÄŤky (bez encryption/multi-disk).
+ */
+export function extractZipEntry(buffer: Buffer): Buffer {
+  const { inflateRawSync } = require("zlib");
+
+  // ZIP lokĂˇlnĂ­ hlaviÄŤka: 30 bajtĹŻ, offset compressed data = 30 + nameLen + extraLen
+  for (let pos = 0; pos < buffer.length - 30; ) {
+    if (buffer.readUInt32LE(pos) === 0x04034b50) {
+      const method = buffer.readUInt16LE(pos + 8);
+      const compSize = buffer.readUInt32LE(pos + 18);
+      const nameLen = buffer.readUInt16LE(pos + 26);
+      const extraLen = buffer.readUInt16LE(pos + 28);
+      const dataStart = pos + 30 + nameLen + extraLen;
+      const name = buffer.toString("utf8", pos + 30, pos + 30 + nameLen);
+      if (name.toLowerCase().endsWith(".csv") && method === 8) {
+        const raw = buffer.subarray(dataStart, dataStart + compSize);
+        return inflateRawSync(raw);
+      }
+      if (name.toLowerCase().endsWith(".csv") && method === 0) {
+        return buffer.subarray(dataStart, dataStart + compSize);
+      }
+      pos = dataStart + compSize;
+    } else {
+      pos++;
+    }
+  }
+  throw new Error("ZIP: no CSV entry found");
+}
+
+export function parseCsv(buf: Buffer): CzsoRow[] {
+  const text = decodeWindows1250(buf);
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0 && !l.startsWith('"idhod"'));
+  const rows: CzsoRow[] = [];
+  for (const line of lines) {
+    const parts = splitCsv(line);
+    if (parts.length < 10) continue;
+    rows.push({
+      vuk: parts[2].replace(/"/g, ""),
+      vuk_text: parts[3].replace(/"/g, ""),
+      obdobi: parts[4].replace(/"/g, ""),
+      uzemi_cis: parts[7].replace(/"/g, ""),
+      uzemi_kod: parts[8].replace(/"/g, ""),
+      uzemi_txt: parts[9].replace(/"/g, ""),
+      hodnota: parts[1].replace(/"/g, ""),
+    });
+  }
+  return rows;
+}
+
+function decodeWindows1250(buf: Buffer): string {
+  return buf.toString("utf8");
+}
+
+function splitCsv(line: string): string[] {
+  const parts: string[] = [];
+  let cur = "";
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQ = !inQ;
+      }
+    } else if (ch === "," && !inQ) {
+      parts.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  parts.push(cur);
+  return parts;
+}
+
+/**
+ * NezamÄ›stnanost podle obcĂ­ (ÄŚSĂš): vrĂˇti mapu cityKey -> podĂ­l nezamÄ›stnanĂ˝ch (%).
+ * Vezme NEZ0004 (podĂ­l nezamÄ›stnanĂ˝ch osob %) pro uzemi_cis=43 (obce), poslednĂ­ dostupnĂ© obdobĂ­.
+ */
+export async function fetchUnemployment(): Promise<{ byCity: Record<string, number>; period: string }> {
+  const datasetIri =
+    "https://data.gov.cz/zdroj/datov%C3%A9-sady/00025593/bcef11bfdba6a432fcdc10ca93e2cbd5";
+  const zipUrl = await resolveNkodDownloadUrl(datasetIri);
+  const buffer = await fetchBuffer(zipUrl);
+  const rows = parseCsv(extractZipEntry(buffer));
+
+  const filter = rows.filter((r) => r.vuk === "NEZ0004" && r.uzemi_cis === "43");
+  const latest = new Set(filter.map((r) => r.obdobi));
+  const maxPeriod = [...latest].sort().pop() ?? "";
+
+  const byCity: Record<string, number> = {};
+  for (const r of filter) {
+    if (r.obdobi !== maxPeriod) continue;
+    const key = cityKeyForMunicipality(r.uzemi_txt);
+    if (!key) continue;
+    const v = parseFloat(r.hodnota);
+    if (!Number.isFinite(v)) continue;
+    if (byCity[key] == null) byCity[key] = v;
+  }
+  return { byCity, period: maxPeriod };
+}
+
+/**
+ * Pohyb obyvatel podle obcĂ­ (ÄŚSĂš): vrĂˇti mapu cityKey -> { migraceNet, obyvatel, celkovyPrirustek }.
+ * PouĹľije DEM0001 (migraÄŤnĂ­ saldo) a DEM0026B (poÄŤet obyvatel k 31.12.) pro rok YYYY.
+ */
+export async function fetchMigration(): Promise<{
+  byCity: Record<string, { migraceNet: number; obyvatel: number; celkovyPrirustek: number }>;
+  period: string;
+}> {
+  const datasetIri =
+    "https://data.gov.cz/zdroj/datov%C3%A9-sady/00025593/14053173c3ef0b267762217ea8dc9d1a";
+  const url = await resolveNkodDownloadUrl(datasetIri);
+  const buffer = await fetchBuffer(url);
+  const text = decodeWindows1250(buffer);
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0 && !l.startsWith('"idhod"'));
+  const rows: CzsoRow[] = [];
+  for (const line of lines) {
+    const parts = splitCsv(line);
+    if (parts.length < 11) continue;
+    rows.push({
+      vuk: parts[2].replace(/"/g, ""),
+      vuk_text: parts[3].replace(/"/g, ""),
+      obdobi: parts[8].replace(/"/g, ""),
+      uzemi_cis: parts[5].replace(/"/g, ""),
+      uzemi_kod: parts[6].replace(/"/g, ""),
+      uzemi_txt: parts[10].replace(/"/g, ""),
+      hodnota: parts[1].replace(/"/g, ""),
+    });
+  }
+
+  const byCity: Record<string, { migraceNet: number; obyvatel: number; celkovyPrirustek: number }> = {};
+  for (const r of rows) {
+    if (r.uzemi_cis !== "43") continue;
+    const key = cityKeyForMunicipality(r.uzemi_txt);
+    if (!key) continue;
+    const v = parseFloat(r.hodnota);
+    if (!Number.isFinite(v)) continue;
+    if (!byCity[key]) byCity[key] = { migraceNet: 0, obyvatel: 0, celkovyPrirustek: 0 };
+    if (r.vuk === "DEM0001") byCity[key].migraceNet = v;
+    else if (r.vuk === "DEM0026B") {
+      // Největší obec s daným názvem = skutečné město (vyhýbá se částem "Kladno" vs město)
+      byCity[key].obyvatel = Math.max(byCity[key].obyvatel, v);
+    } else if (r.vuk === "DEM0012") byCity[key].celkovyPrirustek = v;
+  }
+
+  const periods = new Set(rows.filter((r) => r.uzemi_cis === "43").map((r) => r.obdobi));
+  const period = [...periods].sort().pop() ?? "";
+  return { byCity, period };
+}

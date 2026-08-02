@@ -14,6 +14,7 @@ import PropertyDetailAnalysis from "@/components/calculator/property-detail-anal
 import { InitiateButton } from "@/components/properties/initiate-button";
 import { EditableArea } from "@/components/properties/editable-area";
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
+import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import {
   ArrowLeft,
@@ -302,6 +303,12 @@ export default async function PropertyDetailPage({
         <div className="space-y-4">
           {/* Zahájit jednání */}
           <InitiateButton propertyId={id} />
+
+          {/* Lokalitní inteligence */}
+          <LocalityProfile
+            cityKey={analysis?.locationCity ?? null}
+            district={analysis?.locationDistrict ?? null}
+          />
 
           {/* Dražba – výkup před dražbou */}
           {isAuction && auctionData && (

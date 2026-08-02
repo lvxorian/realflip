@@ -8,6 +8,7 @@ import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
 import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
+import { analyzeLocalityAndPersist } from "@/lib/locality";
 
 function offlineDedupUrl(title: string, price: number, area: number, address: string | null, city: string | null): string {
   const key = [title, price, area, address ?? "", city ?? ""].map((v) => String(v).trim().toLowerCase()).join("|");
@@ -198,6 +199,15 @@ export async function POST(req: Request) {
       createdAt: now,
       updatedAt: now,
     });
+
+    await analyzeLocalityAndPersist({
+      propertyId,
+      cityKey: city ?? analysis.location.city,
+      district: analysis.location.district,
+      lat: null,
+      lng: null,
+      currentInvestmentScore: analysis.investmentScore,
+    }).catch(() => null);
 
     return NextResponse.json({ propertyId });
   } catch (error) {

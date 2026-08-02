@@ -6,6 +6,7 @@ import { eq, desc } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import type { RawListing } from "@/lib/scraping/types";
+import { analyzeLocalityAndPersist } from "@/lib/locality";
 
 export const dynamic = "force-dynamic";
 
@@ -237,6 +238,16 @@ export async function PATCH(
         updatedAt: now,
       });
     }
+
+    // Lokalitní inteligence (mírný vliv na investmentScore)
+    await analyzeLocalityAndPersist({
+      propertyId: id,
+      cityKey: result.location.city,
+      district: result.location.district,
+      lat: property.lat ?? null,
+      lng: property.lng ?? null,
+      currentInvestmentScore: result.investmentScore,
+    }).catch(() => null);
 
     return NextResponse.json({
       property: {
