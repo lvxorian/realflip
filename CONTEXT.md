@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (174 tests, 9 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (219 tests, 13 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -95,6 +95,27 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Pipeline kostra `src/lib/auctions/parse-auction.ts` (HTML → PDF → Gemini OCR) — zatím mock, nenapojeno.
 - Leads list (Portál dražeb hunter) přesunut pod kalkulačku jako kolapsovatelná sekce.
 
+### Phase 16 — Pipeline CRM Redesign (Done)
+- `/leads` přepsán na profesionální kanban: `LeadsBoard` (dnd-kit DndContext + SortableContext + DragOverlay), `LeadCard` (auto-zhuštění container queries), `LeadDrawer` (slide-over, PATCH, převod na deal), `LeadsToolbar` (search/filter/sort).
+- Sloupce flex-1 (fit do 1400px), smazáno 6 testovacích leadů.
+- Kontakt v pipeline = live z properties (coalesce), dedup kontaktů phone+name.
+- Dashboard stats fix: `totalLeads` dle userId, `activeDeals` z deals count (`status != sold`).
+
+### Phase 17 — Editovatelná plocha + Smazání nemovitosti (Done)
+- `properties.area_locked` (integer, default 0) — scraper nepřepíše ručně opravenou plochu; `pricePerSqm` se přepočítá.
+- `PATCH /api/properties/[id]` — uloží plochu + **re-analyzuje** offline (uložený market range) + vymaže calc-preset.
+- `EditableArea` v detailu (tužka → inline input), badge "ručně".
+- `DELETE /api/properties/[id]` + `DeletePropertyButton` v sidebaru (cascade přes FK).
+
+### Phase 18 — Lokalitní inteligence (Done)
+- Nový modul `src/lib/locality/` + sekce Trh.
+- **Reálné zdroje**: ČSÚ nezaměstnanost (2023) + migrace (2024) přes NKOD DCAT; **PČR kriminalita** z XLSX statistik; **sreality POI vzdálenosti** pro walkability (nahradilo nestabilní Overpass); **sreality nájmy** pro rentový výnos; **transport** z poi_metro/train/bus distance.
+- **Žádné vymyšlené hodnoty**: renta null bez ≥5 vzorků, kriminalita nikdy statická mapa, POI min 3 vzorky.
+- **AI dohled** (`src/lib/ai/locality-guard.ts`): Gemini sanity-check podezřelých dat, verdikt do `propertyAnalysis.aiLocalityVerdict`, badge v UI.
+- **Investiční nástroje v Trhu**: `LocalityMarkets`, `PriceIndexCard` (IQR outliery, robust base), `BuyVsRentCalculator`.
+- Cenový index a reprodukční cena (orientační, označené).
+- Tabulky: `locality_metrics` PK (city_key, source, period), `rents` PK (city_key, segment) + walkability/counts_json; `propertyAnalysis` + locality sloupce.
+
 ## Remaining
 - `/api/parse-auction` je zatím **mock** — napojit reálnou pipeline (stahování HTML/PDF + LLM extrakce) z `src/lib/auctions/parse-auction.ts`.
 - `checkScoreThresholdAlert` not yet called in orchestrator.
@@ -102,6 +123,10 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
 - DB `target_roi` column is `integer`, should be `real` for decimal precision.
 - Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).
+- Lokalitní data: SLDB 2021 (věk/vzdělání) a ARES firmy zatím nejsou napojené (chybí v `missing` dimenzích) — firmy/sldb vrací null.
+- Renta pro malá města (<5 vzorků) = null; doplnit více vzorků přes vícestránkový scrap.
+- Kriminalita cache 30 dní (PČR měsíční XLSX) — přidat automatické obnovení dalších měsíců.
+- AI guard spouští Gemini jen pro podezřelá data; při 503 (high demand) tichý fallback na null (bez badge).
 
 ## Key Files
 
@@ -140,13 +165,34 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/market-price-service.ts` — kaskáda Tier 1-5
 - `src/lib/scraping/sreality-sitemap.ts` — sitemap parser + city sampling
 - `src/lib/analysis/market-data.ts` — hardcoded city data (Tier 4)
-- `scripts/reanalyze.ts`, `scripts/live-market-check.ts`, `scripts/check-migration.ts`
+- `src/lib/market/price-index.ts` — cenový index (IQR, robust base)
+- `scripts/reanalyze.ts`, `scripts/live-market-check.ts`, `scripts/check-migration.ts`, `scripts/refresh-locality.ts`
+
+### Lokalitní inteligence
+- `src/lib/locality/index.ts` — orchestrátor (getLocalityForProperty, analyzeLocalityAndPersist)
+- `src/lib/locality/czso.ts` — ČSÚ nezaměstnanost (2023) + migrace (2024) přes NKOD
+- `src/lib/locality/crime.ts` — PČR XLSX kriminalita per kraj
+- `src/lib/locality/poi.ts` — sreality POI vzdálenosti → walkability
+- `src/lib/locality/rent.ts` + `src/lib/scraping/rent-scraper.ts` — nájmy + hrubý výnos
+- `src/lib/locality/transport.ts` — dopravní skóre + prémie
+- `src/lib/locality/score.ts` — normalizace dimenzí + vážené skóre (±8 na investmentScore)
+- `src/lib/ai/locality-guard.ts` — Gemini sanity-check (AI dohled)
+- `src/components/properties/locality-profile.tsx` — UI blok v detailu
+- `src/components/market/locality-markets.tsx`, `price-index-card.tsx`, `buy-vs-rent.tsx` — Trh
+
+### Pipeline (Leads)
+- `src/components/leads/leads-board.tsx`, `lead-card.tsx`, `lead-drawer.tsx`, `leads-toolbar.tsx`, `types.ts`
+- `src/lib/leads.ts` — LEAD_STAGES
+- `src/app/api/leads/route.ts`, `src/app/api/leads/[id]/route.ts`, `src/app/api/leads/[id]/convert/route.ts`
 
 ### API
 - `src/app/api/scraping/trigger/route.ts`
 - `src/app/api/searches/[id]/run/route.ts`
 - `src/app/api/favorites/toggle/route.ts`
 - `src/app/api/properties/[id]/calc-preset/route.ts`
+- `src/app/api/properties/[id]/route.ts` — GET + PATCH (plocha/re-analýza) + DELETE
+- `src/app/api/locality/[cityKey]/route.ts`, `src/app/api/locality/refresh/route.ts`
+- `src/app/api/market/price-index/route.ts`
 
 ### Tests
 - `vitest.config.ts`
@@ -155,6 +201,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/__tests__/condition.test.ts`
 - `src/lib/__tests__/location.test.ts`
 - `src/lib/__tests__/leads.test.ts`
+- `src/lib/__tests__/locality.test.ts` — locality skóre (unemployment, migration, crime, walkability, rent, transport)
+- `src/lib/__tests__/replacement-cost.test.ts` — reprodukční cena
 - `src/lib/analysis/__tests__/analyzer-arv.test.ts`
 - `src/lib/scraping/__tests__/adapters-image.test.ts`
 - `src/lib/scraping/__tests__/filters.test.ts`

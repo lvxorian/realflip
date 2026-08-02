@@ -22,7 +22,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. 174 tests across 9 files.
+Vitest v4 + jsdom + @testing-library/react. **219 tests across 13 files**.
 `npm test` or `npx vitest run`.
 
 ## Portals (10 adapters, 6 url-scrapers)
@@ -87,3 +87,36 @@ sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ 
 - Run tests: `npm test`.
 - Build: `npx next build`.
 - Run Python scraper locally: `$env:VYKUPY_API_TOKEN="..." ; $env:VYKUPY_API_URL="..." ; python scripts/drazby_hunter.py`
+
+## Pipeline (Leads CRM)
+- Route `/leads` (client `LeadsBoard`), 7 fází v `src/lib/leads.ts` (`LEAD_STAGES`, barevné tečky `dot`).
+- Komponenty `src/components/leads/`: `leads-board.tsx` (DndContext + SortableContext + DragOverlay, dnd-kit), `lead-card.tsx` (auto-zhuštění přes Tailwind v4 container queries `@max-[240px]:`), `lead-drawer.tsx` (slide-over framer-motion, PATCH stage/priority/notes, převod na deal z `closed`), `leads-toolbar.tsx` (search/filter/sort), `types.ts` (`LeadItem`).
+- `GET /api/leads` zobrazuje **kontakt z properties** (coalesce: `propertyContactName ?? contacts.name`) — lead může mít zastaralý `contactId` při sdíleném čísle RK.
+- Initiate dedup kontaktů: **phone + name** (ne jen phone) v `src/app/api/properties/[id]/initiate/route.ts`.
+- Sloupce boardu `flex-1 basis-0 min-w-[170px]` — vejdou se do 1400px kontejneru bez scrollu.
+
+## Lokalitní inteligence (Locality Intelligence)
+- Modul `src/lib/locality/`: reálná data z ČSÚ, PČR a sreality. **Žádná vymyšlená čísla — chybějící data = null/0, nikdy odhad.**
+- **Nezaměstnanost** (`czso.ts`): ČSÚ NKOD DCAT, dataset **2023** (Iri `b5c4d539...`), `cityKeyForMunicipality` = přesná shoda názvu (ne substring — "Plzeň-sever" se nemapuje na plzen). URL se řeší dynamicky přes NKOD.
+- **Migrace/obyvatel** (`czso.ts`): ČSÚ 2024 (`DEM0001` migrace, `DEM0026B` obyvatel), největší obec s názvem = skutečné město.
+- **Kriminalita** (`crime.ts`): **PČR XLSX statistiky** (prosinec 2025), per kraj → index TČ/100k, cache 30 dní v `locality_metrics` (source `pcr-crime`). NIKDY statická mapa.
+- **POI/Walkability** (`poi.ts`): **sreality API** medián vzdáleností k POI (`poi_*_distance`) — NE Overpass (nestabilní 406/timeout). Cache v `rents` (segment `poi`, sloupce `walkability`+`counts_json`), min 3 vzorky.
+- **Renta** (`rent.ts` + `scraping/rent-scraper.ts`): sreality nájmy (`category_type_cb=2`), **min 5 vzorků** jinak null (žádný fallback 0,5 %).
+- **Doprava** (`transport.ts`): sreality `poi_metro/train/bus_distance`, transport skóre (`scoreTransportDistance` v score.ts), prémie cena/m² vs dostupnost (korelace).
+- **Cenový index** (`src/lib/market/price-index.ts`): IQR outliery, robustní medián base, min 5 vzorků per segment, segmenty <5 skryté v UI.
+- **Reprodukční cena** (`analysis/replacement-cost.ts`): orientační sazby Kč/m² dle konstrukce (cihla 38k, panel 30k...) — jasně označeno "orientační" v reportu.
+- **AI dohled** (`src/lib/ai/locality-guard.ts`): Gemini sanity-check POUZE pro podezřelá data (`needsLocalityGuard`), prompt zakazuje vymýšlet, verdikt v `propertyAnalysis.aiLocalityVerdict` + badge v UI.
+
+## DB — locality tabulky
+- `locality_metrics` PK `(city_key, source, period)`, `json_data`, `fetched_at`.
+- `rents` PK `(city_key, segment)` — segmenty: `any` (nájmy), `transport` (prémie), `poi` (walkability). Sloupce navíc `walkability`, `counts_json`.
+- `propertyAnalysis` + `localityScore`, `localityFactorsJson`, `aiLocalityVerdict` (ALTER na Neon manuálně).
+
+## Trh (Market) — investiční nástroje
+- `src/app/(dashboard)/market/page.tsx` server komponenta: agregace nabídkových cen + `LocalityMarkets` (tabulka lokalit se skóre), `PriceIndexCard` (cenový index, `/api/market/price-index`), `BuyVsRentCalculator` (30letá simulace koupě vs nájem).
+- `LocalityProfile` v detailu nemovitosti (`/properties/[id]` sidebar): 6 dimenzí (ekonomika, demografie, vybavenost, doprava, bezpečnost, rentový výnos) + AI badge.
+
+## Scraper notes (nové)
+- Rent scraper `src/lib/scraping/rent-scraper.ts` — ceny z `price_czk_m2`/`price_czk`, plocha z názvu.
+- Transport scraper v `transport.ts` — `poi_*_distance` z sreality search API.
+- Refresh: `scripts/refresh-locality.ts` (ČSÚ + renty + transport + POI per city) — musí importovat `./_env` PŘED db (tsx skripty nemají Next env).

@@ -8,11 +8,9 @@ Inteligentní SaaS platforma pro realitní investory (flipaře). Automatický sc
 - **Backend:** Next.js API Routes + Server Actions
 - **Database:** PostgreSQL (Neon) + Drizzle ORM
 - **Auth:** NextAuth v5 (credentials + Google OAuth)
-- **AI:** OpenAI GPT-4o
-- **Queue:** BullMQ + Upstash Redis (volitelně)
+- **AI:** Google Gemini (`gemini-flash-latest` via `GEMINI_API_KEY`) — analýza inzerátů, extrakce z posudků, AI dohled nad lokalitními daty
 - **Maps:** Leaflet + OpenStreetMap
-- **Charts:** Recharts
-- **UI:** Custom design system (dark theme, glassmorphism)
+- **UI:** Custom design system (dark theme, emerald accent, glassmorphism)
 
 ## Struktura projektu
 
@@ -114,6 +112,20 @@ V `vercel.json` je definován cron job každých 6 hodin. Pro aktivaci:
 | `/api/dashboard/stats` | GET | Dashboard statistiky |
 | `/api/scraping/trigger` | POST | Trigger scrapingu |
 | `/api/settings/onboarding` | POST | Uložení onboarding dat |
+| `/api/properties/[id]` | GET/PATCH/DELETE | Detail / editace plochy + re-analýza / smazání |
+| `/api/locality/[cityKey]` | GET | Lokalitní skóre + socio-ekonomická data |
+| `/api/locality/refresh` | POST | Obnova lokalitních dat (ČSÚ, PČR, sreality) |
+| `/api/market/price-index` | GET | Cenový index RealFlip |
+
+## Lokalitní inteligence
+
+Nemovitosti mají socio-ekonomický profil lokality z **reálných otevřených zdrojů**:
+- **Nezaměstnanost + migrace** — ČSÚ (NKOD DCAT, obce)
+- **Kriminalita** — PČR měsíční statistiky (XLSX)
+- **Vybavenost/walkability + doprava** — sreality POI vzdálenosti
+- **Rentový výnos** — scrapované nájmy ze sreality (min. 5 vzorků, jinak null)
+
+Žádná vymyšlená čísla — chybějící data = null. Gemini (AI dohled) kontroluje podezřelé hodnoty. Obnova: `npx tsx scripts/refresh-locality.ts` nebo tlačítko v Trhu.
 
 ## License
 
