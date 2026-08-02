@@ -295,6 +295,7 @@ export default async function PropertyDetailPage({
               address={property.address ?? "Neznámá adresa"}
               lat={property.lat ?? undefined}
               lng={property.lng ?? undefined}
+              cityKey={analysis?.locationCity ?? null}
             />
           </div>
         </div>
