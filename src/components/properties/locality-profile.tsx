@@ -10,6 +10,7 @@ interface LocalityResponse {
   locality: {
     cityKey: string;
     district: string;
+    quarterLabel: string | null;
     score: number;
     factors: LocalityFactors;
     fetchedAt?: number;
@@ -108,13 +109,18 @@ export function LocalityProfile({ cityKey, district, aiVerdict }: LocalityProfil
 
   const f = data.factors;
   const cityLabel = data.cityKey.replace(/_/g, " ");
+  const locationLabel = data.quarterLabel
+    ? `${data.quarterLabel} · ${cityLabel}`
+    : data.district
+    ? `${cityLabel} · ${data.district}`
+    : cityLabel;
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-5">
       <div className="flex items-center gap-2 text-sm mb-4">
         <MapPin size={16} className="text-accent shrink-0" weight="duotone" />
         <span className="font-medium">Socio-ekonomický profil lokality</span>
-        <span className="text-xs text-muted capitalize ml-auto truncate min-w-0">{cityLabel}{data.district ? ` · ${data.district}` : ""}</span>
+        <span className="text-xs text-muted capitalize ml-auto truncate min-w-0" title={locationLabel}>{locationLabel}</span>
       </div>
 
       <div className="flex items-center gap-4 mb-4">

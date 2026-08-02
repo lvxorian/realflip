@@ -250,6 +250,7 @@ export async function PATCH(
       area: newArea ?? null,
       title: property.title,
       address: property.address,
+      propertyUrl: property.url ?? null,
       currentInvestmentScore: result.investmentScore,
     }).catch(() => null);
 

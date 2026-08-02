@@ -45,6 +45,7 @@ async function upsertMetric(cityKey: string, source: string, period: string, dat
 export interface LocalitySummary {
   cityKey: string;
   district: string;
+  quarterLabel: string | null;
   score: number;
   factors: LocalityFactors;
   cached: boolean;
@@ -62,23 +63,74 @@ export async function getLocalityForProperty(input: {
   lng: number | null;
   price?: number;
   area?: number | null;
+  propertyUrl?: string | null;
+  address?: string | null;
 }): Promise<LocalitySummary | null> {
-  const { cityKey, district, lat, lng, price, area } = input;
+  const { cityKey, district, lat, lng, price, area, propertyUrl, address } = input;
   if (!cityKey || cityKey === "Neznámá" || cityKey === "unknown") return null;
 
   const now = Date.now();
 
-  // POI / walkability — reálná data sreality (medián vzdáleností k POI per město)
+  // POI / walkability — priorita: sreality čtvrť (z ulice) → Nominatim čtvrť → město
   let poiCounts: Partial<PoiCounts> | null = null;
   let walkability: number | null = null;
   let poiFetchedAt: number | undefined;
+  let resolvedQuarterLabel: string | null = null;
 
-  const { getPoiForCityCached } = await import("./poi");
-  const poiData = await getPoiForCityCached(cityKey);
-  if (poiData) {
-    poiCounts = poiData.counts;
-    walkability = poiData.walkability;
-    poiFetchedAt = Date.now();
+  const { getPoiForCityCached, getPoiForQuarterCached } = await import("./poi");
+
+  // 1) Sreality inzerát → detail API → quarter_id (přesné z adresy inzerátu)
+  if (propertyUrl) {
+    try {
+      const { getSrealityDetailFromUrl } = await import("@/lib/scraping/sreality-detail");
+      const detail = await getSrealityDetailFromUrl(propertyUrl);
+      if (detail?.quarterId != null) {
+        const poiData = await getPoiForQuarterCached(detail.quarterId, cityKey, detail.districtId, detail.quarterName);
+        if (poiData) {
+          poiCounts = poiData.counts;
+          walkability = poiData.walkability;
+          poiFetchedAt = Date.now();
+          resolvedQuarterLabel = detail.quarterName ?? null;
+        }
+      }
+    } catch {
+      // fall back
+    }
+  }
+
+  // 2) Nominatim reverse-geocode GPS → čtvrť → quarter_id (pro nemovitosti mimo sreality)
+  if (!poiCounts && lat != null && lng != null) {
+    try {
+      const { reverseGeocode } = await import("@/lib/geocode");
+      const rev = await reverseGeocode(lat, lng);
+      const { matchQuarterToSreality } = await import("./quarter-map");
+      const match = matchQuarterToSreality(rev.suburb, cityKey);
+      if (match) {
+        const poiData = await getPoiForQuarterCached(match.quarterId, cityKey, match.districtId, match.label);
+        if (poiData) {
+          poiCounts = poiData.counts;
+          walkability = poiData.walkability;
+          poiFetchedAt = Date.now();
+          resolvedQuarterLabel = match.label;
+        }
+      }
+    } catch {
+      // fall back
+    }
+  }
+
+  // 3) Městský průměr (poslední záchrana)
+  if (!poiCounts) {
+    try {
+      const poiData = await getPoiForCityCached(cityKey);
+      if (poiData) {
+        poiCounts = poiData.counts;
+        walkability = poiData.walkability;
+        poiFetchedAt = Date.now();
+      }
+    } catch {
+      poiCounts = null;
+    }
   }
 
   // ČSÚ nezaměstnanost — město úroveň, cache 24 h
@@ -193,9 +245,10 @@ export async function getLocalityForProperty(input: {
   return {
     cityKey,
     district: district ?? "",
+    quarterLabel: resolvedQuarterLabel,
     score: factors.total,
     factors,
-    cached: !!poiData || !!cachedUnemp || !!cachedMig,
+    cached: !!poiCounts || !!cachedUnemp || !!cachedMig,
     fetchedAt,
   };
 }
@@ -248,6 +301,7 @@ export async function analyzeLocalityAndPersist(input: {
   area?: number | null;
   title?: string | null;
   address?: string | null;
+  propertyUrl?: string | null;
   currentInvestmentScore: number;
 }): Promise<{ localityScore: number; factors: LocalityFactors; adjustedScore: number } | null> {
   const { propertyId, currentInvestmentScore } = input;

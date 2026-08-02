@@ -71,10 +71,9 @@ async function fetchSrealityPoi(cityKey: string, districtSeoName?: string): Prom
     throw new Error(`HTTP ${res.status}: ${url}`);
   }
   const data = await res.json();
+  const cityLower = normalizeCity(cityKey);
   return (data?.results ?? []).filter(
-    (it: any) =>
-      it.locality?.city &&
-      it.locality.city.toLowerCase() === cityKey.replace(/_/g, " ")
+    (it: any) => it.locality?.city && normalizeCity(it.locality.city) === cityLower
   );
 }
 
@@ -90,7 +89,71 @@ export async function fetchPoiForCity(cityKey: string): Promise<PoiResult> {
   if (items.length < 3) {
     return { counts: emptyCounts(), walkability: 0, sampleSize: items.length };
   }
+  return buildPoiResult(items);
+}
 
+/** POI walkability pro konkrétní městskou část (quarter) z sreality search API. */
+export async function fetchPoiForQuarter(
+  quarterId: number,
+  cityKey: string,
+  districtId?: number | null,
+  quarterName?: string | null
+): Promise<PoiResult> {
+  // Sreality search nefiltruje spolehlivě podle quarter_id napříč městy — kombinujeme
+  // okres (district_id funguje) + filtrujeme názvy čtvrtí v kódu.
+  const districtParam = districtId != null ? `&locality_district_id=${districtId}` : "";
+  const url = `${BASE_API}?category_main_cb=1&category_type_cb=1&limit=${RESULTS_PER_PAGE}&offset=0${districtParam}`;
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) {
+    if (res.status === 429 || res.status === 403) {
+      await new Promise((r) => setTimeout(r, 20000));
+      return fetchPoiForQuarter(quarterId, cityKey, districtId, quarterName);
+    }
+    throw new Error(`HTTP ${res.status}: ${url}`);
+  }
+  const data = await res.json();
+  const cityLower = normalizeCity(cityKey);
+  const quarterLower = quarterName ? normalizeQuarter(quarterName) : null;
+
+  const items = (data?.results ?? []).filter((it: any) => {
+    const city = it.locality?.city ?? "";
+    if (normalizeCity(city) !== cityLower) return false;
+    // Filtrujeme čtvrť, pokud ji známe — jinak bereme celé město (okres)
+    if (quarterLower) {
+      const q = normalizeQuarter(it.locality?.quarter ?? "");
+      if (q && q !== quarterLower) return false;
+    }
+    return true;
+  });
+
+  if (items.length < 3) {
+    return { counts: emptyCounts(), walkability: 0, sampleSize: items.length };
+  }
+  return buildPoiResult(items);
+}
+
+/** Odstraní diakritiku + lowercase pro porovnání měst. */
+function normalizeCity(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/_/g, " ")
+    .trim();
+}
+
+/** Normalizace názvu čtvrti (diakritika + pomlčky → mezery). */
+function normalizeQuarter(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[–\-—]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildPoiResult(items: SrealityPoiItem[]): PoiResult {
   const dist = (key: keyof SrealityPoiItem): number[] =>
     items.map((i) => i[key] ?? NONE).filter((d) => d < NONE);
 
@@ -175,6 +238,60 @@ export async function getPoiForCityCached(cityKey: string): Promise<{ walkabilit
     }
   } catch (e) {
     console.error("POI fetch failed:", e);
+  }
+  return null;
+}
+
+/** Cache POI walkability per městskou část (segment='poi:quarter:{id}'). */
+export async function getPoiForQuarterCached(
+  quarterId: number,
+  cityKey: string,
+  districtId?: number | null,
+  quarterName?: string | null
+): Promise<{ walkability: number; counts: PoiCounts; sampleSize: number } | null> {
+  const TTL_MS = 24 * 60 * 60 * 1000;
+  const segment = `poi:quarter:${quarterId}`;
+  const row = await db
+    .select()
+    .from(rents)
+    .where(and(eq(rents.cityKey, cityKey), eq(rents.segment, segment)))
+    .limit(1)
+    .then((r) => r[0]);
+  if (row && Date.now() - Number(row.fetchedAt) < TTL_MS && row.walkability != null) {
+    try {
+      const counts = JSON.parse(row.countsJson ?? "{}") as PoiCounts;
+      return { walkability: row.walkability ?? 0, counts, sampleSize: row.sampleSize };
+    } catch {
+      // fall through
+    }
+  }
+
+  try {
+    const result = await fetchPoiForQuarter(quarterId, cityKey, districtId, quarterName);
+    if (result.sampleSize >= 3) {
+      await db
+        .insert(rents)
+        .values({
+          cityKey,
+          segment,
+          rentPerSqm: null,
+          medianRent: null,
+          sampleSize: result.sampleSize,
+          fetchedAt: ts(),
+        })
+        .onConflictDoUpdate({
+          target: [rents.cityKey, rents.segment],
+          set: {
+            walkability: result.walkability,
+            countsJson: JSON.stringify(result.counts),
+            sampleSize: result.sampleSize,
+            fetchedAt: ts(),
+          },
+        });
+      return { walkability: result.walkability, counts: result.counts, sampleSize: result.sampleSize };
+    }
+  } catch (e) {
+    console.error("POI quarter fetch failed:", e);
   }
   return null;
 }

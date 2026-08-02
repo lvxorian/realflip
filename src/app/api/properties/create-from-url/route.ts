@@ -152,6 +152,7 @@ export async function POST(req: Request) {
       area: area ?? null,
       title,
       address,
+      propertyUrl: url ?? null,
       currentInvestmentScore: analysis.investmentScore,
     }).catch(() => null);
 

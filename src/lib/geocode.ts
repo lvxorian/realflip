@@ -7,6 +7,12 @@ export interface GeocodeResult {
   source: "address" | "city" | null;
 }
 
+export interface ReverseGeocodeResult {
+  suburb: string | null;
+  city: string | null;
+  displayName: string | null;
+}
+
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 
 async function nominatimSearch(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
@@ -84,4 +90,33 @@ export async function geocodeAddress(
   }
 
   return { lat: null, lng: null, displayName: null, source: null };
+}
+
+/**
+ * Reverse-geokódování GPS → název městské části (suburb/quarter) a města.
+ * Používá se pro fallback POI u nemovitostí mimo sreality.
+ */
+export async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResult> {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=cs&zoom=14`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "RealFlip/1.0 (real estate investment analysis; contact: info@realflip.cz)",
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return { suburb: null, city: null, displayName: null };
+    const data = (await res.json()) as {
+      address?: { suburb?: string; city?: string; town?: string; village?: string };
+      display_name?: string;
+    };
+    return {
+      suburb: data.address?.suburb ?? null,
+      city: data.address?.city ?? data.address?.town ?? data.address?.village ?? null,
+      displayName: data.display_name ?? null,
+    };
+  } catch {
+    return { suburb: null, city: null, displayName: null };
+  }
 }
