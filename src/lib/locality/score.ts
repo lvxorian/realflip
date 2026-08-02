@@ -12,7 +12,7 @@ function weighted(a: number | null, b: number | null): number {
 }
 
 /**
- * NezamÄ›stnanost: niĹľĹˇĂ­ = lepĹˇĂ­. ÄŚR prĹŻmÄ›r ~4-5 %. 0 % â†’ 100, 12 %+ â†’ 0.
+ * Nezamestnanost: nizsi = lepsi. CR prumer ~4-5 %. 0 % → 100, 12 %+ → 0.
  */
 export function scoreUnemployment(podilPct: number | null | undefined): number {
   if (podilPct == null) return 0;
@@ -20,8 +20,8 @@ export function scoreUnemployment(podilPct: number | null | undefined): number {
 }
 
 /**
- * Migrace (ÄŤistĂ© stÄ›hovĂˇnĂ­ na 1000 obyv.): kladnĂˇ = rostoucĂ­ poptĂˇvka.
- * 0 â†’ 50, +10â€° â†’ 100, -10â€° â†’ 0.
+ * Migrace (ciste stehovani na 1000 obyv.): kladna = rostouci poptavka.
+ * 0 → 50, +10‰ → 100, -10‰ → 0.
  */
 export function scoreMigration(netPer1000: number | null | undefined): number {
   if (netPer1000 == null) return 0;
@@ -29,8 +29,8 @@ export function scoreMigration(netPer1000: number | null | undefined): number {
 }
 
 /**
- * VÄ›kovĂˇ struktura: podĂ­l 65+ (lower = younger = better for rentals).
- * 15 % â†’ 90, 30 %+ â†’ 20.
+ * Vekova struktura: podil 65+ (lower = younger = better for rentals).
+ * 15 % → 90, 30 %+ → 20.
  */
 export function scoreAgeStructure(share65plusPct: number | null | undefined): number {
   if (share65plusPct == null) return 0;
@@ -38,8 +38,8 @@ export function scoreAgeStructure(share65plusPct: number | null | undefined): nu
 }
 
 /**
- * EkonomickĂˇ aktivita: poÄŤet firem na 1000 obyv. VĂ­ce firem = lepĹˇĂ­ pracovnĂ­ trh.
- * 0 â†’ 20, 50+ â†’ 100.
+ * Ekonomicka aktivita: pocet firem na 1000 obyv. Vice firem = lepsi pracovni trh.
+ * 0 → 20, 50+ → 100.
  */
 export function scoreFirmsPerCapita(firms: number | null | undefined, population: number | null | undefined): number {
   if (firms == null || !population || population <= 0) return 0;
@@ -48,7 +48,7 @@ export function scoreFirmsPerCapita(firms: number | null | undefined, population
 }
 
 /**
- * Kriminalita: niĹľĹˇĂ­ index = lepĹˇĂ­. 200 â†’ 90, 600+ â†’ 0.
+ * Kriminalita: nizsi index = lepsi. 200 → 90, 600+ → 0.
  */
 export function scoreCrime(crimeIndex: number | null | undefined): number {
   if (crimeIndex == null) return 0;
@@ -76,8 +76,45 @@ export function scoreWalkability(counts: Partial<PoiCounts> | null | undefined):
     const v = (counts as Record<string, number | undefined>)[key] ?? 0;
     total += Math.min(v, 5) * w;
   }
-  // 11 kategoriĂ­, max teoreticky ~12 bodĹŻ/kategorii po oĹ™Ă­znutĂ­ â†’ normalizace
   return clamp(Math.round((total / 40) * 100));
+}
+
+/**
+ * Hruby vyvojovy vynos (gross yield %): 3 % → 30, 8 %+ → 100.
+ */
+export function scoreRentalYield(grossYieldPct: number | null | undefined): number {
+  if (grossYieldPct == null) return 0;
+  return clamp(Math.round((grossYieldPct - 3) * 20));
+}
+
+/**
+ * Dopravni dostupnost: transportScore (0-100) primo.
+ */
+export function scoreTransport(transport: number | null | undefined): number {
+  if (transport == null) return 0;
+  return clamp(Math.round(transport));
+}
+
+const TRANSPORT_NONE = 100000;
+
+/**
+ * Dopravni skore 0–100 pro konkretni vzdalenosti (m).
+ * Metro: <300 m = 100, >2000 m = 0. Vlak: <500 m = 100, >5000 m = 0. Bus: <150 m = 100, >2000 m = 0.
+ */
+export function scoreTransportDistance(
+  metro: number | null,
+  train: number | null,
+  bus: number | null
+): number {
+  const metroScore = metro != null && metro !== TRANSPORT_NONE ? Math.max(0, Math.min(100, Math.round(100 - metro / 20))) : 0;
+  const trainScore = train != null && train !== TRANSPORT_NONE ? Math.max(0, Math.min(100, Math.round(100 - train / 50))) : 0;
+  const busScore = bus != null && bus !== TRANSPORT_NONE ? Math.max(0, Math.min(100, Math.round(100 - bus / 20))) : 0;
+  let weighted = 0;
+  let weightTotal = 0;
+  if (metro != null && metro !== TRANSPORT_NONE) { weighted += metroScore * 2; weightTotal += 2; }
+  if (train != null && train !== TRANSPORT_NONE) { weighted += trainScore * 1.5; weightTotal += 1.5; }
+  if (bus != null && bus !== TRANSPORT_NONE) { weighted += busScore; weightTotal += 1; }
+  return weightTotal > 0 ? Math.round(weighted / weightTotal) : 0;
 }
 
 export function computeLocalityFactors(input: {
@@ -89,21 +126,25 @@ export function computeLocalityFactors(input: {
   crimeIndex?: number | null;
   walkability?: number | null;
   walkabilityCounts?: Partial<PoiCounts> | null;
+  grossYieldPct?: number | null;
+  transportScore?: number | null;
 }): LocalityFactors {
   const economic = weighted(scoreUnemployment(input.unemployment), scoreFirmsPerCapita(input.firms, input.population));
   const demographic = weighted(scoreMigration(input.migrationPer1000), scoreAgeStructure(input.share65plus));
   const walkability = input.walkability != null ? input.walkability : scoreWalkability(input.walkabilityCounts);
   const safety = scoreCrime(input.crimeIndex);
+  const rental = scoreRentalYield(input.grossYieldPct);
+  const transport = scoreTransport(input.transportScore);
 
   const missing: string[] = [];
-  if (input.unemployment == null) missing.push("nezamÄ›stnanost");
+  if (input.unemployment == null) missing.push("nezaměstnanost");
   if (input.migrationPer1000 == null) missing.push("migrace");
-  if (input.share65plus == null) missing.push("vÄ›kovĂˇ struktura");
+  if (input.share65plus == null) missing.push("věková struktura");
   if (input.firms == null) missing.push("firmy");
   if (input.crimeIndex == null) missing.push("kriminalita");
   if (input.walkability == null) missing.push("vybavenost");
 
-  // VĂˇhy se pĹ™epoÄŤĂ­tajĂ­ jen z dostupnĂ˝ch dimenzĂ­ (chybÄ›jĂ­cĂ­ dimenze nesnĂ­ĹľĂ­ skĂłre).
+  // Lokalitni skore = vazeny prumer zakladnich 4 dimenzi (chybejici se prepocitaji)
   const dims: [number, number][] = [];
   if (input.unemployment != null || input.firms != null) dims.push([economic, LOCALITY_WEIGHTS.economic]);
   if (input.migrationPer1000 != null || input.share65plus != null) dims.push([demographic, LOCALITY_WEIGHTS.demographic]);
@@ -120,6 +161,8 @@ export function computeLocalityFactors(input: {
     demographic: { score: demographic, migrationNet: input.migrationPer1000 ?? null, population: input.population ?? null, share65plus: input.share65plus ?? null },
     walkability: { score: walkability, counts: input.walkabilityCounts ?? {} },
     safety: { score: safety, crimeIndex: input.crimeIndex ?? null },
+    transport: { score: transport, premiumPct: null },
+    rental: { score: rental, rentPerSqm: null, grossYieldPct: input.grossYieldPct ?? null },
     total,
     sourceData: {},
     weights: { ...LOCALITY_WEIGHTS },
@@ -127,7 +170,7 @@ export function computeLocalityFactors(input: {
   };
 }
 
-/** Kolik bodĹŻ k investiÄŤnĂ­mu skĂłre pĹ™idĂˇ/odebere lokalitnĂ­ skĂłre (Â±8). */
+/** Kolik bodu k investicnimu skore prida/odebere lokalitni skore (±8). */
 export function localityScoreAdjustment(localityScore: number | null | undefined): number {
   if (localityScore == null) return 0;
   return Math.round((localityScore - 50) / 6.25);

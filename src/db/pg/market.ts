@@ -60,3 +60,16 @@ export const poiMetrics = pgTable(
   },
   (t) => [primaryKey({ columns: [t.cityKey, t.district] })]
 );
+
+export const rents = pgTable(
+  "rents",
+  {
+    cityKey: text("city_key").notNull(),
+    segment: text("segment").notNull().default("any"),
+    rentPerSqm: real("rent_per_sqm"),
+    medianRent: integer("median_rent"),
+    sampleSize: integer("sample_size").notNull(),
+    fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.cityKey, t.segment] })]
+);

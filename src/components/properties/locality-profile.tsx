@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
-import { MapPin, Building, Users, ShieldCheck, Footprints } from "@phosphor-icons/react";
+import { MapPin, Building, Users, ShieldCheck, Footprints, CurrencyCircleDollar, Train } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { LocalityFactors } from "@/lib/locality/types";
 
@@ -136,10 +136,22 @@ export function LocalityProfile({ cityKey, district }: LocalityProfileProps) {
           detail={countEntries.length > 0 ? countEntries.map(([k, v]) => `${k} ${v}`).slice(0, 3).join(" · ") : undefined}
         />
         <Dim
+          icon={<Train size={15} weight="duotone" />}
+          label="Doprava"
+          score={f.transport.score}
+          detail={f.transport.premiumPct != null ? `prémie +${f.transport.premiumPct} %` : undefined}
+        />
+        <Dim
           icon={<ShieldCheck size={15} weight="duotone" />}
           label="Bezpečnost"
           score={f.safety.score}
           detail={f.safety.crimeIndex != null ? `index kriminality ${f.safety.crimeIndex}` : undefined}
+        />
+        <Dim
+          icon={<CurrencyCircleDollar size={15} weight="duotone" />}
+          label="Rentový výnos"
+          score={f.rental.score}
+          detail={f.rental.rentPerSqm != null ? `${f.rental.rentPerSqm} Kč/m² · ${f.rental.grossYieldPct ?? "?"} %` : undefined}
         />
       </div>
 

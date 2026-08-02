@@ -246,6 +246,8 @@ export async function PATCH(
       district: result.location.district,
       lat: property.lat ?? null,
       lng: property.lng ?? null,
+      price: property.price,
+      area: newArea ?? null,
       currentInvestmentScore: result.investmentScore,
     }).catch(() => null);
 

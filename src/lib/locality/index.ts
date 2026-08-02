@@ -84,8 +84,10 @@ export async function getLocalityForProperty(input: {
   district: string | null;
   lat: number | null;
   lng: number | null;
+  price?: number;
+  area?: number | null;
 }): Promise<LocalitySummary | null> {
-  const { cityKey, district, lat, lng } = input;
+  const { cityKey, district, lat, lng, price, area } = input;
   if (!cityKey || cityKey === "Neznámá" || cityKey === "unknown") return null;
 
   const now = Date.now();
@@ -171,6 +173,30 @@ export async function getLocalityForProperty(input: {
   // Kriminalita — statická mapa
   const crimeIndex = crimeIndexForCity(cityKey);
 
+  // Rent — hrubý výnos (cache 24 h v rents tabulce, jinak odhad z ceny)
+  let rentPerSqm: number | null = null;
+  let grossYieldPct: number | null = null;
+  if (price != null && price > 0) {
+    const { estimateRent } = await import("./rent");
+    const rent = await estimateRent({ cityKey, price, area: area ?? null });
+    rentPerSqm = rent.rentPerSqm;
+    grossYieldPct = rent.grossYieldPct;
+  }
+
+  // Doprava - transport skore z hustoty zastavek v POI cache
+  let transportValue: number | null = null;
+  let transportPremium: number | null = null;
+  if (lat != null && lng != null) {
+    const { scoreTransportDistance: tsScore } = await import("./score");
+    // Využijeme POI cache counts pro MHD/vlak vzdálenostní proxy — pokud máme mhd/vlak počty,
+    // přibližné dopravní skóre z hustoty zastávek
+    if (poiCounts) {
+      const mhd = poiCounts.mhd ?? 0;
+      const vlak = poiCounts.vlak ?? 0;
+      transportValue = tsScore(mhd >= 3 ? 200 : 100000, vlak >= 1 ? 400 : 100000, mhd >= 1 ? 100 : 100000);
+    }
+  }
+
   // Sestavení faktorů
   const migrationPer1000 =
     migrationNet != null && population != null && population > 0 ? (migrationNet / population) * 1000 : null;
@@ -182,7 +208,11 @@ export async function getLocalityForProperty(input: {
     population,
     crimeIndex,
     walkability,
+    grossYieldPct,
+    transportScore: transportValue,
   });
+  factors.transport.premiumPct = transportPremium;
+  factors.rental.rentPerSqm = rentPerSqm;
 
   const fetchedAt = poiFetchedAt ?? (cachedUnemp?.fetchedAt ?? cachedMig?.fetchedAt);
 
@@ -240,6 +270,8 @@ export async function analyzeLocalityAndPersist(input: {
   district: string | null;
   lat: number | null;
   lng: number | null;
+  price?: number;
+  area?: number | null;
   currentInvestmentScore: number;
 }): Promise<{ localityScore: number; factors: LocalityFactors; adjustedScore: number } | null> {
   const { propertyId, currentInvestmentScore } = input;

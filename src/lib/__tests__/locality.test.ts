@@ -5,6 +5,9 @@ import {
   scoreAgeStructure,
   scoreCrime,
   scoreWalkability,
+  scoreRentalYield,
+  scoreTransport,
+  scoreTransportDistance,
   computeLocalityFactors,
   localityScoreAdjustment,
 } from "../locality/score";
@@ -68,5 +71,30 @@ describe("locality scoring", () => {
     expect(localityScoreAdjustment(100)).toBe(8);
     expect(localityScoreAdjustment(0)).toBe(-8);
     expect(localityScoreAdjustment(null)).toBe(0);
+  });
+
+  it("scoreRentalYield: vyssi hruby vynos = lepsi", () => {
+    expect(scoreRentalYield(3)).toBe(0);
+    expect(scoreRentalYield(5)).toBe(40);
+    expect(scoreRentalYield(8)).toBe(100);
+    expect(scoreRentalYield(null)).toBe(0);
+  });
+
+  it("scoreTransport: dopravni skore prochazi primo", () => {
+    expect(scoreTransport(80)).toBe(80);
+    expect(scoreTransport(0)).toBe(0);
+    expect(scoreTransport(null)).toBe(0);
+  });
+
+  it("transportScore vazi metro nejvyse", () => {
+    // metro 100 m => 95, vlak 1000 m => 80, bus 200 m => 90
+    const s = scoreTransportDistance(100, 1000, 200);
+    expect(s).toBeGreaterThan(80);
+    expect(s).toBeLessThanOrEqual(100);
+    // bez metra (null) => jen vlak+bus
+    const noMetro = scoreTransportDistance(null, 1000, 200);
+    expect(noMetro).toBeGreaterThan(0);
+    // nic => 0
+    expect(scoreTransportDistance(null, null, null)).toBe(0);
   });
 });

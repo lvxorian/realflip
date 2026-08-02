@@ -52,6 +52,8 @@ export interface LocalityFactors {
   demographic: { score: number; migrationNet: number | null; population: number | null; share65plus: number | null };
   walkability: { score: number; counts: Partial<PoiCounts> };
   safety: { score: number; crimeIndex: number | null };
+  transport: { score: number; premiumPct: number | null };
+  rental: { score: number; rentPerSqm: number | null; grossYieldPct: number | null };
   total: number;
   sourceData: {
     unemployment?: { value: number | null; period: string };
@@ -70,4 +72,9 @@ export const LOCALITY_WEIGHTS = {
   demographic: 25,
   walkability: 25,
   safety: 20,
+} as const;
+
+export const RENT_WEIGHTS = {
+  rent: 50,
+  transport: 50,
 } as const;

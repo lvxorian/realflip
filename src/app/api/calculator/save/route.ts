@@ -206,6 +206,8 @@ export async function POST(req: Request) {
       district: analysis.location.district,
       lat: null,
       lng: null,
+      price,
+      area: area ?? null,
       currentInvestmentScore: analysis.investmentScore,
     }).catch(() => null);
 

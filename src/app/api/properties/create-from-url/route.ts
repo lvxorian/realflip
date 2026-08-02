@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     };
 
     const location = classifyLocation(rawListing.address, rawListing.title);
-    const dynamicRange = location.city !== "Neznámá"
+    const dynamicRange = location.city !== "NeznĂˇmĂˇ"
       ? await getPropertyMarketRange({
           cityKey: location.city,
           lat: lat ?? null,
@@ -141,13 +141,15 @@ export async function POST(req: Request) {
       updatedAt: now,
     });
 
-    // Lokalitní inteligence (offline-safe, vynechá chybějící dimenze)
+    // LokalitnĂ­ inteligence (offline-safe, vynechĂˇ chybÄ›jĂ­cĂ­ dimenze)
     await analyzeLocalityAndPersist({
       propertyId,
       cityKey: analysis.location.city,
       district: analysis.location.district,
       lat: lat ?? null,
       lng: lng ?? null,
+      price,
+      area: area ?? null,
       currentInvestmentScore: analysis.investmentScore,
     }).catch(() => null);
 
