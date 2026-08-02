@@ -308,6 +308,7 @@ export default async function PropertyDetailPage({
           <LocalityProfile
             cityKey={analysis?.locationCity ?? null}
             district={analysis?.locationDistrict ?? null}
+            aiVerdict={analysis?.aiLocalityVerdict ?? null}
           />
 
           {/* Dražba – výkup před dražbou */}

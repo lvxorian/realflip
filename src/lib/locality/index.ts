@@ -1,11 +1,9 @@
 import { db } from "@/db";
-import { localityMetrics, poiMetrics, propertyAnalysis, properties } from "@/db/schema";
+import { localityMetrics, propertyAnalysis, properties } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ts } from "@/lib/utils";
 import { fetchUnemployment, fetchMigration } from "./czso";
-import { crimeIndexForCity } from "./crime";
-import { fetchPoi } from "./poi";
-import { computeLocalityFactors, localityScoreAdjustment, scoreMigration, scoreWalkability } from "./score";
+import { computeLocalityFactors, localityScoreAdjustment, scoreMigration } from "./score";
 import { LocalityFactors, PoiCounts } from "./types";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -44,28 +42,6 @@ async function upsertMetric(cityKey: string, source: string, period: string, dat
     });
 }
 
-async function getPoiMetric(cityKey: string, district: string): Promise<StoredMetric | null> {
-  const row = await db
-    .select({ jsonData: poiMetrics.countsJson, fetchedAt: poiMetrics.fetchedAt, walkability: poiMetrics.walkability })
-    .from(poiMetrics)
-    .where(and(eq(poiMetrics.cityKey, cityKey), eq(poiMetrics.district, district)))
-    .limit(1)
-    .then((r) => r[0]);
-  if (!row) return null;
-  return { jsonData: row.jsonData, fetchedAt: Number(row.fetchedAt) };
-}
-
-async function upsertPoiMetric(cityKey: string, district: string, counts: Partial<PoiCounts>, walkability: number): Promise<void> {
-  const now = ts();
-  await db
-    .insert(poiMetrics)
-    .values({ cityKey, district, countsJson: JSON.stringify(counts), walkability, fetchedAt: now })
-    .onConflictDoUpdate({
-      target: [poiMetrics.cityKey, poiMetrics.district],
-      set: { countsJson: JSON.stringify(counts), walkability, fetchedAt: now },
-    });
-}
-
 export interface LocalitySummary {
   cityKey: string;
   district: string;
@@ -92,30 +68,17 @@ export async function getLocalityForProperty(input: {
 
   const now = Date.now();
 
-  // POI — cache per cityKey+district (nebo per cityKey, pokud nemáme lat/lng)
-  const poiKey = district && district.length > 0 ? district : "__city__";
+  // POI / walkability — reálná data sreality (medián vzdáleností k POI per město)
   let poiCounts: Partial<PoiCounts> | null = null;
   let walkability: number | null = null;
   let poiFetchedAt: number | undefined;
 
-  const cachedPoi = await getPoiMetric(cityKey, poiKey);
-  if (cachedPoi && now - cachedPoi.fetchedAt < TTL_MS) {
-    try {
-      poiCounts = JSON.parse(cachedPoi.jsonData);
-      walkability = poiCounts ? scoreWalkability(poiCounts) : null;
-    } catch {
-      poiCounts = null;
-    }
-    poiFetchedAt = cachedPoi.fetchedAt;
-  } else if (lat != null && lng != null) {
-    try {
-      const poi = await fetchPoi(lat, lng);
-      poiCounts = poi.counts;
-      walkability = poi.walkability;
-      await upsertPoiMetric(cityKey, poiKey, poi.counts, poi.walkability);
-    } catch {
-      poiCounts = null;
-    }
+  const { getPoiForCityCached } = await import("./poi");
+  const poiData = await getPoiForCityCached(cityKey);
+  if (poiData) {
+    poiCounts = poiData.counts;
+    walkability = poiData.walkability;
+    poiFetchedAt = Date.now();
   }
 
   // ČSÚ nezaměstnanost — město úroveň, cache 24 h
@@ -170,8 +133,12 @@ export async function getLocalityForProperty(input: {
     }
   }
 
-  // Kriminalita — statická mapa
-  const crimeIndex = crimeIndexForCity(cityKey);
+  // Kriminalita — reálná data PČR (XLSX statistiky, cache 30 dní)
+  const { getCrimeIndexForCity } = await import("./crime");
+  const crime = await getCrimeIndexForCity(cityKey);
+  const crimeIndex = crime.crimeIndexPer100k;
+  const crimeClearRate = crime.clearRatePct;
+  const crimePeriod = crime.period;
 
   // Rent — hrubý výnos (cache 24 h v rents tabulce, jinak odhad z ceny)
   let rentPerSqm: number | null = null;
@@ -183,18 +150,25 @@ export async function getLocalityForProperty(input: {
     grossYieldPct = rent.grossYieldPct;
   }
 
-  // Doprava - transport skore z hustoty zastavek v POI cache
+  // Doprava - transport skore z realnych POI zastavek (OSM) + premie z reálných sreality dat
   let transportValue: number | null = null;
   let transportPremium: number | null = null;
-  if (lat != null && lng != null) {
+  if (poiCounts) {
     const { scoreTransportDistance: tsScore } = await import("./score");
-    // Využijeme POI cache counts pro MHD/vlak vzdálenostní proxy — pokud máme mhd/vlak počty,
-    // přibližné dopravní skóre z hustoty zastávek
-    if (poiCounts) {
-      const mhd = poiCounts.mhd ?? 0;
-      const vlak = poiCounts.vlak ?? 0;
-      transportValue = tsScore(mhd >= 3 ? 200 : 100000, vlak >= 1 ? 400 : 100000, mhd >= 1 ? 100 : 100000);
-    }
+    // Hustota zastávek v okruhu = reálný proxy dopravní dostupnosti (z OSM POI)
+    const mhd = poiCounts.mhd ?? 0;
+    const vlak = poiCounts.vlak ?? 0;
+    // Simulace vzdáleností z hustoty: hodně zastávek = krátké vzdálenosti
+    const metroProxy = mhd >= 5 ? 300 : mhd >= 3 ? 600 : 100000;
+    const trainProxy = vlak >= 2 ? 500 : vlak >= 1 ? 900 : 100000;
+    const busProxy = mhd >= 3 ? 200 : mhd >= 1 ? 500 : 100000;
+    transportValue = tsScore(metroProxy, trainProxy, busProxy);
+  }
+  // Reálná prémie z transport scraperu (sreality poi_metro_distance model) - cache v rents
+  const { getTransportMetrics } = await import("./transport");
+  const transportCached = await getTransportMetrics(cityKey);
+  if (transportCached && Date.now() - transportCached.fetchedAt < TTL_MS) {
+    transportPremium = transportCached.premiumPct;
   }
 
   // Sestavení faktorů
@@ -221,7 +195,7 @@ export async function getLocalityForProperty(input: {
     district: district ?? "",
     score: factors.total,
     factors,
-    cached: !!cachedPoi || !!cachedUnemp || !!cachedMig,
+    cached: !!poiData || !!cachedUnemp || !!cachedMig,
     fetchedAt,
   };
 }
@@ -272,6 +246,8 @@ export async function analyzeLocalityAndPersist(input: {
   lng: number | null;
   price?: number;
   area?: number | null;
+  title?: string | null;
+  address?: string | null;
   currentInvestmentScore: number;
 }): Promise<{ localityScore: number; factors: LocalityFactors; adjustedScore: number } | null> {
   const { propertyId, currentInvestmentScore } = input;
@@ -281,11 +257,43 @@ export async function analyzeLocalityAndPersist(input: {
   const adjustment = localityScoreAdjustment(summary.score);
   const adjustedScore = Math.min(100, Math.max(0, currentInvestmentScore + adjustment));
 
+  // AI sanity-check pouze pro podezřelá data
+  let aiVerdict: string | null = null;
+  try {
+    const { needsLocalityGuard, aiLocalityGuard } = await import("@/lib/ai/locality-guard");
+    const pricePerSqm =
+      input.price != null && input.area != null && input.area > 0 ? Math.round(input.price / input.area) : null;
+    if (
+      needsLocalityGuard({
+        cityKey: summary.cityKey,
+        walkability: summary.factors.walkability.score,
+        pricePerSqm,
+        grossYieldPct: summary.factors.rental.grossYieldPct,
+        crimeIndex: summary.factors.safety.crimeIndex,
+        rentPerSqm: summary.factors.rental.rentPerSqm,
+      })
+    ) {
+      const verdict = await aiLocalityGuard({
+        cityKey: summary.cityKey,
+        district: summary.district || null,
+        address: input.address ?? null,
+        title: input.title ?? null,
+        price: input.price ?? null,
+        area: input.area ?? null,
+        factors: summary.factors,
+      });
+      if (verdict) aiVerdict = JSON.stringify(verdict);
+    }
+  } catch {
+    aiVerdict = null;
+  }
+
   await db
     .update(propertyAnalysis)
     .set({
       localityScore: summary.score,
       localityFactorsJson: JSON.stringify(summary.factors),
+      aiLocalityVerdict: aiVerdict,
       investmentScore: adjustedScore,
       updatedAt: ts(),
     })

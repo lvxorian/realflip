@@ -48,11 +48,12 @@ export function scoreFirmsPerCapita(firms: number | null | undefined, population
 }
 
 /**
- * Kriminalita: nizsi index = lepsi. 200 → 90, 600+ → 0.
+ * Kriminalita: nizsi index (TČ per 100k obyv.) = lepsi.
+ * ~1000 → 95, ~5000 → 45, 8000+ → 20.
  */
-export function scoreCrime(crimeIndex: number | null | undefined): number {
-  if (crimeIndex == null) return 0;
-  return clamp(Math.round(110 - crimeIndex * 0.18));
+export function scoreCrime(crimeIndexPer100k: number | null | undefined): number {
+  if (crimeIndexPer100k == null) return 0;
+  return clamp(Math.round(95 - (crimeIndexPer100k - 1000) * 0.0125));
 }
 
 const POI_WEIGHTS: Record<keyof PoiCounts, number> = {

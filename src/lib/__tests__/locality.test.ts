@@ -36,8 +36,9 @@ describe("locality scoring", () => {
   });
 
   it("scoreCrime: nižší index = lepší", () => {
-    expect(scoreCrime(200)).toBe(74);
-    expect(scoreCrime(600)).toBe(2);
+    expect(scoreCrime(1000)).toBe(95);
+    expect(scoreCrime(5000)).toBe(45);
+    expect(scoreCrime(8000)).toBe(8);
     expect(scoreCrime(null)).toBe(0);
   });
 

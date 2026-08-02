@@ -44,6 +44,7 @@ export const propertyAnalysis = sqliteTable("property_analysis", {
   // Lokalitní inteligence
   localityScore: integer("locality_score"),
   localityFactorsJson: text("locality_factors_json"),
+  aiLocalityVerdict: text("ai_locality_verdict"),
 
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

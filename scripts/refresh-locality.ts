@@ -35,6 +35,13 @@ async function main() {
     } catch (e) {
       console.error(`  [${city}] transport FAILED: ${(e as Error).message}`);
     }
+    try {
+      const { getPoiForCityCached } = await import("../src/lib/locality/poi");
+      const poi = await getPoiForCityCached(city);
+      console.log(`  [${city}] POI: ${poi ? `walkability ${poi.walkability} (${poi.sampleSize} vzorku)` : "bez dat"}`);
+    } catch (e) {
+      console.error(`  [${city}] POI FAILED: ${(e as Error).message}`);
+    }
   }
 
   const rows = await db

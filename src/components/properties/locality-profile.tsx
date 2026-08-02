@@ -19,10 +19,17 @@ interface LocalityResponse {
 interface LocalityProfileProps {
   cityKey: string | null;
   district: string | null;
+  aiVerdict?: string | null;
 }
 
 function scoreColor(score: number) {
   return score >= 80 ? "text-emerald-400" : score >= 60 ? "text-accent" : score >= 40 ? "text-amber-400" : "text-red-400";
+}
+
+interface AiVerdict {
+  ok: boolean;
+  warnings: string[];
+  notes: string;
 }
 
 function Dim({
@@ -30,25 +37,31 @@ function Dim({
   label,
   score,
   detail,
+  empty,
 }: {
   icon: React.ReactNode;
   label: string;
   score: number;
   detail?: string;
+  empty?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-card-hover/60 border border-border/50 px-3 py-2.5">
       <span className="text-muted shrink-0">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted">{label}</p>
-        {detail && <p className="text-[10px] text-muted/50 truncate">{detail}</p>}
+        {empty ? (
+          <p className="text-[10px] text-muted/40">bez dostupných dat</p>
+        ) : detail ? (
+          <p className="text-[10px] text-muted/50 truncate">{detail}</p>
+        ) : null}
       </div>
       <ScoreGauge score={score} size={30} strokeWidth={2.5} />
     </div>
   );
 }
 
-export function LocalityProfile({ cityKey, district }: LocalityProfileProps) {
+export function LocalityProfile({ cityKey, district, aiVerdict }: LocalityProfileProps) {
   const [data, setData] = useState<LocalityResponse["locality"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -94,8 +107,6 @@ export function LocalityProfile({ cityKey, district }: LocalityProfileProps) {
   }
 
   const f = data.factors;
-  const counts = f.walkability.counts ?? {};
-  const countEntries = Object.entries(counts).filter(([, v]) => v > 0);
   const cityLabel = data.cityKey.replace(/_/g, " ");
 
   return (
@@ -122,36 +133,42 @@ export function LocalityProfile({ cityKey, district }: LocalityProfileProps) {
           label="Ekonomika"
           score={f.economic.score}
           detail={f.economic.unemploymentPct != null ? `nezaměstnanost ${f.economic.unemploymentPct} %` : undefined}
+          empty={f.economic.unemploymentPct == null && f.economic.firms == null}
         />
         <Dim
           icon={<Building size={15} weight="duotone" />}
           label="Demografie"
           score={f.demographic.score}
           detail={f.demographic.migrationNet != null ? `migrace +${f.demographic.migrationNet.toFixed(1)}‰` : undefined}
+          empty={f.demographic.migrationNet == null && f.demographic.population == null}
         />
         <Dim
           icon={<Footprints size={15} weight="duotone" />}
           label="Vybavenost"
           score={f.walkability.score}
-          detail={countEntries.length > 0 ? countEntries.map(([k, v]) => `${k} ${v}`).slice(0, 3).join(" · ") : undefined}
+          detail={f.walkability.score > 0 ? `${f.walkability.score}/100` : undefined}
+          empty={f.walkability.score === 0}
         />
         <Dim
           icon={<Train size={15} weight="duotone" />}
           label="Doprava"
           score={f.transport.score}
           detail={f.transport.premiumPct != null ? `prémie +${f.transport.premiumPct} %` : undefined}
+          empty={f.transport.score === 0 && f.transport.premiumPct == null}
         />
         <Dim
           icon={<ShieldCheck size={15} weight="duotone" />}
           label="Bezpečnost"
           score={f.safety.score}
           detail={f.safety.crimeIndex != null ? `index kriminality ${f.safety.crimeIndex}` : undefined}
+          empty={f.safety.crimeIndex == null}
         />
         <Dim
           icon={<CurrencyCircleDollar size={15} weight="duotone" />}
           label="Rentový výnos"
           score={f.rental.score}
           detail={f.rental.rentPerSqm != null ? `${f.rental.rentPerSqm} Kč/m² · ${f.rental.grossYieldPct ?? "?"} %` : undefined}
+          empty={f.rental.rentPerSqm == null}
         />
       </div>
 
@@ -160,6 +177,38 @@ export function LocalityProfile({ cityKey, district }: LocalityProfileProps) {
           Nedostupná data: {f.missing.join(", ")}
         </p>
       )}
+
+      {(() => {
+        if (!aiVerdict) return null;
+        let parsed: AiVerdict | null = null;
+        try {
+          parsed = JSON.parse(aiVerdict);
+        } catch {
+          parsed = null;
+        }
+        if (!parsed) return null;
+        const hasWarnings = parsed.warnings.length > 0;
+        return (
+          <div className={`mt-3 rounded-xl border px-3 py-2.5 text-xs ${hasWarnings ? "border-amber-500/25 bg-amber-500/5" : "border-emerald-500/25 bg-emerald-500/5"}`}>
+            <div className="flex items-center gap-1.5 font-medium">
+              <span className={hasWarnings ? "text-amber-400" : "text-emerald-400"}>
+                {hasWarnings ? "⚠" : "✓"}
+              </span>
+              <span className={hasWarnings ? "text-amber-400" : "text-emerald-400"}>
+                {hasWarnings ? "AI: podezřelé hodnoty" : "AI: data ověřena"}
+              </span>
+            </div>
+            {hasWarnings && (
+              <ul className="mt-1.5 space-y-0.5 text-[11px] text-amber-400/90">
+                {parsed.warnings.map((w, i) => (
+                  <li key={i}>{w}</li>
+                ))}
+              </ul>
+            )}
+            {parsed.notes && <p className="mt-1 text-[11px] text-muted/60">{parsed.notes}</p>}
+          </div>
+        );
+      })()}
     </div>
   );
 }

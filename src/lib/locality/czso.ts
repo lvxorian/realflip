@@ -121,8 +121,9 @@ function splitCsv(line: string): string[] {
  * Vezme NEZ0004 (podĂ­l nezamÄ›stnanĂ˝ch osob %) pro uzemi_cis=43 (obce), poslednĂ­ dostupnĂ© obdobĂ­.
  */
 export async function fetchUnemployment(): Promise<{ byCity: Record<string, number>; period: string }> {
+  // Rok 2023 dataset (novější dostupný v NKOD; ČSÚ zveřejňuje s časovým odstupem)
   const datasetIri =
-    "https://data.gov.cz/zdroj/datov%C3%A9-sady/00025593/bcef11bfdba6a432fcdc10ca93e2cbd5";
+    "https://data.gov.cz/zdroj/datov%C3%A9-sady/00025593/b5c4d539f03a208340bb4479a4647bea";
   const zipUrl = await resolveNkodDownloadUrl(datasetIri);
   const buffer = await fetchBuffer(zipUrl);
   const rows = parseCsv(extractZipEntry(buffer));

@@ -68,6 +68,8 @@ export const rents = pgTable(
     segment: text("segment").notNull().default("any"),
     rentPerSqm: real("rent_per_sqm"),
     medianRent: integer("median_rent"),
+    walkability: integer("walkability"),
+    countsJson: text("counts_json"),
     sampleSize: integer("sample_size").notNull(),
     fetchedAt: bigint("fetched_at", { mode: "number" }).notNull(),
   },

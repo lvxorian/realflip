@@ -50,6 +50,11 @@ export function PriceIndexCard() {
     return null;
   }
 
+  const visibleSegments = data.segments.filter((s) => s.sampleSize >= 5);
+  if (visibleSegments.length === 0) {
+    return null;
+  }
+
   const min = Math.min(...data.points.map((p) => p.value));
   const max = Math.max(...data.points.map((p) => p.value));
   const range = max - min || 1;
@@ -93,7 +98,7 @@ export function PriceIndexCard() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        {data.segments.map((s) => (
+        {visibleSegments.map((s) => (
           <div key={s.key} className="rounded-xl bg-card-hover/60 border border-border/50 px-3 py-2.5">
             <p className="text-[11px] text-muted">{s.label}</p>
             <p className="text-sm font-semibold font-mono mt-0.5">{fmt(s.current)} KÄŤ/mÂ˛</p>

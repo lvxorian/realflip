@@ -44,6 +44,7 @@ export const propertyAnalysis = pgTable("property_analysis", {
   // Lokalitní inteligence
   localityScore: integer("locality_score"),
   localityFactorsJson: text("locality_factors_json"),
+  aiLocalityVerdict: text("ai_locality_verdict"),
 
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),

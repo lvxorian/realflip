@@ -68,6 +68,8 @@ export const rents = sqliteTable(
     segment: text("segment").notNull().default("any"),
     rentPerSqm: real("rent_per_sqm"),
     medianRent: integer("median_rent"),
+    walkability: integer("walkability"),
+    countsJson: text("counts_json"),
     sampleSize: integer("sample_size").notNull(),
     fetchedAt: integer("fetched_at").notNull(),
   },
