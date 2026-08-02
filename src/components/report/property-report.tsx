@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
+import { calculateReplacementCost } from "@/lib/analysis/replacement-cost";
 import { conditionLabel } from "@/lib/utils";
 
 interface PropertyData {
@@ -248,6 +249,43 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
             Cílová cena je nižší než 0 – výpočet není možný.
           </div>
         )}
+
+        {/* Reprodukční cena pro pojištění */}
+        {(() => {
+          const rep = calculateReplacementCost({
+            area: property.area,
+            buildingType: property.buildingType,
+            condition: property.condition,
+          });
+          return (
+            <div className="rp-card border border-gray-200 rounded-xl p-6">
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Reprodukční cena (pojištění)</h2>
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  <tr>
+                    <td className="py-1.5 pr-4 text-gray-600">Stavební náklady</td>
+                    <td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rep.costPerSqm)}/m²</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4 text-gray-600">Plocha</td>
+                    <td className="py-1.5 text-right font-mono text-gray-700">{rep.area} m²</td>
+                  </tr>
+                  <tr className="border-t-2 border-gray-200">
+                    <td className="py-2 pr-4 font-semibold text-gray-900">Nová hodnota (pojistná)</td>
+                    <td className="py-2 text-right font-mono font-semibold text-gray-900">{fmtPrice(rep.total)}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4 text-gray-600">S ohledem na stav</td>
+                    <td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rep.conditionAdjusted)}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="text-xs text-gray-400 mt-2">
+                Orientace dle průměrných stavebních nákladů; skutečnou pojistnou hodnotu ověřte u pojišťovny.
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Red Flags */}
         {redFlags.length > 0 && (

@@ -6,6 +6,7 @@ import { eq, desc } from "drizzle-orm";
 import { ArrowUp, ArrowDown, ChartBar } from "@phosphor-icons/react/dist/ssr";
 import { LocalityMarkets } from "@/components/market/locality-markets";
 import { BuyVsRentCalculator } from "@/components/market/buy-vs-rent";
+import { PriceIndexCard } from "@/components/market/price-index-card";
 
 function fmtPrice(v: number) { return `${(v / 1000).toFixed(0)}k`; }
 
@@ -137,6 +138,8 @@ export default async function MarketPage() {
       </div>
 
       <LocalityMarkets cities={Object.keys(byCity)} />
+
+      <PriceIndexCard />
 
       <BuyVsRentCalculator />
 
