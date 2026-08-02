@@ -116,14 +116,18 @@ V `vercel.json` je definován cron job každých 6 hodin. Pro aktivaci:
 | `/api/locality/[cityKey]` | GET | Lokalitní skóre + socio-ekonomická data |
 | `/api/locality/refresh` | POST | Obnova lokalitních dat (ČSÚ, PČR, sreality) |
 | `/api/market/price-index` | GET | Cenový index RealFlip |
+| `/api/geocode` | POST | Geokódování adresy (OSM Nominatim) + uložení GPS |
 
 ## Lokalitní inteligence
 
 Nemovitosti mají socio-ekonomický profil lokality z **reálných otevřených zdrojů**:
 - **Nezaměstnanost + migrace** — ČSÚ (NKOD DCAT, obce)
 - **Kriminalita** — PČR měsíční statistiky (XLSX)
-- **Vybavenost/walkability + doprava** — sreality POI vzdálenosti
+- **Vybavenost/walkability** — sreality POI vzdálenosti **per městská část** (z adresy inzerátu; fallback Nominatim + mapa čtvrtí, jinak městský průměr)
+- **Doprava** — sreality `poi_metro/train/bus_distance`
 - **Rentový výnos** — scrapované nájmy ze sreality (min. 5 vzorků, jinak null)
+
+**Mapa v detailu nemovitosti** — Leaflet + OpenStreetMap; nemovitosti bez GPS se geokódují (Nominatim) a souřadnice se uloží do DB.
 
 Žádná vymyšlená čísla — chybějící data = null. Gemini (AI dohled) kontroluje podezřelé hodnoty. Obnova: `npx tsx scripts/refresh-locality.ts` nebo tlačítko v Trhu.
 

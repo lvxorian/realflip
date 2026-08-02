@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (219 tests, 13 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (225 tests, 15 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -116,6 +116,18 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Cenový index a reprodukční cena (orientační, označené).
 - Tabulky: `locality_metrics` PK (city_key, source, period), `rents` PK (city_key, segment) + walkability/counts_json; `propertyAnalysis` + locality sloupce.
 
+### Phase 19 — UI Polish (Done)
+- Oprava mojibake (rozbité UTF-8 z PowerShell WriteAllText) v 5 souborech: `price-index-card`, `register`, `save-deal`, `create-from-url` (funkční bug porovnání "Neznámá"), `czso`.
+- Jednotný fallback fotek `PropertyImage` (shimmer + skóre/ikona) — nahrazeny prázdné boxy po `onError`.
+- Přetečení textu: toolbar `flex-wrap` (mobile), InfoBox `break-words`, adresa `line-clamp` + tooltip, název karty `line-clamp-2`.
+- Zvýraznění ROI/ARV v list view, CountUp na `Intl.NumberFormat("cs-CZ")`, konzistentní radii/snap/min font sizes.
+
+### Phase 20 — Mapa + POI per čtvrť (Done)
+- **Geokódování mapy**: `PropertyMap` volá `POST /api/geocode` (Nominatim) pro nemovitosti bez GPS → uloží lat/lng do `properties` (cache); "Načítám polohu…" stav; fallback text adresy. `src/lib/geocode.ts` (`geocodeAddress`, `cityKeyToName`, `reverseGeocode`).
+- **POI per městská část**: `src/lib/scraping/sreality-detail.ts` (hash_id z URL → quarter_id + district_id + GPS ulice) + `fetchPoiForQuarter` v `poi.ts` (district + filtr čtvrti, diakritika normalizovaná). Cache segment `poi:quarter:{id}`.
+- **Fallback mimo sreality**: `quarter-map.ts` (Nominatim suburb → sreality quarter_id + district_id). Záchranná síť = městský průměr.
+- UI: profil zobrazuje čtvrť ("Plzeň 3").
+
 ## Remaining
 - `/api/parse-auction` je zatím **mock** — napojit reálnou pipeline (stahování HTML/PDF + LLM extrakce) z `src/lib/auctions/parse-auction.ts`.
 - `checkScoreThresholdAlert` not yet called in orchestrator.
@@ -127,6 +139,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Renta pro malá města (<5 vzorků) = null; doplnit více vzorků přes vícestránkový scrap.
 - Kriminalita cache 30 dní (PČR měsíční XLSX) — přidat automatické obnovení dalších měsíců.
 - AI guard spouští Gemini jen pro podezřelá data; při 503 (high demand) tichý fallback na null (bez badge).
+- Nominatim reverse-geocode je u čtvrtí nepřesný (Bory → "Severní Předměstí" → Plzeň 1 místo Plzeň 3) — pro sreality inzeráty je čtvrť přesná z detailu; fallback je hrubší.
+- `quarter-map.ts` má districtId jen pro hlavní města (Praha, Brno, Plzeň, Ostrava, Ústí, Olomouc, KV, Cheb); Praha obvody 2-22 mají vlastní district_id, fallback pro ně spadá na městský průměr.
 
 ## Key Files
 
@@ -172,10 +186,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/locality/index.ts` — orchestrátor (getLocalityForProperty, analyzeLocalityAndPersist)
 - `src/lib/locality/czso.ts` — ČSÚ nezaměstnanost (2023) + migrace (2024) přes NKOD
 - `src/lib/locality/crime.ts` — PČR XLSX kriminalita per kraj
-- `src/lib/locality/poi.ts` — sreality POI vzdálenosti → walkability
+- `src/lib/locality/poi.ts` — sreality POI vzdálenosti → walkability (per město i per čtvrť)
+- `src/lib/locality/quarter-map.ts` — název čtvrti (Nominatim) → sreality quarter_id + district_id
 - `src/lib/locality/rent.ts` + `src/lib/scraping/rent-scraper.ts` — nájmy + hrubý výnos
 - `src/lib/locality/transport.ts` — dopravní skóre + prémie
 - `src/lib/locality/score.ts` — normalizace dimenzí + vážené skóre (±8 na investmentScore)
+- `src/lib/scraping/sreality-detail.ts` — detail API (hash_id → quarter_id + GPS ulice)
+- `src/lib/geocode.ts` — Nominatim geokódování + reverse-geocode (mapa, POI fallback)
 - `src/lib/ai/locality-guard.ts` — Gemini sanity-check (AI dohled)
 - `src/components/properties/locality-profile.tsx` — UI blok v detailu
 - `src/components/market/locality-markets.tsx`, `price-index-card.tsx`, `buy-vs-rent.tsx` — Trh
@@ -193,6 +210,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/app/api/properties/[id]/route.ts` — GET + PATCH (plocha/re-analýza) + DELETE
 - `src/app/api/locality/[cityKey]/route.ts`, `src/app/api/locality/refresh/route.ts`
 - `src/app/api/market/price-index/route.ts`
+- `src/app/api/geocode/route.ts` — Nominatim geokódování adresy + uložení GPS do properties
 
 ### Tests
 - `vitest.config.ts`
@@ -203,6 +221,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/__tests__/leads.test.ts`
 - `src/lib/__tests__/locality.test.ts` — locality skóre (unemployment, migration, crime, walkability, rent, transport)
 - `src/lib/__tests__/replacement-cost.test.ts` — reprodukční cena
+- `src/lib/__tests__/geocode.test.ts` — cityKeyToName
+- `src/lib/__tests__/quarter.test.ts` — sreality hash_id extrakce + čtvrti → quarter_id
 - `src/lib/analysis/__tests__/analyzer-arv.test.ts`
 - `src/lib/scraping/__tests__/adapters-image.test.ts`
 - `src/lib/scraping/__tests__/filters.test.ts`

@@ -22,7 +22,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **219 tests across 13 files**.
+Vitest v4 + jsdom + @testing-library/react. **225 tests across 15 files**.
 `npm test` or `npx vitest run`.
 
 ## Portals (10 adapters, 6 url-scrapers)
@@ -100,7 +100,9 @@ sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ 
 - **Nezaměstnanost** (`czso.ts`): ČSÚ NKOD DCAT, dataset **2023** (Iri `b5c4d539...`), `cityKeyForMunicipality` = přesná shoda názvu (ne substring — "Plzeň-sever" se nemapuje na plzen). URL se řeší dynamicky přes NKOD.
 - **Migrace/obyvatel** (`czso.ts`): ČSÚ 2024 (`DEM0001` migrace, `DEM0026B` obyvatel), největší obec s názvem = skutečné město.
 - **Kriminalita** (`crime.ts`): **PČR XLSX statistiky** (prosinec 2025), per kraj → index TČ/100k, cache 30 dní v `locality_metrics` (source `pcr-crime`). NIKDY statická mapa.
-- **POI/Walkability** (`poi.ts`): **sreality API** medián vzdáleností k POI (`poi_*_distance`) — NE Overpass (nestabilní 406/timeout). Cache v `rents` (segment `poi`, sloupce `walkability`+`counts_json`), min 3 vzorky.
+- **POI/Walkability** (`poi.ts`): **sreality API** medián vzdáleností k POI (`poi_*_distance`) — NE Overpass (nestabilní 406/timeout). Cache v `rents` (segment `poi:quarter:{id}` per čtvrť, nebo `poi` per město), sloupce `walkability`+`counts_json`, min 3 vzorky.
+  - **Priorita POI**: 1) sreality detail (`sreality-detail.ts` z `properties.url` hash_id) → `quarter_id`+`district_id`+GPS ulice → POI per čtvrť; 2) Nominatim reverse-geocode GPS → `quarter-map.ts` (čtvrť → quarter_id) → POI per čtvrť; 3) městský průměr.
+  - `locality_quarter_id` v sreality search je nespolehlivý napříč městy → kombinace `locality_district_id` (okres) + filtr názvu čtvrti v kódu. Diakritika normalizovaná (`normalizeCity`).
 - **Renta** (`rent.ts` + `scraping/rent-scraper.ts`): sreality nájmy (`category_type_cb=2`), **min 5 vzorků** jinak null (žádný fallback 0,5 %).
 - **Doprava** (`transport.ts`): sreality `poi_metro/train/bus_distance`, transport skóre (`scoreTransportDistance` v score.ts), prémie cena/m² vs dostupnost (korelace).
 - **Cenový index** (`src/lib/market/price-index.ts`): IQR outliery, robustní medián base, min 5 vzorků per segment, segmenty <5 skryté v UI.
@@ -109,8 +111,13 @@ sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ 
 
 ## DB — locality tabulky
 - `locality_metrics` PK `(city_key, source, period)`, `json_data`, `fetched_at`.
-- `rents` PK `(city_key, segment)` — segmenty: `any` (nájmy), `transport` (prémie), `poi` (walkability). Sloupce navíc `walkability`, `counts_json`.
+- `rents` PK `(city_key, segment)` — segmenty: `any` (nájmy), `transport` (prémie), `poi` (walkability město), `poi:quarter:{id}` (walkability čtvrť). Sloupce navíc `walkability`, `counts_json`.
 - `propertyAnalysis` + `localityScore`, `localityFactorsJson`, `aiLocalityVerdict` (ALTER na Neon manuálně).
+
+## Mapy a geokódování
+- `PropertyMap` (`src/components/ui/property-map.tsx`): Leaflet + OSM tiles. Když nemovitost nemá GPS → volá `POST /api/geocode` → Nominatim → uloží lat/lng do `properties` (cache), mezitím "Načítám polohu…". Fallback při selhání: text adresy.
+- `src/lib/geocode.ts`: `geocodeAddress(address, cityKey)` (adresa+město → Nominatim, fallback jen město), `cityKeyToName`, `reverseGeocode(lat,lng)` → suburb/city (pro POI čtvrť).
+- Nominatim vyžaduje `User-Agent`; adresa "Lesní, Cheb" geokóduje správně (Pelhřimov = čtvrť Chebu).
 
 ## Trh (Market) — investiční nástroje
 - `src/app/(dashboard)/market/page.tsx` server komponenta: agregace nabídkových cen + `LocalityMarkets` (tabulka lokalit se skóre), `PriceIndexCard` (cenový index, `/api/market/price-index`), `BuyVsRentCalculator` (30letá simulace koupě vs nájem).
