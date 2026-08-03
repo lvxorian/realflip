@@ -18,8 +18,9 @@ export class BazosAdapter extends PortalAdapter {
   async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
+    // Bazoš stránkuje pomocí offsetu: /prodam/byt/20/ = 2. stránka (20 inzerátů/stránku)
     for (let page = 1; page <= 5; page++) {
-      const pageUrl = page === 1 ? this.getSearchUrl() : `${this.getSearchUrl()}strana/${page}/`;
+      const pageUrl = page === 1 ? this.getSearchUrl() : `${this.getSearchUrl()}${(page - 1) * 20}/`;
       const html = await this.fetch(pageUrl);
       const $ = cheerio.load(html);
 

@@ -1,0 +1,61 @@
+import { PortalAdapter } from "./base";
+import { RawListing, SearchFilters } from "../types";
+import { parseBezrealitkyDetail, parseBezrealitkySearch } from "../bezrealitky-parser";
+
+export class BezrealitkyAdapter extends PortalAdapter {
+  private maxPages = 5;
+
+  constructor() {
+    super("bezrealitky");
+  }
+
+  private buildSearchUrl(page: number): string {
+    const base = "https://www.bezrealitky.cz/vyhledat";
+    const params = new URLSearchParams({
+      country: "ceska-republika",
+      currency: "CZK",
+      location: "fromMap",
+      offerType: "PRODEJ",
+      estateType: "BYT",
+      order: "TIMEORDER_DESC",
+      page: String(page),
+    });
+    return `${base}?${params.toString()}`;
+  }
+
+  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+    const results: RawListing[] = [];
+
+    for (let page = 1; page <= this.maxPages; page++) {
+      const html = await this.fetch(this.buildSearchUrl(page));
+      const { listings } = parseBezrealitkySearch(html, this.buildSearchUrl(page));
+      if (listings.length === 0) break;
+      results.push(...listings);
+    }
+
+    const enriched: RawListing[] = [];
+    const concurrency = 3;
+    for (let i = 0; i < results.length; i += concurrency) {
+      const batch = results.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map((l) => this.enrichListing(l).catch(() => l))
+      );
+      enriched.push(...batchResults);
+    }
+
+    return enriched;
+  }
+
+  extractContact(_html: string): { phone: string | null; name: string | null; email: string | null } {
+    return { phone: null, name: null, email: null };
+  }
+
+  async enrichListing(raw: RawListing): Promise<RawListing> {
+    try {
+      const html = await this.fetch(raw.url);
+      return parseBezrealitkyDetail(html, raw.url);
+    } catch {
+      return raw;
+    }
+  }
+}
