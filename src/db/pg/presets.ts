@@ -1,4 +1,4 @@
-import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, bigint } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 import { users } from "./users";
 
@@ -12,7 +12,7 @@ export const calculatorPresets = pgTable("calculator_presets", {
     .references(() => users.id, { onDelete: "cascade" }),
   arv: integer("arv"),
   renovationCost: integer("renovation_cost"),
-  targetRoi: integer("target_roi").default(15),
+  targetRoi: real("target_roi").default(15),
   config: text("config").default("{}"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
