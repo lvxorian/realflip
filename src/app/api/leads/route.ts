@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { leads, contacts, properties, propertyAnalysis } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { safeJsonParse } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -34,6 +35,7 @@ export async function GET() {
         propertyContactName: properties.contactName,
         propertyContactPhone: properties.contactPhone,
         propertyContactEmail: properties.contactEmail,
+        propertyImageUrls: properties.imageUrls,
         contactId: contacts.id,
         contactName: contacts.name,
         contactPhone: contacts.phone,
@@ -56,6 +58,7 @@ export async function GET() {
       contactName: row.propertyContactName ?? row.contactName,
       contactPhone: row.propertyContactPhone ?? row.contactPhone,
       contactEmail: row.propertyContactEmail ?? row.contactEmail,
+      propertyImageUrl: safeJsonParse<string[]>(row.propertyImageUrls, [])[0] ?? null,
       createdAt: row.createdAt != null ? Number(row.createdAt) : null,
       updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,
     }));

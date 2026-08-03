@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel } from "@/lib/utils";
+import { PropertyImage } from "@/components/ui/property-image";
 import { LEAD_STAGES } from "@/lib/leads";
 import { toast } from "sonner";
 import type { LeadItem } from "./types";
@@ -132,6 +133,18 @@ export function LeadDrawer({
             </div>
 
             <div className="px-5 py-4 space-y-5">
+              {lead.propertyImageUrl && (
+                <div className="overflow-hidden rounded-xl">
+                  <PropertyImage
+                    src={lead.propertyImageUrl}
+                    alt={lead.propertyTitle ?? "Nemovitost"}
+                    score={lead.analysisScore}
+                    showScore={false}
+                    containerClassName="h-40 w-full"
+                  />
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xl font-semibold font-mono text-amber-400">
                   {lead.propertyPrice ? formatPrice(lead.propertyPrice) : "—"}

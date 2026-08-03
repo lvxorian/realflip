@@ -18,6 +18,7 @@ export interface LeadItem {
   propertyYearBuilt: number | null;
   propertyPortalName: string | null;
   propertyUrl: string | null;
+  propertyImageUrl: string | null;
   contactId: string | null;
   contactName: string | null;
   contactPhone: string | null;

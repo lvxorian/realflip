@@ -5,6 +5,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Star, MapPin } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
+import { PropertyImage } from "@/components/ui/property-image";
 import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { LeadItem } from "./types";
@@ -52,6 +53,18 @@ export function LeadCard({
       )}
       title={lead.propertyTitle ?? undefined}
     >
+      {lead.propertyImageUrl && (
+        <div className="mb-2 overflow-hidden rounded-lg @max-[240px]:mb-1.5">
+          <PropertyImage
+            src={lead.propertyImageUrl}
+            alt={lead.propertyTitle ?? "Nemovitost"}
+            score={lead.analysisScore}
+            showScore={false}
+            containerClassName={cn("w-full", compact ? "h-16" : "h-20 @max-[240px]:h-12")}
+          />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <h3 className="text-xs font-medium leading-snug line-clamp-2 @max-[240px]:line-clamp-1 text-foreground group-hover:text-accent transition-colors">
           {lead.propertyTitle ?? "Neznámá nemovitost"}

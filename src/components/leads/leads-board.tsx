@@ -7,6 +7,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
   closestCorners,
   type DragStartEvent,
   type DragEndEvent,
@@ -14,13 +15,28 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { WarningCircle, Kanban } from "@phosphor-icons/react";
 import { LEAD_STAGES } from "@/lib/leads";
-import { formatCompactPrice } from "@/lib/utils";
+import { formatCompactPrice, cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LeadCard } from "./lead-card";
 import { LeadDrawer } from "./lead-drawer";
 import { LeadsToolbar, INITIAL_LEAD_FILTERS, type LeadFilterState } from "./leads-toolbar";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { LeadItem } from "./types";
+
+function StageColumn({ stageKey, children }: { stageKey: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: stageKey });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex min-w-[170px] max-w-[360px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
+        isOver && "bg-accent/5 ring-1 ring-accent/30"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 function BoardSkeleton() {
   return (
@@ -126,15 +142,16 @@ export function LeadsBoard() {
       const lead = prev.find((l) => l.id === id);
       if (!lead) return prev;
       const updatedLead = { ...lead, stage: toStage, updatedAt: Date.now() };
+      const rest = prev.filter((l) => l.stage !== fromStage && l.stage !== toStage);
+      const to = prev.filter((l) => l.stage === toStage && l.id !== id);
       let result: LeadItem[];
       if (overId && overId !== id) {
-        const to = prev.filter((l) => l.stage === toStage && l.id !== id);
         const overIndex = to.findIndex((l) => l.id === overId);
         if (overIndex >= 0) to.splice(overIndex, 0, updatedLead);
         else to.push(updatedLead);
-        result = [...prev.filter((l) => l.stage !== fromStage && l.stage !== toStage), ...from, ...to];
+        result = [...rest, ...from, ...to];
       } else {
-        result = [...prev.filter((l) => l.stage !== fromStage && l.stage !== toStage), ...from, updatedLead];
+        result = [...rest, ...from, ...to, updatedLead];
       }
       return result;
     });
@@ -159,17 +176,18 @@ export function LeadsBoard() {
     const toStage = overLead ? overLead.stage : over.id.toString();
     if (toStage === lead.stage) {
       if (overLead && overLead.id !== lead.id) {
-        const stageList = filtered.filter((l) => l.stage === toStage);
-        const fromIndex = stageList.findIndex((l) => l.id === lead.id);
-        const toIndex = stageList.findIndex((l) => l.id === overLead.id);
-        if (fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
-          const reordered = arrayMove(stageList, fromIndex, toIndex);
-          setLeads((prev) => {
-            if (!prev) return prev;
+        setLeads((prev) => {
+          if (!prev) return prev;
+          const stageList = prev.filter((l) => l.stage === toStage);
+          const fromIndex = stageList.findIndex((l) => l.id === lead.id);
+          const toIndex = stageList.findIndex((l) => l.id === overLead.id);
+          if (fromIndex >= 0 && toIndex >= 0 && fromIndex !== toIndex) {
+            const reordered = arrayMove(stageList, fromIndex, toIndex);
             const rest = prev.filter((l) => l.stage !== toStage);
             return [...rest, ...reordered];
-          });
-        }
+          }
+          return prev;
+        });
       }
       return;
     }
@@ -240,7 +258,7 @@ export function LeadsBoard() {
             const pct = items.length > 0 ? Math.round((items.length / maxCount) * 100) : 0;
 
             return (
-              <div key={stage.key} className="flex min-w-[170px] max-w-[360px] flex-1 basis-0 flex-col snap-start @container">
+              <StageColumn key={stage.key} stageKey={stage.key}>
                 <div className="mb-2 flex items-center gap-2 px-1">
                   <span className={`h-2.5 w-2.5 rounded-full ${stage.dot} shadow-sm shrink-0`} />
                   <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground truncate">{stage.label}</h2>
@@ -272,7 +290,7 @@ export function LeadsBoard() {
                     )}
                   </div>
                 </SortableContext>
-              </div>
+              </StageColumn>
             );
           })}
         </div>
