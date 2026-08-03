@@ -283,7 +283,13 @@ export class IdnesRealityAdapter extends PortalAdapter {
 
   private parsePrice(str: string): number | null {
     if (!str) return null;
-    const cleaned = str.replace(/&zwnj;/g, "").replace(/\s/g, "").replace(/Kč/g, "").trim();
+    const cleaned = str
+      .replace(/[\u200d\u200c]/g, "")
+      .replace(/&zwnj;/g, "")
+      .replace(/&zwj;/g, "")
+      .replace(/\s/g, "")
+      .replace(/Kč/g, "")
+      .trim();
     const n = parseInt(cleaned);
     return isNaN(n) ? null : n;
   }

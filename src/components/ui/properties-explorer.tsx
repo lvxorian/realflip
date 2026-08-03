@@ -73,6 +73,7 @@ const PORTAL_LABELS: Record<string, string> = {
   remax: "RE/MAX",
   century21: "Century 21",
   portaldrazeb: "Portál dražeb",
+  realitymat: "Realitymat.cz",
 };
 
 const INITIAL_FILTERS: FilterState = {

@@ -49,6 +49,12 @@ describe("filterImages", () => {
     expect(result[0]).toBe("https://reality.idnes.cz/foto/abc.jpg");
   });
 
+  it("přidá base URL pro realitymat", () => {
+    const result = filterImages(["/crop/480x360/1234/5678.webp"], "realitymat");
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe("https://www.realitymat.cz/crop/480x360/1234/5678.webp");
+  });
+
   it("odstraní triple-slash URL", () => {
     const result = filterImages(["https:///bad-url.com/photo.jpg"], "sreality");
     expect(result).toHaveLength(0);

@@ -59,6 +59,7 @@ const PORTAL_LABELS: Record<string, string> = {
   mmreality: "MM Reality",
   annonce: "Annonce",
   portaldrazeb: "Portál dražeb",
+  realitymat: "Realitymat.cz",
 };
 
 export default async function PropertyDetailPage({

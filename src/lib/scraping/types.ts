@@ -12,6 +12,7 @@ export const PortalNameSchema = z.enum([
   "century21",
   "idnes-reality",
   "mmreality",
+  "realitymat",
 ]);
 
 export type PortalName = z.infer<typeof PortalNameSchema>;
@@ -126,6 +127,15 @@ export const PORTAL_CONFIGS: Record<PortalName, PortalConfig> = {
     respectRobotsTxt: true,
     requiresJs: false,
   },
+  realitymat: {
+    name: "realitymat",
+    enabled: true,
+    baseUrl: "https://www.realitymat.cz",
+    searchPath: "/nemovitosti",
+    rateLimitMs: 2000,
+    respectRobotsTxt: true,
+    requiresJs: false,
+  },
 };
 
 export interface SearchFilters {
@@ -158,6 +168,7 @@ const PORTAL_BASE_URLS: Record<string, string> = {
   bazos: "https://reality.bazos.cz",
   mmreality: "https://www.mmreality.cz",
   "idnes-reality": "https://reality.idnes.cz",
+  realitymat: "https://www.realitymat.cz",
 };
 
 export function normalizeImageUrl(url: string | null | undefined, portalName?: string): string {

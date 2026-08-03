@@ -8,6 +8,7 @@ import { RealityCzAdapter } from "@/lib/scraping/adapters/reality-cz";
 import { HyperinzerceAdapter } from "@/lib/scraping/adapters/hyperinzerce";
 import { SrealityAdapter } from "@/lib/scraping/adapters/sreality";
 import { IdnesRealityAdapter } from "@/lib/scraping/adapters/idnes-reality";
+import { RealityMatAdapter } from "@/lib/scraping/adapters/realitymat";
 
 export async function POST(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -31,6 +32,7 @@ export async function POST(req: Request) {
     orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
     orchestrator.registerAdapter("sreality", new SrealityAdapter());
     orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
+    orchestrator.registerAdapter("realitymat", new RealityMatAdapter());
 
     await orchestrator.crawlAllScheduled();
 

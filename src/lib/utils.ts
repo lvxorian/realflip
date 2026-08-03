@@ -175,6 +175,7 @@ const PORTAL_LABELS: Record<string, string> = {
   remax: "RE/MAX",
   century21: "Century 21",
   portaldrazeb: "Portál dražeb",
+  realitymat: "Realitymat.cz",
 };
 
 export function portalLabel(name: string | null): string {

@@ -20,7 +20,8 @@ export type PortalName =
   | "remax"
   | "century21"
   | "idnes-reality"
-  | "mmreality";
+  | "mmreality"
+  | "realitymat";
 
 export interface GeoPoint {
   lat: number;

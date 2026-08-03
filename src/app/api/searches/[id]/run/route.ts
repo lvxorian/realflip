@@ -38,6 +38,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const { HyperinzerceAdapter } = await import("@/lib/scraping/adapters/hyperinzerce");
     const { SrealityAdapter } = await import("@/lib/scraping/adapters/sreality");
     const { IdnesRealityAdapter } = await import("@/lib/scraping/adapters/idnes-reality");
+    const { RealityMatAdapter } = await import("@/lib/scraping/adapters/realitymat");
 
     const orchestrator = new ScrapingOrchestrator();
     orchestrator.registerAdapter("bazos", new BazosAdapter());
@@ -47,6 +48,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
     orchestrator.registerAdapter("sreality", new SrealityAdapter());
     orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
+    orchestrator.registerAdapter("realitymat", new RealityMatAdapter());
 
     const result = await orchestrator.crawlSearch(id, filters);
 

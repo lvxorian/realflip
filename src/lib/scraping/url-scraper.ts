@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { RawListing, PortalName, filterImages, isValidPrice } from "./types";
 import { RateLimiter } from "./rate-limiter";
 import { inferConditionFromText } from "@/lib/analysis/condition";
+import { parseRealityMatDetail } from "./realitymat-parser";
 
 const rateLimiter = RateLimiter.getInstance();
 
@@ -141,7 +142,11 @@ function cleanText(text: string | null): string | null {
 }
 
 function extractPrice(text: string): number {
-  const cleaned = text.replace(/\s/g, "").replace(/Kč.*$/i, "").trim();
+  const cleaned = text
+    .replace(/[\u200d\u200c]/g, "")
+    .replace(/\s/g, "")
+    .replace(/Kč.*$/i, "")
+    .trim();
   const num = parseInt(cleaned);
   if (isNaN(num)) return 0;
   return isValidPrice(num) ? num : 0;
@@ -571,6 +576,11 @@ async function scrapeMmreality(url: string): Promise<RawListing> {
   };
 }
 
+async function scrapeRealityMat(url: string): Promise<RawListing> {
+  const html = await fetchHtml(url, "realitymat");
+  return parseRealityMatDetail(html, url);
+}
+
 function makeNotImplementedScraper(portal: string, hint: string) {
   return async (_url: string): Promise<RawListing> => {
     throw new Error(`${portal}: ${hint}`);
@@ -813,14 +823,10 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
     if (tel) contactPhone = tel;
   });
   $('a[href^="mailto:"]').each((_, el) => {
-    const mail = $(el).attr("href")?.replace("mailto:", "").trim() || null;
+    const mail = $(el).attr("href")?.replace("mailto:", "").split("?")[0].trim() || null;
     if (mail) contactEmail = mail;
   });
-  const nameText = $("div.b-detail__user-text").text().trim() ||
-    $("p.b-detail__user-name").text().trim() ||
-    $("span.b-detail__user-name").text().trim() ||
-    $("a[href^='tel:']").closest("div").parent().find("p, span, a").not("[href]").first().text().trim() ||
-    null;
+  const nameText = $("h2.b-author__title a").text().trim() || null;
   if (nameText) contactName = nameText;
 
   return {
@@ -856,7 +862,8 @@ const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) 
   { pattern: /bazos\.cz/, portal: "bazos", scrape: scrapeBazos },
   { pattern: /mmreality\.cz/, portal: "mmreality", scrape: scrapeMmreality },
   { pattern: /bezrealitky\.cz/, portal: "bezrealitky", scrape: scrapeBezrealitky },
-  { pattern: /idnes-reality\.cz/, portal: "idnes-reality", scrape: scrapeIdnesReality },
+  { pattern: /reality\.idnes\.cz/, portal: "idnes-reality", scrape: scrapeIdnesReality },
+  { pattern: /realitymat\.cz/, portal: "realitymat", scrape: scrapeRealityMat },
   { pattern: /hyperreality\.cz/, portal: "hyperreality", scrape: makeNotImplementedScraper("hyperreality", "Portál není dostupný") },
   { pattern: /remax\.cz/, portal: "remax", scrape: makeNotImplementedScraper("remax", "Detail scraper není implementován") },
   { pattern: /century21\.cz/, portal: "century21", scrape: makeNotImplementedScraper("century21", "Detail scraper není implementován") },
@@ -878,7 +885,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     }
   }
 
-  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, bezrealitky.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz, idnes-reality.cz");
+  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, bezrealitky.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz, reality.idnes.cz, realitymat.cz");
 }
 
 export function detectPortal(url: string): string | null {
