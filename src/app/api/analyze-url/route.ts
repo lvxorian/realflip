@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { userPreferences } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { scrapeUrl } from "@/lib/scraping/url-scraper";
+import { isSaleListing } from "@/lib/scraping/filters";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
@@ -29,6 +30,9 @@ export async function POST(req: Request) {
       urls.map(async (url: string) => {
         try {
           const { portal, listing } = await scrapeUrl(url);
+          if (!isSaleListing(listing)) {
+            return { url, portal, success: false, error: "Tento inzerát není prodejní nabídkou (poptávky a nájmy nejsou podporovány)" };
+          }
           if (!listing.price || listing.price <= 0) {
             return { url, portal, success: false, error: "Nepodařilo se načíst cenu inzerátu" };
           }

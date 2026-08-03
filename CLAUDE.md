@@ -93,6 +93,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `saveListing` passes `listing.portalName` to `filterImages` (was missing).
 - All adapters call `enrichListing()` in `crawlListings()`.
 - Čištění non-target měst: `npx tsx scripts/cleanup-orphans.ts` (dry-run) / `--delete` (maže mimo zadaná města, backup JSON do `scripts/`).
+- **Sale-only filtr**: `isSaleListing()` v `src/lib/scraping/filters.ts` — odmítá nákupní poptávky (koupím/koupí/poptávka/hledáme byt/nabídněte) a nájmy (pronájem, podnájem). Hlavní signály z titulku/adresy/URL; v popisu jen jednoznačné nájemní formulace (marketingové zmínky typu "možnost pronájmu"/"poptávka" prodej nebudou). Napojeno: `orchestrator.saveListing` + `crawlSearch/crawlAll` filtr + `POST /api/properties/create-from-url` (400) + `POST /api/analyze-url`. Vyčištění prod: `npx tsx scripts/purge-nonsale.ts` (dry-run) / `--delete`.
 
 ## Common Tasks
 - Add portal: implement adapter in `src/lib/scraping/adapters/` → register in both trigger routes + url-scraper.

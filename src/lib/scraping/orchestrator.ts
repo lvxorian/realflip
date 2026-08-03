@@ -1,6 +1,6 @@
 ﻿import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
-import { matchFilters, isCzechListing } from "./filters";
+import { matchFilters, isCzechListing, isSaleListing } from "./filters";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
@@ -61,6 +61,10 @@ export class ScrapingOrchestrator {
           }
           if (!isCzechListing(listing)) {
             errors.push(`Skipped foreign listing (${listing.address ?? "unknown address"}): ${listing.url}`);
+            continue;
+          }
+          if (!isSaleListing(listing)) {
+            errors.push(`Skipped non-sale listing (${listing.title ?? "no title"}): ${listing.url}`);
             continue;
           }
 
@@ -156,7 +160,7 @@ export class ScrapingOrchestrator {
         } else {
           listings = await adapter.crawlListings(filters);
         }
-        listings = listings.filter((l) => matchFilters(l, filters) && isCzechListing(l));
+        listings = listings.filter((l) => matchFilters(l, filters) && isCzechListing(l) && isSaleListing(l));
 
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
@@ -270,6 +274,11 @@ export class ScrapingOrchestrator {
   }
 
   private async saveListing(listing: RawListing, searchId?: string): Promise<string | null> {
+    if (!isSaleListing(listing)) {
+      console.log(`Skipped non-sale listing (${listing.title}): ${listing.url}`);
+      return null;
+    }
+
     const hash = this.deduplicator.hash(listing.url, listing.title);
 
     const existing = await db

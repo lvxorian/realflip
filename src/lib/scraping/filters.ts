@@ -110,6 +110,102 @@ export function detectPropertyType(title: string | null, url?: string): string |
   return null;
 }
 
+/** Zafolduje českou diakritiku a převede na lowercase (pro robustní hledání). */
+function normalizeText(s: string): string {
+  const map: Record<string, string> = {
+    á: "a", č: "c", ď: "d", é: "e", ě: "e", í: "i", ň: "n",
+    ó: "o", ř: "r", š: "s", ť: "t", ú: "u", ů: "u", ý: "y", ž: "z",
+  };
+  return s.toLowerCase().split("").map((ch) => map[ch] ?? ch).join("");
+}
+
+/** Nájemní signály v titulku/adrese/URL — inzerát tímto je nájem. */
+const RENT_MAIN_PATTERNS: RegExp[] = [
+  /\bpron[áa]jem\b/,
+  /\bpronajmu\b/,
+  /\bpronajmeme\b/,
+  /\bpronaj[íi]m[áa]m\b/,
+  /\bpodn[áa]jem\b/,
+  /\bpodn[áa]jm[uů]\b/,
+  /\bprenajem\b/,
+  /\bn[áa]\s+pron[áa]jem\b/,
+  /\bk\s+pron[áa]jm[uů]\b/,
+];
+
+/** Nájemní signály v popisu — jen jednoznačné nabídky, ne marketingové zmínky. */
+const RENT_BODY_PATTERNS: RegExp[] = [
+  /\bpronajmeme\b/,
+  /\bpronaj[íi]m[áa]m\b/,
+  /\bpodn[áa]jem\b/,
+  /\bpodn[áa]jm[uů]\b/,
+];
+
+/** Nákupní poptávky — signály v hlavním textu (titulek/adresa/URL). */
+const BUY_MAIN_PATTERNS: RegExp[] = [
+  /\bpopt[áa]vk/,
+  /\bkoup[íi]m\b/,
+  /\bkoup[íi]me\b/,
+  /\bkupuji\b/,
+  /\bhled[áa]m[ei]?\s+(?:byt|byty|d[ůu]m|nemovit)/i,
+  /\bsh[áa]n[ěei]?m?\b/,
+  /\bnab[íi]dn[ěe]te\b/,
+];
+
+/** Nákupní poptávky — signály v popisu, které se v prodejním marketingovém textu neobjeví. */
+const BUY_BODY_PATTERNS: RegExp[] = [
+  /\bkoup[íi]m\b/,
+  /\bkoup[íi]me\b/,
+  /\bkupuji\b/,
+  /\bhled[áa]m[ei]?\s+(?:byt|byty|d[ůu]m|nemovit)/i,
+  /\bsh[áa]n[ěei]?m?\b/,
+  /\bnab[íi]dn[ěe]te\b/,
+];
+
+const BUY_VERB_PATTERN = /\bkoupi\b/;
+
+const SALE_SAFE_PHRASES: RegExp[] = [
+  /\bke\s+koupi\b/,
+  /\bk\s+koupi\b/,
+  /\bna\s+prodej\b/,
+  /\bprodej/,
+  /\bproda[á]m\b/,
+  /\bk\s+prodeji\b/,
+  /\bprod[áa]v[ám]/i,
+];
+
+/**
+ * Říká, zda je inzerát prodejní nabídkou. Vrací false pro:
+ * - nákupní poptávky (koupím/koupí jako sloveso, poptávka, hledáme byt, nabídněte...),
+ * - nájemní nabídky (pronájem, podnájem).
+ * Výrazy pro prodej ("Byt ke koupi", "na prodej", "prodám") vrací true.
+ * Zmínka o tržní poptávce nebo možnosti pronájmu v popisu prodejního inzerátu
+ * inzerát nezatracuje.
+ */
+export function isSaleListing(
+  listing: Pick<RawListing, "title" | "url"> &
+    Partial<Pick<RawListing, "address" | "description">>
+): boolean {
+  const mainText = normalizeText(
+    [listing.title, listing.address, listing.url].filter(Boolean).join(" ")
+  );
+  const bodyText = normalizeText(listing.description ?? "");
+
+  if (RENT_MAIN_PATTERNS.some((re) => re.test(mainText))) return false;
+  if (RENT_BODY_PATTERNS.some((re) => re.test(bodyText))) return false;
+  if (BUY_MAIN_PATTERNS.some((re) => re.test(mainText))) return false;
+  if (BUY_BODY_PATTERNS.some((re) => re.test(bodyText))) return false;
+
+  if (hasBuyVerbPattern(mainText) && !SALE_SAFE_PHRASES.some((re) => re.test(mainText))) {
+    return false;
+  }
+
+  return true;
+}
+
+function hasBuyVerbPattern(text: string): boolean {
+  return BUY_VERB_PATTERN.test(text);
+}
+
 export function matchFilters(listing: RawListing, filters: SearchFilters): boolean {
   if (filters.location) {
     const loc = filters.location.toLowerCase().trim();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectPropertyType, matchFilters, isCzechListing } from "../filters";
+import { detectPropertyType, matchFilters, isCzechListing, isSaleListing } from "../filters";
 import type { RawListing } from "../types";
 
 const baseListing: RawListing = {
@@ -143,5 +143,57 @@ describe("isCzechListing", () => {
   it("použije GPS přednostně před adresou", () => {
     expect(isCzechListing(listing({ lat: 52.52, lng: 13.405, address: "Praha 1" }))).toBe(false);
     expect(isCzechListing(listing({ lat: 50.083, lng: 14.425, address: "Berlin" }))).toBe(true);
+  });
+});
+
+describe("isSaleListing", () => {
+  it("přijme běžné prodejní inzeráty", () => {
+    expect(isSaleListing({ title: "Prodej bytu 2+1, Olomouc", url: "https://x.cz/1" })).toBe(true);
+    expect(isSaleListing({ title: "Byt 3+kk na prodej, Brno", url: "https://x.cz/2" })).toBe(true);
+    expect(isSaleListing({ title: "Byt ke koupi, Praha", url: "https://x.cz/3" })).toBe(true);
+    expect(isSaleListing({ title: "Rodinný dům na prodej", url: "https://x.cz/4" })).toBe(true);
+  });
+
+  it("odmítne nákupní poptávky z hyperinzerce", () => {
+    expect(isSaleListing({
+      title: "Hledáme BYT ke koupi v Praze 6, Nabídněte, Spolehliví",
+      url: "https://byty.hyperinzerce.cz/hledam-byt-ke-koupi-poptavka-praha-6",
+    })).toBe(false);
+    expect(isSaleListing({
+      title: "Rodina koupí 2 byty v Praze 6",
+      url: "https://hyperinzerce.cz/rodina-koupi-2-byty-poptavka",
+    })).toBe(false);
+    expect(isSaleListing({
+      title: "Byt v Praze 11, 3+1 / KOUPÍM",
+      url: "https://hyperinzerce.cz/byt-poptavka",
+    })).toBe(false);
+    expect(isSaleListing({ title: "Koupím byt kategorie investiční", url: "https://x.cz/5" })).toBe(false);
+  });
+
+  it("odmítne pronájmy", () => {
+    expect(isSaleListing({ title: "Pronájem bytu 2+kk Praha 9", url: "https://x.cz/6" })).toBe(false);
+    expect(isSaleListing({ title: "Podnájem garsonky Brno", url: "https://x.cz/7" })).toBe(false);
+    expect(isSaleListing({ title: "Byt 3+1 na pronájem", url: "https://x.cz/8" })).toBe(false);
+  });
+
+  it("neplete si „ke koupi“ s poptávkou", () => {
+    expect(isSaleListing({ title: "Byt ke koupi, 2+1", url: "https://x.cz/9" })).toBe(true);
+    expect(isSaleListing({ title: "Nemovitost k prodeji", url: "https://x.cz/10" })).toBe(true);
+  });
+
+  it("nezatratí prodej kvůli marketingu v popisu (poptávka, možnost pronájmu)", () => {
+    const l = {
+      title: "Prodej bytu 2+kk 60 m², Plzeň",
+      url: "https://www.sreality.cz/detail/prodej/byt/2+kk/plzen/123",
+      address: "Kovářská, Plzeň",
+    };
+    expect(isSaleListing({
+      ...l,
+      description: "Hledáte novostavbu v centru Plzně? Byt je vhodný i k pronájmu, o byt je velká poptávka.",
+    })).toBe(true);
+    expect(isSaleListing({
+      ...l,
+      description: "Pro investora dává smysl kombinace dispozice a možnosti pronájmu bytu bez nutnosti řešit vybavení.",
+    })).toBe(true);
   });
 });

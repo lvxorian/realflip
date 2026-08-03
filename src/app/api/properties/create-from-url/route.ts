@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
+import { isSaleListing } from "@/lib/scraping/filters";
 import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
 
@@ -21,6 +22,13 @@ export async function POST(req: Request) {
 
     if (!url || !title || !price) {
       return NextResponse.json({ error: "url, title, price required" }, { status: 400 });
+    }
+
+    if (!isSaleListing({ title, address, description, url })) {
+      return NextResponse.json(
+        { error: "Only sale listings are allowed (poptávky ani nájmy nejsou podporovány)" },
+        { status: 400 }
+      );
     }
 
     const existing = await db
