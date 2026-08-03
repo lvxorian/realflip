@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseAuction } from "@/lib/auctions/parse-auction";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 interface ParseAuctionRequest {
   url: string;

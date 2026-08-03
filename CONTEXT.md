@@ -95,6 +95,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Pipeline kostra `src/lib/auctions/parse-auction.ts` (HTML → PDF → Gemini OCR) — zatím mock, nenapojeno.
 - Leads list (Portál dražeb hunter) přesunut pod kalkulačku jako kolapsovatelná sekce.
 
+> **Aktualizováno**: 1-Click DD už **není mock** — `parseAuction()` stahuje JSON detailu (`/drazba/{slug}.json`), PDF dokumenty (fallback) a extrahuje dlužníka/plochu/stav/dluhy přes Gemini. Analyzer → kalkulačka propojeny, `maxDuration = 60`.
+
 ### Phase 16 — Pipeline CRM Redesign (Done)
 - `/leads` přepsán na profesionální kanban: `LeadsBoard` (dnd-kit DndContext + SortableContext + DragOverlay), `LeadCard` (auto-zhuštění container queries), `LeadDrawer` (slide-over, PATCH, převod na deal), `LeadsToolbar` (search/filter/sort).
 - Sloupce flex-1 (fit do 1400px), smazáno 6 testovacích leadů.
@@ -157,7 +159,6 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **9 portálů v Hledání**: sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce.
 
 ## Remaining
-- `/api/parse-auction` je zatím **mock** — napojit reálnou pipeline (stahování HTML/PDF + LLM extrakce) z `src/lib/auctions/parse-auction.ts`.
 - `checkScoreThresholdAlert` not yet called in orchestrator.
 - Broader dedup/cache persistence (Redis or DB-based).
 - iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
