@@ -25,11 +25,12 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 Vitest v4 + jsdom + @testing-library/react. **233 tests across 17 files**.
 `npm test` or `npx vitest run`.
 
-## Portals (9 adapters, 6 url-scrapers)
-sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality, realitymat (+ remax, century21, hyperreality as not-implemented)
-- **Hledání**: všechny 9 registrované v `searches/[id]/run` + `scraping/trigger`.
+## Portals (10 adapters, 6 url-scrapers)
+sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality, realitymat, remax (+ hyperreality, century21 disabled — hyperreality.cz je teď GitLab login, century21 má 429 bot protection)
+- **Hledání**: všech 10 registrovaných v `searches/[id]/run` + `scraping/trigger`.
 - **Analyzátor** (url-scraper): sreality, bezrealitky, reality.cz, hyperinzerce, annonce, bazos, mmreality, reality.idnes.cz, realitymat.cz.
 - `realitymat-parser.ts` (sdílený detail parser vč. telefonu z `#seller-modal`), `bezrealitky-parser.ts` (NEXT_DATA Apollo cache: advert/detail/search).
+- `remax.ts` — search data-* atributy kartiček (`data-title/price/gps/url`), byty sale filter, DMS→dec GPS, paginace `stranka`.
 
 ## Image Pipeline
 - `filterImages()` + `normalizeImageUrl()` in `types.ts` — central gatekeeper.

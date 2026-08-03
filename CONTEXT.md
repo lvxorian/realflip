@@ -158,6 +158,12 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Bezrealitky**: nový scraper pro Hledání — `bezrealitky-parser.ts` (sdílený parser z `__NEXT_DATA__` Apollo cache: `parseBezrealitkyAdvert`/`parseBezrealitkyDetail`/`parseBezrealitkySearch`, resolve `Image:` refů) + `adapters/bezrealitky.ts` (search `/vyhledat?…&offerType=PRODEJ&estateType=BYT&page=N`). `scrapeBezrealitky` v url-scraperu refaktorován na sdílený parser.
 - **9 portálů v Hledání**: sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce.
 
+### Phase 26 — Remax adapter + vyřazení hyperreality/century21 (Done)
+- **Remax**: `adapters/remax.ts` — search na `remax-czech.cz/reality/vyhledavani/?sale=1&types[0]=4` (byty na prodej), data z `data-*` atributů kartiček (`pl-items__item`: title/price/img/gps/display-address/url), DMS→decimální GPS, paginace `stranka`. Detail je Vue-renderovaný (kontakt přes API), data se berou ze search stránky. Registrace do trigger + search-run.
+- **Hyperreality**: doména je teď GitLab sign-in (procorp) — portál zanikl, `enabled: false`.
+- **Century21**: trvalá bot protection (HTTP 429) — bez headless browseru nescrapovatelné, `enabled: false`.
+- **10 portálů v Hledání** (8 aktivních adapterů): sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce, remax.
+
 ## Remaining
 - Broader dedup/cache persistence (Redis or DB-based).
 - iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
@@ -168,7 +174,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Nominatim reverse-geocode je u čtvrtí nepřesný (Bory → "Severní Předměstí" → Plzeň 1 místo Plzeň 3) — pro sreality inzeráty je čtvrť přesná z detailu; fallback je hrubší.
 - `quarter-map.ts` má districtId jen pro hlavní města (Praha, Brno, Plzeň, Ostrava, Ústí, Olomouc, KV, Cheb); Praha obvody 2-22 mají vlastní district_id, fallback pro ně spadá na městský průměr.
 - Bezrealitky run je pomalý (75 × detail fetch) — `maxDuration = 60` v search-run může na Vercelu timeoutnout; zvážit menší počet stránek nebo optimalizaci.
-- hyperreality, remax, century21 nemají adapter (v Hledání se přeskočí).
+- hyperreality (doména = GitLab login), century21 (429 bot protection) — bez adapteru, `enabled: false`.
 
 ## Key Files
 
@@ -182,7 +188,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/types.ts`
 - `src/lib/scraping/realitymat-parser.ts` — sdílený detail parser realitymat.cz (vč. telefonu z modalu)
 - `src/lib/scraping/bezrealitky-parser.ts` — sdílený parser bezrealitky (NEXT_DATA Apollo cache: advert/detail/search)
-- `src/lib/scraping/adapters/` — 9 adapters (sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce)
+- `src/lib/scraping/adapters/` — 10 adapters (sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce, remax)
 
 ### Analysis / Calculator
 - `src/lib/analysis/flip-costs.ts`
