@@ -1,5 +1,6 @@
 ﻿import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
+import { investors } from "./investors";
 
 export const deals = pgTable("deals", {
   id: text("id").primaryKey(),
@@ -7,6 +8,7 @@ export const deals = pgTable("deals", {
     .notNull()
     .unique()
     .references(() => properties.id, { onDelete: "cascade" }),
+  investorId: text("investor_id").references(() => investors.id, { onDelete: "set null" }),
   purchasePrice: integer("purchase_price").notNull(),
   purchaseDate: bigint("purchase_date", { mode: "number" }).notNull(),
   renovationBudget: integer("renovation_budget"),

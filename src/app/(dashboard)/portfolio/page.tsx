@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { db } from "@/db";
-import { deals, properties, propertyAnalysis } from "@/db/schema";
+import { deals, properties, propertyAnalysis, investors } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import {
-  ArrowRight, CurrencyDollar, Folder, CheckCircle,
+  ArrowRight, CurrencyDollar, Folder, CheckCircle, HandCoins,
 } from "@phosphor-icons/react/dist/ssr";
 
 function fmt(p: number) { return `${(p / 1000000).toFixed(1)} mil. Kč`; }
@@ -17,7 +17,8 @@ export default async function PortfolioPage() {
     .select()
     .from(deals)
     .leftJoin(properties, eq(deals.propertyId, properties.id))
-    .leftJoin(propertyAnalysis, eq(deals.propertyId, propertyAnalysis.propertyId));
+    .leftJoin(propertyAnalysis, eq(deals.propertyId, propertyAnalysis.propertyId))
+    .leftJoin(investors, eq(deals.investorId, investors.id));
 
   const activeDeals = allDeals.filter((d) => d.deals.status !== "sold");
   const completedDeals = allDeals.filter((d) => d.deals.status === "sold");
@@ -91,6 +92,7 @@ export default async function PortfolioPage() {
               const progress = budget > 0 && d.deals.renovationActual
                 ? Math.round((d.deals.renovationActual / budget) * 100) : 0;
               const score = d.property_analysis?.investmentScore ?? 0;
+              const investorName = d.investors?.name ?? null;
               return (
                 <Link key={d.deals.id} href={`/portfolio/${d.deals.id}`}>
                   <div className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover hover:border-accent/20 transition-all group">
@@ -106,9 +108,19 @@ export default async function PortfolioPage() {
                     </div>
                     <div className="space-y-1 mb-3">
                       <div className="flex justify-between text-xs">
-                        <Badge variant={d.deals.status === "renovating" ? "warning" : "info"} size="sm">
-                          {statusLabel[d.deals.status] ?? d.deals.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={d.deals.status === "renovating" ? "warning" : "info"} size="sm">
+                            {statusLabel[d.deals.status] ?? d.deals.status}
+                          </Badge>
+                          {investorName ? (
+                            <Badge variant="secondary" size="sm" className="gap-1">
+                              <HandCoins size={10} weight="fill" />
+                              {investorName}
+                            </Badge>
+                          ) : (
+                            <span className="text-[10px] text-muted">Sám financuji</span>
+                          )}
+                        </div>
                         <span className="font-mono">{progress}%</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-border/30 overflow-hidden">

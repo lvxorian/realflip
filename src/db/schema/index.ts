@@ -5,6 +5,7 @@ export { favorites } from "./favorites";
 export { propertyAnalysis } from "./analysis";
 export { leads, contacts, callQueue, callLogs } from "./leads";
 export { deals, dealExpenses } from "./deals";
+export { investors } from "./investors";
 export { alerts, notifications } from "./alerts";
 export { marketData, marketCache, scrapingJobs, localityMetrics, poiMetrics, rents } from "./market";
 export { activityLog } from "./activity";

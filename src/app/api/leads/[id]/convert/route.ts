@@ -53,6 +53,7 @@ export async function POST(
       purchasePrice: body.purchasePrice ?? 0,
       purchaseDate: now,
       renovationBudget: body.renovationBudget ?? null,
+      investorId: typeof body.investorId === "string" ? body.investorId : null,
       status: "purchased",
       notes: body.notes ?? null,
       createdAt: now,

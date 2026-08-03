@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { X, Phone, Envelope, ArrowSquareOut, Check, Plus } from "@phosphor-icons/react";
@@ -113,6 +113,17 @@ function LeadDrawerContent({
   const [converting, setConverting] = useState(false);
   const [convertPrice, setConvertPrice] = useState(lead.propertyPrice?.toString() ?? "");
   const [convertRenovation, setConvertRenovation] = useState("");
+  const [investors, setInvestors] = useState<{ id: string; name: string }[]>([]);
+  const [investorId, setInvestorId] = useState("");
+
+  useEffect(() => {
+    fetch("/api/investors")
+      .then((r) => r.json())
+      .then((d: { id: string; name: string }[]) => {
+        if (Array.isArray(d)) setInvestors(d);
+      })
+      .catch(() => {});
+  }, []);
 
   const stageMeta = LEAD_STAGES.find((s) => s.key === stage);
 
@@ -171,7 +182,7 @@ function LeadDrawerContent({
       const res = await fetch(`/api/leads/${lead.id}/convert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purchasePrice: price, renovationBudget: parseInt(convertRenovation, 10) || null }),
+        body: JSON.stringify({ purchasePrice: price, renovationBudget: parseInt(convertRenovation, 10) || null, investorId: investorId || null }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -476,6 +487,22 @@ function LeadDrawerContent({
               onChange={(e) => setConvertRenovation(e.target.value)}
               placeholder="např. 500000"
             />
+            <div>
+              <label className={labelClass}>Investor</label>
+              <select
+                value={investorId}
+                onChange={(e) => setInvestorId(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Sám financuji</option>
+                {investors.map((inv) => (
+                  <option key={inv.id} value={inv.id}>{inv.name}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted mt-1">
+                {investorId ? "Investor se zapojí do tohoto projektu." : "Projekt si financujete sami."}
+              </p>
+            </div>
             <Button onClick={convertToDeal} disabled={converting} className="w-full text-sm" variant="default">
               <Check size={14} weight="bold" /> {converting ? "Převádím..." : "Převést na deal"}
             </Button>

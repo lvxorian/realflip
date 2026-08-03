@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { deals, properties, propertyAnalysis, dealExpenses } from "@/db/schema";
+import { deals, properties, propertyAnalysis, dealExpenses, investors } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { DeleteDealButton } from "@/components/ui/delete-deal-button";
+import { InvestorSelector } from "@/components/portfolio/investor-selector";
+import { formatInvestorBudget } from "@/lib/investors";
 import { safeJsonParse } from "@/lib/utils";
-import { CheckCircle, Clock, ArrowLeft, MapPin, CurrencyDollar, Trash } from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, Clock, ArrowLeft, MapPin, CurrencyDollar, Trash, HandCoins } from "@phosphor-icons/react/dist/ssr";
 
 const statusLabel: Record<string, string> = { purchased: "Koupeno", renovating: "Rekonstrukce", selling: "Na prodej", sold: "Prodáno" };
 const statusColor: Record<string, "info" | "warning" | "success"> = { purchased: "info", renovating: "warning", selling: "info", sold: "success" };
@@ -21,6 +23,7 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
     .where(eq(deals.id, id))
     .leftJoin(properties, eq(deals.propertyId, properties.id))
     .leftJoin(propertyAnalysis, eq(deals.propertyId, propertyAnalysis.propertyId))
+    .leftJoin(investors, eq(deals.investorId, investors.id))
     .limit(1)
     .then((r) => r[0]);
 
@@ -190,8 +193,7 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
         {/* Sidebar */}
         <div className="space-y-4">
           <div className="rounded-2xl border border-border/50 bg-card p-5">
-            <h2 className="font-semibold tracking-tight text-sm mb-4">Finance</h2>
-            <div className="space-y-2 text-sm">
+            <h2 className="font-semibold tracking-tight text-sm mb-4">Finance</h2>            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted">Nákup</span>
                 <span className="font-mono font-medium">{(d.purchasePrice / 1000000).toFixed(1)} mil.</span>
@@ -220,6 +222,37 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
                   {(expectedProfit / 1000000).toFixed(1)} mil.
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Investor */}
+          <div className="rounded-2xl border border-border/50 bg-card p-5">
+            <h2 className="font-semibold tracking-tight text-sm mb-4 flex items-center gap-2">
+              <HandCoins size={14} weight="duotone" className="text-accent" />
+              Investor / financování
+            </h2>
+            {deal.investors ? (
+              <div className="space-y-2 text-sm">
+                <Link href={`/investors/${deal.investors.id}`} className="flex items-center justify-between group">
+                  <span className="text-muted">Investor</span>
+                  <span className="font-medium text-accent group-hover:underline">{deal.investors.name}</span>
+                </Link>
+                {deal.investors.city && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Město</span>
+                    <span className="font-medium">{deal.investors.city}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted">Budget</span>
+                  <span className="font-medium">{formatInvestorBudget(deal.investors.budget, deal.investors.budgetUnlimited)}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">Projekt si financujete sami.</p>
+            )}
+            <div className="mt-4">
+              <InvestorSelector dealId={d.id} currentInvestorId={d.investorId} />
             </div>
           </div>
         </div>

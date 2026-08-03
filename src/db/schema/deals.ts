@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { properties } from "./properties";
+import { investors } from "./investors";
 
 export const deals = sqliteTable("deals", {
   id: text("id").primaryKey(),
@@ -7,6 +8,7 @@ export const deals = sqliteTable("deals", {
     .notNull()
     .unique()
     .references(() => properties.id, { onDelete: "cascade" }),
+  investorId: text("investor_id").references(() => investors.id, { onDelete: "set null" }),
   purchasePrice: integer("purchase_price").notNull(),
   purchaseDate: integer("purchase_date").notNull(),
   renovationBudget: integer("renovation_budget"),
