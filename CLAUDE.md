@@ -58,6 +58,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `src/lib/scraping/sreality-sitemap.ts` — shared sitemap parser; `SrealityAdapter.crawlCityListings(cityKey)`.
 - `market_cache` PK `(city, segment)`, sloupce low/high/median/sample_size/source/fetched_at/payload. DB TTL 24h.
 - **Neon**: DB založena přes `drizzle-kit push` → NEMÁ `__drizzle_migrations`. Migrace se aplikují ručně SQL. `drizzle-kit push` může zablokovat interactive prompt (př. unique constraint na 96 řádcích `vykupy_leads`).
+- **Aplikováno na Neon**: `0007_target_roi_real.sql` + `0008_investors.sql` (investors tabulka, deals.investor_id + FK set null) — ověřeno přes `@neondatabase/serverless` `sql.query`.
 - Skripty: `scripts/reanalyze.ts` (progress log), `scripts/live-market-check.ts [city]`, `scripts/check-migration.ts`.
 
 ## Key Files

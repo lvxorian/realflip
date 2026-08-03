@@ -189,7 +189,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **UI**: seznam karet (avatar, kontakt, budget badge) + `InvestorModal` (přidat/upravit/smazat, přepínač Neomezeno) + detail stránka (kontakt, budget, tabulka projektů investora).
 - **Propojení**: výběr investora při převodu leadu → deal (lead-drawer select, default "Sám financuji"). Portfolio karta ukazuje badge investora, detail projektu má kartu "Investor / financování" s `InvestorSelector` (změna financování).
 - **Pomocné fce** `src/lib/investors.ts`: `formatInvestorBudget` (Neomezeno/mil./tis./Neuveden), `budgetCovers`.
-- **Migrace**: `0008_investors.sql` (PG ručně SQL) + SQLite ALTER (data.db).
+- **Migrace**: `0008_investors.sql` (PG ručně SQL) + SQLite ALTER (data.db). **Aplikováno na Neon** — investors tabulka, `deals.investor_id` + FK set null ověřeny.
 - **Testy**: `src/lib/__tests__/investors.test.ts` (9) — celkem **255 testů / 21 souborů**.
 
 ## Key Files
