@@ -128,7 +128,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 ## Mapy a geokódování
 - `PropertyMap` (`src/components/ui/property-map.tsx`): Leaflet + OSM tiles. Když nemovitost nemá GPS → volá `POST /api/geocode` → Nominatim → uloží lat/lng do `properties` (cache), mezitím "Načítám polohu…". Fallback při selhání: text adresy.
 - `src/lib/geocode.ts`: `geocodeAddress(address, cityKey)` (adresa+město → Nominatim, fallback jen město), `cityKeyToName`, `reverseGeocode(lat,lng)` → suburb/city (pro POI čtvrť).
-- Nominatim vyžaduje `User-Agent`; adresa "Lesní, Cheb" geokóduje správně (Pelhřimov = čtvrť Chebu).
+- Nominatim vyžaduje `User-Agent`; adresa "Lesní, Cheb" geokóduje správně (Pelhřimov = čtvrť Chebu). Reverse-geocode extrahuje čtvrť z display_name (přesnější než suburb).
 
 ## Trh (Market) — investiční nástroje
 - `src/app/(dashboard)/market/page.tsx` server komponenta: agregace nabídkových cen + `LocalityMarkets` (tabulka lokalit se skóre), `PriceIndexCard` (cenový index, `/api/market/price-index`), `BuyVsRentCalculator` (30letá simulace koupě vs nájem).

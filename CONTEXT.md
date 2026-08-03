@@ -168,7 +168,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Broader dedup/cache persistence (Redis or DB-based).
 - Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).
 - AI guard spouští Gemini jen pro podezřelá data; při 503 (high demand) tichý fallback na null (bez badge).
-- Nominatim reverse-geocode je u čtvrtí nepřesný (Bory → "Severní Předměstí" → Plzeň 1 místo Plzeň 3) — pro sreality inzeráty je čtvrť přesná z detailu; fallback je hrubší.
+- Nominatim reverse-geocode — čtvrť se extrahuje z display_name ("Plzeň 3") místo vágního suburb ("Severní Předměstí"), fallback na suburb; pro sreality inzeráty je čtvrť přesná z detailu.
 - `quarter-map.ts` — sreality district_id per město (Praha per správní obvod 5001-5010; Brno 72, Ostrava 65, Ústí 27, Olomouc 42, KV 10, Cheb 9, Plzeň 12, Liberec 22, Pardubice 32, Hradec 28, Zlín 38, Jihlava 67, ČB 1). Ověřeno na sreality API — POI quarter filtr vrací výsledky.
 - hyperreality (doména = GitLab login), century21 (429 bot protection) — bez adapteru, `enabled: false`.
 
