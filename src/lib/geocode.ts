@@ -11,6 +11,8 @@ export interface ReverseGeocodeResult {
   suburb: string | null;
   city: string | null;
   displayName: string | null;
+  /** Čtvrť extrahovaná z display_name ("Praha 3", "Plzeň 2-Slovany") — přesnější než suburb. */
+  quarter: string | null;
 }
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -106,17 +108,38 @@ export async function reverseGeocode(lat: number, lng: number): Promise<ReverseG
       },
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return { suburb: null, city: null, displayName: null };
+    if (!res.ok) return { suburb: null, city: null, displayName: null, quarter: null };
     const data = (await res.json()) as {
       address?: { suburb?: string; city?: string; town?: string; village?: string };
       display_name?: string;
     };
+    const displayName = data.display_name ?? null;
+    const city = data.address?.city ?? data.address?.town ?? data.address?.village ?? null;
+    // Extrakce čtvrti z display_name: "suburb, ČTVRŤ, Město, okres..." — druhá položka
+    // (oddělená čárkou) je obvykle městská část ("Plzeň 3", "Praha 3", "Brno-střed").
+    // Fallback: suburb. Vynecháme, pokud by parts[1] bylo jen město ("Vesnička, Liberec").
+    let quarter: string | null = null;
+    if (displayName) {
+      const parts = displayName.split(",").map((p) => p.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const candidate = parts[1];
+        const cityLower = city?.toLowerCase();
+        if (
+          candidate &&
+          candidate.toLowerCase() !== cityLower &&
+          /^(praha|brno|plzeň|plzen|ostrava|olomouc|ústí|usti|liberec|pardubice|hradec|zlín|zlin|karlovy|cheb|české|ceske)(?:\s|$)/i.test(candidate)
+        ) {
+          quarter = candidate;
+        }
+      }
+    }
     return {
       suburb: data.address?.suburb ?? null,
-      city: data.address?.city ?? data.address?.town ?? data.address?.village ?? null,
-      displayName: data.display_name ?? null,
+      city,
+      displayName,
+      quarter: quarter ?? data.address?.suburb ?? null,
     };
   } catch {
-    return { suburb: null, city: null, displayName: null };
+    return { suburb: null, city: null, displayName: null, quarter: null };
   }
 }

@@ -105,7 +105,10 @@ export async function getLocalityForProperty(input: {
       const { reverseGeocode } = await import("@/lib/geocode");
       const rev = await reverseGeocode(lat, lng);
       const { matchQuarterToSreality } = await import("./quarter-map");
-      const match = matchQuarterToSreality(rev.suburb, cityKey);
+      // Čtvrť z display_name ("Plzeň 3") je přesnější než suburb ("Severní Předměstí")
+      const match =
+        matchQuarterToSreality(rev.quarter, cityKey) ??
+        matchQuarterToSreality(rev.suburb, cityKey);
       if (match) {
         const poiData = await getPoiForQuarterCached(match.quarterId, cityKey, match.districtId, match.label);
         if (poiData) {
