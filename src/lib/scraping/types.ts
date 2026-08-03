@@ -183,14 +183,31 @@ export function normalizeImageUrl(url: string | null | undefined, portalName?: s
   return "";
 }
 
+/**
+ * Annonce.cz servíruje stejný obrázek ve více rozlišeních:
+ * `.../attachment/{dir}/{id}_{resize}.jpg` = malý náhled (142x106),
+ * `.../attachment/{dir}/{id}.jpg` = plné rozlišení (data-full / <a href> v detailu).
+ * Pro annonce odstraní query string i `_{N}` příponu, ostatní portály nechá beze změny.
+ */
+export function toFullSizeImageUrl(url: string, portalName?: string): string {
+  if (!url || portalName !== "annonce") return url;
+  const clean = url.split("?")[0];
+  if (!/^https:\/\/static\.annonce\.cz\/attachment\//.test(clean)) return url;
+  return clean.replace(/_\d+\.(jpe?g|png|webp)$/i, ".$1");
+}
+
 export function filterImages(urls: string[], portalName?: string): string[] {
+  const seen = new Set<string>();
   return urls
     .map((url) => normalizeImageUrl(url, portalName))
     .filter((url) => {
       if (!url || url.length < 10) return false;
       if (/^https?:\/\/\//.test(url)) return false;
       if (url.startsWith("data:image/svg+xml")) return false;
-      return !PLACEHOLDER_IMAGE_PATTERNS.some((p) => p.test(url));
+      if (PLACEHOLDER_IMAGE_PATTERNS.some((p) => p.test(url))) return false;
+      if (seen.has(url)) return false;
+      seen.add(url);
+      return true;
     });
 }
 

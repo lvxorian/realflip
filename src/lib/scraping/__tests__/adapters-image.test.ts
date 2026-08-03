@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterImages } from "../types";
+import { filterImages, toFullSizeImageUrl } from "../types";
 
 describe("filterImages", () => {
   it("pustí validní HTTPS URL", () => {
@@ -19,6 +19,14 @@ describe("filterImages", () => {
   it("odstraní prázdné a krátké URL", () => {
     const result = filterImages(["", "abc", "https://valid.com/photo.jpg"], "sreality");
     expect(result).toHaveLength(1);
+  });
+
+  it("dedupuje duplicitní URL", () => {
+    const result = filterImages(
+      ["https://valid.com/photo.jpg", "https://valid.com/photo.jpg", "https://valid.com/other.jpg"],
+      "sreality"
+    );
+    expect(result).toEqual(["https://valid.com/photo.jpg", "https://valid.com/other.jpg"]);
   });
 
   it("odstraní base64 SVG data URI", () => {
@@ -63,5 +71,43 @@ describe("filterImages", () => {
   it("root-relative URL bez portalu v PORTAL_BASE_URLS = prazdny", () => {
     const result = filterImages(["/photo/123.jpg"], "neexistujici-portal");
     expect(result).toHaveLength(0);
+  });
+});
+
+describe("toFullSizeImageUrl", () => {
+  it("annonce thumbnail → full-size (odstrani _N priponu)", () => {
+    const url = "https://static.annonce.cz/attachment/127/254/508/744589889_744589891.jpg";
+    expect(toFullSizeImageUrl(url, "annonce")).toBe(
+      "https://static.annonce.cz/attachment/127/254/508/744589889.jpg"
+    );
+  });
+
+  it("annonce s query stringem → full-size bez query", () => {
+    const url = "https://static.annonce.cz/attachment/127/254/508/744589889_744589891.jpg?Zrekonstruovany-1%2B1-v-OV";
+    expect(toFullSizeImageUrl(url, "annonce")).toBe(
+      "https://static.annonce.cz/attachment/127/254/508/744589889.jpg"
+    );
+  });
+
+  it("annonce uz full-size URL beze zmeny", () => {
+    const url = "https://static.annonce.cz/attachment/127/254/508/744589889.jpg";
+    expect(toFullSizeImageUrl(url, "annonce")).toBe(url);
+  });
+
+  it("png pripona se take transformuje", () => {
+    const url = "https://static.annonce.cz/attachment/12/34/56/9999_8888.png";
+    expect(toFullSizeImageUrl(url, "annonce")).toBe(
+      "https://static.annonce.cz/attachment/12/34/56/9999.png"
+    );
+  });
+
+  it("jiny portal = vstup beze zmeny", () => {
+    const url = "https://n2.cz/photo/12345_999.jpg";
+    expect(toFullSizeImageUrl(url, "sreality")).toBe(url);
+  });
+
+  it("annonce mimo /attachment/ = vstup beze zmeny", () => {
+    const url = "https://www.annonce.cz/public/e5/5/57/3449_55378_facebook.png";
+    expect(toFullSizeImageUrl(url, "annonce")).toBe(url);
   });
 });

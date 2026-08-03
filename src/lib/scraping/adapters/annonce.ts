@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
+import { RawListing, SearchFilters, filterImages, isValidPrice, toFullSizeImageUrl } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -83,7 +83,7 @@ export class AnnonceAdapter extends PortalAdapter {
       const description = this.cleanText(descEl.text()) || null;
 
       const imgEl = $el.find("a.thumbnail img");
-      const imgSrc = imgEl.attr("src") || "";
+      const imgSrc = toFullSizeImageUrl(imgEl.attr("src") || "", this.config.name);
 
       let images: string[] = [];
       if (imgSrc) images = filterImages([imgSrc], this.config.name);
@@ -94,7 +94,8 @@ export class AnnonceAdapter extends PortalAdapter {
           const slideshowData = JSON.parse(slideshowRaw.replace(/&quot;/g, '"'));
           if (slideshowData?.content) {
             slideshowData.content.forEach((img: string) => {
-              if (img && !images.includes(img)) images.push(img);
+              const full = toFullSizeImageUrl(img, this.config.name);
+              if (full && !images.includes(full)) images.push(full);
             });
           }
         }
@@ -171,7 +172,10 @@ export class AnnonceAdapter extends PortalAdapter {
           }
           if (data?.image) {
             const jsonImages = Array.isArray(data.image) ? data.image : [data.image];
-            listing.imageUrls = filterImages([...listing.imageUrls, ...jsonImages], this.config.name);
+            listing.imageUrls = filterImages(
+              [...listing.imageUrls, ...jsonImages.map((i: string) => toFullSizeImageUrl(i, this.config.name))],
+              this.config.name
+            );
           }
         }
       } catch {
@@ -185,8 +189,19 @@ export class AnnonceAdapter extends PortalAdapter {
           galleryImages.push(src);
         }
       });
+      $(".carousel img.carousel-detail, img.carousel-detail").each((_i, el) => {
+        const full = $(el).attr("data-full") || "";
+        if (full && full.length > 5) galleryImages.push(full);
+      });
+      $(".carousel-nav ul.thumbnails li a[href], ul.thumbnails li a[href]").each((_i, el) => {
+        const href = $(el).attr("href") || "";
+        if (href && href.length > 5) galleryImages.push(href);
+      });
       if (galleryImages.length > 0) {
-        listing.imageUrls = filterImages([...listing.imageUrls, ...galleryImages], this.config.name);
+        listing.imageUrls = filterImages(
+          [...listing.imageUrls, ...galleryImages.map((src) => toFullSizeImageUrl(src, this.config.name))],
+          this.config.name
+        );
       }
 
       const phone = this.cleanText($('a[href^="tel:"]').first().text());

@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { RawListing, PortalName, filterImages, isValidPrice } from "./types";
+import { RawListing, PortalName, filterImages, isValidPrice, toFullSizeImageUrl } from "./types";
 import { RateLimiter } from "./rate-limiter";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import { parseRealityMatDetail } from "./realitymat-parser";
@@ -434,7 +434,16 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
       if (data?.image) images = Array.isArray(data.image) ? data.image : [data.image];
     } catch { /* ignore */ }
   }
-  images = filterImages(images, "annonce");
+  const galleryImages: string[] = [];
+  $(".carousel img.carousel-detail, img.carousel-detail").each((_, el) => {
+    const full = $(el).attr("data-full") || "";
+    if (full && full.length > 5) galleryImages.push(full);
+  });
+  $(".carousel-nav ul.thumbnails li a[href], ul.thumbnails li a[href]").each((_, el) => {
+    const href = $(el).attr("href") || "";
+    if (href && href.length > 5) galleryImages.push(href);
+  });
+  images = filterImages([...images, ...galleryImages].map((i) => toFullSizeImageUrl(i, "annonce")), "annonce");
 
   return {
     portalName: "annonce" as PortalName,
