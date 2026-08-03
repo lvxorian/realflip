@@ -38,32 +38,48 @@ interface CzsoRow {
 }
 
 /**
- * Rozbalí první soubor ze ZIP bufferu (deflate) a vrátí jeho obsah.
- * Minimální ZIP reader: podporuje standardní lokální hlavičky (bez encryption/multi-disk).
+ * Rozbalí první CSV soubor ze ZIP bufferu.
+ * Parsuje centrální adresář (EOCD) — funguje i pro ZIPy s data descriptors
+ * (flags 0x08), kde lokální hlavička nemá compSize (ČSÚ RES zips).
  */
 export function extractZipEntry(buffer: Buffer): Buffer {
   const { inflateRawSync } = require("zlib");
 
-  // ZIP lokální hlavička: 30 bajtů, offset compressed data = 30 + nameLen + extraLen
-  for (let pos = 0; pos < buffer.length - 30; ) {
-    if (buffer.readUInt32LE(pos) === 0x04034b50) {
-      const method = buffer.readUInt16LE(pos + 8);
-      const compSize = buffer.readUInt32LE(pos + 18);
-      const nameLen = buffer.readUInt16LE(pos + 26);
-      const extraLen = buffer.readUInt16LE(pos + 28);
-      const dataStart = pos + 30 + nameLen + extraLen;
-      const name = buffer.toString("utf8", pos + 30, pos + 30 + nameLen);
-      if (name.toLowerCase().endsWith(".csv") && method === 8) {
-        const raw = buffer.subarray(dataStart, dataStart + compSize);
-        return inflateRawSync(raw);
-      }
-      if (name.toLowerCase().endsWith(".csv") && method === 0) {
-        return buffer.subarray(dataStart, dataStart + compSize);
-      }
-      pos = dataStart + compSize;
-    } else {
-      pos++;
+  // Najdi EOCD (signature 0x06054b50) — hledáme od konce
+  let eocd = -1;
+  const maxComment = Math.min(buffer.length, 65557);
+  for (let i = buffer.length - 22; i >= buffer.length - maxComment - 22 && i >= 0; i--) {
+    if (buffer.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
     }
+  }
+  if (eocd === -1) throw new Error("ZIP: EOCD not found");
+
+  const totalEntries = buffer.readUInt16LE(eocd + 10);
+  const cdOffset = buffer.readUInt32LE(eocd + 16);
+
+  let pos = cdOffset;
+  for (let i = 0; i < totalEntries; i++) {
+    if (buffer.readUInt32LE(pos) !== 0x02014b50) break; // central dir header
+    const method = buffer.readUInt16LE(pos + 10);
+    const compSize = buffer.readUInt32LE(pos + 20);
+    const nameLen = buffer.readUInt16LE(pos + 28);
+    const extraLen = buffer.readUInt16LE(pos + 30);
+    const commentLen = buffer.readUInt16LE(pos + 32);
+    const localOffset = buffer.readUInt32LE(pos + 42);
+    const name = buffer.toString("utf8", pos + 46, pos + 46 + nameLen);
+
+    if (name.toLowerCase().endsWith(".csv")) {
+      // Lokální hlavička na localOffset: 30B + nameLen + extraLen
+      const localNameLen = buffer.readUInt16LE(localOffset + 26);
+      const localExtraLen = buffer.readUInt16LE(localOffset + 28);
+      const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+      if (method === 8) return inflateRawSync(buffer.subarray(dataStart, dataStart + compSize));
+      if (method === 0) return buffer.subarray(dataStart, dataStart + compSize);
+    }
+
+    pos += 46 + nameLen + extraLen + commentLen;
   }
   throw new Error("ZIP: no CSV entry found");
 }

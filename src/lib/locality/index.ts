@@ -3,6 +3,7 @@ import { localityMetrics, propertyAnalysis, properties } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { ts } from "@/lib/utils";
 import { fetchUnemployment, fetchMigration } from "./czso";
+import { fetchAgeStructure, fetchFirmsPerCity } from "./sldb";
 import { computeLocalityFactors, localityScoreAdjustment, scoreMigration } from "./score";
 import { LocalityFactors, PoiCounts } from "./types";
 
@@ -192,6 +193,54 @@ export async function getLocalityForProperty(input: {
   const crimeClearRate = crime.clearRatePct;
   const crimePeriod = crime.period;
 
+  // SLDB 2021 — věková struktura (podíl 65+) per ORP, cache 24 h
+  let share65plus: number | null = null;
+  const cachedSldb = await getMetric(cityKey, "czso-sldb", "latest");
+  if (cachedSldb && now - cachedSldb.fetchedAt < TTL_MS) {
+    try {
+      const d = JSON.parse(cachedSldb.jsonData) as { share65plus: number; period: string };
+      share65plus = d.share65plus;
+    } catch {
+      share65plus = null;
+    }
+  } else {
+    try {
+      const { fetchAgeStructure } = await import("./sldb");
+      const { byCity, period } = await fetchAgeStructure();
+      const d = byCity[cityKey];
+      if (d) {
+        share65plus = d.share65plus;
+        await upsertMetric(cityKey, "czso-sldb", "latest", { share65plus, population: d.population, period });
+      }
+    } catch {
+      share65plus = null;
+    }
+  }
+
+  // ČSÚ RES — počet ekonomických subjektů per obec, cache 24 h
+  let firms: number | null = null;
+  const cachedFirms = await getMetric(cityKey, "czso-firms", "latest");
+  if (cachedFirms && now - cachedFirms.fetchedAt < TTL_MS) {
+    try {
+      const d = JSON.parse(cachedFirms.jsonData) as { count: number; period: string };
+      firms = d.count;
+    } catch {
+      firms = null;
+    }
+  } else {
+    try {
+      const { fetchFirmsPerCity } = await import("./sldb");
+      const { byCity, period } = await fetchFirmsPerCity();
+      const count = byCity[cityKey];
+      if (count != null) {
+        firms = count;
+        await upsertMetric(cityKey, "czso-firms", "latest", { count, period });
+      }
+    } catch {
+      firms = null;
+    }
+  }
+
   // Rent — hrubý výnos (cache 24 h v rents tabulce, jinak odhad z ceny)
   let rentPerSqm: number | null = null;
   let grossYieldPct: number | null = null;
@@ -230,7 +279,8 @@ export async function getLocalityForProperty(input: {
   const factors = computeLocalityFactors({
     unemployment,
     migrationPer1000,
-    firms: null,
+    share65plus,
+    firms,
     population,
     crimeIndex,
     walkability,
@@ -277,6 +327,30 @@ export async function refreshLocalityCities(cityKeys: string[]): Promise<{ ok: n
       const d = mig.byCity[key];
       if (d) {
         await upsertMetric(key, "czso-migration", "latest", { migraceNet: d.migraceNet, obyvatel: d.obyvatel, period: mig.period });
+        ok++;
+      }
+    }
+  } catch {
+    failed++;
+  }
+  try {
+    const sldb = await fetchAgeStructure();
+    for (const key of uniq) {
+      const d = sldb.byCity[key];
+      if (d) {
+        await upsertMetric(key, "czso-sldb", "latest", { share65plus: d.share65plus, population: d.population, period: sldb.period });
+        ok++;
+      }
+    }
+  } catch {
+    failed++;
+  }
+  try {
+    const firms = await fetchFirmsPerCity();
+    for (const key of uniq) {
+      const count = firms.byCity[key];
+      if (count != null) {
+        await upsertMetric(key, "czso-firms", "latest", { count, period: firms.period });
         ok++;
       }
     }
