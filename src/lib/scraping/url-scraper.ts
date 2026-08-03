@@ -671,6 +671,17 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
   }
   if (!buildingType) buildingType = inferBuildingType(description, title);
 
+  const yearStr = paramMap["rok kolaudace"] || paramMap["rok výstavby"] || paramMap["rok vystavby"] || "";
+  let yearBuilt: number | null = null;
+  if (yearStr) {
+    const ym = yearStr.match(/(\d{4})/);
+    if (ym) yearBuilt = parseInt(ym[1]);
+  }
+  if (!yearBuilt && description) {
+    const yd = description.match(/rok\s+(?:výstavby|kolaudace|dokončení)[^.\n]{0,40}?(\d{4})/i);
+    if (yd) yearBuilt = parseInt(yd[1]);
+  }
+
   let contactPhone: string | null = null;
   let contactEmail: string | null = null;
   let contactName: string | null = null;
@@ -696,7 +707,7 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
     floor,
     condition,
     buildingType,
-    yearBuilt: null,
+    yearBuilt,
     address,
     lat: null,
     lng: null,
