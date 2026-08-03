@@ -33,17 +33,24 @@ export class BezrealitkyAdapter extends PortalAdapter {
       results.push(...listings);
     }
 
-    const enriched: RawListing[] = [];
+    // Search Apollo cache už obsahuje plná advert data — detail fetch jen pro
+    // listingy s chybějícími kritickými poli (fotky/GPS/popis), aby run
+    // netimeoutoval na Vercelu (maxDuration=60).
+    const needsDetail = (l: RawListing) =>
+      !l.imageUrls?.length || !l.lat || !l.lng || !l.description;
+    const toEnrich = results.filter(needsDetail);
+    const byUrl = new Map(results.map((l) => [l.url, l]));
+
     const concurrency = 3;
-    for (let i = 0; i < results.length; i += concurrency) {
-      const batch = results.slice(i, i + concurrency);
+    for (let i = 0; i < toEnrich.length; i += concurrency) {
+      const batch = toEnrich.slice(i, i + concurrency);
       const batchResults = await Promise.all(
         batch.map((l) => this.enrichListing(l).catch(() => l))
       );
-      enriched.push(...batchResults);
+      batchResults.forEach((l) => byUrl.set(l.url, l));
     }
 
-    return enriched;
+    return results.map((l) => byUrl.get(l.url) ?? l);
   }
 
   extractContact(_html: string): { phone: string | null; name: string | null; email: string | null } {
