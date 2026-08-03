@@ -3,11 +3,13 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import {
   User,
   MagnifyingGlass,
@@ -32,14 +34,105 @@ const portals = [
   "MMreality", "Bazos",
 ];
 
+interface CalcPrefs {
+  minRoi: number;
+  agentCommission: number;
+  legalFees: number;
+  contingencyBuffer: number;
+  renovationCostPerSqm: { light: number; medium: number; full: number };
+}
+
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("profile");
 
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  const [prefs, setPrefs] = useState<CalcPrefs | null>(null);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const timer = setTimeout(() => {
+      setName(session?.user?.name ?? "");
+      setEmail(session?.user?.email ?? "");
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [status, session]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || activeTab !== "calculator") return;
+    let cancelled = false;
+    fetch("/api/settings/preferences")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d && typeof d === "object" && !d.error) setPrefs(d);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPrefsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, activeTab]);
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/settings/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Uložení se nezdařilo");
+        return;
+      }
+      toast.success("Profil uložen");
+      setPassword("");
+      router.refresh();
+    } catch {
+      toast.error("Chyba sítě");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function savePrefs() {
+    if (!prefs) return;
+    setSavingPrefs(true);
+    try {
+      const res = await fetch("/api/settings/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prefs),
+      });
+      if (!res.ok) {
+        toast.error("Uložení se nezdařilo");
+        return;
+      }
+      toast.success("Výchozí hodnoty uloženy");
+    } catch {
+      toast.error("Chyba sítě");
+    } finally {
+      setSavingPrefs(false);
+    }
+  }
+
+  function setPref<K extends keyof CalcPrefs>(key: K, value: CalcPrefs[K]) {
+    setPrefs((prev) => (prev ? { ...prev, [key]: value } : prev));
+  }
 
   if (status !== "authenticated") {
     return (
@@ -104,11 +197,15 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Jméno" defaultValue={session.user?.name ?? ""} />
-                  <Input label="Email" defaultValue={session.user?.email ?? ""} />
-                  <Input label="Telefon" placeholder="+420 ..." />
+                  <Input label="Jméno" value={name} onChange={(e) => setName(e.target.value)} />
+                  <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
-                <Button size="sm">Uložit změny</Button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input label="Nové heslo (volitelné)" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} helper="Minimálně 8 znaků" />
+                </div>
+                <Button size="sm" onClick={saveProfile} loading={savingProfile}>
+                  {savingProfile ? "Ukládám..." : "Uložit změny"}
+                </Button>
               </>
             )}
 
@@ -139,12 +236,12 @@ export default function SettingsPage() {
                     <h3 className="font-semibold tracking-tight text-sm">Vaše hledání</h3>
                     <p className="text-xs text-muted mt-0.5">Spravujte jednotlivá hledání a jejich plánování.</p>
                   </div>
-                  <a
+                  <Link
                     href="/searches"
                     className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
                   >
                     Spravovat hledání
-                  </a>
+                  </Link>
                 </div>
               </>
             )}
@@ -152,29 +249,58 @@ export default function SettingsPage() {
             {activeTab === "calculator" && (
               <>
                 <h2 className="font-semibold tracking-tight">Výchozí hodnoty kalkulačky</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Provize makléře" type="number" defaultValue="4" helper="%" />
-                  <Input label="Daň z převodu" type="number" defaultValue="4" helper="%" />
-                  <Input label="Právní služby" type="number" defaultValue="4" helper="%" />
-                  <Input label="Rezerva" type="number" defaultValue="10" helper="%" />
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-foreground/80 block mb-3">Náklady na rekonstrukci</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Input label="Lehká" type="number" defaultValue="8000" helper="Kč/m²" />
-                    <Input label="Střední" type="number" defaultValue="12000" helper="Kč/m²" />
-                    <Input label="Kompletní" type="number" defaultValue="18000" helper="Kč/m²" />
+                <p className="text-xs text-muted -mt-4">Tyto hodnoty ovlivňují výpočet flipu (analyzátor, kalkulačka, reporty).</p>
+                {!prefs && !prefsLoaded ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
                   </div>
-                </div>
+                ) : !prefs ? (
+                  <p className="text-sm text-muted">Nepodařilo se načíst výchozí hodnoty.</p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input label="Cílové ROI (%)" type="number" value={prefs.minRoi.toString()} onChange={(e) => setPref("minRoi", parseInt(e.target.value) || 0)} />
+                      <Input label="Provize makléře (%)" type="number" value={prefs.agentCommission.toString()} onChange={(e) => setPref("agentCommission", parseInt(e.target.value) || 0)} helper="Použito jako provize při prodeji" />
+                      <Input label="Právní služby (Kč)" type="number" value={prefs.legalFees.toString()} onChange={(e) => setPref("legalFees", parseInt(e.target.value) || 0)} />
+                      <Input label="Rezerva (%)" type="number" value={prefs.contingencyBuffer.toString()} onChange={(e) => setPref("contingencyBuffer", parseInt(e.target.value) || 0)} />
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-foreground/80 block mb-3">Náklady na rekonstrukci</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <Input label="Lehká" type="number" value={prefs.renovationCostPerSqm.light.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, light: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
+                        <Input label="Střední" type="number" value={prefs.renovationCostPerSqm.medium.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, medium: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
+                        <Input label="Kompletní" type="number" value={prefs.renovationCostPerSqm.full.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, full: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
+                      </div>
+                    </div>
+                    <Button size="sm" onClick={savePrefs} loading={savingPrefs}>
+                      {savingPrefs ? "Ukládám..." : "Uložit výchozí hodnoty"}
+                    </Button>
+                  </>
+                )}
               </>
             )}
 
             {activeTab === "api" && (
               <>
                 <h2 className="font-semibold tracking-tight">API klíče</h2>
-                <Input label="OpenAI API klíč" type="password" placeholder="sk-..." helper="Pro AI analýzu inzerátů" />
-                <Input label="Mapbox token" type="password" placeholder="pk...." helper="Pro mapové podklady" />
-                <Button size="sm">Uložit klíče</Button>
+                <p className="text-xs text-muted -mt-4">Klíče se nastavují přes environment proměnné serveru (neukládají se do databáze).</p>
+                <div className="space-y-3">
+                  {[
+                    { label: "Gemini API klíč", key: "GEMINI_API_KEY", hint: "Pro AI analýzu inzerátů a lokalitní dohled" },
+                    { label: "OpenAI API klíč", key: "OPENAI_API_KEY", hint: "Volitelný — aktuálně se používá Gemini" },
+                    { label: "Mapbox token", key: "MAPBOX_TOKEN", hint: "Volitelný — mapy běží na OpenStreetMap" },
+                  ].map((k) => (
+                    <div key={k.key} className="rounded-lg border border-border/50 p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">{k.label}</p>
+                        <code className="text-[10px] text-muted font-mono">{k.key}</code>
+                      </div>
+                      <p className="text-xs text-muted mt-1">{k.hint}</p>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
 
@@ -204,6 +330,7 @@ export default function SettingsPage() {
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-muted">Preference notifikací zatím nejsou ukládané — alerty se zobrazují v aplikaci.</p>
               </>
             )}
 
@@ -221,10 +348,10 @@ export default function SettingsPage() {
                   <div className="mb-4">
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-muted">Využití scrapování</span>
-                      <span className="font-mono">47 / 500</span>
+                      <span className="font-mono">—</span>
                     </div>
                     <div className="w-full h-2 rounded-full bg-border/50 overflow-hidden">
-                      <div className="h-full w-[9.4%] rounded-full bg-accent" />
+                      <div className="h-full w-[0%] rounded-full bg-accent" />
                     </div>
                   </div>
                   <ul className="space-y-2 mb-6 text-sm">
@@ -235,7 +362,9 @@ export default function SettingsPage() {
                       </li>
                     ))}
                   </ul>
-                  <Button variant="default">Upgrade na Pro</Button>
+                  <Button variant="default" onClick={() => toast.info("Upgrade na Pro bude brzy k dispozici")}>
+                    Upgrade na Pro
+                  </Button>
                 </div>
               </>
             )}

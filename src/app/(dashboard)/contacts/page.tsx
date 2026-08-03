@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { MagnifyingGlass, Plus, Phone, Envelope } from "@phosphor-icons/react";
 import { safeJsonParse } from "@/lib/utils";
 import Link from "next/link";
+import { AddContactModal } from "@/components/contacts/add-contact-modal";
 
 interface Contact {
   id: string;
@@ -27,6 +28,7 @@ export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -75,7 +77,7 @@ export default function ContactsPage() {
               className="h-9 pl-9 w-56"
             />
           </div>
-          <Button size="sm" variant="default" className="gap-1.5">
+          <Button size="sm" variant="default" className="gap-1.5" onClick={() => setShowAdd(true)}>
             <Plus size={14} weight="bold" />
             Přidat
           </Button>
@@ -146,6 +148,25 @@ export default function ContactsPage() {
           })}
         </div>
       )}
+
+      <AddContactModal
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onCreated={(c) =>
+          setContacts((prev) => [
+            {
+              id: c.id,
+              name: c.name,
+              phone: c.phone,
+              email: c.email,
+              type: c.type,
+              tags: c.tags,
+              notes: c.notes,
+            },
+            ...prev,
+          ])
+        }
+      />
     </div>
   );
 }

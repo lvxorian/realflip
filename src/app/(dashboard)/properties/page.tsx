@@ -79,7 +79,7 @@ export default async function PropertiesPage({
     .from(properties)
     .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
     .where(
-      searchId && propertyIds.length > 0
+      searchId
         ? inArray(properties.id, propertyIds)
         : eq(properties.isActive, 1)
     )

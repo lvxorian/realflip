@@ -19,7 +19,7 @@ interface Alert {
 const presets = [
   { label: "Cenový drop", desc: "Upozorní na snížení ceny o více než 10 %", icon: CurrencyDollar, name: "Cenový drop > 10 %", conditions: "Snížení ceny: >10%", rules: { type: "price_drop", minDropPct: 10 } },
   { label: "Skóre", desc: "Alert na investiční skóre nad 80", icon: Star, name: "Podhodnocené nemovitosti", conditions: "Skóre: 80+", rules: { type: "score_threshold", minScore: 80 } },
-  { label: "Lokalita", desc: "Hlídá nové inzeráty ve vybrané lokalitě", icon: MapPin, name: "Nové inzeráty v lokalitě", conditions: "Lokalita: Praha", rules: { type: "price_drop", minDropPct: 5 } },
+  { label: "Lokalita", desc: "Hlídá nové inzeráty ve vybrané lokalitě", icon: MapPin, name: "Nové inzeráty v lokalitě", conditions: "Lokalita: Praha", rules: { type: "location", city: "Praha" } },
 ];
 
 export default function AlertsPage() {

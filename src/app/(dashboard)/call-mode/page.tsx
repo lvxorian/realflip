@@ -53,6 +53,9 @@ export default function CallModePage() {
   const [calling, setCalling] = useState(false);
   const [scriptStep, setScriptStep] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -62,7 +65,13 @@ export default function CallModePage() {
     if (status !== "authenticated") return;
     fetch("/api/call-mode")
       .then((r) => r.json())
-      .then((d: CallItem[]) => { if (Array.isArray(d)) setCalls(d); setLoading(false); })
+      .then((d: CallItem[]) => {
+        if (Array.isArray(d)) {
+          setCalls(d);
+          if (d[0]) setNotes(d[0].notes ?? "");
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [status]);
 
@@ -98,21 +107,42 @@ export default function CallModePage() {
   const call = calls[current];
 
   function next() {
-    if (current < calls.length - 1) setCurrent(current + 1);
+    const nextIndex = Math.min(current + 1, calls.length - 1);
+    setCurrent(nextIndex);
     setScriptStep(0);
     setCalling(false);
+    setNotes(calls[nextIndex]?.notes ?? "");
+    setNotesSaved(false);
   }
 
   async function logOutcome(stage: string) {
     await fetch(`/api/leads/${call.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage }),
+      body: JSON.stringify({ stage, notes: notes.trim() || undefined }),
     });
     setCalls((prev) => prev.filter((c) => c.id !== call.id));
     if (current >= calls.length - 1) {
       setCurrent(Math.max(0, calls.length - 2));
     }
+    setNotes("");
+    setNotesSaved(false);
+  }
+
+  async function saveNotes() {
+    setNotesSaving(true);
+    try {
+      const res = await fetch(`/api/leads/${call.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notes.trim() || undefined }),
+      });
+      if (res.ok) {
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 2000);
+      }
+    } catch {}
+    setNotesSaving(false);
   }
 
   function copySms() {
@@ -249,8 +279,30 @@ export default function CallModePage() {
             </div>
 
             <div className="rounded-2xl border border-border/50 bg-card p-5">
-              <span className="text-xs text-muted mb-3 block">Poznámky</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-muted">Poznámky</span>
+                <button
+                  onClick={saveNotes}
+                  disabled={notesSaving}
+                  className="flex items-center gap-1 text-xs text-accent hover:text-accent/80 transition-colors disabled:opacity-50"
+                >
+                  {notesSaving ? (
+                    "Ukládám..."
+                  ) : notesSaved ? (
+                    <span className="flex items-center gap-1">
+                      <Check size={12} weight="bold" /> Uloženo
+                    </span>
+                  ) : (
+                    "Uložit poznámky"
+                  )}
+                </button>
+              </div>
               <textarea
+                value={notes}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  setNotesSaved(false);
+                }}
                 className="w-full h-20 resize-none rounded-xl bg-card border border-border/50 p-3 text-sm placeholder:text-muted/50 focus:outline-none focus:border-accent/50 transition-colors"
                 placeholder="Zapište poznámky z hovoru..."
               />

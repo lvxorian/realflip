@@ -222,7 +222,7 @@ export default function OffMarketPage() {
                         <EmptyState
                           icon={<FileText className="w-6 h-6" />}
                           title="Žádné výkupní příležitosti"
-                          description="Zatím nebyly naskenovány žádné insolvenční záznamy. Po spuštění ISIR Hunter se zde objeví."
+                          description="Zatím nebyly naskenovány žádné záznamy z Portálu dražeb. Data se obnovují denně automaticky."
                         />
                       ) : (
                         <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
