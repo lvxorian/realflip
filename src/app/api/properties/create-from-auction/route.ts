@@ -200,6 +200,7 @@ export async function POST(req: Request) {
       annualizedRoi: auctionResults.annualizedRoi,
       cashOnCash: auctionResults.cashOnCash,
       breakEvenPrice: auctionResults.breakEvenPrice,
+      targetPurchasePrice: auctionResults.ceilingPrice,
       recommendation: auctionResults.feasible ? "buy" : "dontBuy",
       pricePerSqm: rawListing.pricePerSqm,
       marketPriceMin: null,

@@ -15,6 +15,7 @@ export const leads = sqliteTable("leads", {
   priority: integer("priority").default(0),
   notes: text("notes"),
   assignedTo: text("assigned_to"),
+  stageData: text("stage_data").default("{}"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

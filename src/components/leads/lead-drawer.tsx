@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { X, Phone, Envelope, ArrowSquareOut, Check } from "@phosphor-icons/react";
+import { X, Phone, Envelope, ArrowSquareOut, Check, Plus } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel
 import { PropertyImage } from "@/components/ui/property-image";
 import { LEAD_STAGES } from "@/lib/leads";
 import { toast } from "sonner";
-import type { LeadItem } from "./types";
+import type { LeadItem, StageData } from "./types";
 
 const PRIORITY_OPTIONS = [
   { value: 0, label: "Žádná" },
@@ -30,6 +30,27 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-3 space-y-3">
+      <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+const labelClass = "text-xs text-muted block mb-1";
+const inputClass =
+  "w-full h-10 rounded-lg border border-border/50 bg-card px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors";
+
+function parseDate(value: string | null | undefined): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function LeadDrawer({
   lead,
   onClose,
@@ -44,12 +65,34 @@ export function LeadDrawer({
   const [stage, setStage] = useState(lead?.stage ?? "new");
   const [priority, setPriority] = useState(lead?.priority ?? 0);
   const [notes, setNotes] = useState(lead?.notes ?? "");
+  const [stageData, setStageData] = useState<StageData>(() => lead?.stageData ?? {});
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
   const [convertPrice, setConvertPrice] = useState(lead?.propertyPrice?.toString() ?? "");
   const [convertRenovation, setConvertRenovation] = useState("");
 
   const stageMeta = LEAD_STAGES.find((s) => s.key === stage);
+
+  const updateStageData = (patch: Partial<StageData>) =>
+    setStageData((prev) => ({ ...prev, ...patch }));
+
+  function handleStageChange(value: string) {
+    setStage(value);
+    // Předvyplnit nabídnutou cenu z analýzy při přetažení do fáze "Nabídka"
+    if (value === "offer" && stageData.offer?.amount == null && lead?.analysisTargetPurchasePrice) {
+      updateStageData({
+        offer: {
+          amount: lead.analysisTargetPurchasePrice,
+          expiresAt: stageData.offer?.expiresAt ?? null,
+          items: stageData.offer?.items ?? [],
+        },
+      });
+    }
+    // Předvyplnit kupní cenu z nabídky při převodu na deal
+    if (value === "closed" && stageData.offer?.amount != null && !convertPrice) {
+      setConvertPrice(String(stageData.offer.amount));
+    }
+  }
 
   async function saveChanges() {
     if (!lead) return;
@@ -58,7 +101,7 @@ export function LeadDrawer({
       const res = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage, priority, notes }),
+        body: JSON.stringify({ stage, priority, notes, stageData }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -66,7 +109,7 @@ export function LeadDrawer({
         return;
       }
       const updated = await res.json();
-      onLeadUpdated({ ...lead, stage, priority, notes, ...(updated.lead ?? {}) });
+      onLeadUpdated({ ...lead, stage, priority, notes, stageData, ...(updated.lead ?? {}) });
       toast.success("Změny uloženy");
     } catch {
       toast.error("Uložení se nezdařilo — zkontrolujte připojení");
@@ -104,6 +147,27 @@ export function LeadDrawer({
     }
   }
 
+  const addOfferHistory = () => {
+    const amount = stageData.offer?.amount;
+    if (amount == null || amount <= 0) {
+      toast.error("Zadejte nabídnutou cenu");
+      return;
+    }
+    const items = [...(stageData.offer?.items ?? []), { price: amount, date: new Date().toISOString() }];
+    updateStageData({ offer: { amount, expiresAt: stageData.offer?.expiresAt ?? null, items } });
+    toast.success("Nabídka zaznamenána");
+  };
+
+  const addNegotiationHistory = (by: "us" | "them") => {
+    const amount = stageData.negotiation?.currentAmount;
+    if (amount == null || amount <= 0) {
+      toast.error("Zadejte aktuální částku");
+      return;
+    }
+    const history = [...(stageData.negotiation?.history ?? []), { price: amount, date: new Date().toISOString(), by }];
+    updateStageData({ negotiation: { currentAmount: amount, history } });
+  };
+
   return (
     <AnimatePresence>
       {lead && (
@@ -116,6 +180,7 @@ export function LeadDrawer({
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
           />
           <motion.aside
+            key={lead.id}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -212,7 +277,7 @@ export function LeadDrawer({
                   <label className="text-xs text-muted block mb-1">Fáze</label>
                   <select
                     value={stage}
-                    onChange={(e) => setStage(e.target.value)}
+                    onChange={(e) => handleStageChange(e.target.value)}
                     className="w-full h-10 rounded-lg border border-border/50 bg-card px-3 text-sm focus:outline-none focus:border-accent/50 cursor-pointer"
                   >
                     {LEAD_STAGES.map((s) => (
@@ -242,12 +307,135 @@ export function LeadDrawer({
                     className="w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-accent/50 transition-colors resize-none"
                   />
                 </div>
-                <Button onClick={saveChanges} disabled={saving} className="w-full text-sm">
-                  {saving ? "Ukládám..." : "Uložit změny"}
-                </Button>
               </div>
 
-              {lead.stage === "closed" && (
+              {/* ===== Fáze Schůzka ===== */}
+              {stage === "meeting" && (
+                <SectionCard title="📅 Schůzka">
+                  <div>
+                    <label className={labelClass}>Kdy</label>
+                    <input
+                      type="datetime-local"
+                      value={parseDate(stageData.meeting?.date)}
+                      onChange={(e) =>
+                        updateStageData({
+                          meeting: { ...stageData.meeting, date: e.target.value || null, location: stageData.meeting?.location ?? null },
+                        })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Kde</label>
+                    <input
+                      value={stageData.meeting?.location ?? ""}
+                      onChange={(e) =>
+                        updateStageData({
+                          meeting: { ...stageData.meeting, date: stageData.meeting?.date ?? null, location: e.target.value || null },
+                        })
+                      }
+                      placeholder="např. kavárna, Vodičkova 12, Praha 1"
+                      className={inputClass}
+                    />
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* ===== Fáze Nabídka ===== */}
+              {stage === "offer" && (
+                <SectionCard title="💰 Nabídka">
+                  <div>
+                    <label className={labelClass}>
+                      Nabídnutá cena
+                      {lead?.analysisTargetPurchasePrice ? (
+                        <span className="text-muted/60 ml-1">
+                          (analýza: {formatPrice(lead.analysisTargetPurchasePrice)})
+                        </span>
+                      ) : null}
+                    </label>
+                    <input
+                      type="number"
+                      value={stageData.offer?.amount ?? ""}
+                      onChange={(e) => {
+                        const amount = e.target.value ? parseInt(e.target.value, 10) : null;
+                        updateStageData({ offer: { ...stageData.offer, amount, expiresAt: stageData.offer?.expiresAt ?? null } });
+                      }}
+                      placeholder={lead?.analysisTargetPurchasePrice?.toString() ?? "0"}
+                      className={inputClass + " font-mono"}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Platnost nabídky do</label>
+                    <input
+                      type="date"
+                      value={(stageData.offer?.expiresAt ?? "").slice(0, 10)}
+                      onChange={(e) =>
+                        updateStageData({ offer: { ...stageData.offer, amount: stageData.offer?.amount ?? null, expiresAt: e.target.value || null } })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <Button size="sm" variant="secondary" onClick={addOfferHistory} className="w-full gap-1.5">
+                    <Plus size={14} weight="bold" /> Zaznamenat nabídku
+                  </Button>
+                  {(stageData.offer?.items?.length ?? 0) > 0 && (
+                    <div className="space-y-1">
+                      {stageData.offer!.items!.map((it, i) => (
+                        <div key={i} className="flex items-center justify-between rounded-lg bg-card-hover px-2.5 py-1.5 text-xs">
+                          <span className="font-mono text-foreground">{formatPrice(it.price)}</span>
+                          <span className="text-muted">{new Date(it.date).toLocaleDateString("cs-CZ")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              )}
+
+              {/* ===== Fáze Vyjednávání ===== */}
+              {stage === "negotiation" && (
+                <SectionCard title="🤝 Vyjednávání">
+                  <div>
+                    <label className={labelClass}>Aktuální částka</label>
+                    <input
+                      type="number"
+                      value={stageData.negotiation?.currentAmount ?? ""}
+                      onChange={(e) => {
+                        const currentAmount = e.target.value ? parseInt(e.target.value, 10) : null;
+                        updateStageData({ negotiation: { ...stageData.negotiation, currentAmount, history: stageData.negotiation?.history ?? [] } });
+                      }}
+                      placeholder={lead?.analysisTargetPurchasePrice?.toString() ?? "0"}
+                      className={inputClass + " font-mono"}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => addNegotiationHistory("us")} className="flex-1 gap-1.5">
+                      <Plus size={13} weight="bold" /> My
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => addNegotiationHistory("them")} className="flex-1 gap-1.5">
+                      <Plus size={13} weight="bold" /> Oni
+                    </Button>
+                  </div>
+                  {(stageData.negotiation?.history?.length ?? 0) > 0 && (
+                    <div className="space-y-1">
+                      {stageData.negotiation!.history!.map((it, i) => (
+                        <div key={i} className="flex items-center justify-between rounded-lg bg-card-hover px-2.5 py-1.5 text-xs">
+                          <span className="font-mono text-foreground">{formatPrice(it.price)}</span>
+                          <span className={`text-[10px] ${it.by === "us" ? "text-accent" : "text-amber-400"}`}>
+                            {it.by === "us" ? "my" : "oni"} · {new Date(it.date).toLocaleDateString("cs-CZ")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              )}
+
+              {/* ===== Uložit ===== */}
+              <Button onClick={saveChanges} disabled={saving} className="w-full text-sm">
+                {saving ? "Ukládám..." : "Uložit změny"}
+              </Button>
+
+              {stage === "closed" && (
                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 space-y-3">
                   <h3 className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Převod na deal</h3>
                   <Input

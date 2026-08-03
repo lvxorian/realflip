@@ -341,6 +341,7 @@ export class ScrapingOrchestrator {
             roi: freshAnalysis.roi,
             annualizedRoi: freshAnalysis.annualizedRoi,
             cashOnCash: freshAnalysis.cashOnCash,
+            targetPurchasePrice: freshAnalysis.targetPurchasePrice,
             costsJson: JSON.stringify(freshAnalysis.costs),
             updatedAt: ts(),
           })
@@ -477,6 +478,7 @@ export class ScrapingOrchestrator {
         annualizedRoi: analysis.annualizedRoi,
         cashOnCash: analysis.cashOnCash,
         breakEvenPrice: analysis.breakEvenPrice,
+        targetPurchasePrice: analysis.targetPurchasePrice,
         recommendation: analysis.recommendation,
         // Nova rozsirena pole
         pricePerSqm: analysis.pricePerSqm,

@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Star, MapPin } from "@phosphor-icons/react";
+import { Star, MapPin, CalendarBlank } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
@@ -77,12 +77,29 @@ export function LeadCard({
         </div>
       </div>
 
+      {(lead.stage === "meeting" && lead.stageData?.meeting?.date) ||
+      (lead.stage === "offer" && lead.stageData?.offer?.amount) ? (
+        <div className="flex flex-wrap items-center gap-1 mb-1.5 @max-[240px]:hidden">
+          {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
+            <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
+              <CalendarBlank size={10} weight="bold" />
+              {new Date(lead.stageData.meeting.date).toLocaleDateString("cs-CZ")}{" "}
+              {new Date(lead.stageData.meeting.date).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {lead.stage === "offer" && lead.stageData?.offer?.amount != null && (
+            <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono text-amber-400">
+              💰 {formatPrice(lead.stageData.offer.amount)}
+            </span>
+          )}
+        </div>
+      ) : null}
+
       <div className="flex items-baseline justify-between gap-2 mb-1.5">
         <span className="text-sm font-semibold font-mono text-amber-400 @max-[240px]:text-xs">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
-        {lead.propertyPricePerSqm != null && (
-          <span className="text-[10px] text-muted font-mono @max-[240px]:hidden">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
+        {lead.propertyPricePerSqm != null && (          <span className="text-[10px] text-muted font-mono @max-[240px]:hidden">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
         )}
       </div>
 

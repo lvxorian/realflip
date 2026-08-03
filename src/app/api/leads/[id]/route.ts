@@ -29,6 +29,15 @@ export async function PATCH(
       if (body[key] !== undefined) update[key] = body[key];
     }
 
+    // Stage-specific structured data (meeting/offer/negotiation)
+    if (body.stageData !== undefined) {
+      if (typeof body.stageData !== "object" || body.stageData === null || Array.isArray(body.stageData)) {
+        return NextResponse.json({ error: "Invalid stageData" }, { status: 400 });
+      }
+      const isCloud = !!process.env.DATABASE_URL;
+      update.stageData = isCloud ? body.stageData : JSON.stringify(body.stageData);
+    }
+
     await db
       .update(leads)
       .set(update)

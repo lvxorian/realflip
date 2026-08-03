@@ -1,4 +1,4 @@
-﻿import { pgTable, text, integer, bigint } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, bigint, jsonb } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 import { users } from "./users";
 
@@ -15,6 +15,7 @@ export const leads = pgTable("leads", {
   priority: integer("priority").default(0),
   notes: text("notes"),
   assignedTo: text("assigned_to"),
+  stageData: jsonb("stage_data").default({}),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });

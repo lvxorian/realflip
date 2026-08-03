@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { leads, contacts, properties, propertyAnalysis } from "@/db/schema";
 import { eq, desc, and, isNotNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { safeJsonParse } from "@/lib/utils";
 
 export async function GET() {
   try {
@@ -16,6 +17,7 @@ export async function GET() {
         id: leads.id,
         stage: leads.stage,
         notes: leads.notes,
+        stageData: leads.stageData,
         contactName: contacts.name,
         contactPhone: contacts.phone,
         propertyTitle: properties.title,
@@ -34,7 +36,16 @@ export async function GET() {
       .where(and(eq(leads.userId, session.user.id), isNotNull(leads.contactId), eq(leads.stage, "new")))
       .orderBy(desc(leads.priority), desc(leads.createdAt));
 
-    return NextResponse.json(rows);
+    const normalized = rows.map((row) => {
+      const raw = row.stageData;
+      const stageData =
+        raw != null && typeof raw === "object"
+          ? (raw as Record<string, unknown>)
+          : safeJsonParse<Record<string, unknown>>(typeof raw === "string" ? raw : null, {});
+      return { ...row, stageData };
+    });
+
+    return NextResponse.json(normalized);
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

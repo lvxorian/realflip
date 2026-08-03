@@ -109,6 +109,7 @@ export async function POST(req: Request) {
         annualizedRoi: analysis.annualizedRoi,
         cashOnCash: analysis.cashOnCash,
         breakEvenPrice: analysis.breakEvenPrice,
+        targetPurchasePrice: analysis.targetPurchasePrice,
         recommendation: analysis.recommendation,
         pricePerSqm: analysis.pricePerSqm,
         marketPriceMin: analysis.marketPricePerSqmLow,

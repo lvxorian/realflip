@@ -18,6 +18,7 @@ export const propertyAnalysis = pgTable("property_analysis", {
   annualizedRoi: real("annualized_roi"),
   cashOnCash: real("cash_on_cash"),
   breakEvenPrice: integer("break_even_price"),
+  targetPurchasePrice: integer("target_purchase_price"),
   recommendation: text("recommendation"),
   aiReport: text("ai_report"),
 

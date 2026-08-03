@@ -1,9 +1,27 @@
+export interface StageData {
+  meeting?: {
+    date: string | null;
+    location: string | null;
+    notes?: string | null;
+  };
+  offer?: {
+    amount: number | null;
+    expiresAt: string | null;
+    items?: { price: number; date: string }[];
+  };
+  negotiation?: {
+    currentAmount: number | null;
+    history?: { price: number; date: string; by: "us" | "them" }[];
+  };
+}
+
 export interface LeadItem {
   id: string;
   stage: string;
   priority: number | null;
   notes: string | null;
   assignedTo: string | null;
+  stageData: StageData | null;
   createdAt: number | null;
   updatedAt: number | null;
   propertyId: string | null;
@@ -24,4 +42,6 @@ export interface LeadItem {
   contactPhone: string | null;
   contactEmail: string | null;
   analysisScore: number | null;
+  analysisArv: number | null;
+  analysisTargetPurchasePrice: number | null;
 }

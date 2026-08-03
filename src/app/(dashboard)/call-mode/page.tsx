@@ -10,7 +10,7 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { PriceTag } from "@/components/ui/price-tag";
 import { conditionLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin } from "@phosphor-icons/react";
+import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin, CalendarBlank } from "@phosphor-icons/react";
 
 interface CallItem {
   id: string;
@@ -26,6 +26,27 @@ interface CallItem {
   propertyAddress: string | null;
   propertyCondition: string | null;
   analysisScore: number | null;
+}
+
+interface MeetingLead {
+  id: string;
+  contactName: string | null;
+  contactPhone: string | null;
+  propertyTitle: string | null;
+  propertyAddress: string | null;
+  meeting: { date: string | null; location: string | null };
+}
+
+interface LeadWithMeeting {
+  id: string;
+  stage: string;
+  contactName: string | null;
+  contactPhone: string | null;
+  propertyTitle: string | null;
+  propertyAddress: string | null;
+  stageData: {
+    meeting?: { date: string | null; location?: string | null } | null;
+  } | null;
 }
 
 const outcomes = [
@@ -48,6 +69,7 @@ export default function CallModePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [calls, setCalls] = useState<CallItem[]>([]);
+  const [meetings, setMeetings] = useState<MeetingLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
   const [calling, setCalling] = useState(false);
@@ -73,6 +95,33 @@ export default function CallModePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/leads", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: LeadWithMeeting[]) => {
+        if (!Array.isArray(d)) return;
+        const upcoming: MeetingLead[] = [];
+        for (const l of d) {
+          const meeting = l.stageData?.meeting;
+          const date = meeting?.date;
+          if (l.stage === "meeting" && date) {
+            upcoming.push({
+              id: l.id,
+              contactName: l.contactName ?? null,
+              contactPhone: l.contactPhone ?? null,
+              propertyTitle: l.propertyTitle ?? null,
+              propertyAddress: l.propertyAddress ?? null,
+              meeting: { date, location: meeting?.location ?? null },
+            });
+          }
+        }
+        upcoming.sort((a, b) => new Date(a.meeting.date!).getTime() - new Date(b.meeting.date!).getTime());
+        setMeetings(upcoming);
+      })
+      .catch(() => {});
   }, [status]);
 
   if (status !== "authenticated" || loading) {
@@ -164,6 +213,35 @@ export default function CallModePage() {
           <span className="text-xs text-muted">{calling ? "Hovor aktivní" : "Připraveno"}</span>
         </div>
       </div>
+
+      {meetings.length > 0 && (
+        <div className="rounded-2xl border border-blue-500/20 bg-card p-5">
+          <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2 mb-3">
+            <CalendarBlank size={14} weight="duotone" className="text-blue-400" />
+            Nadcházející schůzky
+            <span className="text-xs text-muted font-normal">({meetings.length})</span>
+          </h2>
+          <div className="space-y-2">
+            {meetings.map((m) => (
+              <div key={m.id} className="flex items-center justify-between gap-3 rounded-xl bg-card-hover border border-border/30 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium truncate">{m.propertyTitle ?? m.contactName ?? "Neznámá nemovitost"}</p>
+                  <p className="text-[10px] text-muted truncate">
+                    {m.contactName ? `${m.contactName}${m.contactPhone ? ` · ${m.contactPhone}` : ""}` : m.propertyAddress}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs font-mono text-blue-400">
+                    {m.meeting.date ? new Date(m.meeting.date).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" }) : "—"}{" "}
+                    {m.meeting.date ? new Date(m.meeting.date).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) : ""}
+                  </p>
+                  {m.meeting.location && <p className="text-[10px] text-muted truncate max-w-[180px]">{m.meeting.location}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div

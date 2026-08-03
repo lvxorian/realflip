@@ -178,6 +178,7 @@ export async function PATCH(
           annualizedRoi: result.annualizedRoi,
           cashOnCash: result.cashOnCash,
           breakEvenPrice: result.breakEvenPrice,
+          targetPurchasePrice: result.targetPurchasePrice,
           recommendation: result.recommendation,
           pricePerSqm: result.pricePerSqm,
           marketPriceMin: result.marketPricePerSqmLow,
