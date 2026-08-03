@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (246 tests, 20 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (255 tests, 21 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -182,6 +182,16 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Remax detail (kontakt/plocha) je Vue-renderovaný — data se berou ze search stránky (data-* atributy); případně doplnit kontakt přes API.
 - AI guard: při 503 (Gemini high demand) tichý fallback na null (bez badge) — chování zachováno, retry neuvedeno.
 
+### Phase 28 — Investoři (Done)
+- **Sekce INVESTORI** (`/investors` + `/investors/[id]`), menu položka mezi Kontakty a Portfolio.
+- **DB `investors`**: jméno, město bydliště, telefon, email, budget (Kč) + **Neomezeno** (budgetUnlimited flag). `deals.investor_id` FK → investors (set null) — **null = "Sám financuji"** (self-funded).
+- **API**: `GET/POST /api/investors`, `GET/PATCH/DELETE /api/investors/[id]`, `PATCH /api/deals/[id]` (změna investora na projektu).
+- **UI**: seznam karet (avatar, kontakt, budget badge) + `InvestorModal` (přidat/upravit/smazat, přepínač Neomezeno) + detail stránka (kontakt, budget, tabulka projektů investora).
+- **Propojení**: výběr investora při převodu leadu → deal (lead-drawer select, default "Sám financuji"). Portfolio karta ukazuje badge investora, detail projektu má kartu "Investor / financování" s `InvestorSelector` (změna financování).
+- **Pomocné fce** `src/lib/investors.ts`: `formatInvestorBudget` (Neomezeno/mil./tis./Neuveden), `budgetCovers`.
+- **Migrace**: `0008_investors.sql` (PG ručně SQL) + SQLite ALTER (data.db).
+- **Testy**: `src/lib/__tests__/investors.test.ts` (9) — celkem **255 testů / 21 souborů**.
+
 ## Key Files
 
 ### Core
@@ -245,6 +255,14 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/leads.ts` — LEAD_STAGES
 - `src/app/api/leads/route.ts`, `src/app/api/leads/[id]/route.ts`, `src/app/api/leads/[id]/convert/route.ts`
 - `lead-drawer.tsx` — rozdělen na `LeadDrawer` (overlay) + `LeadDrawerContent` (keyed per lead), stage-specific formuláře (meeting/offer/negotiation) ve `stageData`
+
+### Investoři
+- `src/app/(dashboard)/investors/page.tsx` + `[id]/page.tsx` — seznam karet + detail (projekty investora)
+- `src/components/investors/investor-modal.tsx` (klíčovaný form), `edit-investor-button.tsx`
+- `src/app/api/investors/route.ts`, `src/app/api/investors/[id]/route.ts`
+- `src/components/portfolio/investor-selector.tsx` — změna financování na detailu projektu
+- `src/lib/investors.ts` — `formatInvestorBudget`, `budgetCovers`
+- `deals.investor_id` FK → investors (set null); null = "Sám financuji"
 
 ### API
 - `src/app/api/scraping/trigger/route.ts`

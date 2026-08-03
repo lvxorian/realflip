@@ -22,7 +22,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **246 tests across 20 files**.
+Vitest v4 + jsdom + @testing-library/react. **255 tests across 21 files**.
 `npm test` or `npx vitest run`.
 
 ## Portals (10 adapters, 6 url-scrapers)
@@ -104,6 +104,14 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `GET /api/leads` zobrazuje kontakt z properties (coalesce) + `propertyImageUrl` + `analysisTargetPurchasePrice`/`analysisArv`.
 - Initiate dedup kontaktů: **phone + name** (ne jen phone) v `src/app/api/properties/[id]/initiate/route.ts`.
 - Sloupce boardu `flex-1 basis-0 min-w-[170px]` — vejdou se do 1400px kontejneru bez scrollu.
+
+## Investoři (Investor DB)
+- Route `/investors` (seznam karet) + `/investors/[id]` (detail: kontakt, budget, projekty). Menu položka "Investoři" (HandCoins) mezi Kontakty a Portfolio.
+- DB `investors` (SQLite `src/db/schema/investors.ts` + PG `src/db/pg/investors.ts`): id, name, city, phone, email, budget (integer Kč), budgetUnlimited (0/1), notes, createdAt/updatedAt. Migrace `0008_investors.sql` (PG ručně SQL).
+- `deals.investor_id` → investors.id (FK set null). **null = "Sám financuji"** (self-funded).
+- API: `GET/POST /api/investors`, `GET/PATCH/DELETE /api/investors/[id]`, `PATCH /api/deals/[id]` (změna investora).
+- Výběr investora při převodu leadu → deal (`/api/leads/[id]/convert` + select v lead-drawer; výchozí "Sám financuji"). Portfolio karta + detail zobrazují investora (badge / karta s budgetem + `InvestorSelector`).
+- `src/lib/investors.ts`: `formatInvestorBudget` (Neomezeno / mil./tis. Kč / Neuveden), `budgetCovers`.
 
 ## Lokalitní inteligence (Locality Intelligence)
 - Modul `src/lib/locality/`: reálná data z ČSÚ, PČR a sreality. **Žádná vymyšlená čísla — chybějící data = null/0, nikdy odhad.**
