@@ -1,6 +1,6 @@
 ﻿import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
-import { matchFilters } from "./filters";
+import { matchFilters, isCzechListing } from "./filters";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
@@ -57,6 +57,10 @@ export class ScrapingOrchestrator {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
           if (!isValidPrice(listing.price)) {
             errors.push(`Skipped listing with invalid price (${listing.price} Kc): ${listing.url}`);
+            continue;
+          }
+          if (!isCzechListing(listing)) {
+            errors.push(`Skipped foreign listing (${listing.address ?? "unknown address"}): ${listing.url}`);
             continue;
           }
 
@@ -152,7 +156,7 @@ export class ScrapingOrchestrator {
         } else {
           listings = await adapter.crawlListings(filters);
         }
-        listings = listings.filter((l) => matchFilters(l, filters));
+        listings = listings.filter((l) => matchFilters(l, filters) && isCzechListing(l));
 
         for (const listing of listings) {
           if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;

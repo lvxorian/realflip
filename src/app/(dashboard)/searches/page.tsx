@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
-import { MagnifyingGlass, Plus, Clock, Play } from "@phosphor-icons/react";
+import { MagnifyingGlass, Plus, Clock, Play, Trash } from "@phosphor-icons/react";
 
 interface SearchItem {
   id: string;
@@ -70,6 +70,7 @@ export default function SearchesPage() {
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -99,6 +100,24 @@ export default function SearchesPage() {
       const res = await fetch("/api/searches");
       const data = await res.json();
       setSearches(data);
+    }
+  };
+
+  const deleteSearch = async (id: string, name: string) => {
+    if (!confirm(`Opravdu chcete smazat hledání „${name}"?`)) return;
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/searches/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Smazání hledání selhalo");
+        return;
+      }
+      toast.success("Hledání smazáno");
+      setSearches((prev) => prev.filter((s) => s.id !== id));
+    } catch {
+      toast.error("Smazání hledání selhalo");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -172,17 +191,31 @@ export default function SearchesPage() {
                           <span className="capitalize">{s.schedule}</span>
                         </div>
                       </div>
-                      <Button
-                        variant="secondary"
-                        size="icon-sm"
-                        loading={running === s.id}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          runSearch(s.id);
-                        }}
-                      >
-                        <Play weight="fill" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="icon-sm"
+                          loading={running === s.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            runSearch(s.id);
+                          }}
+                        >
+                          <Play weight="fill" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="icon-sm"
+                          loading={deleting === s.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteSearch(s.id, s.name);
+                          }}
+                          className="text-muted hover:text-red-400"
+                        >
+                          <Trash weight="bold" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

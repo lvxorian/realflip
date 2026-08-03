@@ -1,6 +1,7 @@
 import { PortalAdapter } from "./base";
 import { RawListing, SearchFilters } from "../types";
 import { parseBezrealitkyDetail, parseBezrealitkySearch } from "../bezrealitky-parser";
+import { matchFilters, isCzechListing } from "../filters";
 
 export class BezrealitkyAdapter extends PortalAdapter {
   private maxPages = 5;
@@ -32,6 +33,14 @@ export class BezrealitkyAdapter extends PortalAdapter {
       if (listings.length === 0) break;
       results.push(...listings);
     }
+
+    // Bezrealitky search URL nepodporuje přímé omezení na lokalitu —
+    // filtrujeme zde, aby zůstaly jen inzeráty odpovídající hledání a ČR.
+    const filtered = results.filter(
+      (l) => matchFilters(l, filters ?? {}) && isCzechListing(l)
+    );
+    results.length = 0;
+    results.push(...filtered);
 
     // Search Apollo cache už obsahuje plná advert data — detail fetch jen pro
     // listingy s chybějícími kritickými poli (fotky/GPS/popis), aby run

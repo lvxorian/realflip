@@ -15,6 +15,7 @@ import {
   Play,
   ArrowLeft,
   Clock,
+  Trash,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -84,6 +85,7 @@ export default function SearchDetailPage() {
   const [data, setData] = useState<SearchDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -144,6 +146,24 @@ export default function SearchDetailPage() {
     }
   };
 
+  const deleteSearch = async () => {
+    if (!confirm(`Opravdu chcete smazat hledání „${data?.name ?? ""}"?`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/searches/${params.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Smazání hledání selhalo");
+        return;
+      }
+      toast.success("Hledání smazáno");
+      router.push("/searches");
+    } catch {
+      toast.error("Smazání hledání selhalo");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading || !data) {
     return (
       <div className="p-6 space-y-4">
@@ -199,10 +219,16 @@ export default function SearchDetailPage() {
             )}
           </div>
         </div>
-        <Button onClick={runSearch} loading={running}>
-          <Play weight="fill" />
-          Spustit skenování
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={runSearch} loading={running}>
+            <Play weight="fill" />
+            Spustit skenování
+          </Button>
+          <Button variant="secondary" onClick={deleteSearch} loading={deleting} className="text-xs gap-1.5">
+            <Trash size={12} weight="bold" />
+            Smazat
+          </Button>
+        </div>
       </div>
 
       {data.results.length === 0 ? (

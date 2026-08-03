@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectPropertyType, matchFilters } from "../filters";
+import { detectPropertyType, matchFilters, isCzechListing } from "../filters";
 import type { RawListing } from "../types";
 
 const baseListing: RawListing = {
@@ -102,5 +102,36 @@ describe("matchFilters", () => {
 
   it("projde bez filtrů", () => {
     expect(matchFilters(listing(), {})).toBe(true);
+  });
+});
+
+describe("isCzechListing", () => {
+  it("přijme GPS uvnitř ČR", () => {
+    expect(isCzechListing(listing({ lat: 50.083, lng: 14.425 }))).toBe(true);
+    expect(isCzechListing(listing({ lat: 49.7, lng: 13.4 }))).toBe(true);
+  });
+
+  it("odmítne GPS mimo ČR (Berlín)", () => {
+    expect(isCzechListing(listing({ lat: 52.52, lng: 13.405 }))).toBe(false);
+    expect(isCzechListing(listing({ lat: 48.1, lng: 17.1 }))).toBe(false);
+  });
+
+  it("odmítne zahraniční adresu bez GPS (Berlín/Mnichov)", () => {
+    const l = listing({ lat: null, lng: null });
+    expect(isCzechListing({ ...l, address: "Finowstrasse 17 Berlin" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "München Maxvorstadt, Bayern" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "Heßstr. München" })).toBe(false);
+  });
+
+  it("nezamítne českou adresu bez GPS", () => {
+    const l = listing({ lat: null, lng: null });
+    expect(isCzechListing({ ...l, address: "Vinohradská 42, Praha 2" })).toBe(true);
+    expect(isCzechListing({ ...l, address: "Školní, Meziměstí" })).toBe(true);
+    expect(isCzechListing({ ...l, address: "Eduarda Hamburgera, Olomouc" })).toBe(true);
+  });
+
+  it("použije GPS přednostně před adresou", () => {
+    expect(isCzechListing(listing({ lat: 52.52, lng: 13.405, address: "Praha 1" }))).toBe(false);
+    expect(isCzechListing(listing({ lat: 50.083, lng: 14.425, address: "Berlin" }))).toBe(true);
   });
 });

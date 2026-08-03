@@ -4,6 +4,49 @@ function listingText(listing: RawListing): string {
   return [listing.address, listing.title].filter(Boolean).join(" ").toLowerCase();
 }
 
+/** Bounding box České republiky pro validaci GPS souřadnic. */
+const CZ_BBOX = { latMin: 48.5, latMax: 51.06, lngMin: 12.1, lngMax: 18.9 };
+
+/** Textové markery zahraničních lokací (použité, když v inzerátu chybí GPS). */
+/** Textové markery zahraničních lokací (použité, když v inzerátu chybí GPS). */
+const FOREIGN_ADDRESS_MARKERS: RegExp[] = [
+  /\bberl/,
+  /deutschland/i,
+  /\bgermany\b/i,
+  /münchen|muenchen/i,
+  /\bhamburg\b/i,
+  /\bwien\b/i,
+  /warszaw/i,
+  /bratislav/i,
+  /dresden/i,
+  /leipzig/i,
+  /frankfurt/i,
+  /\bköl[nk]\b/i,
+  /německu|nemecku|německo|nemecko/i,
+];
+
+/**
+ * Ověří, že inzerát pochází z České republiky. Prioritně se řídí GPS
+ * souřadnicemi (bounding box ČR); pokud GPS chybí, použijí se textové
+ * markery v adrese/titulku. Zabraňuje proplouvání zahraničních inzerátů
+ * do databáze (např. Berlín z bezrealitky).
+ */
+export function isCzechListing(
+  listing: Pick<RawListing, "lat" | "lng" | "address" | "title">
+): boolean {
+  if (listing.lat != null && listing.lng != null) {
+    return (
+      listing.lat >= CZ_BBOX.latMin &&
+      listing.lat <= CZ_BBOX.latMax &&
+      listing.lng >= CZ_BBOX.lngMin &&
+      listing.lng <= CZ_BBOX.lngMax
+    );
+  }
+
+  const text = [listing.address, listing.title].filter(Boolean).join(" ").toLowerCase();
+  return !FOREIGN_ADDRESS_MARKERS.some((m) => m.test(text));
+}
+
 const PROPERTY_TYPE_PATTERNS: { type: string; patterns: RegExp[] }[] = [
   {
     type: "garage",
