@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (233 tests, 17 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (246 tests, 20 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -163,6 +163,18 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Hyperreality**: doména je teď GitLab sign-in (procorp) — portál zanikl, `enabled: false`.
 - **Century21**: trvalá bot protection (HTTP 429) — bez headless browseru nescrapovatelné, `enabled: false`.
 - **10 portálů v Hledání** (8 aktivních adapterů): sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce, remax.
+
+### Phase 27 — Remaining položky (Done)
+- **Bezrealitky perf**: skip detail fetch pro search listingy s kompletními daty (Apollo cache už obsahuje plná advert data) — run už nehrozí timeoutem na Vercelu.
+- **parse-auction**: `maxDuration = 60` (JSON+PDF+Gemini pipeline), dokumentace = reálná pipeline (ne mock).
+- **`checkScoreThresholdAlert`**: nový alert typ (minScore z rules), volaný z orchestratoru při novém listingu i re-analýze.
+- **`target_roi` integer→real**: schema (SQLite+PG) + manuální migrace `0007_target_roi_real.sql`.
+- **iDnes `yearBuilt`**: url-scraper čte `rok kolaudace/výstavby` param + fallback z popisu.
+- **Kriminalita auto-refresh**: `discoverLatestCrimeSource()` najde nejnovější PČR XLSX ze stránky aktuálního roku (fallback 3 roky + hardcoded).
+- **Renta malá města**: `locality_district_cz` filtr (sreality API) + fallback celá ČR, MAX_PAGES 5.
+- **SLDB 2021 + firmy**: `sldb.ts` — věková struktura per ORP (podíl 65+) + ČSÚ RES firmy per obec (reálná data, dřív null). Robustní ZIP EOCD parser (data descriptors), detekce UTF-8/cp1250.
+- **Quarter-map**: reálné sreality district_id per město (Praha per správní obvod 5001-5010; Brno 72, Ostrava 65, Ústí 27, Olomouc 42, KV 10, Cheb 9, Plzeň 12, Liberec 22, Pardubice 32, Hradec 28, Zlín 38, Jihlava 67, ČB 1) — POI quarter filtr vrací výsledky (staré ID vracely 0). + nová města.
+- **Nominatim reverse-geocode**: čtvrť extrahovaná z display_name ("Plzeň 3") místo vágního suburb ("Severní Předměstí"), fallback na suburb.
 
 ## Remaining
 - Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).

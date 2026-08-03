@@ -22,7 +22,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **233 tests across 17 files**.
+Vitest v4 + jsdom + @testing-library/react. **246 tests across 20 files**.
 `npm test` or `npx vitest run`.
 
 ## Portals (10 adapters, 6 url-scrapers)
