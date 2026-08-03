@@ -166,14 +166,10 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 
 ## Remaining
 - Broader dedup/cache persistence (Redis or DB-based).
-- iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
-- DB `target_roi` column is `integer`, should be `real` for decimal precision.
 - Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).
-- Renta pro malá města (<5 vzorků) = null; doplnit více vzorků přes vícestránkový scrap.
 - AI guard spouští Gemini jen pro podezřelá data; při 503 (high demand) tichý fallback na null (bez badge).
 - Nominatim reverse-geocode je u čtvrtí nepřesný (Bory → "Severní Předměstí" → Plzeň 1 místo Plzeň 3) — pro sreality inzeráty je čtvrť přesná z detailu; fallback je hrubší.
 - `quarter-map.ts` má districtId jen pro hlavní města (Praha, Brno, Plzeň, Ostrava, Ústí, Olomouc, KV, Cheb); Praha obvody 2-22 mají vlastní district_id, fallback pro ně spadá na městský průměr.
-- Bezrealitky run je pomalý (75 × detail fetch) — `maxDuration = 60` v search-run může na Vercelu timeoutnout; zvážit menší počet stránek nebo optimalizaci.
 - hyperreality (doména = GitLab login), century21 (429 bot protection) — bez adapteru, `enabled: false`.
 
 ## Key Files

@@ -17,38 +17,54 @@ export interface QuarterEntry {
   districtId: number | null;
 }
 
-const PRAHA_DISTRICT = 5001;
-const BRNO_DISTRICT = 5021;
+const PRAHA_D1 = 5001; // Praha 1
+const PRAHA_D2 = 5002; // Praha 2
+const PRAHA_D3 = 5003; // Praha 3
+const PRAHA_D4 = 5004; // Praha 4, 11, 12
+const PRAHA_D5 = 5005; // Praha 5, 13, 16
+const PRAHA_D6 = 5006; // Praha 6, 17
+const PRAHA_D7 = 5007; // Praha 7
+const PRAHA_D8 = 5008; // Praha 8
+const PRAHA_D9 = 5009; // Praha 9, 14, 18, 19, 20
+const PRAHA_D10 = 5010; // Praha 10, 15, 21, 22
+const BRNO_DISTRICT = 72;
 const PLZEN_DISTRICT = 12;
-const OSTRAVA_DISTRICT = 5041;
-const USTI_DISTRICT = 5061;
-const OLOMOUC_DISTRICT = 5071;
-const KARLOVY_VARY_DISTRICT = 5091;
-const CHEB_DISTRICT = 5092;
+const OSTRAVA_DISTRICT = 65;
+const USTI_DISTRICT = 27;
+const OLOMOUC_DISTRICT = 42;
+const KARLOVY_VARY_DISTRICT = 10;
+const CHEB_DISTRICT = 9;
+const LIBEREC_DISTRICT = 22;
+const PARDUBICE_DISTRICT = 32;
+const HRADEC_DISTRICT = 28;
+const ZLIN_DISTRICT = 38;
+const JIHLAVA_DISTRICT = 67;
+const BUDEJOVICE_DISTRICT = 1;
 
 const QUARTERS: QuarterEntry[] = [
-  // Praha — obvody
-  { names: ["praha 1", "stare mesto", "nové město", "nove mesto"], cityKey: "praha", quarterId: 112, label: "Praha 1", districtId: PRAHA_DISTRICT },
-  { names: ["praha 2", "vinohrady", "nusle"], cityKey: "praha", quarterId: 113, label: "Praha 2", districtId: PRAHA_DISTRICT },
-  { names: ["praha 3", "zizkov", "žižkov"], cityKey: "praha", quarterId: 114, label: "Praha 3", districtId: PRAHA_DISTRICT },
-  { names: ["praha 4", "braník", "krc", "krč", "podolí", "michele", "chodov", "sporilov", "spořilov", "lhotka", "kamyk", "kamýk"], cityKey: "praha", quarterId: 115, label: "Praha 4", districtId: PRAHA_DISTRICT },
-  { names: ["praha 5", "smíchov", "smichov", "kosin", "košíř", "motol", "radejín", "radotín", "zvonarín", "zvonářín", "jinonice", "hřebenky", "hrebenky"], cityKey: "praha", quarterId: 116, label: "Praha 5", districtId: PRAHA_DISTRICT },
-  { names: ["praha 6", "dejvice", "bubenec", "bubeneč", "stresovice", "střešovice", "veletržní", "sedlec", "suchdol", "lysolaje", "vokovice", "veleslavín", "veleslavin"], cityKey: "praha", quarterId: 117, label: "Praha 6", districtId: PRAHA_DISTRICT },
-  { names: ["praha 7", "holešovice", "holesovice", "letná", "letna", "bubny"], cityKey: "praha", quarterId: 118, label: "Praha 7", districtId: PRAHA_DISTRICT },
-  { names: ["praha 8", "karlín", "karlin", "liben", "kobylisy", "čimice", "cimice", "bohnice", "dolní chabry"], cityKey: "praha", quarterId: 119, label: "Praha 8", districtId: PRAHA_DISTRICT },
-  { names: ["praha 9", "strizkov", "střížkov", "prosek", "černý most", "cerny most", "vysočany", "vysocany", "harden", "kbel", "horní počernice", "horni pocernice", "letnany", "letňany"], cityKey: "praha", quarterId: 119, label: "Praha 9", districtId: 5009 },
-  { names: ["praha 10", "vrsovice", "vršovice", "strasnice", "strašnice", "malešice", "malesice", "zabehlice", "záběhlice", "hostivař", "hostivar"], cityKey: "praha", quarterId: 120, label: "Praha 10", districtId: PRAHA_DISTRICT },
-  { names: ["praha 11", "jizni mesto", "jižní město", "chodec", "haje", "háje"], cityKey: "praha", quarterId: 121, label: "Praha 11", districtId: PRAHA_DISTRICT },
-  { names: ["praha 12", "modrany", "modřany", "komorany", "komořany", "pisnice", "písnice"], cityKey: "praha", quarterId: 122, label: "Praha 12", districtId: PRAHA_DISTRICT },
-  { names: ["praha 13", "stodulky", "lužiny", "luziny", "jinonice", "reporyje", "řeporyje", "třebonice", "trebonice"], cityKey: "praha", quarterId: 123, label: "Praha 13", districtId: PRAHA_DISTRICT },
-  { names: ["praha 14", "cerny most", "černý most", "hlaubetin", "kyje", "dolni pocernice", "dolní počernice"], cityKey: "praha", quarterId: 124, label: "Praha 14", districtId: PRAHA_DISTRICT },
-  { names: ["praha 15", "horni mečolupy", "horní měcholupy", "petrovice", "hostivar", "hostivař"], cityKey: "praha", quarterId: 125, label: "Praha 15", districtId: PRAHA_DISTRICT },
-  { names: ["praha 17", "repy", "řepy", "zlicin", "zlíčín"], cityKey: "praha", quarterId: 127, label: "Praha 17", districtId: PRAHA_DISTRICT },
-  { names: ["praha 18", "letnany", "letňany", "čakovice", "cakovice"], cityKey: "praha", quarterId: 128, label: "Praha 18", districtId: PRAHA_DISTRICT },
-  { names: ["praha 19", "kbel", "satalice", "vinoř", "vinor"], cityKey: "praha", quarterId: 129, label: "Praha 19", districtId: PRAHA_DISTRICT },
-  { names: ["praha 20", "horni pocernice", "horní počernice"], cityKey: "praha", quarterId: 130, label: "Praha 20", districtId: PRAHA_DISTRICT },
-  { names: ["praha 21", "ujezd nad lesy", "újezd nad lesy"], cityKey: "praha", quarterId: 131, label: "Praha 21", districtId: PRAHA_DISTRICT },
-  { names: ["praha 22", "uhříněves", "uhrineves", "křeslice", "kreslice"], cityKey: "praha", quarterId: 132, label: "Praha 22", districtId: PRAHA_DISTRICT },
+  // Praha — obvody (district_id = správní obvod, sdružuje více městských částí)
+  { names: ["praha 1", "stare mesto", "nové město", "nove mesto"], cityKey: "praha", quarterId: 112, label: "Praha 1", districtId: PRAHA_D1 },
+  { names: ["praha 2", "vinohrady", "nusle"], cityKey: "praha", quarterId: 113, label: "Praha 2", districtId: PRAHA_D2 },
+  { names: ["praha 3", "zizkov", "žižkov"], cityKey: "praha", quarterId: 114, label: "Praha 3", districtId: PRAHA_D3 },
+  { names: ["praha 4", "braník", "krc", "krč", "podolí", "michele", "chodov", "sporilov", "spořilov", "lhotka", "kamyk", "kamýk"], cityKey: "praha", quarterId: 115, label: "Praha 4", districtId: PRAHA_D4 },
+  { names: ["praha 5", "smíchov", "smichov", "kosin", "košíř", "motol", "radejín", "radotín", "zvonarín", "zvonářín", "jinonice", "hřebenky", "hrebenky"], cityKey: "praha", quarterId: 116, label: "Praha 5", districtId: PRAHA_D5 },
+  { names: ["praha 6", "dejvice", "bubenec", "bubeneč", "stresovice", "střešovice", "veletržní", "sedlec", "suchdol", "lysolaje", "vokovice", "veleslavín", "veleslavin"], cityKey: "praha", quarterId: 117, label: "Praha 6", districtId: PRAHA_D6 },
+  { names: ["praha 7", "holešovice", "holesovice", "letná", "letna", "bubny"], cityKey: "praha", quarterId: 118, label: "Praha 7", districtId: PRAHA_D7 },
+  { names: ["praha 8", "karlín", "karlin", "liben", "kobylisy", "čimice", "cimice", "bohnice", "dolní chabry"], cityKey: "praha", quarterId: 119, label: "Praha 8", districtId: PRAHA_D8 },
+  { names: ["praha 9", "strizkov", "střížkov", "prosek", "černý most", "cerny most", "vysočany", "vysocany", "harden", "kbel", "horní počernice", "horni pocernice", "letnany", "letňany"], cityKey: "praha", quarterId: 119, label: "Praha 9", districtId: PRAHA_D9 },
+  { names: ["praha 10", "vrsovice", "vršovice", "strasnice", "strašnice", "malešice", "malesice", "zabehlice", "záběhlice", "hostivař", "hostivar"], cityKey: "praha", quarterId: 120, label: "Praha 10", districtId: PRAHA_D10 },
+  { names: ["praha 11", "jizni mesto", "jižní město", "chodec", "haje", "háje"], cityKey: "praha", quarterId: 121, label: "Praha 11", districtId: PRAHA_D4 },
+  { names: ["praha 12", "modrany", "modřany", "komorany", "komořany", "pisnice", "písnice"], cityKey: "praha", quarterId: 122, label: "Praha 12", districtId: PRAHA_D4 },
+  { names: ["praha 13", "stodulky", "lužiny", "luziny", "jinonice", "reporyje", "řeporyje", "třebonice", "trebonice"], cityKey: "praha", quarterId: 123, label: "Praha 13", districtId: PRAHA_D5 },
+  { names: ["praha 14", "cerny most", "černý most", "hlaubetin", "kyje", "dolni pocernice", "dolní počernice"], cityKey: "praha", quarterId: 124, label: "Praha 14", districtId: PRAHA_D9 },
+  { names: ["praha 15", "horni mečolupy", "horní měcholupy", "petrovice", "hostivar", "hostivař"], cityKey: "praha", quarterId: 125, label: "Praha 15", districtId: PRAHA_D10 },
+  { names: ["praha 16", "radotin", "radotín"], cityKey: "praha", quarterId: 126, label: "Praha 16", districtId: PRAHA_D5 },
+  { names: ["praha 17", "repy", "řepy", "zlicin", "zlíčín"], cityKey: "praha", quarterId: 127, label: "Praha 17", districtId: PRAHA_D6 },
+  { names: ["praha 18", "letnany", "letňany", "čakovice", "cakovice"], cityKey: "praha", quarterId: 128, label: "Praha 18", districtId: PRAHA_D9 },
+  { names: ["praha 19", "kbel", "satalice", "vinoř", "vinor"], cityKey: "praha", quarterId: 129, label: "Praha 19", districtId: PRAHA_D9 },
+  { names: ["praha 20", "horni pocernice", "horní počernice"], cityKey: "praha", quarterId: 130, label: "Praha 20", districtId: PRAHA_D9 },
+  { names: ["praha 21", "ujezd nad lesy", "újezd nad lesy"], cityKey: "praha", quarterId: 131, label: "Praha 21", districtId: PRAHA_D9 },
+  { names: ["praha 22", "uhříněves", "uhrineves", "křeslice", "kreslice"], cityKey: "praha", quarterId: 132, label: "Praha 22", districtId: PRAHA_D10 },
 
   // Brno — městské části
   { names: ["brno-střed", "brno-stred", "brno město", "brno mesto", "veverí", "veveří", "staré brno", "stare brno", "trnitá", "trnita"], cityKey: "brno", quarterId: 180, label: "Brno-střed", districtId: BRNO_DISTRICT },
@@ -88,6 +104,24 @@ const QUARTERS: QuarterEntry[] = [
 
   // Cheb — centrum
   { names: ["cheb"], cityKey: "cheb", quarterId: 240, label: "Cheb", districtId: CHEB_DISTRICT },
+
+  // Liberec — centrum
+  { names: ["liberec", "vratislavice", "vratislavice nad nisou"], cityKey: "liberec", quarterId: 250, label: "Liberec", districtId: LIBEREC_DISTRICT },
+
+  // Pardubice — centrum
+  { names: ["pardubice", "pardubice i", "zelené předměstí", "zelene predmesti"], cityKey: "pardubice", quarterId: 251, label: "Pardubice", districtId: PARDUBICE_DISTRICT },
+
+  // Hradec Králové — centrum
+  { names: ["hradec králové", "hradec kralove", "hradec"], cityKey: "hradec", quarterId: 252, label: "Hradec Králové", districtId: HRADEC_DISTRICT },
+
+  // Zlín — centrum
+  { names: ["zlín", "zlin"], cityKey: "zlin", quarterId: 253, label: "Zlín", districtId: ZLIN_DISTRICT },
+
+  // Jihlava — centrum
+  { names: ["jihlava"], cityKey: "jihlava", quarterId: 254, label: "Jihlava", districtId: JIHLAVA_DISTRICT },
+
+  // České Budějovice — centrum
+  { names: ["české budějovice", "ceske budejovice", "budejovice"], cityKey: "ceske_budejovice", quarterId: 255, label: "České Budějovice", districtId: BUDEJOVICE_DISTRICT },
 ];
 
 function normalize(name: string): string {
