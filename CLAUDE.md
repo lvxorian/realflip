@@ -22,11 +22,14 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **225 tests across 15 files**.
+Vitest v4 + jsdom + @testing-library/react. **233 tests across 17 files**.
 `npm test` or `npx vitest run`.
 
-## Portals (10 adapters, 6 url-scrapers)
-sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ bezrealitky, remax, century21, hyperreality as not-implemented)
+## Portals (9 adapters, 6 url-scrapers)
+sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality, realitymat (+ remax, century21, hyperreality as not-implemented)
+- **Hledání**: všechny 9 registrované v `searches/[id]/run` + `scraping/trigger`.
+- **Analyzátor** (url-scraper): sreality, bezrealitky, reality.cz, hyperinzerce, annonce, bazos, mmreality, reality.idnes.cz, realitymat.cz.
+- `realitymat-parser.ts` (sdílený detail parser vč. telefonu z `#seller-modal`), `bezrealitky-parser.ts` (NEXT_DATA Apollo cache: advert/detail/search).
 
 ## Image Pipeline
 - `filterImages()` + `normalizeImageUrl()` in `types.ts` — central gatekeeper.
@@ -64,6 +67,8 @@ sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ 
 - `src/lib/scraping/url-scraper.ts` — single URL scraper
 - `src/lib/scraping/market-price-service.ts` — market price cascade Tier 1-5
 - `src/lib/scraping/sreality-sitemap.ts` — sreality sitemap parsing + city sampling
+- `src/lib/scraping/realitymat-parser.ts` — sdílený detail parser realitymat.cz
+- `src/lib/scraping/bezrealitky-parser.ts` — sdílený parser bezrealitky (NEXT_DATA Apollo cache)
 - `src/components/auctions/auction-analyzer.tsx` — 1-Click DD (URL input)
 - `src/components/auctions/auction-calculator.tsx` — kalkulačka výkupu před dražbou + uložení do properties
 - `src/components/report/auction-report.tsx` — dvojité PDF reporty (Investor/Majitel)
@@ -74,6 +79,8 @@ sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ 
 - `scripts/drazby_hunter.py` — Dražby data collector
 - `src/app/(dashboard)/vykupy/` — Výkupy UI (route vykupy)
 - `src/app/api/vykupy/` — Výkupy API (leads + regions)
+- `src/app/api/settings/profile/route.ts` — PATCH profil (jméno/email/heslo)
+- `src/app/api/settings/preferences/route.ts` — GET/PATCH kalkulačka defaults (jsonb/text parse)
 
 ## Scraper Architecture
 - `crawlAll` runs all portals **in parallel** (Promise.allSettled).
@@ -90,8 +97,9 @@ sreality, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality (+ 
 
 ## Pipeline (Leads CRM)
 - Route `/leads` (client `LeadsBoard`), 7 fází v `src/lib/leads.ts` (`LEAD_STAGES`, barevné tečky `dot`).
-- Komponenty `src/components/leads/`: `leads-board.tsx` (DndContext + SortableContext + DragOverlay, dnd-kit), `lead-card.tsx` (auto-zhuštění přes Tailwind v4 container queries `@max-[240px]:`), `lead-drawer.tsx` (slide-over framer-motion, PATCH stage/priority/notes, převod na deal z `closed`), `leads-toolbar.tsx` (search/filter/sort), `types.ts` (`LeadItem`).
-- `GET /api/leads` zobrazuje **kontakt z properties** (coalesce: `propertyContactName ?? contacts.name`) — lead může mít zastaralý `contactId` při sdíleném čísle RK.
+- Komponenty `src/components/leads/`: `leads-board.tsx` (DndContext + SortableContext + DragOverlay + **StageColumn s useDroppable** — přetažení funguje i na prázdné stádium; `moveLead` zachovává leady cílového stádia; reorder z plného seznamu), `lead-card.tsx` (auto-zhuštění přes Tailwind v4 container queries `@max-[240px]:`; **thumbnail** `propertyImageUrl`), `lead-drawer.tsx` (**rozdělen na `LeadDrawer` + `LeadDrawerContent` keyed per lead.id** — jinak stale-state; slide-over, PATCH stage/priority/notes/stageData, převod na deal z `closed`), `leads-toolbar.tsx` (search/filter/sort), `types.ts` (`LeadItem` + `StageData`).
+- **Stage-specific data** (`leads.stage_data`, SQLite text / Neon jsonb): fáze Schůzka (datum/lokalita), Nabídka (cena + historie, předvyplnění z `analysisTargetPurchasePrice`), Vyjednávání (částka + historie my/oni). Badge 📅/💰 na kartě. Call Mode panel "Nadcházející schůzky" (leady ve fázi meeting s datem).
+- `GET /api/leads` zobrazuje kontakt z properties (coalesce) + `propertyImageUrl` + `analysisTargetPurchasePrice`/`analysisArv`.
 - Initiate dedup kontaktů: **phone + name** (ne jen phone) v `src/app/api/properties/[id]/initiate/route.ts`.
 - Sloupce boardu `flex-1 basis-0 min-w-[170px]` — vejdou se do 1400px kontejneru bez scrollu.
 

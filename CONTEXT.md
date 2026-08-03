@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (225 tests, 15 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (233 tests, 17 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -128,6 +128,34 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Fallback mimo sreality**: `quarter-map.ts` (Nominatim suburb → sreality quarter_id + district_id). Záchranná síť = městský průměr.
 - UI: profil zobrazuje čtvrť ("Plzeň 3").
 
+### Phase 21 — Sekce audit + opravy (Done)
+- **Nemovitosti**: `searchId` s 0 výsledky zobrazí prázdný stav (předtím ukázal všechny inzeráty).
+- **Kontakty**: `POST /api/contacts` + `AddContactModal` (dříve mrtvé tlačítko "Přidat").
+- **Nastavení**: wire-up `PATCH /api/settings/profile` (jméno/email/heslo) + `GET/PATCH /api/settings/preferences` (ROI, provize, právní, rezerva, reko Kč/m², jsonb/text parse). Odstraněna "Daň z převodu", defaults sladěny s flip-costs.
+- **Call Mode**: textarea poznámek napojena na PATCH `/api/leads/[id]` (dříve se ztrácela).
+- **Alerty**: preset "Lokalita" má korektní rules `{type:"location"}`.
+- **Výkupy**: stale text (ISIR Hunter) odstraněn.
+
+### Phase 22 — Pipeline drag & drop + miniatury (Done)
+- **Fix drag & drop**: sloupce (stádia) dostaly `useDroppable` (`StageColumn`) — přetažení na prázdné stádium/mezeru dřív nefungovalo; `moveLead` zachovává leady cílového stádia; reorder z plného seznamu (ne toolbar-filtrovaného).
+- **Miniatury**: `propertyImageUrl` v `/api/leads` (první foto z `imageUrls`), thumbnail na `LeadCard` (i v DragOverlay) a v `LeadDrawer`.
+
+### Phase 23 — Stage-specific pipeline data (Done)
+- `leads.stage_data` (SQLite text / Neon jsonb), `property_analysis.target_purchase_price`.
+- **LeadDrawer** formuláře dle fáze: Schůzka (datum/lokalita), Nabídka (cena + předvyplnění z `targetPurchasePrice` + historie), Vyjednávání (částka + historie my/oni), Převod na deal (cena předvyplněná z nabídky).
+- Badge 📅/💰 na `LeadCard`; Call Mode panel "Nadcházející schůzky".
+- `targetPurchasePrice` persistován ve všech write paths (orchestrator, create-from-url, calc-save, PATCH, create-from-auction).
+- **Fix stale-state**: LeadDrawer rozdělen na `LeadDrawerContent` keyed per `lead.id` (formuláře se dřív nezobrazovaly — state se neresetoval).
+
+### Phase 24 — Analyzátor: reality.idnes.cz + realitymat.cz (Done)
+- **iDnes**: fix URL pattern `/reality\.idnes\.cz/` (předtím nikdy nezachytil), jméno kontaktu `h2.b-author__title a`, cena odolává `&zwj;` (zero-width joiner), email vyčištěn od `?subject=`.
+- **Realitymat**: nový scraper — `realitymat-parser.ts` (sdílený detail parser vč. telefonu z `#seller-modal`) + `adapters/realitymat.ts` (search `/prodej/byty`, 5 stránek, jen prodej bytů). Registrace do trigger + search-run.
+
+### Phase 25 — Bazos paginace + Bezrealitky do Hledání (Done)
+- **Bazos**: fix paginace — offset `/20/`, `/40/` místo `strana/2/` (page 2+ → HTTP 404 → crawler spadl).
+- **Bezrealitky**: nový scraper pro Hledání — `bezrealitky-parser.ts` (sdílený parser z `__NEXT_DATA__` Apollo cache: `parseBezrealitkyAdvert`/`parseBezrealitkyDetail`/`parseBezrealitkySearch`, resolve `Image:` refů) + `adapters/bezrealitky.ts` (search `/vyhledat?…&offerType=PRODEJ&estateType=BYT&page=N`). `scrapeBezrealitky` v url-scraperu refaktorován na sdílený parser.
+- **9 portálů v Hledání**: sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce.
+
 ## Remaining
 - `/api/parse-auction` je zatím **mock** — napojit reálnou pipeline (stahování HTML/PDF + LLM extrakce) z `src/lib/auctions/parse-auction.ts`.
 - `checkScoreThresholdAlert` not yet called in orchestrator.
@@ -141,6 +169,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - AI guard spouští Gemini jen pro podezřelá data; při 503 (high demand) tichý fallback na null (bez badge).
 - Nominatim reverse-geocode je u čtvrtí nepřesný (Bory → "Severní Předměstí" → Plzeň 1 místo Plzeň 3) — pro sreality inzeráty je čtvrť přesná z detailu; fallback je hrubší.
 - `quarter-map.ts` má districtId jen pro hlavní města (Praha, Brno, Plzeň, Ostrava, Ústí, Olomouc, KV, Cheb); Praha obvody 2-22 mají vlastní district_id, fallback pro ně spadá na městský průměr.
+- Bezrealitky run je pomalý (75 × detail fetch) — `maxDuration = 60` v search-run může na Vercelu timeoutnout; zvážit menší počet stránek nebo optimalizaci.
+- hyperreality, remax, century21 nemají adapter (v Hledání se přeskočí).
 
 ## Key Files
 
@@ -152,7 +182,9 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/orchestrator.ts`
 - `src/lib/scraping/url-scraper.ts`
 - `src/lib/scraping/types.ts`
-- `src/lib/scraping/adapters/` — 7 adapters
+- `src/lib/scraping/realitymat-parser.ts` — sdílený detail parser realitymat.cz (vč. telefonu z modalu)
+- `src/lib/scraping/bezrealitky-parser.ts` — sdílený parser bezrealitky (NEXT_DATA Apollo cache: advert/detail/search)
+- `src/lib/scraping/adapters/` — 9 adapters (sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce)
 
 ### Analysis / Calculator
 - `src/lib/analysis/flip-costs.ts`
@@ -201,6 +233,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/components/leads/leads-board.tsx`, `lead-card.tsx`, `lead-drawer.tsx`, `leads-toolbar.tsx`, `types.ts`
 - `src/lib/leads.ts` — LEAD_STAGES
 - `src/app/api/leads/route.ts`, `src/app/api/leads/[id]/route.ts`, `src/app/api/leads/[id]/convert/route.ts`
+- `lead-drawer.tsx` — rozdělen na `LeadDrawer` (overlay) + `LeadDrawerContent` (keyed per lead), stage-specific formuláře (meeting/offer/negotiation) ve `stageData`
 
 ### API
 - `src/app/api/scraping/trigger/route.ts`
@@ -208,6 +241,9 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/app/api/favorites/toggle/route.ts`
 - `src/app/api/properties/[id]/calc-preset/route.ts`
 - `src/app/api/properties/[id]/route.ts` — GET + PATCH (plocha/re-analýza) + DELETE
+- `src/app/api/contacts/route.ts` — GET + POST (vytvoření kontaktu)
+- `src/app/api/settings/profile/route.ts` — PATCH (jméno/email/heslo)
+- `src/app/api/settings/preferences/route.ts` — GET/PATCH kalkulačka defaults (jsonb/text)
 - `src/app/api/locality/[cityKey]/route.ts`, `src/app/api/locality/refresh/route.ts`
 - `src/app/api/market/price-index/route.ts`
 - `src/app/api/geocode/route.ts` — Nominatim geokódování adresy + uložení GPS do properties
@@ -227,3 +263,5 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/__tests__/adapters-image.test.ts`
 - `src/lib/scraping/__tests__/filters.test.ts`
 - `src/lib/scraping/__tests__/market-price-service.test.ts`
+- `src/lib/scraping/__tests__/bazos-pagination.test.ts` — offset paginace URL
+- `src/lib/scraping/__tests__/bezrealitky-parser.test.ts` — advert konverze + search parsing
