@@ -81,6 +81,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `src/app/api/vykupy/` — Výkupy API (leads + regions)
 - `src/app/api/settings/profile/route.ts` — PATCH profil (jméno/email/heslo)
 - `src/app/api/settings/preferences/route.ts` — GET/PATCH kalkulačka defaults (jsonb/text parse)
+- `src/lib/alert-matcher.ts` — price_drop + score_threshold alerty (volané z orchestratoru)
 
 ## Scraper Architecture
 - `crawlAll` runs all portals **in parallel** (Promise.allSettled).

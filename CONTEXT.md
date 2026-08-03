@@ -159,7 +159,6 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **9 portálů v Hledání**: sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce.
 
 ## Remaining
-- `checkScoreThresholdAlert` not yet called in orchestrator.
 - Broader dedup/cache persistence (Redis or DB-based).
 - iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
 - DB `target_roi` column is `integer`, should be `real` for decimal precision.

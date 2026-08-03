@@ -15,6 +15,53 @@ interface ScoreThresholdRule {
 
 type AlertRule = PriceDropRule | ScoreThresholdRule;
 
+export async function checkScoreThresholdAlert(
+  propertyId: string,
+  title: string,
+  url: string,
+  score: number | null
+): Promise<void> {
+  if (score == null) return;
+
+  const activeAlerts = await db
+    .select()
+    .from(alerts)
+    .where(eq(alerts.isActive, 1));
+
+  for (const alert of activeAlerts) {
+    let rule: AlertRule | null = null;
+    try {
+      rule = JSON.parse(alert.rules ?? "{}") as AlertRule;
+    } catch {
+      continue;
+    }
+
+    if (!rule || rule.type !== "score_threshold") continue;
+    if (score < rule.minScore) continue;
+
+    const now = ts();
+
+    try {
+      await db.insert(notifications).values({
+        id: generateId(),
+        userId: alert.userId,
+        title: "Investiční skóre",
+        message: `${title} – investiční skóre ${score.toFixed(0)}/${rule.minScore}+`,
+        type: "score_threshold",
+        data: JSON.stringify({ propertyId, url, score, minScore: rule.minScore }),
+        createdAt: now,
+      });
+
+      await db
+        .update(alerts)
+        .set({ lastTriggered: now })
+        .where(eq(alerts.id, alert.id));
+    } catch {
+      // notification insert is optional
+    }
+  }
+}
+
 export async function checkPriceDropAlert(
   propertyId: string,
   title: string,

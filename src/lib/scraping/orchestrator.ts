@@ -9,7 +9,7 @@ import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts, safeJsonParse } from "@/lib/utils";
-import { checkPriceDropAlert } from "@/lib/alert-matcher";
+import { checkPriceDropAlert, checkScoreThresholdAlert } from "@/lib/alert-matcher";
 import { classifyLocation, findCityKey } from "@/lib/analysis/location";
 import { getPropertyMarketRange, refreshAllMarketData } from "@/lib/scraping/market-price-service";
 
@@ -282,7 +282,6 @@ export class ScrapingOrchestrator {
           await checkPriceDropAlert(existing.id, listing.title, listing.url, existing.price, listing.price).catch(() => {});
         }
       }
-
       const area = existing.area ?? listing.area ?? 70;
       const keepManualArea = existing.areaLocked === 1 && existing.area != null;
       const effectiveArea = keepManualArea ? existing.area : (listing.area ?? existing.area);
@@ -325,7 +324,7 @@ export class ScrapingOrchestrator {
       if (existing.price !== listing.price) {
         const renoCostEstimate = Math.round(area * 10000) + 180000 + 140000;
         const existingAnalysis = await db
-          .select({ arv: propertyAnalysis.arv })
+          .select({ arv: propertyAnalysis.arv, investmentScore: propertyAnalysis.investmentScore })
           .from(propertyAnalysis)
           .where(eq(propertyAnalysis.propertyId, existing.id))
           .limit(1)
@@ -369,6 +368,8 @@ export class ScrapingOrchestrator {
             // AI analysis is optional
           }
         }
+
+        await checkScoreThresholdAlert(existing.id, listing.title, listing.url, existingAnalysis?.investmentScore ?? null).catch(() => {});
       }
 
       if (searchId) {
@@ -522,6 +523,8 @@ export class ScrapingOrchestrator {
           lastSeen: ts(),
         });
       }
+
+      await checkScoreThresholdAlert(id, listing.title, listing.url, analysis.investmentScore).catch(() => {});
 
       return id;
     }
