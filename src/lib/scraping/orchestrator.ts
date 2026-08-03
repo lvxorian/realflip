@@ -212,6 +212,23 @@ export class ScrapingOrchestrator {
                 inArray(searchProperties.propertyId, staleIds),
               ),
             );
+
+          // Deaktivuj inzeráty, které z portálu zmizely a už nejsou navázané
+          // na žádné další hledání (jinak zůstávají v databázi jako "aktivní"
+          // navěky). Napojení na jiné hledání je ochrání před deaktivací.
+          const stillLinked = await db
+            .select({ propertyId: searchProperties.propertyId })
+            .from(searchProperties)
+            .where(inArray(searchProperties.propertyId, staleIds));
+          const stillLinkedSet = new Set(stillLinked.map((l) => l.propertyId));
+          const toDeactivate = staleIds.filter((id) => !stillLinkedSet.has(id));
+
+          if (toDeactivate.length > 0) {
+            await db
+              .update(properties)
+              .set({ isActive: 0, lastSeen: ts() })
+              .where(inArray(properties.id, toDeactivate));
+          }
         }
       } catch (err) {
         allErrors.push(`Search link cleanup error: ${err}`);

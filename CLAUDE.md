@@ -88,9 +88,11 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 ## Scraper Architecture
 - `crawlAll` runs all portals **in parallel** (Promise.allSettled).
 - Stale deactivation: bulk `UPDATE ... WHERE NOT IN` (was N+1).
+- `crawlSearch`: stale deactivation pro inzeráty, které zmizely a nemají link na jiné hledání (nagromaděné "aktivní mrtvoly" z minulých full-portal crawlů).
 - Re-analysis only on price change (was every crawl).
 - `saveListing` passes `listing.portalName` to `filterImages` (was missing).
 - All adapters call `enrichListing()` in `crawlListings()`.
+- Čištění non-target měst: `npx tsx scripts/cleanup-orphans.ts` (dry-run) / `--delete` (maže mimo zadaná města, backup JSON do `scripts/`).
 
 ## Common Tasks
 - Add portal: implement adapter in `src/lib/scraping/adapters/` → register in both trigger routes + url-scraper.

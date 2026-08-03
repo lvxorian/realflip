@@ -49,4 +49,7 @@ next-env.d.ts
 # scraping
 cookies.txt
 
+# maintenance backups (cleanup-orphans)
+scripts/backup-orphans-*.json
+
 .vercel
