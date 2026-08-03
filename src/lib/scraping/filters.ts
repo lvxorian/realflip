@@ -23,6 +23,15 @@ const FOREIGN_ADDRESS_MARKERS: RegExp[] = [
   /frankfurt/i,
   /\bköl[nk]\b/i,
   /německu|nemecku|německo|nemecko/i,
+  // Balkán – bulharská/chorvatská letoviska a města
+  /\bnesebar/i,
+  /\bsveti\b/i,
+  /\bvarna\b/i,
+  /\bburgas\b/i,
+  /\bsunny beach\b/i,
+  /\bvir\b/i,
+  /bulharsk|bulgari|болга/i,
+  /chorvat|chorvats|croat/i,
 ];
 
 /**

@@ -13,10 +13,15 @@ export class RealityMatAdapter extends PortalAdapter {
   async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
     const results: RawListing[] = [];
 
+    const citySlug = filters?.location ? this.slugFor(filters.location) : null;
+    const basePath = citySlug
+      ? `https://www.realitymat.cz/prodej/byty/${citySlug}`
+      : "https://www.realitymat.cz/prodej/byty";
+
     for (let page = 1; page <= this.maxPages; page++) {
       const url = page === 1
-        ? "https://www.realitymat.cz/prodej/byty"
-        : `https://www.realitymat.cz/prodej/byty?page=${page}`;
+        ? basePath
+        : `${basePath}?page=${page}`;
       const html = await this.fetch(url);
       const items = this.parseSearchResults(html);
       if (items.length === 0) break;
@@ -124,5 +129,55 @@ export class RealityMatAdapter extends PortalAdapter {
     } catch {
       return raw;
     }
+  }
+
+  /** Vrátí slug města pro URL realitymat.cz (např. "karlovy-vary"). */
+  private slugFor(city: string): string {
+    return city
+      .toLowerCase()
+      .trim()
+      .replace(/[^\p{L}\p{N}]+/gu, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/[áä]/g, "a")
+      .replace(/[čć]/g, "c")
+      .replace(/[ď]/g, "d")
+      .replace(/[éěè]/g, "e")
+      .replace(/[íì]/g, "i")
+      .replace(/[ň]/g, "n")
+      .replace(/[óö]/g, "o")
+      .replace(/[ř]/g, "r")
+      .replace(/[š]/g, "s")
+      .replace(/[ť]/g, "t")
+      .replace(/[úůü]/g, "u")
+      .replace(/[ý]/g, "y")
+      .replace(/[ž]/g, "z");
+  }
+
+  async crawlCityListings(cityKey: string, limit = 40): Promise<RawListing[]> {
+    const slug = this.slugFor(cityKey.replace(/_/g, "-"));
+    const results: RawListing[] = [];
+
+    for (let page = 1; page <= this.maxPages; page++) {
+      const url = page === 1
+        ? `https://www.realitymat.cz/prodej/byty/${slug}`
+        : `https://www.realitymat.cz/prodej/byty/${slug}?page=${page}`;
+      const html = await this.fetch(url);
+      const items = this.parseSearchResults(html);
+      if (items.length === 0) break;
+      results.push(...items);
+      if (results.length >= limit) break;
+    }
+
+    const enriched: RawListing[] = [];
+    const concurrency = 3;
+    for (let i = 0; i < results.length; i += concurrency) {
+      const batch = results.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map((l) => this.enrichListing(l).catch(() => l))
+      );
+      enriched.push(...batchResults);
+    }
+
+    return enriched;
   }
 }

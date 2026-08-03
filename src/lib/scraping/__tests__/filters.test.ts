@@ -123,6 +123,16 @@ describe("isCzechListing", () => {
     expect(isCzechListing({ ...l, address: "Heßstr. München" })).toBe(false);
   });
 
+  it("odmítne balkánská letoviska bez GPS (Nesebar, Sveti Vlas, Vir)", () => {
+    const l = listing({ lat: null, lng: null });
+    expect(isCzechListing({ ...l, address: "Nesebar" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "Sveti Vlas" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "Vir" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "Sunny Beach, Varna" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "služby Bulharsko, Burgas" })).toBe(false);
+    expect(isCzechListing({ ...l, address: "Makarska, Chorvatsko" })).toBe(false);
+  });
+
   it("nezamítne českou adresu bez GPS", () => {
     const l = listing({ lat: null, lng: null });
     expect(isCzechListing({ ...l, address: "Vinohradská 42, Praha 2" })).toBe(true);
