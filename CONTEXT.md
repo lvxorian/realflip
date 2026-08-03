@@ -163,7 +163,6 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - iDnes-reality `yearBuilt` extraction (no "rok" column in most listings).
 - DB `target_roi` column is `integer`, should be `real` for decimal precision.
 - Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).
-- Lokalitní data: SLDB 2021 (věk/vzdělání) a ARES firmy zatím nejsou napojené (chybí v `missing` dimenzích) — firmy/sldb vrací null.
 - Renta pro malá města (<5 vzorků) = null; doplnit více vzorků přes vícestránkový scrap.
 - AI guard spouští Gemini jen pro podezřelá data; při 503 (high demand) tichý fallback na null (bez badge).
 - Nominatim reverse-geocode je u čtvrtí nepřesný (Bory → "Severní Předměstí" → Plzeň 1 místo Plzeň 3) — pro sreality inzeráty je čtvrť přesná z detailu; fallback je hrubší.
@@ -216,6 +215,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 ### Lokalitní inteligence
 - `src/lib/locality/index.ts` — orchestrátor (getLocalityForProperty, analyzeLocalityAndPersist)
 - `src/lib/locality/czso.ts` — ČSÚ nezaměstnanost (2023) + migrace (2024) přes NKOD
+- `src/lib/locality/sldb.ts` — ČSÚ věková struktura per ORP (SLDB 2021) + firmy per obec (RES)
 - `src/lib/locality/crime.ts` — PČR XLSX kriminalita per kraj
 - `src/lib/locality/poi.ts` — sreality POI vzdálenosti → walkability (per město i per čtvrť)
 - `src/lib/locality/quarter-map.ts` — název čtvrti (Nominatim) → sreality quarter_id + district_id
