@@ -7,7 +7,7 @@ import { segmentOf } from "./market-price-service";
 
 const BASE_API = "https://www.sreality.cz/api/v1/estates/search";
 const RESULTS_PER_PAGE = 100;
-const MAX_PAGES = 2;
+const MAX_PAGES = 5;
 
 const SREALITY_HEADERS: Record<string, string> = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -30,7 +30,11 @@ export interface RentSample {
 
 async function fetchRentPage(cityKey: string, offset: number): Promise<any[]> {
   const cityNames = cityNamesFor(cityKey);
-  const url = `${BASE_API}?category_main_cb=1&category_type_cb=2&limit=${RESULTS_PER_PAGE}&offset=${offset}`;
+  const slug = cityKey.replace(/_/g, "-");
+  // locality_district_cz omezí search API přímo na město — pro malá města,
+  // kde je jinak málo vzorků v celostátním výběru. Fallback (prázdné výsledky)
+  // → celostátní dotaz a filtr přes adresu.
+  const url = `${BASE_API}?category_main_cb=1&category_type_cb=2&locality_district_cz=${slug}&limit=${RESULTS_PER_PAGE}&offset=${offset}`;
   const res = await fetch(url, { headers: SREALITY_HEADERS });
   if (!res.ok) {
     if (res.status === 429 || res.status === 403) {
@@ -40,7 +44,25 @@ async function fetchRentPage(cityKey: string, offset: number): Promise<any[]> {
     throw new Error(`HTTP ${res.status}: ${url}`);
   }
   const data = await res.json();
-  const items: any[] = data?.results ?? [];
+  const localized: any[] = data?.results ?? [];
+  if (localized.length > 0) {
+    return localized.filter((it) => {
+      const city = it.locality?.city ?? null;
+      return city && addressMatchesCity(city, cityNames);
+    });
+  }
+  // locality filter nefunguje (0 výsledků) → celostátní dotaz + adresní filtr
+  const fallbackUrl = `${BASE_API}?category_main_cb=1&category_type_cb=2&limit=${RESULTS_PER_PAGE}&offset=${offset}`;
+  const fbRes = await fetch(fallbackUrl, { headers: SREALITY_HEADERS });
+  if (!fbRes.ok) {
+    if (fbRes.status === 429 || fbRes.status === 403) {
+      await new Promise((r) => setTimeout(r, 20000));
+      return fetchRentPage(cityKey, offset);
+    }
+    throw new Error(`HTTP ${fbRes.status}: ${fallbackUrl}`);
+  }
+  const fbData = await fbRes.json();
+  const items: any[] = fbData?.results ?? [];
   return items.filter((it) => {
     const city = it.locality?.city ?? null;
     return city && addressMatchesCity(city, cityNames);
