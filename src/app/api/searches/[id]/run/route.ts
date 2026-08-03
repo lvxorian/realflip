@@ -40,6 +40,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const { IdnesRealityAdapter } = await import("@/lib/scraping/adapters/idnes-reality");
     const { RealityMatAdapter } = await import("@/lib/scraping/adapters/realitymat");
     const { BezrealitkyAdapter } = await import("@/lib/scraping/adapters/bezrealitky");
+    const { RemaxAdapter } = await import("@/lib/scraping/adapters/remax");
 
     const orchestrator = new ScrapingOrchestrator();
     orchestrator.registerAdapter("bazos", new BazosAdapter());
@@ -51,6 +52,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
     orchestrator.registerAdapter("realitymat", new RealityMatAdapter());
     orchestrator.registerAdapter("bezrealitky", new BezrealitkyAdapter());
+    orchestrator.registerAdapter("remax", new RemaxAdapter());
 
     const result = await orchestrator.crawlSearch(id, filters);
 

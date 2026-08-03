@@ -84,7 +84,7 @@ export const PORTAL_CONFIGS: Record<PortalName, PortalConfig> = {
   },
   hyperreality: {
     name: "hyperreality",
-    enabled: true,
+    enabled: false,
     baseUrl: "https://www.hyperreality.cz",
     searchPath: "/vyhledavani",
     rateLimitMs: 2000,
@@ -94,15 +94,15 @@ export const PORTAL_CONFIGS: Record<PortalName, PortalConfig> = {
   remax: {
     name: "remax",
     enabled: true,
-    baseUrl: "https://www.remax.cz",
-    searchPath: "/nemovitosti",
+    baseUrl: "https://www.remax-czech.cz",
+    searchPath: "/reality/vyhledavani",
     rateLimitMs: 3000,
     respectRobotsTxt: true,
     requiresJs: true,
   },
   century21: {
     name: "century21",
-    enabled: true,
+    enabled: false,
     baseUrl: "https://www.century21.cz",
     searchPath: "/nemovitosti",
     rateLimitMs: 3000,
