@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { fetchBuffer } from "./http";
+import { fetchText, fetchBuffer } from "./http";
 import { db } from "@/db";
 import { localityMetrics } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -14,6 +14,40 @@ import { ts } from "@/lib/utils";
 const SOURCE_URLS = {
   "2025-12": "https://www.policie.cz/soubor/2025-12-prosinec-sest-01a-xlsx.aspx",
 };
+
+const YEAR_PAGE = (year: number) =>
+  `https://www.policie.cz/clanek/statisticke-prehledy-kriminality-za-rok-${year}.aspx`;
+
+const SOUVOR_RE = /soubor\/(\d{4})-(\d{2})-[a-z]+-sest-01a-xlsx\.aspx/g;
+
+/**
+ * Zjistí nejnovější dostupný měsíční soubor PČR (XLSX) pro aktuální rok.
+ * Pokud stránka aktuálního roku nemá soubory, sestoupí až 3 roky zpět.
+ * Vrací periodu ("2026-06") a absolutní URL souboru.
+ */
+export async function discoverLatestCrimeSource(): Promise<{ period: string; url: string }> {
+  const now = new Date();
+  for (let year = now.getFullYear(); year >= now.getFullYear() - 3; year--) {
+    try {
+      const html = await fetchText(YEAR_PAGE(year), 30000);
+      const found: { year: number; month: number; href: string }[] = [];
+      for (const m of html.matchAll(SOUVOR_RE)) {
+        found.push({ year: parseInt(m[1]), month: parseInt(m[2]), href: m[0] });
+      }
+      if (found.length === 0) continue;
+      found.sort((a, b) => a.year - b.year || a.month - b.month);
+      const latest = found[found.length - 1];
+      return {
+        period: `${latest.year}-${String(latest.month).padStart(2, "0")}`,
+        url: `https://www.policie.cz/${latest.href}`,
+      };
+    } catch {
+      // stránka roku nemusí existovat (404) → zkusit starší rok
+    }
+  }
+  // fallback na poslední známou statiku
+  return { period: Object.keys(SOURCE_URLS)[0], url: Object.values(SOURCE_URLS)[0] };
+}
 
 /** Sheet název -> regionKey (shodné s CITY_TO_REGION). */
 const SHEET_TO_REGION: Record<string, string> = {
@@ -64,9 +98,7 @@ export interface CrimeRegionData {
 const CACHE_SOURCE = "pcr-crime";
 
 export async function fetchCrimeRegions(): Promise<CrimeRegionData[]> {
-  const entries = Object.entries(SOURCE_URLS);
-  const period = entries[0][0];
-  const url = entries[0][1];
+  const { period, url } = await discoverLatestCrimeSource();
   const buffer = await fetchBuffer(url, 60000);
   const wb = XLSX.read(buffer, { type: "buffer" });
 
