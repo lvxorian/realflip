@@ -5,6 +5,7 @@ import { properties, priceHistory, propertyAnalysis, calculatorPresets } from "@
 import { eq, desc } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
+import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 import type { RawListing } from "@/lib/scraping/types";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
 
@@ -77,6 +78,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid area" }, { status: 400 });
     }
 
+    const CONDITION_VALUES = ["new", "renovated", "good", "original", "dilapidated"];
+    if (body.condition !== undefined && !CONDITION_VALUES.includes(body.condition)) {
+      return NextResponse.json({ error: "Invalid condition" }, { status: 400 });
+    }
+
     const property = await db
       .select()
       .from(properties)
@@ -97,6 +103,7 @@ export async function PATCH(
 
     const now = ts();
     const newArea = body.area ?? property.area;
+    const newCondition = body.condition ?? property.condition;
     const areaLocked = body.area !== undefined ? 1 : 0;
     const pricePerSqm =
       newArea != null && newArea > 0 && property.price > 0
@@ -108,6 +115,7 @@ export async function PATCH(
       .set({
         area: newArea,
         areaLocked,
+        condition: newCondition,
         pricePerSqm,
       })
       .where(eq(properties.id, id));
@@ -117,7 +125,8 @@ export async function PATCH(
       .delete(calculatorPresets)
       .where(eq(calculatorPresets.propertyId, id));
 
-    // Re-analyze with corrected area (offline — reuse stored market range)
+    // Re-analyze with corrected area/condition. Při změně stavu načteme čerstvá tržní
+    // data (žhavý přepočet — nový stav mění tržní segment, a tím ARV i skóre).
     const listing: RawListing = {
       portalName: (property.portalName ?? "manual") as RawListing["portalName"],
       url: property.url ?? "",
@@ -127,7 +136,7 @@ export async function PATCH(
       area: newArea,
       rooms: property.rooms ?? null,
       floor: property.floor ?? null,
-      condition: property.condition ?? null,
+      condition: newCondition,
       buildingType: property.buildingType ?? null,
       yearBuilt: property.yearBuilt ?? null,
       address: property.address ?? null,
@@ -142,7 +151,8 @@ export async function PATCH(
       updatedAt: property.lastSeen ?? now,
     };
 
-    const dynamicRange =
+    // Základ: uložený tržní rozsah z poslední analýzy (offline fallback)
+    let dynamicRange =
       analysis?.marketPriceMin != null && analysis.marketPriceMax != null
         ? {
             low: analysis.marketPriceMin,
@@ -151,7 +161,7 @@ export async function PATCH(
           }
         : null;
 
-    const arvRange =
+    let arvRange =
       analysis?.arvPricePerSqmHigh != null
         ? {
             low: analysis.arvPricePerSqmHigh,
@@ -159,6 +169,33 @@ export async function PATCH(
             median: analysis.arvPricePerSqmHigh,
           }
         : null;
+
+    let marketSource: string | null = analysis?.marketSource ?? null;
+    let marketSampleSize: number | null = analysis?.marketSampleSize ?? null;
+
+    // Žhavý přepočet: změna stavu mění tržní segment (a tím i ARV), proto načteme
+    // čerstvá tržní data pro nový stav. Při neznámé lokalitě nebo selhání se
+    // spoléháme na uložené hodnoty (offline re-analysis).
+    if (body.condition !== undefined && analysis?.locationCity && analysis.locationCity !== "Neznámá") {
+      const live = await getAnalysisRanges({
+        cityKey: analysis.locationCity,
+        lat: property.lat ?? null,
+        lng: property.lng ?? null,
+        condition: newCondition,
+        buildingType: property.buildingType ?? null,
+        area: newArea ?? null,
+        category: analysis.locationCategory ?? "stable",
+      }).catch(() => null);
+
+      if (live) {
+        if (live.dynamicRange) {
+          dynamicRange = live.dynamicRange;
+          marketSource = live.dynamicRange.source;
+          marketSampleSize = live.dynamicRange.sampleSize;
+        }
+        if (live.arvRange) arvRange = live.arvRange;
+      }
+    }
 
     const precomputedLocation =
       analysis?.locationCity
@@ -193,8 +230,8 @@ export async function PATCH(
           marketPriceMin: result.marketPricePerSqmLow,
           marketPriceMax: result.marketPricePerSqmHigh,
           arvPricePerSqmHigh: result.arvPricePerSqmHigh,
-          marketSource: analysis?.marketSource ?? null,
-          marketSampleSize: analysis?.marketSampleSize ?? null,
+          marketSource,
+          marketSampleSize,
           overpricingPct: result.overpricingPct,
           locationCategory: result.location.category,
           locationCity: result.location.city,

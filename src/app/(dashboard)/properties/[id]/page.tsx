@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis, favorites } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
-import { safeJsonParse, conditionLabel, formatPhone, formatPrice } from "@/lib/utils";
+import { safeJsonParse, formatPhone, formatPrice } from "@/lib/utils";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
@@ -13,6 +13,7 @@ import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import { InitiateButton } from "@/components/properties/initiate-button";
 import { EditableArea } from "@/components/properties/editable-area";
+import { EditableCondition } from "@/components/properties/editable-condition";
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
@@ -228,7 +229,6 @@ export default async function PropertyDetailPage({
                 {[
                   { label: "dispozice", value: property.rooms ?? "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
-                  { label: "stav", value: conditionLabel(property.condition) },
                   { label: "rok", value: property.yearBuilt ?? "—" },
                 ].map((s) => (
                   <div
@@ -239,6 +239,10 @@ export default async function PropertyDetailPage({
                     <p className="font-semibold text-foreground font-mono mt-0.5">{s.value}</p>
                   </div>
                 ))}
+                <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
+                  <span className="text-muted">stav</span>
+                  <EditableCondition propertyId={id} condition={property.condition} />
+                </div>
                 <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
                   <span className="text-muted">velikost</span>
                   <EditableArea

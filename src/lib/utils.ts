@@ -119,9 +119,9 @@ export function recommendationColor(score: number): string {
 const CONDITION_LABELS: Record<string, string> = {
   new: "Novostavba",
   renovated: "Po rekonstrukci",
-  good: "Dobrý",
-  original: "Původní",
-  dilapidated: "Zchátralý",
+  good: "Průměrný",
+  original: "Před rekonstrukcí",
+  dilapidated: "Neobyvatelný",
   project: "Projekt",
 };
 

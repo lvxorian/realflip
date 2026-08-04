@@ -192,6 +192,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Migrace**: `0008_investors.sql` (PG ručně SQL) + SQLite ALTER (data.db). **Aplikováno na Neon** — investors tabulka, `deals.investor_id` + FK set null ověřeny.
 - **Testy**: `src/lib/__tests__/investors.test.ts` (9) — celkem **255 testů / 21 souborů**.
 
+### Phase 29 — Editovatelný stav + žhavý přepočet (Done)
+- **Globální štítky stavů** v `CONDITION_LABELS` (`src/lib/utils.ts`): unified → `new: Novostavba`, `renovated: Po rekonstrukci`, `good: Průměrný`, `original: Před rekonstrukcí`, `dilapidated: Neobyvatelný`, `project: Projekt`. Staré názvy ("Dobrý"/"Původní"/"Zchátralý") testy `utils.test.ts` upraveny.
+- **`EditableCondition`** (`src/components/properties/editable-condition.tsx`): tužka → inline `<select>` (5 stavy, Enter uloží / Esc zavře) → `PATCH { condition }` + toast + `router.refresh()`. Vzorem `EditableArea`.
+- **Detail** (`properties/[id]/page.tsx`): "stav" vytažen ze statického pole dispozice/patro/rok do vlastního boxu s `EditableCondition` (vedle "velikost"), `conditionLabel` import už nepoužit.
+- **`PATCH /api/properties/[id]`**: validace `condition` ∈ 5 hodnot (jinak 400), `.set({ condition })`. Při změně stavu **žhavý přepočet** — `getAnalysisRanges({ cityKey, lat, lng, condition: new, buildingType, area, category })` (jen když `locationCity` známá a ≠ "Neznámá"), čerstvé `dynamicRange`/`arvRange` + `marketSource`/`marketSampleSize`; při selhání fallback na uložené range (offline re-analysis).
+- **Testy/typy/build**: 290 testů / 22 souborů zelené, `tsc --noEmit` čistý, `next build` OK.
+
 ## Key Files
 
 ### Core
@@ -269,7 +276,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/app/api/searches/[id]/run/route.ts`
 - `src/app/api/favorites/toggle/route.ts`
 - `src/app/api/properties/[id]/calc-preset/route.ts`
-- `src/app/api/properties/[id]/route.ts` — GET + PATCH (plocha/re-analýza) + DELETE
+- `src/app/api/properties/[id]/route.ts` — GET + PATCH (plocha/stav + žhavá re-analýza) + DELETE
 - `src/app/api/contacts/route.ts` — GET + POST (vytvoření kontaktu)
 - `src/app/api/settings/profile/route.ts` — PATCH (jméno/email/heslo)
 - `src/app/api/settings/preferences/route.ts` — GET/PATCH kalkulačka defaults (jsonb/text)

@@ -219,9 +219,9 @@ describe("conditionLabel", () => {
   it("maps known conditions", () => {
     expect(conditionLabel("new")).toBe("Novostavba");
     expect(conditionLabel("renovated")).toBe("Po rekonstrukci");
-    expect(conditionLabel("good")).toBe("Dobrý");
-    expect(conditionLabel("original")).toBe("Původní");
-    expect(conditionLabel("dilapidated")).toBe("Zchátralý");
+    expect(conditionLabel("good")).toBe("Průměrný");
+    expect(conditionLabel("original")).toBe("Před rekonstrukcí");
+    expect(conditionLabel("dilapidated")).toBe("Neobyvatelný");
     expect(conditionLabel("project")).toBe("Projekt");
   });
 
