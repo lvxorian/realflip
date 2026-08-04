@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
-import { MagnifyingGlass, Plus, Clock, Play, Trash } from "@phosphor-icons/react";
+import { MagnifyingGlass, Plus, Clock, Play, PencilSimple, Trash } from "@phosphor-icons/react";
+import { SCHEDULE_LABELS } from "@/components/searches/search-form";
 
 interface SearchItem {
   id: string;
@@ -188,7 +189,7 @@ export default function SearchesPage() {
                             <Clock className="w-3 h-3" />
                             Poslední: {formatDate(s.lastRunAt)}
                           </span>
-                          <span className="capitalize">{s.schedule}</span>
+                          <span className={s.schedule === "manual" ? undefined : "capitalize"}>{SCHEDULE_LABELS[s.schedule] ?? s.schedule}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -202,6 +203,17 @@ export default function SearchesPage() {
                           }}
                         >
                           <Play weight="fill" />
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="icon-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            router.push(`/searches/${s.id}/edit`);
+                          }}
+                          className="text-muted hover:text-accent"
+                        >
+                          <PencilSimple weight="bold" />
                         </Button>
                         <Button
                           variant="secondary"

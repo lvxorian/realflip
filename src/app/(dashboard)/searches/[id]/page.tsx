@@ -18,6 +18,7 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import Link from "next/link";
+import { SCHEDULE_LABELS } from "@/components/searches/search-form";
 
 interface SearchResult {
   searchId: string;
@@ -208,7 +209,7 @@ export default function SearchDetailPage() {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold">{data.name}</h1>
               <Badge>{data.total} inzerátů</Badge>
-              <Badge variant="secondary">{data.schedule}</Badge>
+              <Badge variant="secondary">{SCHEDULE_LABELS[data.schedule] ?? data.schedule}</Badge>
             </div>
             <p className="text-sm text-muted mt-1">{filterParts.join(" · ") || "Bez filtrů"}</p>
             {typeof data.lastRunAt === "number" && !isNaN(new Date(data.lastRunAt).getTime()) && (
