@@ -60,6 +60,8 @@ const BUILDING_TYPE_MAP: Record<string, string> = {
 
 interface DetailParams {
   area: number | null;
+  usableArea: number | null;
+  floorArea: number | null;
   rooms: string | null;
   condition: string | null;
   buildingType: string | null;
@@ -74,7 +76,9 @@ function parseParams($: cheerio.CheerioAPI): DetailParams {
     if (label) params[label.toLowerCase()] = value;
   });
 
-  let area = extractArea(params["užitná plocha"]) ?? extractArea(params["podlahová plocha"]);
+  const usableArea = extractArea(params["užitná plocha"]) ?? null;
+  const floorArea = extractArea(params["podlahová plocha"]) ?? null;
+  let area = usableArea ?? floorArea;
   if (!area) {
     const titleText = cleanText($("h1").first().text()) ?? "";
     area = extractArea(titleText);
@@ -93,7 +97,7 @@ function parseParams($: cheerio.CheerioAPI): DetailParams {
   const fm = floorStr.match(/(\d+)\s*\./);
   if (fm) floor = parseInt(fm[1]);
 
-  return { area, rooms, condition, buildingType, floor };
+  return { area, usableArea, floorArea, rooms, condition, buildingType, floor };
 }
 
 function parseContact($: cheerio.CheerioAPI): {
@@ -134,7 +138,7 @@ export function parseRealityMatDetail(html: string, url: string): RawListing {
 
   const address = cleanText($("p.text-muted.mb-2").first().text().replace(/^[\s\S]*?fa-map-marker-alt[\s\S]*?<\/i>\s*/, "")) ?? title;
 
-  const { area, rooms, condition, buildingType, floor } = parseParams($);
+  const { area, usableArea, floorArea, rooms, condition, buildingType, floor } = parseParams($);
 
   let description: string | null = null;
   const descEl = $("div.col-lg-6.text-justify p.text-break").first();
@@ -160,6 +164,8 @@ export function parseRealityMatDetail(html: string, url: string): RawListing {
     price,
     pricePerSqm: price > 0 && area && area > 0 ? Math.round(price / area) : null,
     area,
+    usableArea,
+    floorArea,
     rooms,
     floor,
     condition: effectiveCondition,

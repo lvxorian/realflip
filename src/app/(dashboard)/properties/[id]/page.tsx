@@ -245,6 +245,8 @@ export default async function PropertyDetailPage({
                     propertyId={id}
                     area={property.area}
                     areaLocked={property.areaLocked === 1}
+                    areaFlag={property.areaFlag}
+                    accessoryArea={property.accessoryArea}
                   />
                 </div>
               </div>

@@ -144,6 +144,8 @@ export class SrealityAdapter extends PortalAdapter {
           price: rawPrice,
           pricePerSqm: item.price_czk_m2 ?? null,
           area: item.usable_area ?? null,
+          floorArea: null,
+          usableArea: item.usable_area ?? null,
           rooms: null,
           floor: null,
           condition: null,
@@ -265,6 +267,8 @@ export class SrealityAdapter extends PortalAdapter {
     listing.yearBuilt = r.acceptance_year ?? null;
     listing.floor = r.floor_number ?? null;
     listing.pricePerSqm = r.price_czk_m2 ?? listing.pricePerSqm;
+    listing.usableArea = r.usable_area ?? listing.usableArea ?? null;
+    listing.floorArea = r.floor_area ?? listing.floorArea ?? null;
     listing.area = r.usable_area ?? r.floor_area ?? listing.area;
 
     if (r.locality) {

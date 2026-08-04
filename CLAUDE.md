@@ -58,6 +58,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `src/lib/scraping/sreality-sitemap.ts` — shared sitemap parser; `SrealityAdapter.crawlCityListings(cityKey)`.
 - `market_cache` PK `(city, segment)`, sloupce low/high/median/sample_size/source/fetched_at/payload. DB TTL 24h.
 - **Neon**: DB založena přes `drizzle-kit push` → NEMÁ `__drizzle_migrations`. Migrace se aplikují ručně SQL. `drizzle-kit push` může zablokovat interactive prompt (př. unique constraint na 96 řádcích `vykupy_leads`).
+- **Neon pooler**: DDL přehledem přes `neon()` (DATABASE_URL = `-pooler`) koji se **tiše neaplikuje** v transaction poolingu — ALTER musí jít přes přímé non-pooler připojení (nahraď `-pooler.c-4.` → `.c-4.`). Skript `scripts/migrate-area-resolution.ts` to už řeší.
 - **Aplikováno na Neon**: `0007_target_roi_real.sql` + `0008_investors.sql` (investors tabulka, deals.investor_id + FK set null) — ověřeno přes `@neondatabase/serverless` `sql.query`.
 - Skripty: `scripts/reanalyze.ts` (progress log), `scripts/live-market-check.ts [city]`, `scripts/check-migration.ts`.
 
@@ -94,6 +95,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - All adapters call `enrichListing()` in `crawlListings()`.
 - Čištění non-target měst: `npx tsx scripts/cleanup-orphans.ts` (dry-run) / `--delete` (maže mimo zadaná města, backup JSON do `scripts/`).
 - **Sale-only filtr**: `isSaleListing()` v `src/lib/scraping/filters.ts` — odmítá nákupní poptávky (koupím/koupí/poptávka/hledáme byt/nabídněte) a nájmy (pronájem, podnájem). Hlavní signály z titulku/adresy/URL; v popisu jen jednoznačné nájemní formulace (marketingové zmínky typu "možnost pronájmu"/"poptávka" prodej nebudou). Napojeno: `orchestrator.saveListing` + `crawlSearch/crawlAll` filtr + `POST /api/properties/create-from-url` (400) + `POST /api/analyze-url`. Vyčištění prod: `npx tsx scripts/purge-nonsale.ts` (dry-run) / `--delete`.
+- **Area resolver** (`src/lib/scraping/area-resolver.ts`): `resolveLivingArea(floorArea, usableArea)` — rozdíl > 15 % → menší plocha + `accessoryArea` (rozdíl = odhad terasy/balkonu/sklepu); ≤ 15 % → podlahová plocha; jen jedna → ta; menší < 15 m² → `invalid-small` (použít větší); poměr > 5× → `extreme-diff` (manuální kontrola). `applyAreaResolution()` volán v `orchestrator.saveListing` (jen nové/budoucí inzeráty), `POST /api/properties/create-from-url`, `POST /api/analyze-url`. Sreality + realitymat vyplňují `floorArea`/`usableArea`, idnes-reality užitnou plochu. DB sloupce `floor_area`/`usable_area`/`accessory_area`/`area_flag` (PG+SQLite, migrace `0009_area_resolution.sql` + `scripts/migrate-area-resolution.ts`). UI: badge "⚠ kontrola"/"plocha podezřelá" + "+X m² příslušenství" v `EditableArea`.
 
 ## Common Tasks
 - Add portal: implement adapter in `src/lib/scraping/adapters/` → register in both trigger routes + url-scraper.

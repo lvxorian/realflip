@@ -222,6 +222,8 @@ export interface RawListing {
   price: number;
   pricePerSqm: number | null;
   area: number | null;
+  floorArea?: number | null;
+  usableArea?: number | null;
   rooms: string | null;
   floor: number | null;
   condition: string | null;

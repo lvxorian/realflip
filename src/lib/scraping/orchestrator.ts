@@ -1,6 +1,7 @@
 ﻿import { PortalAdapter } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
 import { matchFilters, isCzechListing, isSaleListing } from "./filters";
+import { applyAreaResolution } from "./area-resolver";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
 import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
@@ -279,6 +280,9 @@ export class ScrapingOrchestrator {
       return null;
     }
 
+    const { resolved: resolvedListing, accessoryArea, flag } = applyAreaResolution(listing);
+    listing = resolvedListing;
+
     const hash = this.deduplicator.hash(listing.url, listing.title);
 
     const existing = await db
@@ -326,6 +330,10 @@ export class ScrapingOrchestrator {
           price: listing.price,
           pricePerSqm: effectivePricePerSqm,
           area: effectiveArea,
+          floorArea: listing.floorArea ?? existing.floorArea ?? null,
+          usableArea: listing.usableArea ?? existing.usableArea ?? null,
+          accessoryArea: accessoryArea ?? existing.accessoryArea ?? null,
+          areaFlag: flag ?? existing.areaFlag ?? null,
           rooms: listing.rooms ?? existing.rooms,
           floor: listing.floor ?? existing.floor,
           condition: listing.condition ?? existing.condition,
@@ -433,6 +441,10 @@ export class ScrapingOrchestrator {
         price: listing.price,
         pricePerSqm: listing.pricePerSqm,
         area: listing.area,
+        floorArea: listing.floorArea ?? null,
+        usableArea: listing.usableArea ?? null,
+        accessoryArea: accessoryArea ?? null,
+        areaFlag: flag ?? null,
         rooms: listing.rooms,
         floor: listing.floor,
         condition: listing.condition,

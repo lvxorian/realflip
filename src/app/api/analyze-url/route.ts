@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { userPreferences } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { scrapeUrl } from "@/lib/scraping/url-scraper";
+import { applyAreaResolution } from "@/lib/scraping/area-resolver";
 import { isSaleListing } from "@/lib/scraping/filters";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
@@ -29,7 +30,8 @@ export async function POST(req: Request) {
     const results = await Promise.all(
       urls.map(async (url: string) => {
         try {
-          const { portal, listing } = await scrapeUrl(url);
+          const { portal, listing: rawListing } = await scrapeUrl(url);
+          const { resolved: listing, accessoryArea, flag } = applyAreaResolution(rawListing);
           if (!isSaleListing(listing)) {
             return { url, portal, success: false, error: "Tento inzerát není prodejní nabídkou (poptávky a nájmy nejsou podporovány)" };
           }
@@ -92,6 +94,10 @@ export async function POST(req: Request) {
               title: listing.title,
               price: listing.price,
               area: listing.area,
+              floorArea: listing.floorArea ?? null,
+              usableArea: listing.usableArea ?? null,
+              accessoryArea: accessoryArea ?? null,
+              areaFlag: flag ?? null,
               rooms: listing.rooms,
               condition: listing.condition,
               address: listing.address,

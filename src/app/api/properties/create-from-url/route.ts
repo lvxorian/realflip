@@ -7,6 +7,7 @@ import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
 import { isSaleListing } from "@/lib/scraping/filters";
+import { applyAreaResolution } from "@/lib/scraping/area-resolver";
 import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
 
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { url, portalName, title, price, pricePerSqm, area, rooms, floor, condition, buildingType, yearBuilt, address, lat, lng, description, imageUrls, contactName, contactPhone, contactEmail } = body;
+    const { url, portalName, title, price, pricePerSqm, area, floorArea, usableArea, rooms, floor, condition, buildingType, yearBuilt, address, lat, lng, description, imageUrls, contactName, contactPhone, contactEmail } = body;
 
     if (!url || !title || !price) {
       return NextResponse.json({ error: "url, title, price required" }, { status: 400 });
@@ -51,6 +52,8 @@ export async function POST(req: Request) {
       price,
       pricePerSqm: pricePerSqm ?? null,
       area: area ?? null,
+      floorArea: floorArea ?? null,
+      usableArea: usableArea ?? null,
       rooms: rooms ?? null,
       floor: floor ?? null,
       condition: condition ?? null,
@@ -69,7 +72,11 @@ export async function POST(req: Request) {
       updatedAt: now,
     };
 
-    const location = classifyLocation(rawListing.address, rawListing.title);
+    const { resolved: resolvedListing, accessoryArea, flag } = applyAreaResolution(rawListing);
+    const resolvedArea = resolvedListing.area;
+    const resolvedPricePerSqm = resolvedListing.pricePerSqm;
+
+    const location = classifyLocation(resolvedListing.address, resolvedListing.title);
     const dynamicRange = location.city !== "Neznámá"
       ? await getPropertyMarketRange({
           cityKey: location.city,
@@ -77,11 +84,11 @@ export async function POST(req: Request) {
           lng: lng ?? null,
           condition: condition ?? null,
           buildingType: buildingType ?? null,
-          area: area ?? null,
+          area: resolvedArea ?? null,
           category: location.category,
         }).catch(() => null)
       : null;
-    const analysis = analyzeListing(rawListing as any, dynamicRange, undefined, location);
+    const analysis = analyzeListing(resolvedListing as any, dynamicRange, undefined, location);
 
     await db.insert(properties).values({
       id: propertyId,
@@ -90,8 +97,12 @@ export async function POST(req: Request) {
       url,
       title,
       price,
-      pricePerSqm: pricePerSqm ?? null,
-      area: area ?? null,
+      pricePerSqm: resolvedPricePerSqm,
+      area: resolvedArea,
+      floorArea: floorArea ?? null,
+      usableArea: usableArea ?? null,
+      accessoryArea: accessoryArea ?? null,
+      areaFlag: flag ?? null,
       rooms: rooms ?? null,
       floor: floor ?? null,
       condition: condition ?? null,
@@ -158,7 +169,7 @@ export async function POST(req: Request) {
       lat: lat ?? null,
       lng: lng ?? null,
       price,
-      area: area ?? null,
+      area: resolvedArea ?? null,
       title,
       address,
       propertyUrl: url ?? null,

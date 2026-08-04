@@ -27,6 +27,10 @@ export const properties = pgTable("properties", {
   lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
   isActive: integer("is_active").default(1),
   areaLocked: integer("area_locked").default(0),
+  floorArea: real("floor_area"),
+  usableArea: real("usable_area"),
+  accessoryArea: real("accessory_area"),
+  areaFlag: text("area_flag"),
   auctionDataJson: text("auction_data_json"),
 });
 

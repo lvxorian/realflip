@@ -9,9 +9,24 @@ interface EditableAreaProps {
   propertyId: string;
   area: number | null;
   areaLocked: boolean;
+  areaFlag?: string | null;
+  accessoryArea?: number | null;
 }
 
-export function EditableArea({ propertyId, area, areaLocked }: EditableAreaProps) {
+const FLAG_META: Record<string, { label: string; title: string; className: string }> = {
+  "invalid-small": {
+    label: "plocha podezřelá",
+    title: "Zadaná plocha menší než 15 m² — pravděpodobně jen sklep/garáž. Použita větší hodnota.",
+    className: "bg-red-500/10 border-red-500/20 text-red-400",
+  },
+  "extreme-diff": {
+    label: "kontrola",
+    title: "Extrémní rozdíl mezi podlahovou a užitnou plochou (např. 20 vs 150 m²) — zkontrolujte manuálně.",
+    className: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+  },
+};
+
+export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessoryArea }: EditableAreaProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(area?.toString() ?? "");
@@ -85,7 +100,7 @@ export function EditableArea({ propertyId, area, areaLocked }: EditableAreaProps
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap">
       <span className="font-semibold text-foreground font-mono mt-0.5">
         {area ? `${area} m²` : "—"}
       </span>
@@ -96,9 +111,19 @@ export function EditableArea({ propertyId, area, areaLocked }: EditableAreaProps
       >
         <PencilSimple size={13} weight="bold" />
       </button>
+      {accessoryArea && accessoryArea > 0 && (
+        <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent font-medium" title="Odhad plochy příslušenství (terasa/balkon/lodžie/sklep) z rozdílu podlahové a užitné plochy">
+          +{accessoryArea} m² příslušenství
+        </span>
+      )}
       {areaLocked && (
         <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400 font-medium" title="Plocha upravena ručně — scraper ji nepřepíše">
           <LockSimple size={10} weight="fill" /> ručně
+        </span>
+      )}
+      {areaFlag && FLAG_META[areaFlag] && (
+        <span className={`inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${FLAG_META[areaFlag].className}`} title={FLAG_META[areaFlag].title}>
+          ⚠ {FLAG_META[areaFlag].label}
         </span>
       )}
     </div>

@@ -221,7 +221,8 @@ async function scrapeSreality(url: string): Promise<RawListing> {
   ).map((url) => url + "?fl=res,1200,1200,1|wrm,/watermark/sreality.png,10|shr,,20|webp,80");
 
   const floorNumber = typeof r.floor_number === "number" ? r.floor_number : null;
-  const usableArea = typeof r.usable_area === "number" ? r.usable_area : typeof r.floor_area === "number" ? r.floor_area : null;
+  const usableArea = typeof r.usable_area === "number" ? r.usable_area : null;
+  const floorArea = typeof r.floor_area === "number" ? r.floor_area : null;
   const gardenArea = typeof r.garden_area === "number" ? r.garden_area : null;
   const balconyArea = typeof r.balcony_area === "number" ? r.balcony_area : null;
 
@@ -231,7 +232,9 @@ async function scrapeSreality(url: string): Promise<RawListing> {
     title: r.advert_name ?? "",
     price: r.price_czk ?? r.price ?? 0,
     pricePerSqm: r.price_czk_m2 ?? null,
-    area: usableArea,
+    area: usableArea ?? floorArea,
+    usableArea,
+    floorArea,
     rooms: roomsClean,
     floor: floorNumber,
     condition,
@@ -712,6 +715,7 @@ async function scrapeIdnesReality(url: string): Promise<RawListing> {
     price,
     pricePerSqm: area && area > 0 ? Math.round(price / area) : null,
     area,
+    usableArea: area,
     rooms,
     floor,
     condition,

@@ -188,6 +188,7 @@ export class IdnesRealityAdapter extends PortalAdapter {
         price,
         pricePerSqm: price && params.area ? Math.round(price / params.area) : null,
         area: params.area ?? raw.area,
+        usableArea: params.area ?? raw.usableArea ?? null,
         rooms: params.rooms ?? raw.rooms,
         floor: params.floor,
         condition: params.condition,
