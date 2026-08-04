@@ -32,6 +32,9 @@ interface AnalysisResult {
     pricePerSqm: number;
     marketPricePerSqmLow: number;
     marketPricePerSqmHigh: number;
+    arvPricePerSqmHigh: number;
+    marketSource: string | null;
+    marketSampleSize: number | null;
     undervaluationPct: number;
     overpricingPct: number;
     investmentScore: number;

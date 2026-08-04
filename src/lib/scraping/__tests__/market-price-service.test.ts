@@ -4,6 +4,7 @@ import {
   segmentOf,
   haversineKm,
   getPropertyMarketRange,
+  getAnalysisRanges,
   clearCache,
 } from "../market-price-service";
 
@@ -255,18 +256,65 @@ describe("getPropertyMarketRange — Tier 3 (sitemap + detaily)", () => {
     expect(result!.median).toBe(60_000);
   });
 
-  it("uses search API for praha when DB empty", async () => {
+  it("uses sitemap samples (Tier 3) for praha when DB empty — search API is deprecated (ignores locality params)", async () => {
     dbState.propertiesRows = [];
+    sitemapState.ids = [1000001, 1000002, 1000003, 1000004];
+
     fetchMocks = [
       () =>
         Promise.resolve({
           ok: true,
           json: async () => ({
-            results: [
-              { price_czk_m2: 100_000 },
-              { price_czk_m2: 110_000 },
-              { price_czk_m2: 120_000 },
-            ],
+            result: {
+              price_czk: 5_000_000,
+              price_czk_m2: 100_000,
+              usable_area: 60,
+              locality: { city: "Praha" },
+              building_condition: { name: "Dobrý" },
+              building_type: { name: "Cihlová" },
+            },
+          }),
+        }),
+      () =>
+        Promise.resolve({
+          ok: true,
+          json: async () => ({
+            result: {
+              price_czk: 5_600_000,
+              price_czk_m2: 110_000,
+              usable_area: 60,
+              locality: { city: "Praha" },
+              building_condition: { name: "Dobrý" },
+              building_type: { name: "Cihlová" },
+            },
+          }),
+        }),
+      () =>
+        Promise.resolve({
+          ok: true,
+          json: async () => ({
+            result: {
+              price_czk: 6_200_000,
+              price_czk_m2: 130_000,
+              usable_area: 60,
+              locality: { city: "Praha" },
+              building_condition: { name: "Dobrý" },
+              building_type: { name: "Cihlová" },
+            },
+          }),
+        }),
+      () =>
+        Promise.resolve({
+          ok: true,
+          json: async () => ({
+            result: {
+              price_czk: 6_800_000,
+              price_czk_m2: 140_000,
+              usable_area: 60,
+              locality: { city: "Brno" },
+              building_condition: { name: "Dobrý" },
+              building_type: { name: "Cihlová" },
+            },
           }),
         }),
     ];
@@ -292,5 +340,66 @@ describe("getPropertyMarketRange — cache", () => {
     expect(first!.source).toBe("db");
     expect(second!.source).toBe("db");
     expect(second!.sampleSize).toBe(3);
+  });
+});
+
+describe("getAnalysisRanges — ARV z renovovaného segmentu", () => {
+  it("fetches a second range with condition renovated for needs-renovation properties", async () => {
+    dbState.propertiesRows = [];
+    sitemapState.ids = [1000001, 1000002, 1000003, 1000004, 1000005, 1000006];
+
+    const sample = (pricePerSqm: number, city: string) => () =>
+      Promise.resolve({
+        ok: true,
+        json: async () => ({
+          result: {
+            price_czk: pricePerSqm * 60,
+            price_czk_m2: pricePerSqm,
+            usable_area: 60,
+            locality: { city },
+            building_condition: { name: "Dobrý" },
+            building_type: { name: "Cihlová" },
+          },
+        }),
+      });
+
+    fetchMocks = [
+      sample(50_000, "Brno"),
+      sample(60_000, "Brno"),
+      sample(70_000, "Brno"),
+      sample(80_000, "Brno"),
+      sample(90_000, "Brno"),
+      sample(100_000, "Brno"),
+    ];
+
+    const { dynamicRange, arvRange } = await getAnalysisRanges({
+      cityKey: "brno",
+      condition: "original",
+      buildingType: "brick",
+    });
+
+    expect(dynamicRange).not.toBeNull();
+    expect(arvRange).not.toBeNull();
+    // ARV rozmezí se počítá z renovovaného segmentu, takže musí být >= tržního rozmezí
+    // (sample prices jsou stejné, ale segment "renovated" aplikuje jiné multiplikátory)
+    expect(arvRange!.high).toBeGreaterThan(0);
+  });
+
+  it("reuses the same range when property is already renovated", async () => {
+    dbState.propertiesRows = [
+      compRow({ price: 3_000_000, area: 60 }),
+      compRow({ price: 3_600_000, area: 60 }),
+      compRow({ price: 4_200_000, area: 60 }),
+    ];
+    fetchMocks = [];
+
+    const { dynamicRange, arvRange } = await getAnalysisRanges({
+      cityKey: "brno",
+      condition: "renovated",
+      buildingType: "brick",
+    });
+
+    expect(dynamicRange!.source).toBe("db");
+    expect(arvRange).toBe(dynamicRange);
   });
 });

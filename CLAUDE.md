@@ -54,12 +54,15 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 
 ## Market Data Cascade (Tier 1-5)
 - `src/lib/scraping/market-price-service.ts` — `getPropertyMarketRange(ctx)`: kaskáda zdrojů.
-- Tier 1 `market_cache` (PG) → Tier 2 Sreality API (segment, rate-limited) → Tier 3 vlastní DB kompy z `properties` (filtruje novostavby + vzorky < 5 000 Kč/m²) → Tier 4 `MARKET_DATA` (hardcoded) → Tier 5 fallback.
+- Kaskáda (po paměťové 15 min + DB 24 h cache `(město, segment)`): Tier 1 vlastní DB kompy z `properties` (GPS okruhy 5→10 km→město, segment, plocha ±30 %, posledních 90 dní) → Tier 2 (odstraněn, viz níže) → Tier 3 sitemap + detail API vzorky (~80 na město, city-filtrované) → Tier 4 `MARKET_DATA` (hardcoded) → Tier 5 fallback.
+- **Tier 2 (sreality search API) byl odstraněn** (2026-08): ověřeno, že API ignoruje všechny `locality_*` parametry a vrací celorepublikový feed (total=20730 pro každý dotaz). Tier 4 sitemap vzorky jsou korektní city-filtrovaný live zdroj.
+- **ARV z renovovaného segmentu**: `getAnalysisRanges(ctx)` volá kaskádu 2× — jednou se `condition` stavu nemovitosti (tržní rozmezí pro hodnocení ceny) a jednou s `condition: "renovated"` (ARV horní hranice po reko). `analyzeListing(..., dynamicRange, ..., arvRange)` — ARV = `arvRange.high × 0.95`. Pro stav `renovated`/`new`/`good` se range sdílí.
 - `src/lib/scraping/sreality-sitemap.ts` — shared sitemap parser; `SrealityAdapter.crawlCityListings(cityKey)`.
 - `market_cache` PK `(city, segment)`, sloupce low/high/median/sample_size/source/fetched_at/payload. DB TTL 24h.
+- **Audit zdroje dat**: `property_analysis` nese `market_source` (`db`/`sreality`/`market_data`/`fallback`), `market_sample_size`, `arv_price_per_sqm_high` (Kč/m² renovovaný segment). Migrace `0010_market_audit.sql` + `scripts/migrate-market-audit.ts`. UI badge zdroje v `interactive-analysis.tsx` (`MarketSourceBadge`) + řádek v PDF reportu. Routy ukládající analýzu: `orchestrator.ts` (`ranges.dynamicRange.source/sampleSize`), `analyze-url`, `create-from-url`, `calculator/save`, `properties/[id]` (z DB), `scripts/reanalyze.ts`.
 - **Neon**: DB založena přes `drizzle-kit push` → NEMÁ `__drizzle_migrations`. Migrace se aplikují ručně SQL. `drizzle-kit push` může zablokovat interactive prompt (př. unique constraint na 96 řádcích `vykupy_leads`).
-- **Neon pooler**: DDL přehledem přes `neon()` (DATABASE_URL = `-pooler`) koji se **tiše neaplikuje** v transaction poolingu — ALTER musí jít přes přímé non-pooler připojení (nahraď `-pooler.c-4.` → `.c-4.`). Skript `scripts/migrate-area-resolution.ts` to už řeší.
-- **Aplikováno na Neon**: `0007_target_roi_real.sql` + `0008_investors.sql` (investors tabulka, deals.investor_id + FK set null) — ověřeno přes `@neondatabase/serverless` `sql.query`.
+- **Neon pooler**: DDL přehledem přes `neon()` (DATABASE_URL = `-pooler`) koji se **tiše neaplikuje** v transaction poolingu — ALTER musí jít přes přímé non-pooler připojení. Host má tvar `...pooler.c-4.eu-central-1...` — direct = `replace("-pooler", "")`. Skripty `scripts/migrate-area-resolution.ts` / `scripts/migrate-market-audit.ts` to řeší.
+- **Aplikováno na Neon**: `0007_target_roi_real.sql` + `0008_investors.sql` (investors tabulka, deals.investor_id + FK set null) — ověřeno přes `@neondatabase/serverless` `sql.query`. Též `0010_market_audit.sql` (arv_price_per_sqm_high, market_source, market_sample_size).
 - Skripty: `scripts/reanalyze.ts` (progress log), `scripts/live-market-check.ts [city]`, `scripts/check-migration.ts`.
 
 ## Key Files

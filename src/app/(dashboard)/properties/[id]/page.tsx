@@ -472,6 +472,8 @@ export default async function PropertyDetailPage({
               alternativeStrategiesJson: analysis.alternativeStrategiesJson,
               rentalYield: analysis.rentalYield,
               aiReport: analysis.aiReport,
+              marketSource: analysis.marketSource,
+              marketSampleSize: analysis.marketSampleSize,
             } : null}
           />
 

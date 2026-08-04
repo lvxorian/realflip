@@ -153,6 +153,8 @@ export default async function ReportPage({
         overpricingPct: analysis.overpricingPct,
         marketPriceMin: analysis.marketPriceMin,
         marketPriceMax: analysis.marketPriceMax,
+        marketSource: analysis.marketSource,
+        marketSampleSize: analysis.marketSampleSize,
         verdictLevel: analysis.verdictLevel,
         verdictSummary: analysis.verdictSummary,
         redFlagsJson: analysis.redFlagsJson,

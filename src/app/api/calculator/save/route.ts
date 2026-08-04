@@ -7,7 +7,7 @@ import { properties, propertyAnalysis } from "@/db/schema";
 import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
-import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
+import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
 
 function offlineDedupUrl(title: string, price: number, area: number, address: string | null, city: string | null): string {
@@ -67,8 +67,8 @@ export async function POST(req: Request) {
     };
 
     const location = classifyLocation(rawListing.address, rawListing.title);
-    const dynamicRange = location.city !== "Neznámá"
-      ? await getPropertyMarketRange({
+    const ranges = location.city !== "Neznámá"
+      ? await getAnalysisRanges({
           cityKey: city ?? location.city,
           lat: null,
           lng: null,
@@ -76,9 +76,9 @@ export async function POST(req: Request) {
           buildingType: rawListing.buildingType,
           area: rawListing.area,
           category: location.category,
-        }).catch(() => null)
-      : null;
-    const analysis = analyzeListing(rawListing, dynamicRange, undefined, location);
+        }).catch(() => ({ dynamicRange: null, arvRange: null }))
+      : { dynamicRange: null, arvRange: null };
+    const analysis = analyzeListing(rawListing, ranges.dynamicRange, undefined, location, ranges.arvRange);
 
     if (existing) {
       await db.update(properties).set({
@@ -114,6 +114,9 @@ export async function POST(req: Request) {
         pricePerSqm: analysis.pricePerSqm,
         marketPriceMin: analysis.marketPricePerSqmLow,
         marketPriceMax: analysis.marketPricePerSqmHigh,
+        arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+        marketSource: ranges.dynamicRange?.source ?? null,
+        marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
         overpricingPct: analysis.overpricingPct,
         locationCategory: analysis.location.category,
         locationCity: city ?? analysis.location.city,
@@ -181,6 +184,9 @@ export async function POST(req: Request) {
       pricePerSqm: analysis.pricePerSqm,
       marketPriceMin: analysis.marketPricePerSqmLow,
       marketPriceMax: analysis.marketPricePerSqmHigh,
+      arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+      marketSource: ranges.dynamicRange?.source ?? null,
+      marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
       overpricingPct: analysis.overpricingPct,
       locationCategory: analysis.location.category,
       locationCity: city ?? analysis.location.city,

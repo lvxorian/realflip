@@ -8,7 +8,7 @@ import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
 import { isSaleListing } from "@/lib/scraping/filters";
 import { applyAreaResolution } from "@/lib/scraping/area-resolver";
-import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
+import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
 
 export async function POST(req: Request) {
@@ -77,8 +77,8 @@ export async function POST(req: Request) {
     const resolvedPricePerSqm = resolvedListing.pricePerSqm;
 
     const location = classifyLocation(resolvedListing.address, resolvedListing.title);
-    const dynamicRange = location.city !== "Neznámá"
-      ? await getPropertyMarketRange({
+    const ranges = location.city !== "Neznámá"
+      ? await getAnalysisRanges({
           cityKey: location.city,
           lat: lat ?? null,
           lng: lng ?? null,
@@ -86,9 +86,9 @@ export async function POST(req: Request) {
           buildingType: buildingType ?? null,
           area: resolvedArea ?? null,
           category: location.category,
-        }).catch(() => null)
-      : null;
-    const analysis = analyzeListing(resolvedListing as any, dynamicRange, undefined, location);
+        }).catch(() => ({ dynamicRange: null, arvRange: null }))
+      : { dynamicRange: null, arvRange: null };
+    const analysis = analyzeListing(resolvedListing as any, ranges.dynamicRange, undefined, location, ranges.arvRange);
 
     await db.insert(properties).values({
       id: propertyId,
@@ -141,6 +141,9 @@ export async function POST(req: Request) {
       pricePerSqm: analysis.pricePerSqm,
       marketPriceMin: analysis.marketPricePerSqmLow,
       marketPriceMax: analysis.marketPricePerSqmHigh,
+      arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+      marketSource: ranges.dynamicRange?.source ?? null,
+      marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
       overpricingPct: analysis.overpricingPct,
       locationCategory: analysis.location.category,
       locationCity: analysis.location.city,

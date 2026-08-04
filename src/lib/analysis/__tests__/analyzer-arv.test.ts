@@ -48,4 +48,29 @@ describe("analyzeListing — market range passthrough", () => {
     const expected = Math.round(Math.round(80_000 * 0.95) * 70 * 1.05);
     expect(analysis.arv).toBe(expected);
   });
+
+  it("uses arvRange (renovated segment) for ARV instead of current-condition market range", () => {
+    const analysis = analyzeListing(
+      { ...baseListing, condition: "original" },
+      { low: 40_000, high: 80_000, median: 60_000 },
+      undefined,
+      { city: "praha", district: null, category: "stable", segments: null },
+      { low: 120_000, high: 150_000, median: 135_000 }
+    );
+    const expected = Math.round(Math.round(150_000 * 0.95) * 70 * 1.05);
+    expect(analysis.arv).toBe(expected);
+    expect(analysis.arvPricePerSqmHigh).toBe(150_000);
+  });
+
+  it("keeps current-condition market range for undervaluation even with arvRange present", () => {
+    const analysis = analyzeListing(
+      { ...baseListing, condition: "original" },
+      { low: 40_000, high: 80_000, median: 60_000 },
+      undefined,
+      { city: "praha", district: null, category: "stable", segments: null },
+      { low: 120_000, high: 150_000, median: 135_000 }
+    );
+    expect(analysis.marketPricePerSqmLow).toBe(40_000);
+    expect(analysis.marketPricePerSqmHigh).toBe(80_000);
+  });
 });

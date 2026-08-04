@@ -262,50 +262,6 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
   return null;
 }
 
-// ---------- Tier 2: search API (funguje jen pro Prahu) ----------
-
-async function fetchFromSrealityApi(ctx: PropertyMarketContext): Promise<MarketRangeResult | null> {
-  await rateLimiter.wait("sreality", 3000);
-  const slug = ctx.cityKey.replace(/_/g, "-");
-  const url = `https://www.sreality.cz/api/v1/estates/search?category_main_cb=1&category_type_cb=1&locality_district_cz=${slug}&limit=500&offset=0`;
-
-  for (let attempt = 0; attempt <= 2; attempt++) {
-    try {
-      const res = await globalThis.fetch(url, { headers: SREALITY_HEADERS, signal: AbortSignal.timeout(15000) });
-      if (!res.ok) {
-        if (res.status === 429 || res.status === 403) {
-          const waitMs = res.status === 429 ? 30000 : 15000;
-          await new Promise((r) => setTimeout(r, waitMs));
-          continue;
-        }
-        return null;
-      }
-      const data = await res.json();
-      const items: { price_czk_m2?: number }[] = data?.results ?? [];
-      const prices = items
-        .map((r) => r.price_czk_m2)
-        .filter((p): p is number => typeof p === "number" && p > 0);
-      const stats = computeStats(prices);
-      if (!stats) return null;
-
-      const adj =
-        conditionMultiplier(ctx.condition ?? null) *
-        buildingTypeMultiplier(ctx.buildingType ?? null) *
-        categoryMultiplier(ctx.category ?? null);
-      return {
-        low: Math.round(stats.p25 * adj),
-        high: Math.round(stats.p75 * adj),
-        median: Math.round(stats.median * adj),
-        source: "sreality",
-        sampleSize: prices.length,
-      };
-    } catch {
-      if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
-    }
-  }
-  return null;
-}
-
 // ---------- Tier 3: sitemap + detail API vzorky ----------
 
 interface SrealitySample {
@@ -484,14 +440,9 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
     // fall through
   }
 
-  // Tier 2: Sreality search API — funguje jen pro Prahu
-  if (ctx.cityKey === "praha") {
-    const api = await fetchFromSrealityApi(ctx);
-    if (api) {
-      cacheResult(api, ctx.cityKey, segment);
-      return api;
-    }
-  }
+  // Tier 2 byl odstraněn — sreality search API ignoruje locality_* parametry a vrací
+  // celorepublikový feed (ověřeno 2026-08). Nahrazen Tierem 3 (sitemap + detail API),
+  // který filtruje vzorky podle města správně.
 
   // Tier 3: sitemap + detail API vzorky (aktuální data pro libovolné město)
   try {
@@ -526,6 +477,26 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
   };
   cacheResult(result, ctx.cityKey, segment);
   return result;
+}
+
+// Analyze ranges: tržní rozmezí pro aktuální stav + ARV rozmezí (segment "po rekonstrukci").
+// ARV (hodnota po rekonstrukci) se musí počítat z renovovaného segmentu, ne ze segmentu
+// aktuálního stavu (např. "original" => brick_needs_renov místo brick_renovated).
+export async function getAnalysisRanges(
+  ctx: PropertyMarketContext
+): Promise<{ dynamicRange: MarketRangeResult | null; arvRange: MarketRangeResult | null }> {
+  const needsRenov = ctx.condition === "original" || ctx.condition === "dilapidated";
+
+  if (!needsRenov) {
+    const dynamicRange = await getPropertyMarketRange(ctx).catch(() => null);
+    return { dynamicRange, arvRange: dynamicRange };
+  }
+
+  const [dynamicRange, arvRange] = await Promise.all([
+    getPropertyMarketRange(ctx).catch(() => null),
+    getPropertyMarketRange({ ...ctx, condition: "renovated" }).catch(() => null),
+  ]);
+  return { dynamicRange, arvRange };
 }
 
 export async function getMarketPriceRange(cityKey: string): Promise<MarketRangeResult | null> {

@@ -319,7 +319,13 @@ function determineVerdict(
   };
 }
 
-export function analyzeListing(listing: RawListing, dynamicRange?: { low: number; high: number; median: number } | null, prefs?: { targetROI?: number }, precomputedLocation?: LocationResult): FullAnalysis {
+export function analyzeListing(
+  listing: RawListing,
+  dynamicRange?: { low: number; high: number; median: number } | null,
+  prefs?: { targetROI?: number },
+  precomputedLocation?: LocationResult,
+  arvRange?: { low: number; high: number; median: number } | null
+): FullAnalysis {
   const { price, area, rooms, title, address, yearBuilt, description } = listing;
   const condition = normalizeCondition(listing.condition);
 
@@ -363,8 +369,11 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
   const renovationItems = calculateItemizedRenovation(usableArea, condition);
 
   // Krok 9: 3 scénáře (ARV počítáme z horní hranice tržního rozmezí s 5% redukcí
-  // = konzervativní tržní hodnota po rekonstrukci)
-  const marketPriceForArv = marketRange.high > 0 ? Math.round(marketRange.high * 0.95) : 0;
+  // = konzervativní tržní hodnota po rekonstrukci).
+  // ARV rozmezí (arvRange) reprezentuje segment "po rekonstrukci" — pro byty k reko
+  // se tak hodnota po reko počítá z renovovaných cen, ne z cen aktuálního stavu.
+  const arvHigh = arvRange && arvRange.high > 0 ? arvRange.high : marketRange.high;
+  const marketPriceForArv = arvHigh > 0 ? Math.round(arvHigh * 0.95) : 0;
   const scenarios = {
     optimistic: calculateScenario("Optimistický", price, usableArea, condition, marketPriceForArv, 0.85, 1.2, 4),
     conservative: calculateScenario("Konzervativní", price, usableArea, condition, marketPriceForArv, 1.0, 1.05, 6),
@@ -453,6 +462,7 @@ export function analyzeListing(listing: RawListing, dynamicRange?: { low: number
     location,
     marketPricePerSqmLow: marketRange.low,
     marketPricePerSqmHigh: marketRange.high,
+    arvPricePerSqmHigh: arvHigh,
     undervaluationPct: Math.round(undervaluationPct * 10) / 10,
     overpricingPct: Math.round(overpricingPct * 10) / 10,
     segmentRating,

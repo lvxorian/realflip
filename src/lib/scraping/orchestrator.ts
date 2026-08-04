@@ -12,7 +12,7 @@ import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts, safeJsonParse } from "@/lib/utils";
 import { checkPriceDropAlert, checkScoreThresholdAlert } from "@/lib/alert-matcher";
 import { classifyLocation, findCityKey } from "@/lib/analysis/location";
-import { getPropertyMarketRange, refreshAllMarketData } from "@/lib/scraping/market-price-service";
+import { getAnalysisRanges, refreshAllMarketData } from "@/lib/scraping/market-price-service";
 
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
@@ -474,8 +474,8 @@ export class ScrapingOrchestrator {
 
       // Enhanced analysis with live market data
       const location = classifyLocation(listing.address, listing.title);
-      const dynamicRange = location.city !== "Neznámá"
-        ? await getPropertyMarketRange({
+      const ranges = location.city !== "Neznámá"
+        ? await getAnalysisRanges({
             cityKey: location.city,
             lat: listing.lat,
             lng: listing.lng,
@@ -483,9 +483,9 @@ export class ScrapingOrchestrator {
             buildingType: listing.buildingType,
             area: listing.area,
             category: location.category,
-          }).catch(() => null)
-        : null;
-      const analysis = analyzeListing(listing, dynamicRange, undefined, location);
+          }).catch(() => ({ dynamicRange: null, arvRange: null }))
+        : { dynamicRange: null, arvRange: null };
+      const analysis = analyzeListing(listing, ranges.dynamicRange, undefined, location, ranges.arvRange);
 
       // AI analysis (only if API key available)
       let aiReport: string | null = null;
@@ -527,6 +527,9 @@ export class ScrapingOrchestrator {
         pricePerSqm: analysis.pricePerSqm,
         marketPriceMin: analysis.marketPricePerSqmLow,
         marketPriceMax: analysis.marketPricePerSqmHigh,
+        arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+        marketSource: ranges.dynamicRange?.source ?? null,
+        marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
         overpricingPct: analysis.overpricingPct,
         locationCategory: analysis.location.category,
         locationCity: analysis.location.city,

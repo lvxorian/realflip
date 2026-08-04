@@ -9,7 +9,7 @@ import { isSaleListing } from "@/lib/scraping/filters";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
-import { getPropertyMarketRange } from "@/lib/scraping/market-price-service";
+import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -48,8 +48,8 @@ export async function POST(req: Request) {
             .catch(() => null);
 
           const location = classifyLocation(listing.address, listing.title);
-          const dynamicRange = location.city !== "Neznámá"
-            ? await getPropertyMarketRange({
+          const ranges = location.city !== "Neznámá"
+            ? await getAnalysisRanges({
                 cityKey: location.city,
                 lat: listing.lat,
                 lng: listing.lng,
@@ -57,9 +57,9 @@ export async function POST(req: Request) {
                 buildingType: listing.buildingType,
                 area: listing.area,
                 category: location.category,
-              }).catch(() => null)
-            : null;
-          const analysis = analyzeListing(listing, dynamicRange, prefs ? { targetROI: prefs.minRoi ?? 15 } : undefined, location);
+              }).catch(() => ({ dynamicRange: null, arvRange: null }))
+            : { dynamicRange: null, arvRange: null };
+          const analysis = analyzeListing(listing, ranges.dynamicRange, prefs ? { targetROI: prefs.minRoi ?? 15 } : undefined, location, ranges.arvRange);
 
           let aiSummary: string | null = null;
           let aiNegotiationTips: string[] | null = null;
@@ -111,6 +111,9 @@ export async function POST(req: Request) {
               pricePerSqm: analysis.pricePerSqm,
               marketPricePerSqmLow: analysis.marketPricePerSqmLow,
               marketPricePerSqmHigh: analysis.marketPricePerSqmHigh,
+              arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+              marketSource: ranges.dynamicRange?.source ?? null,
+              marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
               undervaluationPct: analysis.undervaluationPct,
               overpricingPct: analysis.overpricingPct,
               investmentScore: analysis.investmentScore,

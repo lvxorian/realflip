@@ -31,6 +31,30 @@ const verdictLabels: Record<string, string> = {
   categoricalReject: "Zamítnout",
 };
 
+function MarketSourceBadge({ analysis }: { analysis: { marketSource?: string | null; marketSampleSize?: number | null } }) {
+  if (!analysis.marketSource) return null;
+  const labels: Record<string, string> = {
+    db: "Vlastní data",
+    sreality: "Živá data (sreality)",
+    market_data: "Fixní tabulka",
+    fallback: "Fallback",
+  };
+  const colors: Record<string, string> = {
+    db: "border-emerald-400/40 text-emerald-300",
+    sreality: "border-emerald-400/40 text-emerald-300",
+    market_data: "border-amber-400/40 text-amber-300",
+    fallback: "border-red-400/40 text-red-300",
+  };
+  const label = analysis.marketSource === "market_data" ? "Fixní tabulka" : analysis.marketSource === "fallback" ? "Fallback" : "Živá data";
+  const samples = analysis.marketSampleSize ? ` · ${analysis.marketSampleSize} vzorků` : "";
+  return (
+    <Badge variant="outline" className={`justify-center w-full whitespace-nowrap ${colors[analysis.marketSource] ?? ""}`}>
+      {labels[analysis.marketSource] ?? analysis.marketSource}
+      {analysis.marketSource === "sreality" || analysis.marketSource === "db" ? samples : ""}
+    </Badge>
+  );
+}
+
 interface AnalysisResult {
   url: string;
   portal: string;
@@ -54,6 +78,9 @@ interface AnalysisResult {
     pricePerSqm: number;
     marketPricePerSqmLow: number;
     marketPricePerSqmHigh: number;
+    arvPricePerSqmHigh: number;
+    marketSource: string | null;
+    marketSampleSize: number | null;
     undervaluationPct: number;
     overpricingPct: number;
     investmentScore: number;
@@ -500,6 +527,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             <InfoBox label="ARV" value={formatPrice(arv)} highlight="text-price" />
             <InfoBox label="Cena za m²" value={formatPrice(a.pricePerSqm > 0 ? a.pricePerSqm : Math.round(l.price / area)) + "/m²"} />
             <InfoBox label="Trh/m²" value={`${formatPrice(a.marketPricePerSqmLow)}–${formatPrice(a.marketPricePerSqmHigh)}`} />
+            <MarketSourceBadge analysis={a} />
             <InfoBox label="ROI" value={flipResults.roi.toFixed(1) + "%"} highlight={flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"} />
             <InfoBox label="Čistý zisk" value={formatPrice(flipResults.netProfit)} highlight="text-price" />
             <InfoBox label="Podhodnocení" value={a.undervaluationPct > 0 ? a.undervaluationPct.toFixed(1) + "%" : "—"} highlight={a.undervaluationPct > 0 ? "text-emerald-400" : "text-muted"} />

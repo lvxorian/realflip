@@ -151,6 +151,15 @@ export async function PATCH(
           }
         : null;
 
+    const arvRange =
+      analysis?.arvPricePerSqmHigh != null
+        ? {
+            low: analysis.arvPricePerSqmHigh,
+            high: analysis.arvPricePerSqmHigh,
+            median: analysis.arvPricePerSqmHigh,
+          }
+        : null;
+
     const precomputedLocation =
       analysis?.locationCity
         ? {
@@ -161,7 +170,7 @@ export async function PATCH(
           }
         : null;
 
-    const result = analyzeListing(listing, dynamicRange, undefined, precomputedLocation ?? undefined);
+    const result = analyzeListing(listing, dynamicRange, undefined, precomputedLocation ?? undefined, arvRange);
 
     if (analysis) {
       await db
@@ -183,6 +192,9 @@ export async function PATCH(
           pricePerSqm: result.pricePerSqm,
           marketPriceMin: result.marketPricePerSqmLow,
           marketPriceMax: result.marketPricePerSqmHigh,
+          arvPricePerSqmHigh: result.arvPricePerSqmHigh,
+          marketSource: analysis?.marketSource ?? null,
+          marketSampleSize: analysis?.marketSampleSize ?? null,
           overpricingPct: result.overpricingPct,
           locationCategory: result.location.category,
           locationCity: result.location.city,
@@ -220,6 +232,9 @@ export async function PATCH(
         pricePerSqm: result.pricePerSqm,
         marketPriceMin: result.marketPricePerSqmLow,
         marketPriceMax: result.marketPricePerSqmHigh,
+        arvPricePerSqmHigh: result.arvPricePerSqmHigh,
+        marketSource: null,
+        marketSampleSize: null,
         overpricingPct: result.overpricingPct,
         locationCategory: result.location.category,
         locationCity: result.location.city,

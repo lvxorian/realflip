@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { generateId, ts } from "../src/lib/utils";
 import { analyzeListing } from "../src/lib/analysis/analyzer";
 import { classifyLocation } from "../src/lib/analysis/location";
-import { getPropertyMarketRange } from "../src/lib/scraping/market-price-service";
+import { getAnalysisRanges } from "../src/lib/scraping/market-price-service";
 import type { RawListing } from "../src/lib/scraping/types";
 
 async function main() {
@@ -48,9 +48,9 @@ async function main() {
       };
 
       const location = classifyLocation(listing.address, listing.title);
-      const dynamicRange =
+      const ranges =
         location.city !== "Neznámá"
-          ? await getPropertyMarketRange({
+          ? await getAnalysisRanges({
               cityKey: location.city,
               lat: listing.lat,
               lng: listing.lng,
@@ -58,12 +58,13 @@ async function main() {
               buildingType: listing.buildingType,
               area: listing.area,
               category: location.category,
-            }).catch(() => null)
-          : null;
+            }).catch(() => ({ dynamicRange: null, arvRange: null }))
+          : { dynamicRange: null, arvRange: null };
+      const dynamicRange = ranges.dynamicRange;
 
       if (dynamicRange) sources[dynamicRange.source] = (sources[dynamicRange.source] ?? 0) + 1;
 
-      const analysis = analyzeListing(listing, dynamicRange, undefined, location);
+      const analysis = analyzeListing(listing, dynamicRange, undefined, location, ranges.arvRange);
 
       console.log(
         `  ${p.id.slice(0, 12)} | ${location.city} | ${dynamicRange ? `${dynamicRange.source} ${dynamicRange.low}-${dynamicRange.high}` : "no-range"} | score=${analysis.investmentScore} arv=${analysis.arv}`
@@ -90,6 +91,9 @@ async function main() {
           pricePerSqm: analysis.pricePerSqm,
           marketPriceMin: analysis.marketPricePerSqmLow,
           marketPriceMax: analysis.marketPricePerSqmHigh,
+          arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+          marketSource: ranges.dynamicRange?.source ?? null,
+          marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
           overpricingPct: analysis.overpricingPct,
           locationCategory: analysis.location.category,
           locationCity: analysis.location.city,
@@ -126,6 +130,9 @@ async function main() {
             pricePerSqm: analysis.pricePerSqm,
             marketPriceMin: analysis.marketPricePerSqmLow,
             marketPriceMax: analysis.marketPricePerSqmHigh,
+            arvPricePerSqmHigh: analysis.arvPricePerSqmHigh,
+            marketSource: ranges.dynamicRange?.source ?? null,
+            marketSampleSize: ranges.dynamicRange?.sampleSize ?? null,
             overpricingPct: analysis.overpricingPct,
             locationCategory: analysis.location.category,
             locationCity: analysis.location.city,

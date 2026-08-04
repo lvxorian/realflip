@@ -26,6 +26,11 @@ export const propertyAnalysis = pgTable("property_analysis", {
   pricePerSqm: integer("price_per_sqm"),
   marketPriceMin: integer("market_price_min"),
   marketPriceMax: integer("market_price_max"),
+  arvPricePerSqmHigh: integer("arv_price_per_sqm_high"),
+
+  // Audit zdroje tržních dat
+  marketSource: text("market_source"),
+  marketSampleSize: integer("market_sample_size"),
   overpricingPct: real("overpricing_pct"),
   locationCategory: text("location_category"),
   locationCity: text("location_city"),

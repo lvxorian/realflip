@@ -58,6 +58,8 @@ interface AnalysisData {
   alternativeStrategiesJson: string | null;
   rentalYield: number | null;
   aiReport: string | null;
+  marketSource: string | null;
+  marketSampleSize: number | null;
 }
 
 function buildAnalysisResult(
@@ -94,6 +96,9 @@ function buildAnalysisResult(
       pricePerSqm: a?.pricePerSqm ?? property.pricePerSqm ?? 0,
       marketPricePerSqmLow: marketLow,
       marketPricePerSqmHigh: marketHigh,
+      arvPricePerSqmHigh: a?.marketPriceMax ?? 0,
+      marketSource: a?.marketSource ?? null,
+      marketSampleSize: a?.marketSampleSize ?? null,
       undervaluationPct: a?.undervaluationPct ?? 0,
       overpricingPct: a?.overpricingPct ?? 0,
       investmentScore: a?.investmentScore ?? 0,

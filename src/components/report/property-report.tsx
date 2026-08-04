@@ -40,6 +40,8 @@ interface AnalysisData {
   overpricingPct: number | null;
   marketPriceMin: number | null;
   marketPriceMax: number | null;
+  marketSource: string | null;
+  marketSampleSize: number | null;
   verdictLevel: string | null;
   verdictSummary: string | null;
   redFlagsJson: string | null;
@@ -170,6 +172,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                 <tr><td className="py-1.5 pr-4 text-gray-600">Inzerovaná cena</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(property.price)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">Cena za m²</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(area > 0 ? Math.round(property.price / area) : 0)}</td></tr>
                 <tr><td className="py-1.5 pr-4 text-gray-600">ARV</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(arvValue)}</td></tr>
+                {analysis?.marketSource && <tr><td className="py-1.5 pr-4 text-gray-600">Zdroj tržních dat</td><td className="py-1.5 text-right font-mono text-gray-700">{analysis.marketSource === "db" ? "Vlastní data" : analysis.marketSource === "sreality" ? `Živá data (sreality, ${analysis.marketSampleSize ?? "?"} vzorků)` : analysis.marketSource === "market_data" ? "Fixní tabulka" : "Fallback"}</td></tr>}
                 <tr><td className="py-1.5 pr-4 text-gray-600">Skóre</td><td className="py-1.5 text-right font-mono font-semibold text-gray-900">{score}</td></tr>
               </tbody>
             </table>
