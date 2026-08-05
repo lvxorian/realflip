@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-import { calculateFlipResults } from "@/lib/analysis/flip-costs";
+import { calculateFlipResults, resolveRenovationCost } from "@/lib/analysis/flip-costs";
 import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { conditionLabel } from "@/lib/utils";
 
@@ -65,7 +65,18 @@ function fmtPrice(v: number) {
 export default function PropertyReport({ property, analysis, priceHistory }: { property: PropertyData; analysis: AnalysisData | null; priceHistory: { price: number; recordedAt: number }[] }) {
   const area = property.area ?? 70;
 
-  const [stored, setStored] = useState<{ arv: number; renovationCost: number; targetRoi: number; costConfig: any; mode?: string; rental?: Partial<RentalConfig> } | null>(null);
+  const [stored, setStored] = useState<{
+    arv: number;
+    renovationCost: number;
+    targetRoi: number;
+    costConfig: any;
+    mode?: string;
+    rental?: Partial<RentalConfig>;
+    rentalRenovationMode?: "preset" | "perSqm" | "total";
+    rentalRenovationLevel?: "light" | "medium" | "full";
+    rentalRenovationPerSqm?: number;
+    rentalRenovationTotal?: number;
+  } | null>(null);
 
   useEffect(() => {
     try {
@@ -133,10 +144,20 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
     ...(stored?.rental ?? {}),
   };
 
-  const rentalResults = calculateRentalResults(property.price, area, renoCost, rentalCfg);
+  const rentalRenoCost = stored?.rentalRenovationMode
+    ? resolveRenovationCost(
+        stored.rentalRenovationMode,
+        stored.rentalRenovationLevel ?? "medium",
+        stored.rentalRenovationPerSqm ?? 0,
+        stored.rentalRenovationTotal ?? 0,
+        area
+      )
+    : renoCost;
+
+  const rentalResults = calculateRentalResults(property.price, area, rentalRenoCost, rentalCfg);
 
   const rentalTarget = rentalResults.targetPurchasePrice > 0
-    ? calculateRentalResults(rentalResults.targetPurchasePrice, area, renoCost, rentalCfg)
+    ? calculateRentalResults(rentalResults.targetPurchasePrice, area, rentalRenoCost, rentalCfg)
     : null;
 
   function handlePrint() { window.print(); }
@@ -293,11 +314,18 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   <tr><td className="py-1.5 pr-4 text-gray-600">Měsíční nájem</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(rentalCfg.monthlyRent)}</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Hrubý výnos</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{rentalTarget.grossYield.toFixed(1)} %</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Čistý výnos</td><td className="py-1.5 text-right font-mono font-medium text-emerald-700">{rentalTarget.netYield.toFixed(1)} %</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Výnos po dani</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.netYieldAfterTax.toFixed(1)} %</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Cap rate</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.capRate.toFixed(1)} %</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Výnos na investici</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.yieldOnInvestment.toFixed(1)} %</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Cash-flow / měsíc</td><td className={`py-1.5 text-right font-mono font-medium ${rentalTarget.cashFlowMonthly >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(rentalTarget.cashFlowMonthly)}</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Cash-on-cash</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{rentalTarget.cashOnCash.toFixed(1)} %</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Návratnost investice</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.paybackYears !== null ? `${rentalTarget.paybackYears.toFixed(1)} let` : "—"}</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Break-even nájem</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rentalTarget.breakEvenRent)}</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">IRR</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.irr !== null ? `${rentalTarget.irr.toFixed(1)} %` : "—"}</td></tr>
+                  {rentalTarget.dscr !== null && (
+                    <tr><td className="py-1.5 pr-4 text-gray-600">DSCR (NOI / splátka)</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.dscr.toFixed(2)} ×</td></tr>
+                  )}
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Max. splátka (NOI − daň)</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rentalTarget.maxAffordableDebtMonthly)} / měs</td></tr>
                   <tr><td className="py-1.5 pr-4 text-gray-600">Celková investice</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(rentalTarget.totalInvested)}</td></tr>
                 </tbody>
               </table>
@@ -365,8 +393,8 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                   <span className={`font-mono font-semibold ${rentalTarget.totalRoi >= 0 ? "text-emerald-700" : "text-red-700"}`}>{rentalTarget.totalRoi.toFixed(1)} %</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">ROI p.a.</span>
-                  <span className={`font-mono font-semibold ${rentalTarget.annualizedRoi >= 0 ? "text-emerald-700" : "text-red-700"}`}>{rentalTarget.annualizedRoi.toFixed(1)} %</span>
+                  <span className="text-gray-600">ROI p.a. (geo)</span>
+                  <span className={`font-mono font-semibold ${rentalTarget.annualizedRoi !== null && rentalTarget.annualizedRoi >= 0 ? "text-emerald-700" : "text-red-700"}`}>{rentalTarget.annualizedRoi !== null ? `${rentalTarget.annualizedRoi.toFixed(1)} %` : "—"}</span>
                 </div>
               </div>
             </div>

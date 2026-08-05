@@ -69,6 +69,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 
 ## Key Files
 - `src/lib/analysis/flip-costs.ts` — flip calculator (no VAT, tax fixed 21%)
+- `src/lib/analysis/rental-calc.ts` — rental calculator (cap rate = NOI ÷ price, yield on investment = NOI ÷ (price+acq), daň 15 % s paušálem 30 % cap 600k, geometric annualized ROI, DSCR, verdict relativní k `targetYield`: +1.5/+0/−1)
 - `src/components/calculator/interactive-analysis.tsx` — main calculator (editable target price, ROI slider step 0.1)
 - `src/components/report/property-report.tsx` — PDF report (scoring box removed, sourcing fee matched with calc)
 - `src/lib/scraping/orchestrator.ts` — scraping engine
