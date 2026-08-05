@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, contacts, properties, propertyAnalysis } from "@/db/schema";
-import { eq, desc, and, isNotNull } from "drizzle-orm";
+import { eq, desc, and, isNotNull, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { safeJsonParse } from "@/lib/utils";
+
+const CALLABLE_STAGES = ["new", "contacted", "negotiation", "offer"];
 
 export async function GET() {
   try {
@@ -33,7 +35,7 @@ export async function GET() {
       .leftJoin(contacts, eq(leads.contactId, contacts.id))
       .leftJoin(properties, eq(leads.propertyId, properties.id))
       .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
-      .where(and(eq(leads.userId, session.user.id), isNotNull(leads.contactId), eq(leads.stage, "new")))
+      .where(and(eq(leads.userId, session.user.id), isNotNull(leads.contactId), inArray(leads.stage, CALLABLE_STAGES)))
       .orderBy(desc(leads.priority), desc(leads.createdAt));
 
     const normalized = rows.map((row) => {

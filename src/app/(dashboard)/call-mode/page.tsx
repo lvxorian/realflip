@@ -50,10 +50,10 @@ interface LeadWithMeeting {
 }
 
 const outcomes = [
-  { label: "Nezvedá", stage: "contacted", color: "border-red-500/30 text-red-400 hover:bg-red-500/10" },
-  { label: "Volat znovu", stage: "contacted", color: "border-amber-500/30 text-amber-400 hover:bg-amber-500/10" },
-  { label: "Nezájem", stage: "lost", color: "border-red-500/30 text-red-400 hover:bg-red-500/10" },
-  { label: "Zájem", stage: "meeting", color: "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" },
+  { label: "Nezvedá", stage: "contacted", from: ["new"], color: "border-red-500/30 text-red-400 hover:bg-red-500/10" },
+  { label: "Volat znovu", stage: "contacted", from: ["new", "contacted"], color: "border-amber-500/30 text-amber-400 hover:bg-amber-500/10" },
+  { label: "Nezájem", stage: "lost", from: ["new", "contacted", "negotiation", "offer"], color: "border-red-500/30 text-red-400 hover:bg-red-500/10" },
+  { label: "Zájem", stage: "meeting", from: ["new", "contacted"], color: "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" },
 ];
 
 const scriptSteps = [
@@ -306,15 +306,17 @@ export default function CallModePage() {
             </motion.button>
 
             <div className="flex gap-2 mt-6 flex-wrap justify-center">
-              {outcomes.map((o) => (
-                <button
-                  key={o.label}
-                  onClick={() => logOutcome(o.stage)}
-                  className={`text-xs px-3 py-1.5 rounded-full border bg-card/50 ${o.color} transition-colors`}
-                >
-                  {o.label}
-                </button>
-              ))}
+              {outcomes
+                .filter((o) => o.from.includes(call.stage))
+                .map((o) => (
+                  <button
+                    key={o.label}
+                    onClick={() => logOutcome(o.stage)}
+                    className={`text-xs px-3 py-1.5 rounded-full border bg-card/50 ${o.color} transition-colors`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
             </div>
 
             <button
