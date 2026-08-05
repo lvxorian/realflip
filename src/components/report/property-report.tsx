@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
+import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { conditionLabel } from "@/lib/utils";
 
 interface PropertyData {
@@ -64,7 +65,7 @@ function fmtPrice(v: number) {
 export default function PropertyReport({ property, analysis, priceHistory }: { property: PropertyData; analysis: AnalysisData | null; priceHistory: { price: number; recordedAt: number }[] }) {
   const area = property.area ?? 70;
 
-  const [stored, setStored] = useState<{ arv: number; renovationCost: number; targetRoi: number; costConfig: any } | null>(null);
+  const [stored, setStored] = useState<{ arv: number; renovationCost: number; targetRoi: number; costConfig: any; mode?: string; rental?: Partial<RentalConfig> } | null>(null);
 
   useEffect(() => {
     try {
@@ -124,6 +125,20 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
     try { return JSON.parse(analysis?.redFlagsJson ?? "[]") as { type: string; text: string; severity: string }[]; } catch { return []; }
   }, [analysis?.redFlagsJson]);
 
+  const rentalMode = stored?.mode === "rental";
+
+  const rentalCfg: RentalConfig = {
+    ...RENTAL_DEFAULTS,
+    monthlyRent: estimateMonthlyRent(area),
+    ...(stored?.rental ?? {}),
+  };
+
+  const rentalResults = calculateRentalResults(property.price, area, renoCost, rentalCfg);
+
+  const rentalTarget = rentalResults.targetPurchasePrice > 0
+    ? calculateRentalResults(rentalResults.targetPurchasePrice, area, renoCost, rentalCfg)
+    : null;
+
   function handlePrint() { window.print(); }
 
   return (
@@ -151,6 +166,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
           <p className="text-sm text-gray-500 mt-1">{property.address || "—"}</p>
           {property.portalName === "offline" && <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-600 px-2.5 py-0.5 text-xs font-medium mt-2">Offline inzerát</span>}
+          {rentalMode && <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-medium mt-2 ml-2">Výnosová strategie</span>}
           <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
             <span>{property.rooms || "—"}</span>
             <span className="w-px h-3 bg-gray-300" />
@@ -179,7 +195,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
         </div>
 
         {/* Section: Po vyjednání */}
-        {t && (
+        {!rentalMode && t && (
           <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
             <div className="bg-emerald-50 px-6 py-3 border-b border-emerald-200">
               <h2 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">Po vyjednání</h2>
@@ -246,9 +262,114 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
         )}
 
-        {!t && (
+        {!rentalMode && !t && (
           <div className="rp-card border border-gray-200 rounded-xl p-6 text-center text-sm text-gray-500">
             Cílová cena je nižší než 0 – výpočet není možný.
+          </div>
+        )}
+
+        {/* Section: Výnosová analýza */}
+        {rentalMode && rentalTarget && (
+          <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
+            <div className="bg-emerald-50 px-6 py-3 border-b border-emerald-200">
+              <h2 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">Výnosová analýza</h2>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4 text-sm">
+                <span className="text-gray-500">Max. kupní cena pro výnos {rentalCfg.targetYield} %</span>
+                <span className="font-semibold font-mono text-gray-900">{fmtPrice(rentalTarget.targetPurchasePrice)}</span>
+              </div>
+              {rentalResults.priceReductionPct > 0 && (
+                <div className="flex items-center justify-between mb-4 text-sm">
+                  <span className="text-gray-500">Redukce oproti inzerátu ({rentalResults.priceReductionPct} %)</span>
+                  <span className="font-mono text-emerald-700">-{fmtPrice(rentalResults.priceReductionNeeded)}</span>
+                </div>
+              )}
+              <span className="text-gray-500 text-sm">Cena za m² při cílové ceně </span>
+              <span className="font-mono text-gray-700 text-sm">{fmtPrice(area > 0 ? Math.round(rentalTarget.targetPurchasePrice / area) : 0)}</span>
+
+              <table className="w-full text-sm mt-4">
+                <tbody className="divide-y divide-gray-100">
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Měsíční nájem</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(rentalCfg.monthlyRent)}</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Hrubý výnos</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{rentalTarget.grossYield.toFixed(1)} %</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Čistý výnos</td><td className="py-1.5 text-right font-mono font-medium text-emerald-700">{rentalTarget.netYield.toFixed(1)} %</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Cap rate</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.capRate.toFixed(1)} %</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Cash-flow / měsíc</td><td className={`py-1.5 text-right font-mono font-medium ${rentalTarget.cashFlowMonthly >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(rentalTarget.cashFlowMonthly)}</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Cash-on-cash</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{rentalTarget.cashOnCash.toFixed(1)} %</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Návratnost investice</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.paybackYears !== null ? `${rentalTarget.paybackYears.toFixed(1)} let` : "—"}</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Break-even nájem</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rentalTarget.breakEvenRent)}</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Celková investice</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(rentalTarget.totalInvested)}</td></tr>
+                </tbody>
+              </table>
+
+              <div className="border-t border-gray-300 mt-3 pt-3 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-600 font-medium text-sm">Prognóza cash-flow po rocích</span>
+                  <span className="text-gray-500 text-xs">údaje v Kč</span>
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                      <th className="py-1 pr-2 font-medium">Rok</th>
+                      <th className="py-1 pr-2 font-medium text-right">Příjmy</th>
+                      <th className="py-1 pr-2 font-medium text-right">NOI</th>
+                      {rentalCfg.hasMortgage && <th className="py-1 pr-2 font-medium text-right">Splátka</th>}
+                      <th className="py-1 pr-2 font-medium text-right">Cash-flow</th>
+                      <th className="py-1 pr-2 font-medium text-right">Kumulativně</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rentalTarget.rows.map((row) => (
+                      <tr key={row.year} className="text-gray-700">
+                        <td className="py-1 pr-2 font-medium text-gray-900">{row.year}</td>
+                        <td className="py-1 pr-2 text-right font-mono">{row.effectiveRent.toLocaleString()}</td>
+                        <td className="py-1 pr-2 text-right font-mono">{row.noi.toLocaleString()}</td>
+                        {rentalCfg.hasMortgage && <td className="py-1 pr-2 text-right font-mono">{row.mortgagePayment.toLocaleString()}</td>}
+                        <td className={`py-1 pr-2 text-right font-mono ${row.cashFlow >= 0 ? "text-emerald-700" : "text-red-700"}`}>{row.cashFlow.toLocaleString()}</td>
+                        <td className={`py-1 pr-2 text-right font-mono ${row.cumulativeCashFlow >= 0 ? "text-gray-700" : "text-red-700"}`}>{row.cumulativeCashFlow.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-gray-300 pt-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Hodnota po {rentalCfg.holdingYears} letech</span>
+                  <span className="font-mono font-medium text-gray-900">{fmtPrice(rentalTarget.exitPrice)}</span>
+                </div>
+                {rentalCfg.hasMortgage && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Zůstatek úvěru</span>
+                    <span className="font-mono text-gray-700">{fmtPrice(rentalTarget.mortgageBalance)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Čistý výnos z prodeje</span>
+                  <span className="font-mono font-medium text-gray-900">{fmtPrice(rentalTarget.netExit)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Daň z prodeje</span>
+                  <span className="font-mono text-gray-700">{fmtPrice(rentalTarget.exitTax)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Kumulovaný cash-flow</span>
+                  <span className="font-mono text-gray-700">{fmtPrice(rentalTarget.cumulativeCashFlow)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-semibold text-gray-900">Celkový zisk</span>
+                  <span className={`font-mono font-semibold ${rentalTarget.totalProfit >= 0 ? "text-emerald-700" : "text-red-700"}`}>{fmtPrice(rentalTarget.totalProfit)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">ROI celkem</span>
+                  <span className={`font-mono font-semibold ${rentalTarget.totalRoi >= 0 ? "text-emerald-700" : "text-red-700"}`}>{rentalTarget.totalRoi.toFixed(1)} %</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">ROI p.a.</span>
+                  <span className={`font-mono font-semibold ${rentalTarget.annualizedRoi >= 0 ? "text-emerald-700" : "text-red-700"}`}>{rentalTarget.annualizedRoi.toFixed(1)} %</span>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

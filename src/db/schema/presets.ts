@@ -13,6 +13,7 @@ export const calculatorPresets = sqliteTable("calculator_presets", {
   arv: integer("arv"),
   renovationCost: integer("renovation_cost"),
   targetRoi: real("target_roi").default(15),
+  mode: text("mode").notNull().default("flip"),
   config: text("config").default("{}"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

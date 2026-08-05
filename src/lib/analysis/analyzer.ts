@@ -1,6 +1,7 @@
 import { FullAnalysis, RedFlag, DetailedCosts, BuildingType, EnergyLabel, OccupancyStatus, LocationCategory, LocationResult, RenovationItem, ScenarioResult, CitySegments } from "./types";
 import { classifyLocation } from "./location";
 import { EUPHEMISMS, MARKET_DATA } from "./market-data";
+import { estimateMonthlyRent } from "./rental-calc";
 import { normalizeCondition } from "./condition";
 import { RawListing } from "../scraping/types";
 import { calculateItemizedRenovation } from "./flip-costs";
@@ -189,9 +190,9 @@ function calculateTechnicalScore(
   return Math.max(0, Math.min(100, score));
 }
 
-function calculateRentalYield(price: number, area: number | null): number | null {
+function calculateRentalYield(price: number, area: number | null, city?: string, category?: string | null): number | null {
   if (!area || price <= 0) return null;
-  const estimatedRent = area * 250;
+  const estimatedRent = estimateMonthlyRent(area, city, category);
   const annualRent = estimatedRent * 12;
   return (annualRent / price) * 100;
 }
@@ -433,7 +434,7 @@ export function analyzeListing(
   const priceReductionPct = price > 0 ? Math.round((priceReductionNeeded / price) * 100 * 10) / 10 : 0;
 
   // Krok 10: Alternativy
-  const rentalYield = calculateRentalYield(price, usableArea);
+  const rentalYield = calculateRentalYield(price, usableArea, location.city, location.category);
   const alternativeStrategies: string[] = [];
   if (rentalYield && rentalYield >= 5) {
     alternativeStrategies.push(`Dlouhodobý pronájem (výnosnost ${rentalYield.toFixed(1)} % p.a.)`);

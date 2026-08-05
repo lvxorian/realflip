@@ -245,6 +245,41 @@ export const MARKET_DATA: Record<string, CityMarketData> = {
   },
 };
 
+// Průměrné nájemné Kč/m²/měsíc dle města a kategorie lokality
+export const RENT_PER_SQM: Record<string, { premium: number; stable: number; risky: number }> = {
+  praha: { premium: 420, stable: 350, risky: 290 },
+  brno: { premium: 310, stable: 260, risky: 230 },
+  plzen: { premium: 260, stable: 225, risky: 200 },
+  ostrava: { premium: 210, stable: 185, risky: 160 },
+  usti: { premium: 190, stable: 165, risky: 140 },
+  olomouc: { premium: 245, stable: 210, risky: 190 },
+  hradec: { premium: 240, stable: 210, risky: 190 },
+  pardubice: { premium: 235, stable: 205, risky: 185 },
+  ceske_budejovice: { premium: 235, stable: 205, risky: 185 },
+  liberec: { premium: 220, stable: 190, risky: 170 },
+  karlovy_vary: { premium: 200, stable: 175, risky: 155 },
+  mariansk_lazne: { premium: 200, stable: 175, risky: 155 },
+  zlin: { premium: 215, stable: 190, risky: 170 },
+  kladno: { premium: 195, stable: 175, risky: 155 },
+  mlada_boleslav: { premium: 200, stable: 180, risky: 160 },
+  kolin: { premium: 190, stable: 170, risky: 150 },
+  jihlava: { premium: 195, stable: 175, risky: 155 },
+  karvina: { premium: 150, stable: 135, risky: 120 },
+  havirov: { premium: 145, stable: 130, risky: 115 },
+  znojmo: { premium: 185, stable: 165, risky: 145 },
+  trebic: { premium: 175, stable: 155, risky: 140 },
+  benesov: { premium: 190, stable: 170, risky: 150 },
+};
+
+export const DEFAULT_RENT_PER_SQM = 250;
+
+export function rentPerSqm(city: string | null | undefined, category?: string | null): number {
+  const data = city ? RENT_PER_SQM[city] : undefined;
+  if (!data) return DEFAULT_RENT_PER_SQM;
+  const key = category === "premium" || category === "risky" ? category : "stable";
+  return data[key];
+}
+
 export const RISKY_CITIES = [
   "Most", "Chomutov", "Karviná", "Havířov", "Bruntál",
   "Krnov", "Jeseník", "Litvínov", "Osek", "Jirkov",

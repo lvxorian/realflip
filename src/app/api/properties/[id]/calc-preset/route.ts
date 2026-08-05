@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { calculatorPresets } from "@/db/schema";
+import { calculatorPresets, propertyAnalysis } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 
@@ -36,6 +36,7 @@ export async function GET(
         arv: preset.arv,
         renovationCost: preset.renovationCost,
         targetRoi: preset.targetRoi,
+        mode: preset.mode ?? "flip",
         config: preset.config ? JSON.parse(preset.config) : {},
       },
     });
@@ -75,7 +76,8 @@ export async function POST(
           arv: body.arv ?? null,
           renovationCost: body.renovationCost ?? null,
           targetRoi: body.targetRoi ?? 15,
-          config: JSON.stringify({ ...(body.costConfig || {}), renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
+          mode: body.mode === "rental" ? "rental" : "flip",
+          config: JSON.stringify({ ...(body.costConfig || {}), rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
           updatedAt: now,
         })
         .where(eq(calculatorPresets.id, existing.id));
@@ -87,10 +89,20 @@ export async function POST(
         arv: body.arv ?? null,
         renovationCost: body.renovationCost ?? null,
         targetRoi: body.targetRoi ?? 15,
-        config: JSON.stringify({ ...(body.costConfig || {}), renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
+        mode: body.mode === "rental" ? "rental" : "flip",
+        config: JSON.stringify({ ...(body.costConfig || {}), rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
         createdAt: now,
         updatedAt: now,
       });
+    }
+
+    // Ve výnosovém režimu propsat čistý výnos do property_analysis,
+    // aby ho viděli konzumenti DB (report, call-mode, dashboard).
+    if (body.mode === "rental" && typeof body.rentalNetYield === "number" && body.rentalNetYield > 0) {
+      await db
+        .update(propertyAnalysis)
+        .set({ rentalYield: Math.round(body.rentalNetYield * 10) / 10, updatedAt: now })
+        .where(eq(propertyAnalysis.propertyId, propertyId));
     }
 
     return NextResponse.json({ ok: true });

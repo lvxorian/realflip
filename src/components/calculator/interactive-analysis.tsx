@@ -13,6 +13,7 @@ import {
   calculateItemizedRenovation,
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
+import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp } from "@phosphor-icons/react";
 
 const verdictColors: Record<string, string> = {
@@ -29,6 +30,13 @@ const verdictLabels: Record<string, string> = {
   consider: "Zvážit",
   dontBuy: "Nedoporučeno",
   categoricalReject: "Zamítnout",
+};
+
+const rentalVerdictColors: Record<string, "success" | "warning" | "danger"> = {
+  rentalStrongBuy: "success",
+  rentalBuy: "success",
+  rentalConsider: "warning",
+  rentalDontBuy: "danger",
 };
 
 function MarketSourceBadge({ analysis }: { analysis: { marketSource?: string | null; marketSampleSize?: number | null } }) {
@@ -214,6 +222,32 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, adjusted);
   }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, costConfig]);
 
+  const [mode, setMode] = useState<"flip" | "rental">("flip");
+  const [rentalConfig, setRentalConfig] = useState<RentalConfig>(() => ({
+    ...RENTAL_DEFAULTS,
+    monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null),
+  }));
+
+  const updateRental = (key: keyof RentalConfig, value: number | boolean) =>
+    setRentalConfig((prev) => ({ ...prev, [key]: value }));
+
+  const toggleRental = (key: keyof RentalConfig) =>
+    setRentalConfig((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const rentalResults = useMemo(() => {
+    const cfg = {
+      ...rentalConfig,
+      monthlyRent: rentalConfig.monthlyRent || estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null),
+    };
+    return calculateRentalResults(l.price, area, currentRenovation, cfg);
+  }, [rentalConfig, l.price, area, currentRenovation, a.location?.city, a.location?.category]);
+
+  const targetRentalResults = useMemo(() => {
+    const tp = rentalResults.targetPurchasePrice;
+    if (tp <= 0) return null;
+    return calculateRentalResults(tp, area, currentRenovation, rentalConfig);
+  }, [rentalResults.targetPurchasePrice, area, currentRenovation, rentalConfig]);
+
   const propertyId = l.id ?? dbSavedId;
   useEffect(() => {
     if (!propertyId) return;
@@ -223,13 +257,15 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         renovationCost: currentRenovation,
         targetRoi,
         costConfig,
+        mode,
+        rental: rentalConfig,
         renovationMode,
         renovationLevel,
         renovationPerSqm,
         renovationItems,
       }));
     } catch {}
-  }, [propertyId, arv, currentRenovation, targetRoi, costConfig, renovationMode, renovationLevel, renovationPerSqm, renovationItems]);
+  }, [propertyId, arv, currentRenovation, targetRoi, costConfig, mode, rentalConfig, renovationMode, renovationLevel, renovationPerSqm, renovationItems]);
 
   useEffect(() => {
     if (!propertyId) return;
@@ -237,10 +273,12 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       if (data?.preset) {
         setArv(data.preset.arv ?? arv);
         setTargetRoi(data.preset.targetRoi ?? targetRoi);
+        if (data.preset.mode === "rental" || data.preset.mode === "flip") setMode(data.preset.mode);
         if (data.preset.renovationCost != null) setRenovationTotal(data.preset.renovationCost);
         const cfg = data.preset.config;
         if (cfg) {
           setCostConfig({ ...costConfig, ...cfg });
+          if (cfg.rental) setRentalConfig({ ...RENTAL_DEFAULTS, ...cfg.rental });
           if (cfg.renovationMode) setRenovationMode(cfg.renovationMode);
           if (cfg.renovationLevel) setRenovationLevel(cfg.renovationLevel);
           if (cfg.renovationPerSqm) setRenovationPerSqm(cfg.renovationPerSqm);
@@ -255,7 +293,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     if (!propertyId) return;
     setPresetSaving(true);
     const preset = {
-      arv, renovationCost: currentRenovation, targetRoi, costConfig,
+      arv, renovationCost: currentRenovation, targetRoi, costConfig, mode, rental: rentalConfig,
       renovationMode, renovationLevel, renovationPerSqm, renovationItems,
     };
     try {
@@ -263,7 +301,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       await fetch(`/api/properties/${propertyId}/calc-preset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(preset),
+        body: JSON.stringify({ ...preset, rentalNetYield: mode === "rental" ? rentalResults.netYield : null }),
       });
       setPresetSaved(true);
       setTimeout(() => setPresetSaved(false), 2000);
@@ -278,6 +316,8 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setArv(a.arv);
     setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setTargetRoi(15);
+    setMode("flip");
+    setRentalConfig({ ...RENTAL_DEFAULTS, monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null) });
     setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
   };
 
@@ -356,7 +396,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
           title: l.title,
           description: l.description,
           price: l.price,
-          targetPrice: flipResults.targetPurchasePrice,
+          targetPrice: mode === "rental" ? rentalResults.targetPurchasePrice : flipResults.targetPurchasePrice,
           arv,
           renovationCost: currentRenovation,
           area: l.area,
@@ -500,7 +540,9 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
               <h3 className="font-medium text-sm leading-snug line-clamp-2 text-foreground">{l.title}</h3>
               <p className="text-xs text-muted mt-1 break-all">{result.url}</p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
-                <Badge variant={verdictBadgeVariant as any} size="sm">{verdictLabels[a.verdictLevel]}</Badge>
+                {mode === "rental"
+                  ? <Badge variant={rentalVerdictColors[rentalResults.verdict.level]} size="sm">{rentalResults.verdict.label}</Badge>
+                  : <Badge variant={verdictBadgeVariant as any} size="sm">{verdictLabels[a.verdictLevel]}</Badge>}
                 <Badge variant="score" score={a.investmentScore} size="sm" />
                 {l.condition && <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{conditionLabel(l.condition)}</span>}
                 <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{portalLabel(result.portal)}</span>
@@ -528,8 +570,12 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             <InfoBox label="Cena za m²" value={formatPrice(a.pricePerSqm > 0 ? a.pricePerSqm : Math.round(l.price / area)) + "/m²"} />
             <InfoBox label="Trh/m²" value={`${formatPrice(a.marketPricePerSqmLow)}–${formatPrice(a.marketPricePerSqmHigh)}`} />
             <MarketSourceBadge analysis={a} />
-            <InfoBox label="ROI" value={flipResults.roi.toFixed(1) + "%"} highlight={flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"} />
-            <InfoBox label="Čistý zisk" value={formatPrice(flipResults.netProfit)} highlight="text-price" />
+            {mode === "rental"
+              ? <InfoBox label="Čistý výnos" value={rentalResults.netYield.toFixed(1) + "%"} highlight={rentalResults.netYield >= 6 ? "text-emerald-400" : rentalResults.netYield >= 4.5 ? "text-amber-400" : "text-red-400"} />
+              : <InfoBox label="ROI" value={flipResults.roi.toFixed(1) + "%"} highlight={flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"} />}
+            {mode === "rental"
+              ? <InfoBox label="Cash-flow / měsíc" value={formatPrice(rentalResults.cashFlowMonthly)} highlight={rentalResults.cashFlowMonthly >= 0 ? "text-price" : "text-red-400"} />
+              : <InfoBox label="Čistý zisk" value={formatPrice(flipResults.netProfit)} highlight="text-price" />}
             <InfoBox label="Podhodnocení" value={a.undervaluationPct > 0 ? a.undervaluationPct.toFixed(1) + "%" : "—"} highlight={a.undervaluationPct > 0 ? "text-emerald-400" : "text-muted"} />
             <InfoBox label="Nadhodnocení" value={a.overpricingPct > 0 ? a.overpricingPct.toFixed(1) + "%" : "—"} highlight={a.overpricingPct > 0 ? "text-amber-400" : "text-muted"} />
           </div>
@@ -544,13 +590,24 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             {a.occupancy && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{occupancyLabel(a.occupancy)}</span>}
           </div>
 
-          {/* ===== FEATURE 1: FLIP CALCULATOR ===== */}
+          {/* ===== FEATURE 1: FLIP / RENTAL CALCULATOR ===== */}
           <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 space-y-4">
             <div className="flex items-center gap-2">
               <CurrencyCircleDollar size={16} className="text-accent" />
-              <h2 className="font-semibold tracking-tight text-sm">Kalkulačka flipu</h2>
+              <h2 className="font-semibold tracking-tight text-sm flex-1">Kalkulačka</h2>
+              <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
+                <button
+                  onClick={() => setMode("flip")}
+                  className={`px-3 py-1.5 transition-colors ${mode === "flip" ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                >Flip</button>
+                <button
+                  onClick={() => setMode("rental")}
+                  className={`px-3 py-1.5 transition-colors ${mode === "rental" ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                >Výnosová</button>
+              </div>
             </div>
 
+            {mode === "flip" && (<>
             {/* ARV */}
             <div>
               <label className="text-xs text-muted mb-1 block">ARV (hodnota po rekonstrukci)</label>
@@ -755,6 +812,246 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <div className="flex justify-between font-medium">
                     <span className="text-emerald-400/70">ROI</span>
                     <span className={`font-mono ${targetFlipResults.roi >= 14.5 ? "text-emerald-400" : targetFlipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{targetFlipResults.roi.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            </>)}
+
+            {mode === "rental" && (
+              <div className="space-y-4">
+                {/* Rent */}
+                <div>
+                  <label className="text-xs text-muted mb-1 block">Měsíční nájem <span className="text-muted/60">(odhad dle lokality: {formatPrice(estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null))})</span></label>
+                  <input
+                    type="text"
+                    value={rentalConfig.monthlyRent > 0 ? formatPrice(rentalConfig.monthlyRent) : ""}
+                    onChange={(e) => {
+                      const num = parseInt(e.target.value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
+                      updateRental("monthlyRent", num);
+                    }}
+                    placeholder={formatPrice(estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null))}
+                    className={inputClass}
+                  />
+                </div>
+
+                {/* Assumptions */}
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField label="Růst nájmu (%/rok)" value={rentalConfig.rentGrowthPct} onChange={(v) => updateRental("rentGrowthPct", v)} suffix="%" />
+                  <NumberField label="Růst ceny (%/rok)" value={rentalConfig.appreciationPct} onChange={(v) => updateRental("appreciationPct", v)} suffix="%" />
+                  <NumberField label="Obsazenost (% / rok)" value={rentalConfig.vacancyPct} onChange={(v) => updateRental("vacancyPct", v)} suffix="%" />
+                  <NumberField label="Držení (let)" value={rentalConfig.holdingYears} onChange={(v) => updateRental("holdingYears", v)} suffix="let" />
+                  <NumberField label="Správa (% z nájmu)" value={rentalConfig.managementPct} onChange={(v) => updateRental("managementPct", v)} suffix="%" />
+                  <NumberField label="Rezerva oprav (% z nájmu)" value={rentalConfig.repairsPct} onChange={(v) => updateRental("repairsPct", v)} suffix="%" />
+                  <NumberField label="Pojištění (Kč/rok)" value={rentalConfig.insuranceAnnual} onChange={(v) => updateRental("insuranceAnnual", v)} suffix="Kč" />
+                  <NumberField label="Daň z nemovitosti (Kč/rok)" value={rentalConfig.propertyTaxAnnual} onChange={(v) => updateRental("propertyTaxAnnual", v)} suffix="Kč" />
+                </div>
+
+                {/* Target yield */}
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-muted shrink-0">Cílový výnos:</label>
+                  <input
+                    type="range"
+                    min={3}
+                    max={10}
+                    step={0.5}
+                    value={rentalConfig.targetYield}
+                    onChange={(e) => updateRental("targetYield", parseFloat(e.target.value))}
+                    className="flex-1 accent-accent h-1.5"
+                  />
+                  <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{rentalConfig.targetYield}%</span>
+                </div>
+
+                {/* Rental cost toggles */}
+                <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">
+                  <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Volitelné náklady</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={rentalConfig.renovationBeforeRent} onChange={() => toggleRental("renovationBeforeRent")} className="accent-accent" />
+                      <span className="text-foreground/80 whitespace-nowrap">Rekonstrukce před pronájmem</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={rentalConfig.sourcingEnabled} onChange={() => toggleRental("sourcingEnabled")} className="accent-accent" />
+                      <span className="text-foreground/80 whitespace-nowrap">Sourcing fee</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={rentalConfig.hasMortgage} onChange={() => toggleRental("hasMortgage")} className="accent-accent" />
+                      <span className="text-foreground/80 whitespace-nowrap">Mám hypotéku</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={rentalConfig.appraisal} onChange={() => toggleRental("appraisal")} className="accent-accent" />
+                      <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek</span>
+                    </label>
+                  </div>
+                  {rentalConfig.renovationBeforeRent && (
+                    <div className="flex items-center justify-between text-xs pl-6">
+                      <span className="text-muted">Odhad rekonstrukce</span>
+                      <span className="font-mono text-foreground">{formatPrice(currentRenovation)}</span>
+                    </div>
+                  )}
+                  {rentalConfig.sourcingEnabled && (
+                    <div className="flex items-center gap-2 pl-6">
+                      <input
+                        type="number"
+                        value={rentalConfig.sourcingFee || ""}
+                        onChange={(e) => updateRental("sourcingFee", parseInt(e.target.value) || 0)}
+                        className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
+                        placeholder="100000"
+                      />
+                      <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
+                        <button
+                          onClick={() => { updateRental("sourcingFee", 100000); updateRental("sourcingFeeIsPct", false); }}
+                          className={`px-2 py-1 transition-colors ${!rentalConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                        >Kč</button>
+                        <button
+                          onClick={() => { updateRental("sourcingFee", 5); updateRental("sourcingFeeIsPct", true); }}
+                          className={`px-2 py-1 transition-colors ${rentalConfig.sourcingFeeIsPct ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                        >%</button>
+                      </div>
+                    </div>
+                  )}
+                  {rentalConfig.hasMortgage && (
+                    <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border/30">
+                      <div>
+                        <label className="text-[10px] text-muted block mb-1">Výše úvěru</label>
+                        <input
+                          type="text"
+                          value={rentalConfig.mortgageAmount > 0 ? rentalConfig.mortgageAmount.toLocaleString() : ""}
+                          onChange={(e) => updateRental("mortgageAmount", parseInt(e.target.value.replace(/\s/g, "")) || 0)}
+                          placeholder="např. 3 000 000"
+                          className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted block mb-1">Úrok (%)</label>
+                        <input
+                          type="text"
+                          value={rentalConfig.mortgageRate > 0 ? rentalConfig.mortgageRate.toString() : ""}
+                          onChange={(e) => updateRental("mortgageRate", parseFloat(e.target.value.replace(",", ".")) || 0)}
+                          placeholder="např. 5"
+                          className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted block mb-1">Doba (let)</label>
+                        <input
+                          type="text"
+                          value={rentalConfig.mortgageTermYears > 0 ? rentalConfig.mortgageTermYears.toString() : ""}
+                          onChange={(e) => updateRental("mortgageTermYears", parseInt(e.target.value) || 0)}
+                          placeholder="např. 30"
+                          className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Rental metric boxes */}
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoBox label="Hrubý výnos" value={rentalResults.grossYield.toFixed(1) + "%"} highlight={rentalResults.grossYield >= 8 ? "text-emerald-400" : "text-foreground"} />
+                  <InfoBox label="Čistý výnos" value={rentalResults.netYield.toFixed(1) + "%"} highlight={rentalResults.netYield >= 6 ? "text-emerald-400" : rentalResults.netYield >= 4.5 ? "text-amber-400" : "text-red-400"} />
+                  <InfoBox label="Cap rate" value={rentalResults.capRate.toFixed(1) + "%"} highlight={rentalResults.capRate >= 7 ? "text-emerald-400" : "text-foreground"} />
+                  <InfoBox label="Cash-flow / měsíc" value={formatPrice(rentalResults.cashFlowMonthly)} highlight={rentalResults.cashFlowMonthly >= 0 ? "text-price" : "text-red-400"} />
+                  <InfoBox label="Cash-on-cash" value={rentalResults.cashOnCash.toFixed(1) + "%"} highlight={rentalResults.cashOnCash >= 6 ? "text-emerald-400" : rentalResults.cashOnCash >= 4 ? "text-amber-400" : "text-red-400"} />
+                  <InfoBox label="Návratnost investice" value={rentalResults.paybackYears !== null ? `${rentalResults.paybackYears.toFixed(1)} let` : "—"} highlight={rentalResults.paybackYears !== null && rentalResults.paybackYears <= 15 ? "text-emerald-400" : "text-red-400"} />
+                  <InfoBox label="Break-even nájem" value={formatPrice(rentalResults.breakEvenRent) + " /měs"} highlight={rentalResults.breakEvenRent <= rentalConfig.monthlyRent ? "text-emerald-400" : "text-amber-400"} />
+                  <InfoBox label="Nájem / plocha" value={area > 0 ? formatPrice(Math.round(rentalConfig.monthlyRent / area)) + "/m²" : "—"} />
+                </div>
+
+                {/* Target price highlight */}
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
+                  <p className="text-xs text-emerald-400 mb-1">🎯 MAX. KUPNÍ CENA PRO VÝNOS {rentalConfig.targetYield} %</p>
+                  <p className="text-2xl font-bold text-emerald-400 font-mono">{formatPrice(rentalResults.targetPurchasePrice)}</p>
+                  <p className="text-[10px] text-emerald-400/60 mt-0.5">{formatPrice(area > 0 ? Math.round(rentalResults.targetPurchasePrice / area) : 0)} Kč/m²</p>
+                  <div className="flex items-center justify-center gap-3 mt-2 text-xs">
+                    <span className="text-muted">Aktuální: {formatPrice(l.price)}</span>
+                    <span className="text-red-400">↓ {formatPrice(rentalResults.priceReductionNeeded)} ({rentalResults.priceReductionPct}%)</span>
+                  </div>
+                </div>
+
+                {/* Breakdown at target price */}
+                {targetRentalResults && (
+                  <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 overflow-hidden">
+                    <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">
+                      Výpočet při cílové ceně {formatPrice(rentalResults.targetPurchasePrice)}
+                    </div>
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {[
+                          { label: "Kupní cena", value: rentalResults.targetPurchasePrice },
+                          { label: "Právní služby", value: rentalConfig.legalFee },
+                          ...(rentalConfig.appraisal ? [{ label: "Znalecký posudek", value: 5000 }] : []),
+                          ...(rentalConfig.sourcingEnabled ? [{ label: "Sourcing fee", value: rentalConfig.sourcingFeeIsPct ? Math.round(rentalResults.targetPurchasePrice * (rentalConfig.sourcingFee / 100)) : rentalConfig.sourcingFee }] : []),
+                          ...(rentalConfig.renovationBeforeRent ? [{ label: "Rekonstrukce", value: currentRenovation }] : []),
+                        ].map((row) => (
+                          <tr key={row.label} className="border-b border-emerald-500/10">
+                            <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-emerald-500/10">
+                          <td className="px-3 py-2 font-semibold text-emerald-400">Celková investice</td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(targetRentalResults.totalInvested)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div className="border-t border-emerald-500/20 px-3 py-2 text-xs space-y-1 bg-emerald-500/5">
+                      <div className="flex justify-between">
+                        <span className="text-emerald-400/70">NOI ročně</span>
+                        <span className="font-mono text-emerald-400">{formatPrice(targetRentalResults.noiAnnual)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-emerald-400/70">Čistý výnos</span>
+                        <span className={`font-mono ${targetRentalResults.netYield >= rentalConfig.targetYield ? "text-emerald-400" : "text-amber-400"}`}>{targetRentalResults.netYield.toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-emerald-400/70">Cash-flow / měsíc</span>
+                        <span className={`font-mono ${targetRentalResults.cashFlowMonthly >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(targetRentalResults.cashFlowMonthly)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium">
+                        <span className="text-emerald-400/70">Cash-on-cash</span>
+                        <span className={`font-mono ${targetRentalResults.cashOnCash >= 6 ? "text-emerald-400" : "text-amber-400"}`}>{targetRentalResults.cashOnCash.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Exit model */}
+                <div className="rounded-xl bg-card border border-border/50 p-3 text-xs space-y-1.5">
+                  <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Exit po {rentalConfig.holdingYears} letech</p>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Hodnota při prodeji</span>
+                    <span className="font-mono text-foreground">{formatPrice(rentalResults.exitPrice)}</span>
+                  </div>
+                  {rentalConfig.hasMortgage && (
+                    <div className="flex justify-between">
+                      <span className="text-muted">Zůstatek úvěru</span>
+                      <span className="font-mono text-foreground">{formatPrice(rentalResults.mortgageBalance)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted">Čistý výnos z prodeje</span>
+                    <span className="font-mono text-foreground">{formatPrice(rentalResults.netExit)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Kumulovaný cash-flow</span>
+                    <span className="font-mono text-foreground">{formatPrice(rentalResults.cumulativeCashFlow)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Daň z prodeje</span>
+                    <span className="font-mono text-foreground">{formatPrice(rentalResults.exitTax)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1.5 border-t border-border/30 font-medium">
+                    <span className="text-foreground">Celkový zisk</span>
+                    <span className={`font-mono ${rentalResults.totalProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(rentalResults.totalProfit)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">ROI celkem</span>
+                    <span className={`font-mono ${rentalResults.totalRoi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{rentalResults.totalRoi.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">ROI p.a.</span>
+                    <span className={`font-mono ${rentalResults.annualizedRoi >= 0 ? "text-emerald-400" : "text-red-400"}`}>{rentalResults.annualizedRoi.toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
@@ -1002,6 +1299,27 @@ function InfoBox({ label, value, highlight }: { label: string; value: string; hi
     <div className="rounded-xl bg-card-hover border border-border/50 p-3 min-w-0">
       <p className="text-xs text-muted mb-1">{label}</p>
       <p className={`text-xs font-semibold font-mono leading-snug break-words ${highlight ?? "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
+function NumberField({ label, value, suffix, onChange }: { label: string; value: number; suffix: string; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <label className="text-[10px] text-muted block mb-1">{label}</label>
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value > 0 ? (suffix === "%" ? value.toString() : value.toLocaleString()) : ""}
+          onChange={(e) => {
+            const num = parseFloat(e.target.value.replace(/\s/g, "").replace(",", ".")) || 0;
+            onChange(num);
+          }}
+          className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+        />
+        <span className="text-muted text-[10px] shrink-0">{suffix}</span>
+      </div>
     </div>
   );
 }

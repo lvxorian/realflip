@@ -13,6 +13,7 @@ export const calculatorPresets = pgTable("calculator_presets", {
   arv: integer("arv"),
   renovationCost: integer("renovation_cost"),
   targetRoi: real("target_roi").default(15),
+  mode: text("mode").notNull().default("flip"),
   config: text("config").default("{}"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
