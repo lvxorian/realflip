@@ -23,6 +23,7 @@ import {
   Phone,
   ChartLineUp,
   Buildings,
+  ListChecks,
 } from "@phosphor-icons/react";
 
 interface DashboardData {
@@ -33,6 +34,7 @@ interface DashboardData {
   pipelineProfit: number;
   totalLeads: number;
   activeDeals: number;
+  openTasks: number;
   avgScore: number;
   topUndervalued: {
     id: string;
@@ -267,6 +269,34 @@ export default function DashboardPage() {
             </div>
             <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">
               Vytvořit →
+            </span>
+          </div>
+        </Link>
+      </motion.div>
+
+      {/* Tasks strip */}
+      <motion.div variants={itemVariants}>
+        <Link href="/tasks">
+          <div className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover transition-colors cursor-pointer flex items-center justify-between group">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                <ListChecks size={20} weight="duotone" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm group-hover:text-accent transition-colors">
+                  {data?.openTasks
+                    ? `${data.openTasks} otevřených úkolů`
+                    : "Úkoly"}
+                </p>
+                <p className="text-xs text-muted mt-0.5">
+                  {data?.openTasks
+                    ? "Spravujte si přehled toho, co je potřeba udělat"
+                    : "Vše hotovo — přidejte nový úkol"}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+              Spravovat →
             </span>
           </div>
         </Link>

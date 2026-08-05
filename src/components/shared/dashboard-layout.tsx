@@ -24,6 +24,7 @@ import {
   Sidebar,
   SignOut,
   Gavel,
+  ListChecks,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/vykupy", label: "Výkupy", icon: Gavel },
   { href: "/market", label: "Trh", icon: ChartBar },
   { href: "/alerts", label: "Alerty", icon: Bell },
+  { href: "/tasks", label: "Úkoly", icon: ListChecks },
   { href: "/settings", label: "Nastavení", icon: GearSix },
 ];
 

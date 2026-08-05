@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, leads, propertyAnalysis, activityLog, searches, deals } from "@/db/schema";
+import { properties, leads, propertyAnalysis, activityLog, searches, deals, tasks } from "@/db/schema";
 import { eq, desc, and, count, sql, ne } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
 
@@ -45,6 +45,7 @@ export async function GET() {
       activeDealProps,
       searchCount,
       recentActivity,
+      openTasks,
     ] = await Promise.all([
       db
         .select({
@@ -112,6 +113,12 @@ export async function GET() {
         .where(eq(activityLog.userId, session.user.id))
         .orderBy(desc(activityLog.createdAt))
         .limit(5),
+
+      db
+        .select({ val: count() })
+        .from(tasks)
+        .where(and(eq(tasks.userId, session.user.id), eq(tasks.done, 0)))
+        .then((r) => r[0]?.val ?? 0),
     ]);
 
     const todayProperties = props.filter(
@@ -207,6 +214,7 @@ export async function GET() {
       pipelineProfit,
       totalLeads: leadCount,
       activeDeals,
+      openTasks,
       avgScore,
       recentProperties: recentProps,
       topUndervalued,
@@ -223,6 +231,7 @@ export async function GET() {
         pipelineProfit: 0,
         totalLeads: 0,
         activeDeals: 0,
+        openTasks: 0,
         avgScore: 0,
         recentProperties: [],
         topUndervalued: [],

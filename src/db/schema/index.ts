@@ -11,4 +11,5 @@ export { marketData, marketCache, scrapingJobs, localityMetrics, poiMetrics, ren
 export { activityLog } from "./activity";
 export { searches, searchProperties } from "./searches";
 export { calculatorPresets } from "./presets";
+export { tasks } from "./tasks";
 export { vykupyLeads, vykupyRegions } from "./vykupy";
