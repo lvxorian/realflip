@@ -21,7 +21,7 @@ async function main() {
         continue;
       }
       const type = col === "area_flag" ? "text" : "real";
-      await sql.unsafe(`ALTER TABLE properties ADD COLUMN ${col} ${type}`);
+      await sql`ALTER TABLE properties ADD COLUMN ${sql.unsafe(col)} ${sql.unsafe(type)}`;
       console.log(`[Neon] přidán sloupec ${col} (${type})`);
     }
   } else {

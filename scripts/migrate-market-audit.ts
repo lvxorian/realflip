@@ -22,7 +22,7 @@ async function main() {
         continue;
       }
       const type = col === "market_source" ? "text" : "integer";
-      await sql.unsafe(`ALTER TABLE ${TABLE} ADD COLUMN ${col} ${type}`);
+      await sql`ALTER TABLE ${sql.unsafe(TABLE)} ADD COLUMN ${sql.unsafe(col)} ${sql.unsafe(type)}`;
       console.log(`[Neon] přidán sloupec ${col} (${type})`);
     }
   } else {
