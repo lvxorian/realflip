@@ -36,7 +36,16 @@ export async function GET() {
     today.setHours(0, 0, 0, 0);
     const todayTs = today.getTime();
 
-    const [props, analyses, leadCount, dealsCount, searchCount, recentActivity] = await Promise.all([
+    const [
+      props,
+      analyses,
+      leadCount,
+      dealsCount,
+      pipelineLeadProps,
+      activeDealProps,
+      searchCount,
+      recentActivity,
+    ] = await Promise.all([
       db
         .select({
           id: properties.id,
@@ -77,6 +86,16 @@ export async function GET() {
         .then((r) => r[0]?.val ?? 0),
 
       db
+        .select({ propertyId: leads.propertyId })
+        .from(leads)
+        .where(and(eq(leads.userId, session.user.id), ne(leads.stage, "lost"))),
+
+      db
+        .select({ propertyId: deals.propertyId })
+        .from(deals)
+        .where(ne(deals.status, "sold")),
+
+      db
         .select({ val: count() })
         .from(searches)
         .where(eq(searches.userId, session.user.id))
@@ -106,7 +125,13 @@ export async function GET() {
     const avgUndervaluation = n > 0
       ? analyses.reduce((s, a) => s + a.undervaluationPct, 0) / n
       : 0;
-    const pipelineProfit = analyses.reduce((s, a) => s + (a.netProfit || 0), 0);
+    const pipelineIds = new Set([
+      ...pipelineLeadProps.map((r) => r.propertyId),
+      ...activeDealProps.map((r) => r.propertyId),
+    ]);
+    const pipelineProfit = analyses
+      .filter((a) => pipelineIds.has(a.propertyId))
+      .reduce((s, a) => s + (a.netProfit || 0), 0);
 
     const activeDeals = dealsCount;
 
