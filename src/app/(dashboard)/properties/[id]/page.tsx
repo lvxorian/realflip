@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, priceHistory, propertyAnalysis, favorites } from "@/db/schema";
+import { properties, priceHistory, propertyAnalysis, favorites, leads } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { safeJsonParse, formatPhone, formatPrice } from "@/lib/utils";
+import { LEAD_STAGES } from "@/lib/leads";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
@@ -24,6 +25,7 @@ import {
   ShareNetwork,
   MapPin,
   Clock,
+  GitBranch,
 } from "@phosphor-icons/react/ssr";
 
 export const dynamic = "force-dynamic";
@@ -96,6 +98,7 @@ export default async function PropertyDetailPage({
 
   const session = await auth();
   let isFavorited = false;
+  let pipelineLead: { stage: string } | null = null;
   if (session?.user?.id) {
     const fav = await db
       .select()
@@ -109,6 +112,18 @@ export default async function PropertyDetailPage({
       .limit(1)
       .then((r) => r[0]);
     isFavorited = !!fav;
+
+    pipelineLead = await db
+      .select({ stage: leads.stage })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.propertyId, id),
+          eq(leads.userId, session.user.id)
+        )
+      )
+      .limit(1)
+      .then((r) => r[0] ?? null);
   }
 
   const imageUrls: string[] = safeJsonParse<string[]>(property.imageUrls, []);
@@ -130,6 +145,10 @@ export default async function PropertyDetailPage({
   function fmtAuctionPrice(v: unknown): string {
     return typeof v === "number" && v > 0 ? formatPrice(v) : "—";
   }
+
+  const stageInfo = pipelineLead
+    ? LEAD_STAGES.find((s) => s.key === pipelineLead!.stage)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -309,8 +328,31 @@ export default async function PropertyDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Zahájit jednání */}
-          <InitiateButton propertyId={id} />
+          {/* Pipeline status / Zahájit jednání */}
+          {pipelineLead ? (
+            <div className="rounded-2xl border border-accent/30 bg-card p-5">
+              <div className="flex items-center gap-2 text-sm mb-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                  <GitBranch size={16} weight="duotone" />
+                </span>
+                <span className="font-medium">V pipeline</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${stageInfo?.dot ?? "bg-accent"}`} />
+                <span className="text-sm font-medium">
+                  {stageInfo?.label ?? pipelineLead.stage}
+                </span>
+              </div>
+              <Link
+                href="/leads"
+                className="mt-3 inline-block text-xs text-accent hover:underline transition-colors"
+              >
+                Otevřít v pipeline →
+              </Link>
+            </div>
+          ) : (
+            <InitiateButton propertyId={id} />
+          )}
 
           {/* Lokalitní inteligence */}
           <LocalityProfile
