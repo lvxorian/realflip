@@ -136,7 +136,6 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - **Renta** (`rent.ts` + `scraping/rent-scraper.ts`): sreality nájmy (`category_type_cb=2`), **min 5 vzorků** jinak null (žádný fallback 0,5 %).
 - **Doprava** (`transport.ts`): sreality `poi_metro/train/bus_distance`, transport skóre (`scoreTransportDistance` v score.ts), prémie cena/m² vs dostupnost (korelace).
 - **Cenový index** (`src/lib/market/price-index.ts`): IQR outliery, robustní medián base, min 5 vzorků per segment, segmenty <5 skryté v UI.
-- **Reprodukční cena** (`analysis/replacement-cost.ts`): orientační sazby Kč/m² dle konstrukce (cihla 38k, panel 30k...) — jasně označeno "orientační" v reportu.
 - **AI dohled** (`src/lib/ai/locality-guard.ts`): Gemini sanity-check POUZE pro podezřelá data (`needsLocalityGuard`), prompt zakazuje vymýšlet, verdikt v `propertyAnalysis.aiLocalityVerdict` + badge v UI.
 
 ## DB — locality tabulky

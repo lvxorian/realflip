@@ -115,7 +115,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Žádné vymyšlené hodnoty**: renta null bez ≥5 vzorků, kriminalita nikdy statická mapa, POI min 3 vzorky.
 - **AI dohled** (`src/lib/ai/locality-guard.ts`): Gemini sanity-check podezřelých dat, verdikt do `propertyAnalysis.aiLocalityVerdict`, badge v UI.
 - **Investiční nástroje v Trhu**: `LocalityMarkets`, `PriceIndexCard` (IQR outliery, robust base), `BuyVsRentCalculator`.
-- Cenový index a reprodukční cena (orientační, označené).
+- Cenový index (orientační, označené).
 - Tabulky: `locality_metrics` PK (city_key, source, period), `rents` PK (city_key, segment) + walkability/counts_json; `propertyAnalysis` + locality sloupce.
 
 ### Phase 19 — UI Polish (Done)
@@ -292,7 +292,6 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/__tests__/location.test.ts`
 - `src/lib/__tests__/leads.test.ts`
 - `src/lib/__tests__/locality.test.ts` — locality skóre (unemployment, migration, crime, walkability, rent, transport)
-- `src/lib/__tests__/replacement-cost.test.ts` — reprodukční cena
 - `src/lib/__tests__/geocode.test.ts` — cityKeyToName
 - `src/lib/__tests__/quarter.test.ts` — sreality hash_id extrakce + čtvrti → quarter_id
 - `src/lib/analysis/__tests__/analyzer-arv.test.ts`
