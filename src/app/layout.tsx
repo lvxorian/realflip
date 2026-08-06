@@ -20,10 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: [
         { url: "/brickon.svg", type: "image/svg+xml", sizes: "any" },
-        { url: "/brickon.svg", type: "image/svg+xml", sizes: "32x32" },
+        { url: "/brickon.png", type: "image/png", sizes: "32x32" },
       ],
-      shortcut: "/brickon.svg",
-      apple: "/brickon.svg",
+      shortcut: "/brickon.png",
+      apple: "/brickon.png",
     },
   };
 }
