@@ -5,11 +5,8 @@ import "./globals.css";
 import { Providers } from "@/components/shared/providers";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const investorOnly = process.env.INVESTOR_ONLY === "1";
   return {
-    title: investorOnly
-      ? "Brickon – Soukromý investorský portál"
-      : "RealFlip Pro – Inteligentní investice do nemovitostí",
+    title: "Brickon – Soukromý investorský portál",
     description:
       "Profesionální SaaS nástroj pro realitní investory. Scraping, analýza trhu, AI hodnocení a deal management.",
     keywords: [
@@ -20,7 +17,14 @@ export async function generateMetadata(): Promise<Metadata> {
       "scraping",
       "analýza trhu",
     ],
-    ...(investorOnly ? { icons: { icon: "/brickon.png" } } : {}),
+    icons: {
+      icon: [
+        { url: "/brickon.png", type: "image/png", sizes: "any" },
+        { url: "/brickon.png", type: "image/png", sizes: "32x32" },
+      ],
+      shortcut: "/brickon.png",
+      apple: "/brickon.png",
+    },
   };
 }
 
