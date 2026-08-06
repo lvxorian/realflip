@@ -16,6 +16,7 @@ export interface InvestorPortalItem {
   savingsPct: number | null;
   netProfit: number | null;
   roi: number | null;
+  rentalYield?: number | null;
   status: PortalStatus;
   reservedByMe: boolean;
   reservedByName: string | null;
@@ -29,6 +30,7 @@ export interface PortalRow {
   reservedByName: string | null;
   district: string | null;
   city: string | null;
+  rentalYield?: number | null;
   condition: string | null;
   area: number | null;
   rooms: string | null;
@@ -81,6 +83,15 @@ export function toPortalView(
       ? offerPrice > budget.budget
       : false;
 
+  let displayNetProfit = row.netProfit;
+  let displayRoi = row.roi;
+  if (row.rentalYield != null) {
+    displayRoi = row.rentalYield;
+    if (row.originalPrice != null && row.rentalYield != null) {
+      displayNetProfit = Math.round((row.originalPrice * row.rentalYield) / 100);
+    }
+  }
+
   return {
     id: row.leadId,
     district: row.district,
@@ -92,8 +103,9 @@ export function toPortalView(
     originalPrice: row.originalPrice,
     offerPrice,
     savingsPct,
-    netProfit: row.netProfit,
-    roi: row.roi,
+    netProfit: displayNetProfit,
+    roi: displayRoi,
+    rentalYield: row.rentalYield ?? null,
     status: row.portalStatus === "reserved" ? "reserved" : "available",
     reservedByMe: row.reservedById === investorId,
     reservedByName: row.reservedById ? row.reservedByName : null,

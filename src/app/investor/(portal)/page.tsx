@@ -241,17 +241,17 @@ export default function InvestorPortalPage() {
                               className="hover:bg-card-hover transition-colors"
                             >
                               <td className="p-4">
-                                <p className="font-medium">
+                                <p className="font-medium capitalize whitespace-nowrap">
                                   {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
                                 </p>
-                                <p className="text-xs text-muted mt-0.5 flex items-center gap-1">
+                                <p className="text-xs text-muted mt-0.5 flex items-center gap-1 capitalize whitespace-nowrap">
                                   <MapPin size={11} weight="bold" />
                                   {[item.city, item.district].filter(Boolean).join(" · ") || "—"}
                                   {item.floor !== null ? ` · ${item.floor}. podlaží` : ""}
                                 </p>
                               </td>
                               <td className="p-4">{item.condition}</td>
-                              <td className="p-4 text-right font-mono">
+                              <td className="p-4 text-right font-mono whitespace-nowrap">
                                 {item.area ?? "—"}
                                 {item.rooms ? <span className="text-xs text-muted"> ({item.rooms})</span> : null}
                               </td>
@@ -272,7 +272,7 @@ export default function InvestorPortalPage() {
                                   <span className="text-muted">—</span>
                                 )}
                               </td>
-                              <td className="p-4 text-right font-mono">
+                              <td className="p-4 text-right font-mono whitespace-nowrap">
                                 {item.netProfit !== null ? (
                                   <span className={item.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}>
                                     {formatCompactPrice(item.netProfit)}
@@ -281,8 +281,14 @@ export default function InvestorPortalPage() {
                                   "—"
                                 )}
                               </td>
-                              <td className="p-4 text-right font-mono">
-                                {item.roi !== null ? formatPercent(item.roi) : "—"}
+                              <td className="p-4 text-right font-mono whitespace-nowrap">
+                                {item.rentalYield != null ? (
+                                  <span className="text-muted">{formatPercent(item.rentalYield)}</span>
+                                ) : item.roi !== null ? (
+                                  formatPercent(item.roi)
+                                ) : (
+                                  "—"
+                                )}
                               </td>
                               <td className="p-4 text-right">
                                 <StatusPill item={item} />
