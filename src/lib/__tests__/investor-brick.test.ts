@@ -21,13 +21,13 @@ describe("brickLogoSvg", () => {
     expect(brickLogoSvg(32, "brand")).toContain('fill="#10b981"');
   });
 
-  it("includes the extruded B geometry with three faces", () => {
+  it("includes the B built from five isometric bricks", () => {
     const markup = brickInnerMarkup("light");
+    const rects = markup.match(/<rect/g) ?? [];
     const paths = markup.match(/<path/g) ?? [];
-    expect(paths.length).toBe(3);
-    expect(markup).toContain("M11.5 8 H32.5");
-    expect(markup).toContain('transform="translate(0 -2.5)"');
-    expect(markup).toContain('transform="translate(2.5 0)"');
-    expect(markup).toContain("V24");
+    expect(rects.length).toBe(5);
+    expect(paths.length).toBe(10);
+    expect(markup).toContain("M4 10 L20 10 L23 7 L7 7 Z");
+    expect(markup).toContain("M26 10 L42 10 L45 7 L29 7 Z");
   });
 });
