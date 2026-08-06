@@ -5,8 +5,24 @@ import "./globals.css";
 import { Providers } from "@/components/shared/providers";
 
 export async function generateMetadata(): Promise<Metadata> {
+  if (process.env.INVESTOR_ONLY === "1") {
+    return {
+      title: "Brickon – Soukromý investorský portál",
+      description:
+        "Soukromé off-market nabídky nemovitostí s vyjednanou cenou pod trhem a kompletní analýzou zisku a návratnosti.",
+      icons: {
+        icon: [
+          { url: "/brickon.svg", type: "image/svg+xml", sizes: "any" },
+          { url: "/brickon.png", type: "image/png", sizes: "32x32" },
+        ],
+        shortcut: "/brickon.png",
+        apple: "/brickon.png",
+      },
+    };
+  }
+
   return {
-    title: "Brickon – Soukromý investorský portál",
+    title: "RealFlip – Investiční nástroje pro realitní investory",
     description:
       "Profesionální SaaS nástroj pro realitní investory. Scraping, analýza trhu, AI hodnocení a deal management.",
     keywords: [
@@ -19,11 +35,11 @@ export async function generateMetadata(): Promise<Metadata> {
     ],
     icons: {
       icon: [
-        { url: "/brickon.svg", type: "image/svg+xml", sizes: "any" },
-        { url: "/brickon.png", type: "image/png", sizes: "32x32" },
+        { url: "/favicon.ico", type: "image/x-icon" },
+        { url: "/favicon.ico", type: "image/png", sizes: "32x32" },
       ],
-      shortcut: "/brickon.png",
-      apple: "/brickon.png",
+      shortcut: "/favicon.ico",
+      apple: "/favicon.ico",
     },
   };
 }
