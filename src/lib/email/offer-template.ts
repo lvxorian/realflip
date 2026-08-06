@@ -2,6 +2,24 @@ import type { InvestorPortalItem } from "@/lib/investor-portal-view";
 import { formatCompactPrice } from "@/lib/utils";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
+// Tokeny zrcadlící design system RealFlipu (globals.css) — jeden zdroj
+// pravdy, aby e-mail vycházel ze stejného schématu jako aplikace.
+const T = {
+  bg: "#0c0c0f",
+  card: "#18181b",
+  border: "#27272a",
+  foreground: "#f5f5f0",
+  muted: "#a1a1aa",
+  mutedForeground: "#71717a",
+  accent: "#10b981",
+  accentHover: "#059669",
+  accentRow: "#34d399",
+  accentSoft: "#d1fae5",
+};
+
+const FONT_LINK =
+  '<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">';
+
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -18,9 +36,9 @@ function price(v: number | null): string {
 function row(label: string, value: string, accent?: boolean): string {
   return `
     <tr>
-      <td style="padding:8px 0;font-size:13px;color:#a1a1aa;">${escapeHtml(label)}</td>
-      <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;${
-        accent ? "color:#34d399;" : "color:#e4e4ef;"
+      <td style="padding:8px 0;font-size:13px;color:${T.muted};">${escapeHtml(label)}</td>
+      <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;font-family:'Geist Mono',ui-monospace,monospace;${
+        accent ? `color:${T.accentRow};` : `color:${T.foreground};`
       }">${value}</td>
     </tr>`;
 }
@@ -34,23 +52,23 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
 
   return `<!DOCTYPE html>
 <html lang="cs">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#0c0c0f;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0c0c0f;padding:24px 12px;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${FONT_LINK}</head>
+<body style="margin:0;padding:0;background-color:${T.bg};font-family:'Geist',Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${T.bg};padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#18181b;border:1px solid #27272a;border-radius:16px;overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:${T.card};border:1px solid ${T.border};border-radius:16px;overflow:hidden;">
           <tr>
-            <td style="padding:24px 28px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);">
-              <p style="margin:0;font-size:18px;font-weight:bold;color:#ffffff;">${escapeHtml(INVESTOR_BRAND)} · Nová nabídka</p>
-              <p style="margin:6px 0 0;font-size:12px;color:#d1fae5;">Soukromá nabídka — prověřená příležitost s vyjednanou cenou</p>
+            <td style="padding:24px 28px;background:linear-gradient(135deg,${T.accent} 0%,${T.accentHover} 100%);">
+              <p style="margin:0;font-size:18px;font-weight:600;color:#ffffff;">${escapeHtml(INVESTOR_BRAND)} · Nová nabídka</p>
+              <p style="margin:6px 0 0;font-size:12px;color:${T.accentSoft};">Soukromá nabídka — prověřená příležitost s vyjednanou cenou</p>
             </td>
           </tr>
           <tr>
             <td style="padding:24px 28px;">
-              <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;">${escapeHtml(location)}</p>
-              <p style="margin:8px 0 0;font-size:13px;color:#a1a1aa;">${escapeHtml(details)}</p>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid #27272a;">
+              <p style="margin:0;font-size:20px;font-weight:600;color:${T.foreground};">${escapeHtml(location)}</p>
+              <p style="margin:8px 0 0;font-size:13px;color:${T.muted};">${escapeHtml(details)}</p>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid ${T.border};">
                 ${row("Tržní cena", price(offer.originalPrice))}
                 ${row("Kupní cena", price(offer.offerPrice))}
                 ${row("Sleva oproti trhu", savings, offer.savingsPct !== null && offer.savingsPct > 0)}
@@ -60,11 +78,11 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
                 <tr>
                   <td align="center">
-                    <a href="${escapeHtml(baseUrl)}/investor" style="display:inline-block;padding:12px 28px;background-color:#10b981;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:10px;">Vstoupit do portálu</a>
+                    <a href="${escapeHtml(baseUrl)}/investor" style="display:inline-block;padding:12px 28px;background-color:${T.accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px;">Vstoupit do portálu</a>
                   </td>
                 </tr>
               </table>
-              <p style="margin:20px 0 0;font-size:11px;color:#71717a;line-height:1.5;">Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu ${escapeHtml(INVESTOR_BRAND)}. Chcete-li odhlášení, odpovězte na tento e-mail.</p>
+              <p style="margin:20px 0 0;font-size:11px;color:${T.mutedForeground};line-height:1.5;">Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu ${escapeHtml(INVESTOR_BRAND)}. Chcete-li odhlášení, odpovězte na tento e-mail.</p>
             </td>
           </tr>
         </table>

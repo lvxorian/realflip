@@ -269,7 +269,9 @@ function InvestorModalForm({
                     <span className="font-mono font-semibold text-foreground">{creds.password}</span>
                   </p>
                   <p className="text-[11px] text-muted/80">
-                    Investor se přihlásí na /investor. Údaje se odvozují od jména — bez diakritiky, malými písmeny.
+                    Investor se přihlásí na{" "}
+                    {process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL || "brickon.vercel.app"}
+                    /investor. Údaje se odvozují od jména — bez diakritiky, malými písmeny.
                   </p>
                 </div>
               ) : (

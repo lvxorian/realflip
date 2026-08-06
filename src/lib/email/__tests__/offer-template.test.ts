@@ -33,6 +33,9 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("Brickon · Nová nabídka");
     expect(html).toContain("#10b981");
     expect(html).not.toContain("#7c3aed");
+    expect(html).toContain("fonts.googleapis.com/css2?family=Geist");
+    expect(html).toContain("'Geist',Arial,Helvetica,sans-serif");
+    expect(html).toContain("'Geist Mono',ui-monospace,monospace");
     expect(html).toContain("Tržní cena");
     expect(html).toContain("Kupní cena");
     expect(html).toContain("Sleva oproti trhu");
