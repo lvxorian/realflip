@@ -101,7 +101,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   {isActive && (
                     <motion.div
                       layoutId="nav-active"
-                      className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/20"
+                      className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/20 pointer-events-none"
                       transition={{ type: "spring", stiffness: 200, damping: 25 }}
                     />
                   )}
