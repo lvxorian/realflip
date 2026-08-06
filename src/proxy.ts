@@ -16,10 +16,10 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Brickon — samostatná instance investorského portálu (INVESTOR_ONLY=1).
-  // Slouží výhradně investorům: povoleny jen investorské cesty, nic jiného
-  // (admin, API, atd.) zde nesmí být dostupné.
+  // Slouží výhradně investorům: povoleny landing (`/`), investorské cesty
+  // a nic jiného (admin, API, atd.) zde nesmí být dostupné.
   if (INVESTOR_ONLY) {
-    if (isInvestorPath(pathname)) return;
+    if (isInvestorPath(pathname) || pathname === "/") return;
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
