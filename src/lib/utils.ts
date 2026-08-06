@@ -15,6 +15,12 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+export function parseDate(date: Date | string | number | null | undefined): Date | null {
+  if (date === null || date === undefined || date === "") return null;
+  const parsed = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function formatCompactPrice(price: number): string {
   if (price >= 1_000_000) {
     return `${(price / 1_000_000).toFixed(1)} mil. Kč`;
@@ -30,18 +36,20 @@ export function formatPercent(value: number): string {
 }
 
 export function formatDate(date: Date | string | number): string {
-  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  const d = parseDate(date);
+  if (!d) return "—";
   return format(d, "d. M. yyyy", { locale: cs });
 }
 
 export function formatRelative(date: Date | string | number): string {
-  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  const d = parseDate(date);
+  if (!d) return "—";
   return formatDistanceToNow(d, { addSuffix: true, locale: cs });
 }
 
 export function daysAgo(date: Date | string | number): number {
-  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
-  return differenceInDays(new Date(), d);
+  const d = parseDate(date);
+  return d ? differenceInDays(new Date(), d) : 0;
 }
 
 export function slugify(text: string): string {

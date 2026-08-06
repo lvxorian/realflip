@@ -9,7 +9,7 @@ import { ScoreGauge } from "@/components/ui/score-gauge";
 import { StatusDot } from "@/components/ui/status-dot";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyImage } from "@/components/ui/property-image";
-import { conditionLabel, safeJsonParse, formatCompactPrice, formatRelative } from "@/lib/utils";
+import { conditionLabel, safeJsonParse, formatCompactPrice, formatRelative, parseDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin, CalendarBlank, ChartLineUp, ArrowUpRight, Prohibit } from "@phosphor-icons/react";
 
@@ -174,14 +174,15 @@ export default function CallModePage() {
         for (const l of d) {
           const meeting = l.stageData?.meeting;
           const date = meeting?.date;
-          if (l.stage === "meeting" && date) {
+          const parsedDate = parseDate(date);
+          if (l.stage === "meeting" && parsedDate) {
             upcoming.push({
               id: l.id,
               contactName: l.contactName ?? null,
               contactPhone: l.contactPhone ?? null,
               propertyTitle: l.propertyTitle ?? null,
               propertyAddress: l.propertyAddress ?? null,
-              meeting: { date, location: meeting?.location ?? null },
+              meeting: { date: parsedDate.toISOString(), location: meeting?.location ?? null },
             });
           }
         }
