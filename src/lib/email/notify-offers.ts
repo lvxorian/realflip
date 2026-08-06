@@ -5,12 +5,17 @@ import { toPortalView, type PortalRow } from "@/lib/investor-portal-view";
 import { sendEmail } from "@/lib/email/send-email";
 import { buildOfferEmailHtml } from "@/lib/email/offer-template";
 import { filterRecipients } from "@/lib/email/recipients";
+import { INVESTOR_BRAND } from "@/lib/investor-brand";
 import type { InvestorPortalItem } from "@/lib/investor-portal-view";
 
 export { filterRecipients, type RecipientLike } from "@/lib/email/recipients";
 
 function portalUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? "http://localhost:3000";
+  return (
+    process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "") ??
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+    "http://localhost:3000"
+  );
 }
 
 export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
@@ -70,7 +75,7 @@ export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
   for (const investor of recipients) {
     const result = await sendEmail({
       to: investor.email!,
-      subject: `RealFlip · Nová nabídka — ${[offer.city, offer.district].filter(Boolean).join(" · ") || "nemovitost"}`,
+      subject: `${INVESTOR_BRAND} · Nová nabídka — ${[offer.city, offer.district].filter(Boolean).join(" · ") || "nemovitost"}`,
       html,
     });
     if (!result.sent) continue;

@@ -13,7 +13,8 @@ export interface EmailResult {
 const API_URL = "https://api.resend.com/emails";
 
 function fromAddress(): string {
-  return process.env.EMAIL_FROM?.trim() || "RealFlip <nabidky@realflip.cz>";
+  const brand = process.env.NEXT_PUBLIC_INVESTOR_BRAND?.trim() || "Brickon";
+  return process.env.EMAIL_FROM?.trim() || `${brand} <nabidky@realflip.cz>`;
 }
 
 export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {

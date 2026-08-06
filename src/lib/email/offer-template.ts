@@ -1,5 +1,6 @@
 import type { InvestorPortalItem } from "@/lib/investor-portal-view";
 import { formatCompactPrice } from "@/lib/utils";
+import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 export function escapeHtml(value: string): string {
   return value
@@ -41,8 +42,8 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#12121c;border:1px solid #26263a;border-radius:16px;overflow:hidden;">
           <tr>
             <td style="padding:24px 28px;background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%);">
-              <p style="margin:0;font-size:18px;font-weight:bold;color:#ffffff;">RealFlip · Nová nabídka</p>
-              <p style="margin:6px 0 0;font-size:12px;color:#d6c9ff;">Investorský portál — nemovitost ve fázi vyjednávání</p>
+              <p style="margin:0;font-size:18px;font-weight:bold;color:#ffffff;">${escapeHtml(INVESTOR_BRAND)} · Nová nabídka</p>
+              <p style="margin:6px 0 0;font-size:12px;color:#d6c9ff;">Soukromá nabídka — prověřená příležitost s vyjednanou cenou</p>
             </td>
           </tr>
           <tr>
@@ -50,20 +51,20 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
               <p style="margin:0;font-size:20px;font-weight:bold;color:#ffffff;">${escapeHtml(location)}</p>
               <p style="margin:8px 0 0;font-size:13px;color:#8b8fa3;">${escapeHtml(details)}</p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid #26263a;">
-                ${row("Původní cena", price(offer.originalPrice))}
-                ${row("Cena odkupu", price(offer.offerPrice))}
-                ${row("Úspora", savings, offer.savingsPct !== null && offer.savingsPct > 0)}
-                ${row("Očekávaný zisk", price(offer.netProfit), offer.netProfit !== null && offer.netProfit >= 0)}
+                ${row("Tržní cena", price(offer.originalPrice))}
+                ${row("Kupní cena", price(offer.offerPrice))}
+                ${row("Sleva oproti trhu", savings, offer.savingsPct !== null && offer.savingsPct > 0)}
+                ${row("Odhadovaný zisk", price(offer.netProfit), offer.netProfit !== null && offer.netProfit >= 0)}
                 ${row("ROI", offer.roi !== null ? `${offer.roi.toFixed(1)} %` : "—")}
               </table>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
                 <tr>
                   <td align="center">
-                    <a href="${escapeHtml(baseUrl)}/investor" style="display:inline-block;padding:12px 28px;background-color:#7c3aed;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:10px;">Zobrazit nabídky</a>
+                    <a href="${escapeHtml(baseUrl)}/investor" style="display:inline-block;padding:12px 28px;background-color:#7c3aed;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;border-radius:10px;">Vstoupit do portálu</a>
                   </td>
                 </tr>
               </table>
-              <p style="margin:20px 0 0;font-size:11px;color:#5d6178;line-height:1.5;">Tento e-mail byl odeslán automaticky na základě publikace nabídky na portálu investorů. Nechcete-li nabídky dostávat, napište nám a nastavíme to za vás.</p>
+              <p style="margin:20px 0 0;font-size:11px;color:#5d6178;line-height:1.5;">Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu ${escapeHtml(INVESTOR_BRAND)}. Chcete-li odhlášení, odpovězte na tento e-mail.</p>
             </td>
           </tr>
         </table>

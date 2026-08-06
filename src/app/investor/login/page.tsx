@@ -6,7 +6,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { House, Eye, EyeSlash, ArrowRight, LockSimple } from "@phosphor-icons/react";
+import { House, Eye, EyeSlash, ArrowRight, LockSimple, CheckCircle } from "@phosphor-icons/react";
+import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 export default function InvestorLoginPage() {
   const router = useRouter();
@@ -44,11 +45,20 @@ export default function InvestorLoginPage() {
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/20 border border-accent/30">
             <House size={32} weight="fill" className="text-accent" />
           </div>
-          <h2 className="text-2xl font-semibold tracking-tight mb-3">RealFlip investoři</h2>
+          <h2 className="text-2xl font-semibold tracking-tight mb-3">{INVESTOR_BRAND}</h2>
           <p className="text-muted text-sm leading-relaxed">
-            Vybrané nemovitosti z naší pipeline ve fázi vyjednávání — ceny, stavy i makrolokality bez zbytečného hluku.
-            Přihlašovací údaje vám sdělí admin.
+            Soukromý přístup k prověřeným nabídkám. Vyjednané ceny pod trhem, analýza zisku
+            a návratnosti — bez hluku veřejných inzerátů.
           </p>
+          <div className="mt-6 space-y-2.5 text-left">
+            {["Kurátorský výběr nemovitostí", "Cena vyjednaná pod tržní úrovní", "Odhadovaný zisk a návratnost u každé nabídky"].map((text) => (
+              <p key={text} className="flex items-center gap-2 text-xs text-muted">
+                <CheckCircle size={14} weight="bold" className="text-emerald-400 shrink-0" />
+                {text}
+              </p>
+            ))}
+          </div>
+          <p className="mt-6 text-xs text-muted">Přístupové údaje obdržíte od našeho týmu.</p>
         </div>
       </div>
 
@@ -64,8 +74,8 @@ export default function InvestorLoginPage() {
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 border border-accent/20">
                 <LockSimple size={24} weight="fill" className="text-accent" />
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight">Investorský portál</h1>
-              <p className="text-sm text-muted mt-1">Přihlaste se k přehledu nabídek</p>
+              <h1 className="text-2xl font-semibold tracking-tight">{INVESTOR_BRAND}</h1>
+              <p className="text-sm text-muted mt-1">Váš soukromý přístup k nabídkám</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,9 +126,9 @@ export default function InvestorLoginPage() {
             </form>
 
             <p className="text-center text-xs text-muted mt-6">
-              Nemáte přístup?{" "}
+              Nemáte přístupové údaje?{" "}
               <Link href="/" className="text-accent hover:text-accent-hover transition-colors">
-                Kontaktujte admina
+                Kontaktujte nás
               </Link>
             </p>
           </div>

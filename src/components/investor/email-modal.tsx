@@ -6,6 +6,7 @@ import { X, EnvelopeSimple, ArrowRight } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 interface EmailModalProps {
   open: boolean;
@@ -66,10 +67,10 @@ export function EmailModal({ open, investorName, onClose, onSaved }: EmailModalP
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="font-semibold tracking-tight leading-tight">
-                    {investorName ? `Vítejte, ${investorName}!` : "Vítejte!"}
+                    {investorName ? `Vítejte v portálu ${INVESTOR_BRAND}, ${investorName}!` : `Vítejte v portálu ${INVESTOR_BRAND}!`}
                   </h2>
                   <p className="text-sm text-muted mt-1 leading-relaxed">
-                    Zadejte e-mail pro zasílání nových nabídek. Po publikaci nabídky vám dáme okamžitě vědět.
+                    Přihlaste se k e-mailovým notifikacím o nových nabídkách. Jakmile publikujeme novou příležitost pod tržní cenou, dorazí vám upozornění.
                   </p>
                 </div>
                 <button

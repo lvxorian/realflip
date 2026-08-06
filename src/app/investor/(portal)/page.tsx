@@ -20,6 +20,7 @@ import {
   EnvelopeSimple,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
+import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 interface PortalData {
   items: InvestorPortalItem[];
@@ -129,7 +130,7 @@ export default function InvestorPortalPage() {
               <House size={18} weight="fill" className="text-accent" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold tracking-tight leading-none">RealFlip · Portál investorů</p>
+              <p className="text-sm font-semibold tracking-tight leading-none">{INVESTOR_BRAND} · Portál investorů</p>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-[11px] text-muted truncate">
                   {data?.investorName ?? "Přihlášený investor"}
@@ -168,9 +169,25 @@ export default function InvestorPortalPage() {
           ) : data ? (
             <>
               <div className="grid grid-cols-3 gap-3">
-                <StatCard label="Volné" value={`${available.length}`} tone="text-emerald-400" icon={<HandCoins size={16} weight="bold" />} />
+                <StatCard label="Dostupné nabídky" value={`${available.length}`} tone="text-emerald-400" icon={<HandCoins size={16} weight="bold" />} />
                 <StatCard label="Moje rezervace" value={`${reservedByMe.length}`} tone="text-accent" icon={<SealCheck size={16} weight="bold" />} />
-                <StatCard label="Rezervováno jinde" value={`${reservedOthers.length}`} tone="text-muted" icon={<CheckCircle size={16} weight="bold" />} />
+                <StatCard label="Rezervováno ostatními" value={`${reservedOthers.length}`} tone="text-muted" icon={<CheckCircle size={16} weight="bold" />} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Kurátorský výběr nabídek" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Vyjednaná cena pod trhem" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Analytické prověření" },
+                ].map((item, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-border/40 bg-card/60 px-3 py-2.5 flex items-center gap-2 text-[11px] text-muted"
+                  >
+                    <span className="text-emerald-400 shrink-0">{item.icon}</span>
+                    {item.text}
+                  </div>
+                ))}
               </div>
 
               {error && (
@@ -185,8 +202,11 @@ export default function InvestorPortalPage() {
 
               {data.items.length === 0 ? (
                 <div className="rounded-2xl border border-border/50 bg-card p-12 text-center">
-                  <p className="text-sm text-muted">Zatím tu nejsou žádné nabídky ve fázi vyjednávání.</p>
-                  <p className="text-xs text-muted mt-1">Vítejte se zpět později.</p>
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-card-hover">
+                    <HandCoins size={24} weight="bold" className="text-muted" />
+                  </div>
+                  <p className="text-sm text-foreground/90 font-medium">Aktuálně nejsou k dispozici žádné nabídky.</p>
+                  <p className="text-xs text-muted mt-1">Nové příležitosti pod tržní cenou se objevují průběžně — vraťte se brzy.</p>
                 </div>
               ) : (
                 <>
@@ -199,10 +219,10 @@ export default function InvestorPortalPage() {
                             <th className="text-left p-4 text-xs text-muted font-medium">Makrolokalita</th>
                             <th className="text-left p-4 text-xs text-muted font-medium">Stav</th>
                             <th className="text-right p-4 text-xs text-muted font-medium">m²</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Původní cena</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Cena odkupu</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Úspora</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Oček. zisk</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Tržní cena</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Kupní cena</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Sleva oproti trhu</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Odhadovaný zisk</th>
                             <th className="text-right p-4 text-xs text-muted font-medium">ROI</th>
                             <th className="text-right p-4 text-xs text-muted font-medium">Status</th>
                             <th className="text-right p-4 text-xs text-muted font-medium"></th>
@@ -299,8 +319,8 @@ export default function InvestorPortalPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          <Metric label="Původní cena" value={fmtPrice(item.originalPrice)} muted />
-                          <Metric label="Cena odkupu" value={fmtPrice(item.offerPrice)} strong>
+                          <Metric label="Tržní cena" value={fmtPrice(item.originalPrice)} muted />
+                          <Metric label="Kupní cena" value={fmtPrice(item.offerPrice)} strong>
                             {item.overBudget && (
                               <Badge variant="warning" size="sm" className="ml-1.5 gap-1">
                                 <WarningCircle size={10} weight="bold" />
@@ -309,7 +329,7 @@ export default function InvestorPortalPage() {
                             )}
                           </Metric>
                           <Metric
-                            label="Úspora"
+                            label="Sleva oproti trhu"
                             value={
                               item.savingsPct !== null && item.savingsPct > 0
                                 ? `−${item.savingsPct.toFixed(1)} %`
@@ -318,7 +338,7 @@ export default function InvestorPortalPage() {
                             accent={item.savingsPct !== null && item.savingsPct > 0}
                           />
                           <Metric
-                            label="Oček. zisk"
+                            label="Odhadovaný zisk"
                             value={item.netProfit !== null ? formatCompactPrice(item.netProfit) : "—"}
                             accent={item.netProfit !== null && item.netProfit >= 0}
                           />
@@ -335,7 +355,7 @@ export default function InvestorPortalPage() {
 
               <p className="text-xs text-muted flex items-start gap-1.5">
                 <WarningCircle size={13} weight="bold" className="shrink-0 mt-0.5" />
-                Rezervace je orientační a zakládá pořadí. Nezávazná do dohody a podpisu kupní smlouvy.
+                Rezervace zakládá pořadí přístupu k nabídce a je nezávazná do uzavření a podpisu kupní smlouvy.
               </p>
             </>
           ) : (
@@ -382,7 +402,7 @@ function StatusPill({ item }: { item: InvestorPortalItem }) {
       </Badge>
     );
   }
-  return <Badge variant="secondary" size="sm">Volná</Badge>;
+  return <Badge variant="secondary" size="sm">Dostupná</Badge>;
 }
 
 function ActionButton({
