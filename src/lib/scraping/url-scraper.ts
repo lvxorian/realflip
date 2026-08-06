@@ -4,6 +4,7 @@ import { RateLimiter } from "./rate-limiter";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import { parseRealityMatDetail } from "./realitymat-parser";
 import { parseBezrealitkyDetail } from "./bezrealitky-parser";
+import { parseRealityMixDetail } from "./realitymix-parser";
 
 const rateLimiter = RateLimiter.getInstance();
 
@@ -594,6 +595,11 @@ async function scrapeRealityMat(url: string): Promise<RawListing> {
   return parseRealityMatDetail(html, url);
 }
 
+async function scrapeRealityMix(url: string): Promise<RawListing> {
+  const html = await fetchHtml(url, "realitymix");
+  return parseRealityMixDetail(html, url);
+}
+
 function makeNotImplementedScraper(portal: string, hint: string) {
   return async (_url: string): Promise<RawListing> => {
     throw new Error(`${portal}: ${hint}`);
@@ -744,6 +750,7 @@ const PORTAL_SCRAPERS: { pattern: RegExp; portal: string; scrape: (url: string) 
   { pattern: /bezrealitky\.cz/, portal: "bezrealitky", scrape: scrapeBezrealitky },
   { pattern: /reality\.idnes\.cz/, portal: "idnes-reality", scrape: scrapeIdnesReality },
   { pattern: /realitymat\.cz/, portal: "realitymat", scrape: scrapeRealityMat },
+  { pattern: /realitymix\.cz/, portal: "realitymix", scrape: scrapeRealityMix },
   { pattern: /hyperreality\.cz/, portal: "hyperreality", scrape: makeNotImplementedScraper("hyperreality", "Portál není dostupný") },
   { pattern: /remax\.cz/, portal: "remax", scrape: makeNotImplementedScraper("remax", "Detail scraper není implementován") },
   { pattern: /century21\.cz/, portal: "century21", scrape: makeNotImplementedScraper("century21", "Detail scraper není implementován") },
@@ -765,7 +772,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     }
   }
 
-  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, bezrealitky.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz, reality.idnes.cz, realitymat.cz");
+  throw new Error("Neznámý realitní portál — podporujeme: sreality.cz, bezrealitky.cz, reality.cz, hyperinzerce.cz, annonce.cz, bazos.cz, mmreality.cz, reality.idnes.cz, realitymat.cz, realitymix.cz");
 }
 
 export function detectPortal(url: string): string | null {

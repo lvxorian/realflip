@@ -9,6 +9,7 @@ import { HyperinzerceAdapter } from "@/lib/scraping/adapters/hyperinzerce";
 import { SrealityAdapter } from "@/lib/scraping/adapters/sreality";
 import { IdnesRealityAdapter } from "@/lib/scraping/adapters/idnes-reality";
 import { RealityMatAdapter } from "@/lib/scraping/adapters/realitymat";
+import { RealityMixAdapter } from "@/lib/scraping/adapters/realitymix";
 import { BezrealitkyAdapter } from "@/lib/scraping/adapters/bezrealitky";
 import { RemaxAdapter } from "@/lib/scraping/adapters/remax";
 
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
     orchestrator.registerAdapter("sreality", new SrealityAdapter());
     orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
     orchestrator.registerAdapter("realitymat", new RealityMatAdapter());
+    orchestrator.registerAdapter("realitymix", new RealityMixAdapter());
     orchestrator.registerAdapter("bezrealitky", new BezrealitkyAdapter());
     orchestrator.registerAdapter("remax", new RemaxAdapter());
 
