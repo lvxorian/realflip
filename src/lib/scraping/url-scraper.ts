@@ -407,10 +407,12 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
 
   let price = 0;
   const scriptJson = $('script[type="application/ld+json"]').first().html();
+  let parsedLd: any = null;
   if (scriptJson) {
     try {
-      const data = JSON.parse(scriptJson);
-      price = data?.offers?.price ?? 0;
+      parsedLd = JSON.parse(scriptJson);
+      const mainEntity = parsedLd?.mainEntity ?? parsedLd;
+      price = mainEntity?.offers?.price ?? parsedLd?.offers?.price ?? 0;
     } catch { /* ignore */ }
   }
   if (price === 0) {
@@ -421,11 +423,25 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
   const description = cleanText($("div.popisdetail").text()) ?? cleanText($('meta[name="description"]').attr("content") ?? null) ?? null;
 
   let area: number | null = null;
-  $("li:contains('m²')").each((_, el) => {
-    const t = $(el).text();
-    const a = extractArea(t);
-    if (a) area = a;
-  });
+  if (parsedLd) {
+    try {
+      const mainEntity = parsedLd?.mainEntity ?? parsedLd;
+      const floorSize = mainEntity?.floorSize ?? parsedLd?.floorSize;
+      const maybeArea = typeof floorSize === "object" ? floorSize?.value ?? floorSize?.unitText ?? null : floorSize;
+      const parsedArea = maybeArea ? parseFloat(String(maybeArea).replace(',', '.')) : NaN;
+      if (parsedArea > 0) area = parsedArea;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!area) {
+    $("li, .c-ad-detail__parameters-item").each((_, el) => {
+      const t = cleanText($(el).text()) ?? "";
+      const a = extractArea(t);
+      if (a && !area) area = a;
+    });
+  }
 
   const rooms = extractRooms(title);
   const condition = inferConditionFromText(description, title) ?? null;
