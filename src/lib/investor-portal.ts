@@ -18,9 +18,16 @@ export const PORTAL_STAGE = "negotiation";
 export const PORTAL_RESERVE_WINDOW_MS = 15 * 60 * 1000;
 export const PORTAL_LOGIN_MAX_ATTEMPTS = 5;
 
-export async function getInvestorProfile(investorId: string): Promise<{ name: string | null; budget: number | null; budgetUnlimited: number | null } | null> {
+export async function getInvestorProfile(
+  investorId: string
+): Promise<{ name: string | null; budget: number | null; budgetUnlimited: number | null; email: string | null } | null> {
   const [investor] = await db
-    .select({ name: investors.name, budget: investors.budget, budgetUnlimited: investors.budgetUnlimited })
+    .select({
+      name: investors.name,
+      budget: investors.budget,
+      budgetUnlimited: investors.budgetUnlimited,
+      email: investors.email,
+    })
     .from(investors)
     .where(eq(investors.id, investorId))
     .limit(1);

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { notifyInvestorsOfOffer } from "@/lib/email/notify-offers";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -34,6 +35,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     await db.update(leads).set(patch).where(eq(leads.id, id));
+
+    if (body.portalVisible === true) {
+      notifyInvestorsOfOffer(id).catch((err) => {
+        console.error("[email] Odeslání nabídek selhalo:", err);
+      });
+    }
+
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

@@ -6,6 +6,7 @@ export { propertyAnalysis } from "./analysis";
 export { leads, contacts, callQueue, callLogs } from "./leads";
 export { deals, dealExpenses } from "./deals";
 export { investors } from "./investors";
+export { investorOfferEmails } from "./investor-offer-emails";
 export { alerts, notifications } from "./alerts";
 export { marketData, marketCache, scrapingJobs, localityMetrics, poiMetrics, rents } from "./market";
 export { activityLog } from "./activity";

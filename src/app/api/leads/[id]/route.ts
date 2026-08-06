@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { ts } from "@/lib/utils";
 import { isValidLeadStage } from "@/lib/leads";
+import { notifyInvestorsOfOffer } from "@/lib/email/notify-offers";
 
 export async function PATCH(
   req: Request,
@@ -42,6 +43,12 @@ export async function PATCH(
       .update(leads)
       .set(update)
       .where(and(eq(leads.id, id), eq(leads.userId, session.user.id)));
+
+    if (body.stage === "negotiation") {
+      notifyInvestorsOfOffer(id).catch((err) => {
+        console.error("[email] Odeslání nabídek selhalo:", err);
+      });
+    }
 
     return NextResponse.json({ ok: true });
   } catch {

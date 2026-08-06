@@ -13,5 +13,6 @@ export async function GET() {
     investorName: profile?.name ?? session.name,
     investorBudget: profile?.budget ?? null,
     investorBudgetUnlimited: profile?.budgetUnlimited ?? 0,
+    investorEmail: profile?.email ?? null,
   });
 }

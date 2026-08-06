@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCompactPrice, formatPercent } from "@/lib/utils";
+import { EmailModal } from "@/components/investor/email-modal";
 import {
   House,
   SignOut,
@@ -16,6 +17,7 @@ import {
   SealCheck,
   ArrowCounterClockwise,
   WarningCircle,
+  EnvelopeSimple,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 
@@ -24,6 +26,7 @@ interface PortalData {
   investorName: string;
   investorBudget: number | null;
   investorBudgetUnlimited: number;
+  investorEmail: string | null;
 }
 
 function fmtPrice(v: number | null): string {
@@ -36,6 +39,14 @@ export default function InvestorPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const dismissedEmailPrompt = useRef(false);
+
+  const maybePromptEmail = useCallback((json: PortalData) => {
+    if (json.investorEmail == null && !dismissedEmailPrompt.current) {
+      setEmailModalOpen(true);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/investor-portal/properties", { cache: "no-store" });
@@ -51,8 +62,9 @@ export default function InvestorPortalPage() {
     const json = await res.json();
     setData(json);
     setLoading(false);
+    maybePromptEmail(json);
     return true;
-  }, [router]);
+  }, [router, maybePromptEmail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,11 +83,12 @@ export default function InvestorPortalPage() {
       const json = await res.json();
       setData(json);
       setLoading(false);
+      maybePromptEmail(json);
     })();
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, maybePromptEmail]);
 
   async function toggleReserve(item: InvestorPortalItem) {
     const action = item.status === "reserved" && item.reservedByMe ? "cancel" : "reserve";
@@ -117,12 +130,27 @@ export default function InvestorPortalPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold tracking-tight leading-none">RealFlip · Portál investorů</p>
-              <p className="text-[11px] text-muted mt-0.5 truncate">
-                {data?.investorName ?? "Přihlášený investor"}
-                {data && !data.investorBudgetUnlimited && data.investorBudget
-                  ? ` · budget ${formatCompactPrice(data.investorBudget)}`
-                  : ""}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[11px] text-muted truncate">
+                  {data?.investorName ?? "Přihlášený investor"}
+                  {data && !data.investorBudgetUnlimited && data.investorBudget
+                    ? ` · budget ${formatCompactPrice(data.investorBudget)}`
+                    : ""}
+                </p>
+                {data && data.investorEmail == null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      dismissedEmailPrompt.current = false;
+                      setEmailModalOpen(true);
+                    }}
+                    className="shrink-0 flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent hover:bg-accent/15 transition-colors"
+                  >
+                    <EnvelopeSimple size={10} weight="bold" />
+                    Nastavit e-mail
+                  </button>
+                )}
+              </div>
             </div>
             <Button variant="ghost" size="sm" onClick={logout} className="shrink-0">
               <SignOut size={14} weight="bold" />
@@ -315,6 +343,20 @@ export default function InvestorPortalPage() {
           )}
         </main>
       </div>
+
+      <EmailModal
+        open={emailModalOpen}
+        investorName={data?.investorName}
+        onClose={() => {
+          dismissedEmailPrompt.current = true;
+          setEmailModalOpen(false);
+        }}
+        onSaved={(email) => {
+          dismissedEmailPrompt.current = true;
+          setEmailModalOpen(false);
+          setData((prev) => (prev ? { ...prev, investorEmail: email } : prev));
+        }}
+      />
     </div>
   );
 }

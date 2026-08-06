@@ -11,6 +11,7 @@ declare namespace NodeJS {
     OPENAI_API_KEY?: string;
     REDIS_URL?: string;
     RESEND_API_KEY?: string;
+    EMAIL_FROM?: string;
     NEXT_PUBLIC_APP_URL: string;
     NEXT_PUBLIC_APP_NAME: string;
   }
