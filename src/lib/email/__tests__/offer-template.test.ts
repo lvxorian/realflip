@@ -31,6 +31,9 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("−16.0 %");
     expect(html).toContain("https://realflip.app/investor");
     expect(html).toContain("Brickon · Nová nabídka");
+    expect(html).toContain("aria-label=\"Brickon\"");
+    expect(html).toContain("role=\"img\"");
+    expect(html).toContain("data-logo=\"brickon\"");
     expect(html).toContain("#10b981");
     expect(html).not.toContain("#7c3aed");
     expect(html).toContain("fonts.googleapis.com/css2?family=Geist");

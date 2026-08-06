@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCompactPrice, formatPercent } from "@/lib/utils";
 import { EmailModal } from "@/components/investor/email-modal";
+import { BrickonLogo } from "@/components/investor/brickon-logo";
 import {
-  House,
   SignOut,
   MapPin,
   CheckCircle,
@@ -127,7 +127,7 @@ export default function InvestorPortalPage() {
         <header className="border-b border-border/60 bg-card/80 backdrop-blur-xl sticky top-0 z-20">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 border border-accent/25">
-              <House size={18} weight="fill" className="text-accent" />
+              <BrickonLogo size={24} tone="brand" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold tracking-tight leading-none">{INVESTOR_BRAND} · Portál investorů</p>
