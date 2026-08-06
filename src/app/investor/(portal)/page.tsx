@@ -179,9 +179,9 @@ export default function InvestorPortalPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Kurátorský výběr nabídek" },
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Vyjednaná cena pod trhem" },
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Analytické prověření" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "24/7 tržní sken a prioritní upozornění" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Vyjednáváme ceny ještě před zveřejněním" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Reporty s očekávaným ziskem, ROI a dalším postupem" },
                 ].map((item, i) => (
                   <div
                     key={i}

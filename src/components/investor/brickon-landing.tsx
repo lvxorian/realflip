@@ -62,13 +62,13 @@ export default function BrickonLanding() {
                   variants={item}
                   className="mt-5 text-4xl sm:text-5xl font-semibold tracking-tight leading-[1.1]"
                 >
-                  Nemovitosti pod tržní cenou,
+                  Skenujeme trh 24/7 a přinášíme
                   <br />
-                  <span className="text-accent">které jinde nenajdete.</span>
+                  <span className="text-accent">nejrychlejší investiční příležitosti.</span>
                 </motion.h1>
                 <motion.p variants={item} className="mt-5 max-w-lg text-muted leading-relaxed">
-                  Kurátorský výběr off-market příležitostí s vyjednanou cenou pod trhem. Každá nabídka projde
-                  analytickým prověřením — s odhadem zisku, návratnosti i úspory oproti tržní ceně.
+                  Hledáme a hodnotíme nabídky nonstop, voláme investorům ihned po — nebo i před — jejich zveřejněním.
+                  Vyjednáváme ceny z inzerce, připravujeme reporty s očekávaným výnosem a stavíme na vlastní realizační partě.
                 </motion.p>
                 <motion.div variants={item} className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
@@ -140,7 +140,11 @@ export default function BrickonLanding() {
               transition={{ duration: 0.4 }}
               className="mt-16 grid gap-2 sm:grid-cols-3"
             >
-              {["Kurátorský výběr nabídek", "Vyjednaná cena pod trhem", "Analytické prověření"].map((text) => (
+              {[
+                "24/7 tržní sken a rychlé upozornění",
+                "Vyjednáváme ceny z inzerce a off-market signály",
+                "Reporty se ziskem, ROI a dalším postupem",
+              ].map((text) => (
                 <div
                   key={text}
                   className="flex items-center gap-2 rounded-xl border border-border/40 bg-card/60 px-3 py-2.5 text-[11px] text-muted"
@@ -172,10 +176,10 @@ export default function BrickonLanding() {
                 className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
               >
                 {[
-                  { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Výběr a analýza", text: "Nemovitost, trh i potenciál prověříme za vás." },
-                  { icon: <Gavel size={20} weight="bold" />, title: "Vyjednání ceny", text: "Sjednáme cenu pod tržní úrovní." },
-                  { icon: <ChartLineUp size={20} weight="bold" />, title: "Nabídka na portálu", text: "Příležitost s čísly — zisk, ROI, úspora." },
-                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Vaše rezervace", text: "Zakládá pořadí, pak pokračujeme k dohodě." },
+                  { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Sken trhu 24/7", text: "Nepřetržitě sledujeme inzerci i nové signály, abychom našli silné příležitosti dřív než ostatní." },
+                  { icon: <Gavel size={20} weight="bold" />, title: "Vyjednání ceny", text: "Voláme, vyjednáváme a srážíme cenu z inzerce — tak, aby investice měla reálnou rezervu." },
+                  { icon: <ChartLineUp size={20} weight="bold" />, title: "Reporty s výnosem", text: "Doručujeme snadno čitelný report s očekávaným ziskem, ROI a dalším plánem projektu." },
+                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Realizace s vlastní partou", text: "Máme svoji stavební partu a připravíme kompletní projekt od nákupu po rekonstrukci a prodej." },
                 ].map((step, i) => (
                   <motion.div
                     key={step.title}
@@ -188,6 +192,48 @@ export default function BrickonLanding() {
                     <p className="mt-4 text-[11px] font-medium text-muted">Krok {i + 1}</p>
                     <p className="mt-0.5 font-semibold tracking-tight">{step.title}</p>
                     <p className="mt-1.5 text-sm text-muted leading-relaxed">{step.text}</p>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Modely spolupráce */}
+          <section className="border-t border-border/40 py-16">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6">
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                className="text-center"
+              >
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Spolupracujeme ve dvou modelech</h2>
+                <p className="mt-2 text-sm text-muted">Vyberte, jak chcete investici řešit: kompletní servis nebo čistý sourcing.</p>
+              </motion.div>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-60px" }}
+                variants={stagger}
+                className="mt-10 grid gap-4 md:grid-cols-2"
+              >
+                {[
+                  {
+                    title: "50/50",
+                    text: "Investor hradí kompletní náklady, my zařizujeme nákup, report, rekonstrukci a prodej. Zisk dělíme napůl.",
+                  },
+                  {
+                    title: "Sourcing fee",
+                    text: "Najdeme a vyjednáme obchod, investor pak řeší rekonstrukci nebo pronájem samostatně. My bereme pouze provizi za deal.",
+                  },
+                ].map((plan) => (
+                  <motion.div
+                    key={plan.title}
+                    variants={item}
+                    className="rounded-2xl border border-border/50 bg-card p-6"
+                  >
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">{plan.title}</p>
+                    <p className="mt-3 text-sm leading-relaxed text-foreground/90">{plan.text}</p>
                   </motion.div>
                 ))}
               </motion.div>
