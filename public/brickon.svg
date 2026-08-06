@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="brickon-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#brickon-bg)"/>
+  <path d="M11.5 8 H32.5 A4 4 0 0 1 36.5 12 V16 A4 4 0 0 1 32.5 20 H21.5 V24 H32.5 A4 4 0 0 1 36.5 28 V36 A4 4 0 0 1 32.5 40 H11.5 Z" fill="#ffffff" transform="translate(32 32) scale(1.25) translate(-24 -24)"/>
+</svg>

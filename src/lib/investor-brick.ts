@@ -1,6 +1,6 @@
-// Sdílená geometrie loga Brickon — čistá izometrická cihla (přední,
-// horní a boční plocha, ostré hrany, bez textur). Jeden zdroj pravdy
-// pro e-mail i web. viewBox 0 0 48 48.
+// Sdílená geometrie loga Brickon — vyražené písmeno B (2.5D emboss):
+// přední plocha = B, světlý horní lem, tmavý boční lem. Jeden zdroj
+// pravdy pro e-mail, web i favicon. viewBox 0 0 48 48.
 
 export type BrickTone = "light" | "brand";
 
@@ -32,12 +32,17 @@ const TONES: Record<BrickTone, BrickToneColors> = {
   },
 };
 
+// Blokové B se zaoblenými rohy (r=4), vycentrované v 48×48.
+// Silueta: levá osa + horní boulíček + zářez + dolní boulíček.
+const B_PATH =
+  "M11.5 8 H32.5 A4 4 0 0 1 36.5 12 V16 A4 4 0 0 1 32.5 20 H21.5 V24 H32.5 A4 4 0 0 1 36.5 28 V36 A4 4 0 0 1 32.5 40 H11.5 Z";
+
 export function brickInnerMarkup(tone: BrickTone = "light"): string {
   const t = TONES[tone];
   return `
-  <path d="M10 21 L30 21 L39 16 L19 16 Z" fill="${t.top}" opacity="${t.topOpacity}"/>
-  <path d="M30 21 L39 16 L39 27 L30 32 Z" fill="${t.right}" opacity="${t.rightOpacity}"/>
-  <rect x="10" y="21" width="20" height="11" fill="${t.front}" opacity="${t.frontOpacity}"/>`;
+  <path d="${B_PATH}" transform="translate(0 -2.5)" fill="${t.top}" opacity="${t.topOpacity}"/>
+  <path d="${B_PATH}" transform="translate(2.5 0)" fill="${t.right}" opacity="${t.rightOpacity}"/>
+  <path d="${B_PATH}" fill="${t.front}" opacity="${t.frontOpacity}"/>`;
 }
 
 export function brickLogoSvg(size: number, tone: BrickTone = "light"): string {

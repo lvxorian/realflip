@@ -4,19 +4,25 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { Providers } from "@/components/shared/providers";
 
-export const metadata: Metadata = {
-  title: "RealFlip Pro – Inteligentní investice do nemovitostí",
-  description:
-    "Profesionální SaaS nástroj pro realitní investory. Scraping, analýza trhu, AI hodnocení a deal management.",
-  keywords: [
-    "realitní investor",
-    "flip",
-    "nemovitosti",
-    "investice",
-    "scraping",
-    "analýza trhu",
-  ],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const investorOnly = process.env.INVESTOR_ONLY === "1";
+  return {
+    title: investorOnly
+      ? "Brickon – Soukromý investorský portál"
+      : "RealFlip Pro – Inteligentní investice do nemovitostí",
+    description:
+      "Profesionální SaaS nástroj pro realitní investory. Scraping, analýza trhu, AI hodnocení a deal management.",
+    keywords: [
+      "realitní investor",
+      "flip",
+      "nemovitosti",
+      "investice",
+      "scraping",
+      "analýza trhu",
+    ],
+    ...(investorOnly ? { icons: { icon: "/brickon.svg" } } : {}),
+  };
+}
 
 export default function RootLayout({
   children,
