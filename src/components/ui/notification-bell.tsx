@@ -22,14 +22,31 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
+  const loadNotifications = async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) return;
+      const d = await res.json();
+      setItems(d.items);
+      setUnreadCount(d.unreadCount);
+    } catch {
+      // ignore fetch errors
+    }
+  };
+
   useEffect(() => {
-    fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((d) => {
-        setItems(d.items);
-        setUnreadCount(d.unreadCount);
-      })
-      .catch(() => {});
+    loadNotifications();
+    const interval = window.setInterval(loadNotifications, 30_000);
+
+    function handleFocus() {
+      loadNotifications();
+    }
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   useEffect(() => {
