@@ -18,6 +18,10 @@ export interface InvestorFormValue {
   budgetUnlimited: number | null;
   portalEnabled?: number | null;
   notes: string | null;
+  lastActiveAt?: number | null;
+  loginCount?: number | null;
+  reservations?: number | null;
+  offerEmails?: number | null;
 }
 
 interface InvestorModalProps {

@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { MagnifyingGlass, Plus, Phone, Envelope, MapPin, Infinity as InfinityIco
 import Link from "next/link";
 import { InvestorModal, type InvestorFormValue } from "@/components/investors/investor-modal";
 import { formatInvestorBudget } from "@/lib/investors";
+import { formatRelative } from "@/lib/utils";
+import { isInvestorActive } from "@/lib/investor-activity";
 
 export default function InvestorsPage() {
   const { status } = useSession();
@@ -24,12 +26,21 @@ export default function InvestorsPage() {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  useEffect(() => {
+  const loadInvestors = useCallback(() => {
     fetch("/api/investors")
       .then((r) => r.json())
       .then((d: InvestorFormValue[]) => { if (Array.isArray(d)) setInvestors(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadInvestors();
+  }, [loadInvestors]);
+
+  useEffect(() => {
+    const t = setInterval(loadInvestors, 60_000);
+    return () => clearInterval(t);
+  }, [loadInvestors]);
 
   if (status !== "authenticated" || loading) {
     return (
@@ -138,6 +149,30 @@ export default function InvestorsPage() {
                         <span className="truncate">{i.email}</span>
                       </div>
                     )}
+                  </div>
+
+                  <div className="mt-3 border-t border-border/40 pt-3 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs">
+                      {isInvestorActive(i.lastActiveAt) ? (
+                        <>
+                          <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                          </span>
+                          <span className="font-medium text-emerald-400">Aktivní nyní</span>
+                        </>
+                      ) : (
+                        <span className="text-muted">
+                          Naposledy online: {i.lastActiveAt ? formatRelative(i.lastActiveAt) : "nikdy"}
+                        </span>
+                      )}
+                      <span className="text-muted/60">· {i.loginCount ?? 0} přihlášení</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted">
+                      <span>{i.reservations ?? 0} rezervací</span>
+                      <span className="text-muted/40">·</span>
+                      <span>{i.offerEmails ?? 0} nabídek e-mailem</span>
+                    </div>
                   </div>
                 </motion.div>
               </Link>

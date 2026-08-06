@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { checkLoginRateLimit } from "@/lib/investor-portal";
 import { setInvestorSession } from "@/lib/investor-session";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
+import { recordInvestorLogin } from "@/lib/investor-activity-actions";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -44,5 +45,6 @@ export async function POST(req: NextRequest) {
   }
 
   await setInvestorSession(investor.id, investor.name);
+  await recordInvestorLogin(investor.id);
   return NextResponse.json({ ok: true });
 }

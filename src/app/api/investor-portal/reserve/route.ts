@@ -4,12 +4,14 @@ import { leads } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
+import { touchInvestorActivity } from "@/lib/investor-activity-actions";
 
 export async function POST(req: NextRequest) {
   const session = await getInvestorSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  await touchInvestorActivity(session.sub);
 
   let body: { id?: string; action?: "reserve" | "cancel" };
   try {

@@ -25,6 +25,7 @@ import {
   SignOut,
   Gavel,
   ListChecks,
+  ShieldCheck,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -37,6 +38,7 @@ const navItems = [
   { href: "/call-mode", label: "Call Mode", icon: Phone },
   { href: "/contacts", label: "Kontakty", icon: UsersThree },
   { href: "/investors", label: "Investoři", icon: HandCoins },
+  { href: "/admin", label: "Admin", icon: ShieldCheck },
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/vykupy", label: "Výkupy", icon: Gavel },
   { href: "/market", label: "Trh", icon: ChartBar },

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { investors } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { investors, leads, investorOfferEmails } from "@/db/schema";
+import { desc, isNotNull, sql } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
 
@@ -14,7 +14,34 @@ export async function GET() {
     }
 
     const rows = await db.select().from(investors).orderBy(desc(investors.createdAt));
-    return NextResponse.json(rows);
+
+    const reservationRows = await db
+      .select({
+        investorId: leads.portalReservedInvestorId,
+        count: sql<number>`cast(count(*) as integer)`,
+      })
+      .from(leads)
+      .where(isNotNull(leads.portalReservedInvestorId))
+      .groupBy(leads.portalReservedInvestorId);
+
+    const offerEmailRows = await db
+      .select({
+        investorId: investorOfferEmails.investorId,
+        count: sql<number>`cast(count(*) as integer)`,
+      })
+      .from(investorOfferEmails)
+      .groupBy(investorOfferEmails.investorId);
+
+    const reservationMap = new Map(reservationRows.map((r) => [r.investorId, Number(r.count)]));
+    const offerEmailMap = new Map(offerEmailRows.map((r) => [r.investorId, Number(r.count)]));
+
+    const result = rows.map((r) => ({
+      ...r,
+      reservations: reservationMap.get(r.id) ?? 0,
+      offerEmails: offerEmailMap.get(r.id) ?? 0,
+    }));
+
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
