@@ -11,9 +11,19 @@ function isInvestorPath(pathname: string): boolean {
     pathname.startsWith("/api/investor-portal")
   );
 }
-
+function isStaticAsset(pathname: string): boolean {
+  return (
+    pathname === "/favicon.ico" ||
+    pathname.startsWith("/_next/static") ||
+    pathname.startsWith("/_next/image") ||
+    pathname.startsWith("/public/") ||
+    /\.(?:svg|png|jpe?g|gif|webp|avif|ico|txt|xml|json|js|css|map|woff2|woff|ttf|eot)$/i.test(pathname)
+  );
+}
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+
+  if (isStaticAsset(pathname)) return;
 
   // Brickon — samostatná instance investorského portálu (INVESTOR_ONLY=1).
   // Slouží výhradně investorům: povoleny landing (`/`), investorské cesty
@@ -63,7 +73,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: [
-    "/(?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|json|js|css|map|woff2|woff|ttf|eot)|public).*",
-  ],
+  matcher: ["/:path*"],
 };
