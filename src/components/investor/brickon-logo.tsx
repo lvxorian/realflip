@@ -9,7 +9,7 @@ interface BrickonLogoProps {
 export function BrickonLogo({ size = 28, tone = "light", className }: BrickonLogoProps) {
   return (
     <img
-      src="/brickon.png"
+      src="/brickon.svg"
       alt="Brickon"
       width={size}
       height={size}
