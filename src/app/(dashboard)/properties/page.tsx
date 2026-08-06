@@ -23,6 +23,7 @@ const PORTAL_LABELS: Record<string, string> = {
   century21: "Century 21",
   portaldrazeb: "Portál dražeb",
   realitymat: "Realitymat.cz",
+  realitymix: "RealityMIX",
 };
 
 export default async function PropertiesPage({
@@ -55,6 +56,8 @@ export default async function PropertiesPage({
       id: properties.id,
       title: properties.title,
       price: properties.price,
+      isActive: properties.isActive,
+      removedAt: properties.removedAt,
       pricePerSqm: properties.pricePerSqm,
       area: properties.area,
       rooms: properties.rooms,
@@ -103,6 +106,8 @@ export default async function PropertiesPage({
     id: r.id,
     title: r.title,
     price: r.price,
+    removed: r.isActive === 0,
+    removedAt: r.removedAt != null ? Number(r.removedAt) : null,
     pricePerSqm: r.pricePerSqm,
     area: r.area,
     rooms: r.rooms,

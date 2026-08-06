@@ -11,7 +11,7 @@ import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyImage } from "@/components/ui/property-image";
 import { conditionLabel, safeJsonParse, formatCompactPrice, formatRelative } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin, CalendarBlank, ChartLineUp, ArrowUpRight } from "@phosphor-icons/react";
+import { Phone, PhoneSlash, SkipForward, Copy, Check, MapPin, CalendarBlank, ChartLineUp, ArrowUpRight, Prohibit } from "@phosphor-icons/react";
 
 interface CallItem {
   id: string;
@@ -33,6 +33,8 @@ interface CallItem {
   propertyImageUrls: string | null;
   propertyUrl: string | null;
   propertyPortal: string | null;
+  propertyRemoved: boolean;
+  propertyRemovedAt: number | null;
   analysisScore: number | null;
   analysisNetProfit: number | null;
   analysisRoi: number | null;
@@ -346,6 +348,7 @@ export default function CallModePage() {
                   src={imageUrls[0]}
                   alt={call.propertyTitle ?? "Nemovitost"}
                   score={call.analysisScore}
+                  removed={call.propertyRemoved}
                   containerClassName="h-full w-full"
                   showScore={false}
                 />
@@ -369,6 +372,14 @@ export default function CallModePage() {
                     </div>
                   )}
                 </div>
+                {call.propertyRemoved && (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2">
+                    <Prohibit size={14} weight="fill" className="text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-muted leading-relaxed">
+                      Inzerát byl odstraněn z portálu — pravděpodobně se prodal. Ověřte stav úvodem hovoru.
+                    </p>
+                  </div>
+                )}
                 {call.propertyPrice != null && <PriceTag price={call.propertyPrice} perSqm={call.propertyPricePerSqm ?? undefined} size="sm" />}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">

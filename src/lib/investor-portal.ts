@@ -57,7 +57,7 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
     .innerJoin(properties, eq(leads.propertyId, properties.id))
     .leftJoin(propertyAnalysis, eq(leads.propertyId, propertyAnalysis.propertyId))
     .leftJoin(investors, eq(leads.portalReservedInvestorId, investors.id))
-    .where(and(eq(leads.stage, PORTAL_STAGE), eq(leads.portalVisible, 1)))
+    .where(and(eq(leads.stage, PORTAL_STAGE), eq(leads.portalVisible, 1), eq(properties.isActive, 1)))
     .orderBy(propertyAnalysis.netProfit);
 
   return rows

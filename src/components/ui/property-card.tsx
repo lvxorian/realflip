@@ -25,6 +25,7 @@ interface PropertyCardProps {
   imageUrl?: string;
   undervaluationPct?: number;
   isAuction?: boolean;
+  removed?: boolean;
 }
 
 export function PropertyCard({
@@ -43,6 +44,7 @@ export function PropertyCard({
   imageUrl,
   undervaluationPct,
   isAuction = false,
+  removed = false,
 }: PropertyCardProps) {
   const statusVariant =
     status === "Nový" ? "success" :
@@ -66,6 +68,7 @@ export function PropertyCard({
             src={imageUrl}
             alt={title}
             score={score}
+            removed={removed}
             containerClassName="h-full w-full"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />

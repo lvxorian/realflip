@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { LockSimple, Eye, EyeSlash } from "@phosphor-icons/react";
+import { LockSimple, Eye, EyeSlash, Prohibit } from "@phosphor-icons/react";
 
 interface InvestorOption {
   id: string;
@@ -15,9 +15,10 @@ interface PortalPanelProps {
   leadId: string;
   initialVisible: boolean;
   initialReservedInvestorId: string | null;
+  removed?: boolean;
 }
 
-export function PortalPanel({ leadId, initialVisible, initialReservedInvestorId }: PortalPanelProps) {
+export function PortalPanel({ leadId, initialVisible, initialReservedInvestorId, removed = false }: PortalPanelProps) {
   const [visible, setVisible] = useState(initialVisible);
   const [reservedInvestorId, setReservedInvestorId] = useState(initialReservedInvestorId);
   const [investors, setInvestors] = useState<InvestorOption[]>([]);
@@ -65,6 +66,15 @@ export function PortalPanel({ leadId, initialVisible, initialReservedInvestorId 
       </div>
 
       <div className="space-y-3 text-sm">
+        {removed && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 flex items-start gap-2">
+            <Prohibit size={14} weight="fill" className="text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-muted leading-relaxed">
+              Inzerát odstraněn — investorům se nabídka nezobrazuje. Rezervace zůstává v systému a při znovunalezení inzerátu se obnoví.
+            </p>
+          </div>
+        )}
+
         <button
           onClick={() => {
             const next = !visible;

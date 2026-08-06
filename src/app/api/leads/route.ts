@@ -33,6 +33,9 @@ export async function GET() {
         propertyYearBuilt: properties.yearBuilt,
         propertyPortalName: properties.portalName,
         propertyUrl: properties.url,
+        propertyStatus: properties.status,
+        propertyIsActive: properties.isActive,
+        propertyRemovedAt: properties.removedAt,
         propertyContactName: properties.contactName,
         propertyContactPhone: properties.contactPhone,
         propertyContactEmail: properties.contactEmail,
@@ -64,6 +67,8 @@ export async function GET() {
       return {
         ...row,
         stageData,
+        propertyRemoved: row.propertyStatus === "removed" || row.propertyIsActive === 0,
+        propertyIsActive: row.propertyStatus === "active" && row.propertyIsActive === 1,
         propertyPricePerSqm:
           row.propertyPrice != null && row.propertyArea != null && row.propertyArea > 0
             ? Math.round(row.propertyPrice / row.propertyArea)

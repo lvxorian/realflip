@@ -27,6 +27,7 @@ import {
   MapPin,
   Clock,
   GitBranch,
+  Prohibit,
 } from "@phosphor-icons/react/ssr";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +65,7 @@ const PORTAL_LABELS: Record<string, string> = {
   annonce: "Annonce",
   portaldrazeb: "Portál dražeb",
   realitymat: "Realitymat.cz",
+  realitymix: "RealityMIX",
 };
 
 export default async function PropertyDetailPage({
@@ -163,6 +165,9 @@ export default async function PropertyDetailPage({
     ? LEAD_STAGES.find((s) => s.key === pipelineLead!.stage)
     : null;
 
+  const isRemoved = property.isActive === 0;
+  const removedNeutral = pipelineLead != null && (pipelineLead.stage === "closed" || pipelineLead.stage === "lost");
+
   return (
     <div className="space-y-6">
       <Link
@@ -172,6 +177,28 @@ export default async function PropertyDetailPage({
         <ArrowLeft size={14} weight="bold" />
         Zpět na přehled
       </Link>
+
+      {isRemoved && (
+        <div
+          className={
+            removedNeutral
+              ? "rounded-2xl border border-border/50 bg-card px-5 py-4 flex items-start gap-3"
+              : "rounded-2xl border border-amber-500/30 bg-amber-500/5 px-5 py-4 flex items-start gap-3"
+          }
+        >
+          <Prohibit size={18} weight="fill" className={removedNeutral ? "text-muted mt-0.5" : "text-amber-500 mt-0.5"} />
+          <div>
+            <p className="text-sm font-semibold tracking-tight">Inzerát odstraněn z portálu</p>
+            <p className="text-xs text-muted mt-0.5 leading-relaxed">
+              {removedNeutral
+                ? "Očekávané pro uzavřený/ztracený deal — záznam včetně výpočtů a kontaktů zůstává plně zachován."
+                : pipelineLead
+                ? "Nemovitost se pravděpodobně prodala. Kontakt zůstává dostupný — stav ověřte u prodejce. Záznam včetně výpočtů je zachován."
+                : "Nemovitost zmizela z nabídky portálu. Záznam včetně výpočtů je zachován; pokud ji znovu naleznete na portálu, stav se automaticky obnoví."}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
@@ -373,6 +400,7 @@ export default async function PropertyDetailPage({
               leadId={pipelineLead.id}
               initialVisible={(pipelineLead.portalVisible ?? 1) === 1}
               initialReservedInvestorId={pipelineLead.portalReservedInvestorId}
+              removed={isRemoved}
             />
           )}
 

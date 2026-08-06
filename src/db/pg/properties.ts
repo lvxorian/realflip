@@ -23,6 +23,7 @@ export const properties = pgTable("properties", {
   description: text("description"),
   imageUrls: text("image_urls").default("[]"),
   status: text("status").default("active").notNull(),
+  removedAt: bigint("removed_at", { mode: "number" }),
   firstSeen: bigint("first_seen", { mode: "number" }).notNull(),
   lastSeen: bigint("last_seen", { mode: "number" }).notNull(),
   isActive: integer("is_active").default(1),

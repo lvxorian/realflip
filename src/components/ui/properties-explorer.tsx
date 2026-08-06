@@ -22,6 +22,8 @@ export interface PropertyListItem {
   id: string;
   title: string;
   price: number;
+  removed?: boolean;
+  removedAt?: number | null;
   pricePerSqm: number | null;
   area: number | null;
   rooms: string | null;
@@ -74,6 +76,7 @@ const PORTAL_LABELS: Record<string, string> = {
   century21: "Century 21",
   portaldrazeb: "Portál dražeb",
   realitymat: "Realitymat.cz",
+  realitymix: "RealityMIX",
 };
 
 const INITIAL_FILTERS: FilterState = {
@@ -445,7 +448,9 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     score={p.score ?? 0}
                     isFavorited={favoritedIds.includes(p.id)}
                     status={
-                      p.recommendation === "buy"
+                      p.removed
+                        ? undefined
+                        : p.recommendation === "buy"
                         ? "Doporučeno"
                         : p.daysOnMarket <= 2
                         ? "Nový"
@@ -458,6 +463,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     imageUrl={p.imageUrls?.[0]}
                     undervaluationPct={p.undervaluationPct ?? undefined}
                     isAuction={p.portalName === "portaldrazeb"}
+                    removed={p.removed}
                   />
                 ))}
               </motion.div>
@@ -484,6 +490,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                           alt={p.title}
                           score={p.score}
                           showScore={false}
+                          removed={p.removed}
                           containerClassName="h-full w-full"
                         />
                         <div className="absolute top-0.5 right-0.5">

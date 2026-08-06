@@ -6,6 +6,7 @@ import { Star, MapPin, CalendarBlank } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
+import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
 import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { LeadItem } from "./types";
@@ -53,13 +54,14 @@ export function LeadCard({
       )}
       title={lead.propertyTitle ?? undefined}
     >
-      {lead.propertyImageUrl && (
+      {(lead.propertyImageUrl || lead.propertyRemoved) && (
         <div className="mb-2 overflow-hidden rounded-lg @max-[240px]:mb-1.5">
           <PropertyImage
             src={lead.propertyImageUrl}
             alt={lead.propertyTitle ?? "Nemovitost"}
             score={lead.analysisScore}
             showScore={false}
+            removed={lead.propertyRemoved}
             containerClassName={cn("w-full", compact ? "h-16" : "h-20 @max-[240px]:h-12")}
           />
         </div>
@@ -94,6 +96,13 @@ export function LeadCard({
           )}
         </div>
       ) : null}
+
+      {lead.propertyRemoved && !compact && (
+        <RemovedListingBadge
+          neutral={lead.stage === "closed" || lead.stage === "lost"}
+          className="mb-1.5 @max-[240px]:hidden"
+        />
+      )}
 
       <div className="flex items-baseline justify-between gap-2 mb-1.5">
         <span className="text-sm font-semibold font-mono text-amber-400 @max-[240px]:text-xs">

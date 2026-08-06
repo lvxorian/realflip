@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel } from "@/lib/utils";
 import { PropertyImage } from "@/components/ui/property-image";
+import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
 import { LEAD_STAGES } from "@/lib/leads";
 import { toast } from "sonner";
 import type { LeadItem, StageData } from "./types";
@@ -233,15 +234,35 @@ function LeadDrawerContent({
       </div>
 
       <div className="px-5 py-4 space-y-5">
-        {lead.propertyImageUrl && (
+        {(lead.propertyImageUrl || lead.propertyRemoved) && (
           <div className="overflow-hidden rounded-xl">
             <PropertyImage
               src={lead.propertyImageUrl}
               alt={lead.propertyTitle ?? "Nemovitost"}
               score={lead.analysisScore}
               showScore={false}
+              removed={lead.propertyRemoved}
               containerClassName="h-40 w-full"
             />
+          </div>
+        )}
+
+        {lead.propertyRemoved && (
+          <div
+            className={
+              lead.stage === "closed" || lead.stage === "lost"
+                ? "rounded-xl border border-border/40 bg-card px-4 py-3 flex items-center gap-2"
+                : "rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+            }
+          >
+            <div className="flex items-start gap-2">
+              <RemovedListingBadge neutral={lead.stage === "closed" || lead.stage === "lost"} />
+              <p className="text-xs text-muted leading-relaxed">
+                {lead.stage === "closed" || lead.stage === "lost"
+                  ? "Inzerát zmizel z portálu — očekávané pro uzavřený/ztracený deal. Záznam zůstává plně zachován."
+                  : "Inzerát byl odstraněn z portálu — nemovitost se pravděpodobně prodala. Kontakt zůstává dostupný; stav ověřte u prodejce."}
+              </p>
+            </div>
           </div>
         )}
 

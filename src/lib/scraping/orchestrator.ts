@@ -4,8 +4,9 @@ import { matchFilters, isCzechListing, isSaleListing } from "./filters";
 import { applyAreaResolution } from "./area-resolver";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties } from "@/db/schema";
-import { eq, and, ne, notInArray, inArray } from "drizzle-orm";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties, leads } from "@/db/schema";
+import { eq, and, ne, notInArray, inArray, lte, gt } from "drizzle-orm";
+import { listingMatches, PROPERTY_STATUS, REMOVAL_GRACE_MS, type RelistCandidate } from "./relisting";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
@@ -128,6 +129,8 @@ export class ScrapingOrchestrator {
       }
     }
 
+    await this.sweepRemovedListings().catch(() => {});
+
     return { total, errors: allErrors };
   }
 
@@ -240,6 +243,8 @@ export class ScrapingOrchestrator {
       }
     }
 
+    await this.sweepRemovedListings().catch(() => {});
+
     return { total, errors: allErrors };
   }
 
@@ -272,6 +277,8 @@ export class ScrapingOrchestrator {
 
     // Refresh market price cache after all searches complete
     refreshAllMarketData().catch(() => {});
+
+    await this.sweepRemovedListings().catch(() => {});
   }
 
   private async saveListing(listing: RawListing, searchId?: string): Promise<string | null> {
@@ -293,6 +300,17 @@ export class ScrapingOrchestrator {
       .then((r) => r[0]);
 
     if (existing) {
+      // Inzerát se vrací — byl označen jako odstraněný, portál ho naho koval zpět.
+      if (existing.status === PROPERTY_STATUS.REMOVED || existing.removedAt != null) {
+        await db.insert(activityLog).values({
+          id: generateId(),
+          type: "scraping",
+          message: `Inzerat znovu nahozen - ${listing.title}`,
+          propertyId: existing.id,
+          createdAt: ts(),
+        });
+      }
+
       // Check for price change
       if (existing.price !== listing.price) {
         await db.insert(priceHistory).values({
@@ -355,6 +373,8 @@ export class ScrapingOrchestrator {
           ),
           lastSeen: ts(),
           isActive: 1,
+          status: PROPERTY_STATUS.ACTIVE,
+          removedAt: null,
         })
         .where(eq(properties.id, existing.id));
 
@@ -430,6 +450,34 @@ export class ScrapingOrchestrator {
 
       return existing.id;
     } else {
+      // Nová URL — možná je to re-listace (inzerát nahozený znovu pod jinou URL).
+      const relisted = await this.findRelistedProperty(listing);
+      if (relisted) {
+        // Přesuneme záznam na novou URL a oživíme ho; zbytek (cena, analýza,
+        // linky) dořeší opětovný vstup do existující větve saveListing.
+        await db
+          .update(properties)
+          .set({
+            url: listing.url,
+            portalId: `${listing.portalName}_${hash.slice(0, 8)}`,
+            isActive: 1,
+            status: PROPERTY_STATUS.ACTIVE,
+            removedAt: null,
+            lastSeen: ts(),
+          })
+          .where(eq(properties.id, relisted.id));
+
+        await db.insert(activityLog).values({
+          id: generateId(),
+          type: "scraping",
+          message: `Inzerat znovu nahozen (nova URL) - ${listing.title}`,
+          propertyId: relisted.id,
+          createdAt: ts(),
+        });
+
+        return this.saveListing(listing, searchId);
+      }
+
       // Insert new property
       const id = generateId();
       await db.insert(properties).values({
@@ -573,5 +621,65 @@ export class ScrapingOrchestrator {
 
       return id;
     }
+  }
+
+  // Re-listace: hledá neaktivní záznam stejného portálu, který by mohl být
+  // stejným inzerátem nahozeným znovu pod novou URL.
+  private async findRelistedProperty(listing: RawListing): Promise<RelistCandidate | null> {
+    const cutoff = Date.now() - 120 * 24 * 60 * 60 * 1000;
+    const candidates = await db
+      .select({
+        id: properties.id,
+        portalName: properties.portalName,
+        title: properties.title,
+        address: properties.address,
+        rooms: properties.rooms,
+        area: properties.area,
+      })
+      .from(properties)
+      .where(and(eq(properties.portalName, listing.portalName), eq(properties.isActive, 0), gt(properties.lastSeen, cutoff)))
+      .limit(500);
+
+    for (const candidate of candidates) {
+      if (listingMatches(listing, candidate)) return candidate;
+    }
+    return null;
+  }
+
+  // Potvrdí odstraněné inzeráty, které už 7+ dní nejsou na portálu k vidění
+  // (status removed + removedAt). Pro leady v aktivní fázi zaloguje varování.
+  private async sweepRemovedListings(): Promise<number> {
+    const cutoff = Date.now() - REMOVAL_GRACE_MS;
+
+    const candidates = await db
+      .select({ id: properties.id, title: properties.title })
+      .from(properties)
+      .where(and(eq(properties.isActive, 0), eq(properties.status, PROPERTY_STATUS.ACTIVE), lte(properties.lastSeen, cutoff)));
+
+    if (candidates.length === 0) return 0;
+
+    await db
+      .update(properties)
+      .set({ status: PROPERTY_STATUS.REMOVED, removedAt: ts() })
+      .where(inArray(properties.id, candidates.map((c) => c.id)));
+
+    const titleById = new Map(candidates.map((c) => [c.id, c.title]));
+    const relatedLeads = await db
+      .select({ propertyId: leads.propertyId, stage: leads.stage })
+      .from(leads)
+      .where(inArray(leads.propertyId, candidates.map((c) => c.id)));
+
+    for (const lead of relatedLeads) {
+      if (lead.stage === "closed" || lead.stage === "lost") continue;
+      await db.insert(activityLog).values({
+        id: generateId(),
+        type: "scraping",
+        message: `Inzerat odstranen - pravdepodobne prodan: ${titleById.get(lead.propertyId)}`,
+        propertyId: lead.propertyId,
+        createdAt: ts(),
+      });
+    }
+
+    return candidates.length;
   }
 }

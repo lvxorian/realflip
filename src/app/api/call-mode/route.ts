@@ -36,6 +36,8 @@ export async function GET() {
         propertyImageUrls: properties.imageUrls,
         propertyUrl: properties.url,
         propertyPortal: properties.portalName,
+        propertyRemoved: properties.isActive,
+        propertyRemovedAt: properties.removedAt,
         analysisScore: propertyAnalysis.investmentScore,
         analysisNetProfit: propertyAnalysis.netProfit,
         analysisRoi: propertyAnalysis.roi,
@@ -73,7 +75,11 @@ export async function GET() {
         raw != null && typeof raw === "object"
           ? (raw as Record<string, unknown>)
           : safeJsonParse<Record<string, unknown>>(typeof raw === "string" ? raw : null, {});
-      return { ...row, stageData };
+      return {
+        ...row,
+        stageData,
+        propertyRemoved: row.propertyRemoved === 0,
+      };
     });
 
     return NextResponse.json(normalized);

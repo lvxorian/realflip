@@ -23,6 +23,7 @@ export const properties = sqliteTable("properties", {
   description: text("description"),
   imageUrls: text("image_urls").default("[]"),
   status: text("status").default("active").notNull(),
+  removedAt: integer("removed_at"),
   firstSeen: integer("first_seen").notNull(),
   lastSeen: integer("last_seen").notNull(),
   isActive: integer("is_active").default(1),

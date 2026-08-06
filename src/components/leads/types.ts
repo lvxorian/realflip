@@ -37,6 +37,9 @@ export interface LeadItem {
   propertyPortalName: string | null;
   propertyUrl: string | null;
   propertyImageUrl: string | null;
+  propertyRemoved: boolean;
+  propertyIsActive: boolean;
+  propertyRemovedAt: number | null;
   contactId: string | null;
   contactName: string | null;
   contactPhone: string | null;
