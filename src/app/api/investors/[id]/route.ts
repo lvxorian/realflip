@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { investors } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ts } from "@/lib/utils";
+import { deriveInvestorCredentials } from "@/lib/investor-credentials";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -40,9 +41,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { id } = await params;
     const body = await req.json();
 
+    const existing = await db
+      .select({ name: investors.name, portalEnabled: investors.portalEnabled })
+      .from(investors)
+      .where(eq(investors.id, id))
+      .limit(1)
+      .then((r) => r[0]);
+    if (!existing) {
+      return NextResponse.json({ error: "Investor not found" }, { status: 404 });
+    }
+
     const name = typeof body.name === "string" ? body.name.trim() : undefined;
     if (name !== undefined && !name) {
       return NextResponse.json({ error: "Jméno investora je povinné" }, { status: 400 });
+    }
+
+    const effectiveName = name ?? existing.name;
+    const effectivePortalEnabled =
+      body.portalEnabled !== undefined ? (body.portalEnabled ? 1 : 0) : existing.portalEnabled;
+    if (effectivePortalEnabled === 1 && !deriveInvestorCredentials(effectiveName).password) {
+      return NextResponse.json({ error: "Pro přístup k portálu zadejte jméno i příjmení investora" }, { status: 400 });
     }
 
     const patch: Record<string, string | number | null> = { updatedAt: ts() };
@@ -54,10 +72,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof body.budget === "number" && body.budget >= 0) patch.budget = Math.round(body.budget);
     if (body.budgetUnlimited !== undefined) patch.budgetUnlimited = body.budgetUnlimited ? 1 : 0;
     if (body.portalEnabled !== undefined) patch.portalEnabled = body.portalEnabled ? 1 : 0;
-    if (typeof body.portalPassword === "string" && body.portalPassword.trim()) {
-      const { hash } = await import("bcryptjs");
-      patch.portalPasswordHash = await hash(body.portalPassword, 10);
-    }
 
     await db.update(investors).set(patch).where(eq(investors.id, id));
 

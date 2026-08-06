@@ -10,7 +10,7 @@ import { House, Eye, EyeSlash, ArrowRight, LockSimple } from "@phosphor-icons/re
 
 export default function InvestorLoginPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -24,7 +24,7 @@ export default function InvestorLoginPage() {
     const res = await fetch("/api/investor-portal/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, password }),
+      body: JSON.stringify({ username, password }),
     });
 
     if (!res.ok) {
@@ -70,10 +70,10 @@ export default function InvestorLoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
-                label="Jméno"
-                placeholder="Váš investor"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                label="Přihlašovací jméno"
+                placeholder="např. jan"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 autoComplete="username"
               />

@@ -1,0 +1,1 @@
+ALTER TABLE "investors" DROP COLUMN IF EXISTS "portal_password_hash";

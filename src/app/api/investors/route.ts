@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { investors } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
+import { deriveInvestorCredentials } from "@/lib/investor-credentials";
 
 export async function GET() {
   try {
@@ -35,11 +36,9 @@ export async function POST(req: Request) {
     const budget = typeof body.budget === "number" && body.budget >= 0 ? Math.round(body.budget) : null;
     const budgetUnlimited = body.budgetUnlimited ? 1 : 0;
     const portalEnabled = body.portalEnabled ? 1 : 0;
-    const portalPassword = typeof body.portalPassword === "string" && body.portalPassword.trim() ? body.portalPassword.trim() : null;
-    const portalPasswordHash =
-      portalEnabled && portalPassword
-        ? await (await import("bcryptjs")).hash(portalPassword, 10)
-        : null;
+    if (portalEnabled && !deriveInvestorCredentials(name).password) {
+      return NextResponse.json({ error: "Pro přístup k portálu zadejte jméno i příjmení investora" }, { status: 400 });
+    }
     const now = ts();
 
     const id = generateId();
@@ -52,7 +51,6 @@ export async function POST(req: Request) {
       budget,
       budgetUnlimited,
       portalEnabled,
-      portalPasswordHash,
       notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,
       createdAt: now,
       updatedAt: now,

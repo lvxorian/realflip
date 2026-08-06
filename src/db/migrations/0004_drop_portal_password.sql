@@ -1,0 +1,1 @@
+ALTER TABLE `investors` DROP COLUMN `portal_password_hash`;

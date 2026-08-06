@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { investors } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { compare } from "bcryptjs";
 import { checkLoginRateLimit } from "@/lib/investor-portal";
 import { setInvestorSession } from "@/lib/investor-session";
+import { deriveInvestorCredentials } from "@/lib/investor-credentials";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -16,37 +16,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { name?: string; password?: string };
+  let body: { username?: string; password?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const name = (body.name ?? "").trim();
+  const username = (body.username ?? "").trim().toLowerCase();
   const password = typeof body.password === "string" ? body.password : "";
-  if (!name || !password) {
-    return NextResponse.json({ error: "Zadejte jméno a heslo." }, { status: 400 });
+  if (!username || !password) {
+    return NextResponse.json({ error: "Zadejte přihlašovací jméno a heslo." }, { status: 400 });
   }
 
-  const investorsList = await db
+  const enabledInvestors = await db
     .select()
     .from(investors)
-    .where(eq(investors.name, name))
-    .limit(1);
+    .where(eq(investors.portalEnabled, 1));
 
-  const investor = investorsList[0];
-  const enabled = investor && (investor.portalEnabled ?? 0) === 1;
-  const valid =
-    investor &&
-    enabled &&
-    !!investor.portalPasswordHash &&
-    (await compare(password, investor.portalPasswordHash));
+  const investor = enabledInvestors.find((i) => {
+    const creds = deriveInvestorCredentials(i.name);
+    return creds.username === username && creds.password === password;
+  });
 
-  if (!valid) {
+  if (!investor) {
     return NextResponse.json({ error: "Nesprávné přihlašovací údaje." }, { status: 401 });
   }
 
-  await setInvestorSession(investor!.id, investor!.name ?? name);
+  await setInvestorSession(investor.id, investor.name);
   return NextResponse.json({ ok: true });
 }

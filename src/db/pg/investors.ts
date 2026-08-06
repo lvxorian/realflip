@@ -9,7 +9,6 @@ export const investors = pgTable("investors", {
   budget: integer("budget"),
   budgetUnlimited: integer("budget_unlimited").default(0),
   portalEnabled: integer("portal_enabled").default(0),
-  portalPasswordHash: text("portal_password_hash"),
   notes: text("notes"),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),

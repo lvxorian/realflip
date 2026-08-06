@@ -9,7 +9,6 @@ export const investors = sqliteTable("investors", {
   budget: integer("budget"),
   budgetUnlimited: integer("budget_unlimited").default(0),
   portalEnabled: integer("portal_enabled").default(0),
-  portalPasswordHash: text("portal_password_hash"),
   notes: text("notes"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

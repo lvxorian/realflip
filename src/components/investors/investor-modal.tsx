@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Trash, Infinity as InfinityIcon, LockSimple, Key } from "@phosphor-icons/react";
+import { X, Check, Trash, Infinity as InfinityIcon, LockSimple, User, Password } from "@phosphor-icons/react";
+import { deriveInvestorCredentials } from "@/lib/investor-credentials";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -78,16 +79,22 @@ function InvestorModalForm({
   const [budget, setBudget] = useState(investor?.budget != null ? String(investor.budget) : "");
   const [budgetUnlimited, setBudgetUnlimited] = useState(!!investor?.budgetUnlimited);
   const [portalEnabled, setPortalEnabled] = useState(!!investor?.portalEnabled);
-  const [portalPassword, setPortalPassword] = useState("");
   const [notes, setNotes] = useState(investor?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
 
+  const creds = deriveInvestorCredentials(name);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
       setError("Zadejte jméno investora");
+      return;
+    }
+    const creds = deriveInvestorCredentials(name);
+    if (portalEnabled && !creds.password) {
+      setError("Pro přístup k portálu zadejte jméno i příjmení investora");
       return;
     }
     setSaving(true);
@@ -101,7 +108,6 @@ function InvestorModalForm({
         budget: budgetUnlimited ? null : budget.trim() ? parseInt(budget.replace(/\s/g, ""), 10) : null,
         budgetUnlimited: budgetUnlimited ? 1 : 0,
         portalEnabled: portalEnabled ? 1 : 0,
-        portalPassword: portalEnabled && portalPassword.trim() ? portalPassword.trim() : null,
         notes: notes.trim() || null,
       };
       const res = await fetch(
@@ -250,17 +256,28 @@ function InvestorModalForm({
               animate={{ opacity: 1, height: "auto" }}
               className="space-y-2"
             >
-              <Input
-                label="Heslo pro portál"
-                type="password"
-                placeholder={isEdit ? "Nechte prázdné pro zachování" : "Např. Investor2026"}
-                value={portalPassword}
-                onChange={(e) => setPortalPassword(e.target.value)}
-              />
-              <p className="text-xs text-muted flex items-start gap-1.5">
-                <Key size={12} weight="bold" className="shrink-0 mt-0.5" />
-                Investor se přihlásí na /investor jménem &quot;{name.trim() || "jméno"}&quot; a tímto heslem.
-              </p>
+              {creds.password ? (
+                <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
+                  <p className="text-xs text-muted flex items-center gap-1.5">
+                    <User size={12} weight="bold" className="shrink-0" />
+                    Přihlašovací jméno:
+                    <span className="font-mono font-semibold text-foreground">{creds.username}</span>
+                  </p>
+                  <p className="text-xs text-muted flex items-center gap-1.5">
+                    <Password size={12} weight="bold" className="shrink-0" />
+                    Heslo:
+                    <span className="font-mono font-semibold text-foreground">{creds.password}</span>
+                  </p>
+                  <p className="text-[11px] text-muted/80">
+                    Investor se přihlásí na /investor. Údaje se odvozují od jména — bez diakritiky, malými písmeny.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-danger flex items-start gap-1.5">
+                  <Password size={12} weight="bold" className="shrink-0 mt-0.5" />
+                  Pro zapnutí portálu je třeba jméno i příjmení — z nich se odvodí přihlašovací údaje.
+                </p>
+              )}
             </motion.div>
           )}
         </div>
