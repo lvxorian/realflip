@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads } from "@/db/schema";
+import { leads, notifications } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
 import { touchInvestorActivity } from "@/lib/investor-activity-actions";
+import { generateId, ts } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const session = await getInvestorSession();
@@ -27,7 +28,15 @@ export async function POST(req: NextRequest) {
   }
 
   const [lead] = await db
-    .select({ id: leads.id, stage: leads.stage, portalVisible: leads.portalVisible, portalStatus: leads.portalStatus, reservedById: leads.portalReservedInvestorId })
+    .select({
+      id: leads.id,
+      stage: leads.stage,
+      portalVisible: leads.portalVisible,
+      portalStatus: leads.portalStatus,
+      reservedById: leads.portalReservedInvestorId,
+      userId: leads.userId,
+      propertyId: leads.propertyId,
+    })
     .from(leads)
     .where(eq(leads.id, leadId))
     .limit(1);
@@ -44,6 +53,22 @@ export async function POST(req: NextRequest) {
       .update(leads)
       .set({ portalStatus: "reserved", portalReservedInvestorId: session.sub, updatedAt: Date.now() })
       .where(eq(leads.id, leadId));
+
+    try {
+      await db.insert(notifications).values({
+        id: generateId(),
+        userId: lead.userId,
+        title: "Rezervace v investor portálu",
+        message: `Investor rezervoval nemovitost ${lead.propertyId}.`,
+        type: "portal_reservation",
+        read: false,
+        data: JSON.stringify({ propertyId: lead.propertyId, leadId: lead.id }),
+        createdAt: ts(),
+      });
+    } catch {
+      // Do not block reservation on notification failure
+    }
+
     return NextResponse.json({ ok: true, status: "reserved" });
   }
 
