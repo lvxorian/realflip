@@ -21,13 +21,14 @@ describe("brickLogoSvg", () => {
     expect(brickLogoSvg(32, "brand")).toContain('fill="#10b981"');
   });
 
-  it("includes the B built from five isometric bricks", () => {
+  it("includes the clean isometric brick geometry", () => {
     const markup = brickInnerMarkup("light");
     const rects = markup.match(/<rect/g) ?? [];
     const paths = markup.match(/<path/g) ?? [];
-    expect(rects.length).toBe(5);
-    expect(paths.length).toBe(10);
-    expect(markup).toContain("M4 10 L20 10 L23 7 L7 7 Z");
-    expect(markup).toContain("M26 10 L42 10 L45 7 L29 7 Z");
+    expect(rects.length).toBe(1);
+    expect(paths.length).toBe(2);
+    expect(markup).toContain("M7.5 20 L31.5 20 L40.5 15 L16.5 15 Z");
+    expect(markup).toContain("M31.5 20 L40.5 15 L40.5 28 L31.5 33 Z");
+    expect(markup).toContain('width="24" height="13"');
   });
 });

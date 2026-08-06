@@ -1,7 +1,6 @@
-// Sdílená geometrie loga Brickon — písmeno B postavené z 5 izometrických
-// cihel (zdivo, prokládaná vazba): levá osa (3 cihly) + horní a dolní
-// pravostranný boulíček (2 cihly), uprostřed zářez. Jeden zdroj pravdy
-// pro e-mail, web i favicon. viewBox 0 0 48 48.
+// Sdílená geometrie loga Brickon — čistá izometrická cihla (přední,
+// horní a boční plocha, ostré hrany). Jeden zdroj pravdy pro e-mail
+// i web. viewBox 0 0 48 48.
 
 export type BrickTone = "light" | "brand";
 
@@ -33,32 +32,12 @@ const TONES: Record<BrickTone, BrickToneColors> = {
   },
 };
 
-interface BrickPos {
-  x: number;
-  y: number;
-}
-
-// Cihly tvořící písmeno B: levá osa (3 řady) + pravostranné boulíčky
-// (1. a 3. řada). Prostřední řada má jen osu → zářez uprostřed.
-const BRICKS: BrickPos[] = [
-  { x: 4, y: 10 },
-  { x: 4, y: 21.5 },
-  { x: 4, y: 33 },
-  { x: 26, y: 10 },
-  { x: 26, y: 33 },
-];
-
-function brickMarkup(b: BrickPos, t: BrickToneColors): string {
-  const { x, y } = b;
-  return `
-  <path d="M${x} ${y} L${x + 16} ${y} L${x + 19} ${y - 3} L${x + 3} ${y - 3} Z" fill="${t.top}" opacity="${t.topOpacity}"/>
-  <path d="M${x + 16} ${y} L${x + 19} ${y - 3} L${x + 19} ${y + 6} L${x + 16} ${y + 9} Z" fill="${t.right}" opacity="${t.rightOpacity}"/>
-  <rect x="${x}" y="${y}" width="16" height="9" fill="${t.front}" opacity="${t.frontOpacity}"/>`;
-}
-
 export function brickInnerMarkup(tone: BrickTone = "light"): string {
   const t = TONES[tone];
-  return BRICKS.map((b) => brickMarkup(b, t)).join("");
+  return `
+  <path d="M7.5 20 L31.5 20 L40.5 15 L16.5 15 Z" fill="${t.top}" opacity="${t.topOpacity}"/>
+  <path d="M31.5 20 L40.5 15 L40.5 28 L31.5 33 Z" fill="${t.right}" opacity="${t.rightOpacity}"/>
+  <rect x="7.5" y="20" width="24" height="13" fill="${t.front}" opacity="${t.frontOpacity}"/>`;
 }
 
 export function brickLogoSvg(size: number, tone: BrickTone = "light"): string {
