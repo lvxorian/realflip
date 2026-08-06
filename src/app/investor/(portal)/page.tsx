@@ -130,7 +130,10 @@ export default function InvestorPortalPage() {
               <BrickonLogo size={28} tone="brand" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold tracking-tight leading-none">{INVESTOR_BRAND} · Portál investorů</p>
+              <p className="text-lg font-semibold tracking-tight leading-none">
+                <span className="uppercase">{INVESTOR_BRAND}</span>
+                <span className="font-normal text-muted"> · Portál investorů</span>
+              </p>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-[11px] text-muted truncate">
                   {data?.investorName ?? "Přihlášený investor"}

@@ -46,7 +46,7 @@ export default function InvestorLoginPage() {
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/20 border border-accent/30">
             <BrickonLogo size={48} tone="light" />
           </div>
-          <h2 className="text-2xl font-semibold tracking-tight mb-3">{INVESTOR_BRAND}</h2>
+          <h2 className="text-3xl font-semibold tracking-tight uppercase mb-3">{INVESTOR_BRAND}</h2>
           <p className="text-muted text-sm leading-relaxed">
             Soukromý přístup k prověřeným nabídkám. Vyjednané ceny pod trhem, analýza zisku
             a návratnosti — bez hluku veřejných inzerátů.
@@ -75,7 +75,7 @@ export default function InvestorLoginPage() {
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 border border-accent/20">
                 <LockSimple size={24} weight="fill" className="text-accent" />
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight">{INVESTOR_BRAND}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight uppercase">{INVESTOR_BRAND}</h1>
               <p className="text-sm text-muted mt-1">Váš soukromý přístup k nabídkám</p>
             </div>
 

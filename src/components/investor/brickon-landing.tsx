@@ -34,7 +34,7 @@ export default function BrickonLanding() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 border border-accent/25 shadow-[0_0_18px_rgba(16,185,129,0.18)]">
               <BrickonLogo size={30} tone="brand" />
             </div>
-            <p className="text-sm font-semibold tracking-tight">{INVESTOR_BRAND}</p>
+            <p className="text-lg font-semibold tracking-tight uppercase leading-none">{INVESTOR_BRAND}</p>
             <div className="flex-1" />
             <Link
               href="/investor/login"
@@ -226,7 +226,7 @@ export default function BrickonLanding() {
 
         <footer className="border-t border-border/40 py-8">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 sm:flex-row sm:justify-between sm:px-6">
-            <p className="text-sm font-semibold tracking-tight">{INVESTOR_BRAND}</p>
+            <p className="text-sm font-semibold tracking-tight uppercase">{INVESTOR_BRAND}</p>
             <p className="text-xs text-muted">{INVESTOR_BRAND} · Soukromý investorský portál · © {new Date().getFullYear()}</p>
           </div>
         </footer>

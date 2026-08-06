@@ -65,7 +65,7 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
                 <tr>
                   <td style="vertical-align:middle;padding-right:12px;">${brickLogoSvg(34, "light")}</td>
                   <td style="vertical-align:middle;">
-                    <p style="margin:0;font-size:18px;font-weight:600;color:#ffffff;">${escapeHtml(INVESTOR_BRAND)} · Nová nabídka</p>
+                    <p style="margin:0;font-size:18px;font-weight:600;color:#ffffff;">${escapeHtml(INVESTOR_BRAND).toUpperCase()} · Nová nabídka</p>
                     <p style="margin:6px 0 0;font-size:12px;color:${T.accentSoft};">Soukromá nabídka — prověřená příležitost s vyjednanou cenou</p>
                   </td>
                 </tr>
