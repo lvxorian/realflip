@@ -6,7 +6,7 @@ import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/ui/badge";
 import { formatInvestorBudget } from "@/lib/investors";
 import { EditInvestorButton } from "@/components/investors/edit-investor-button";
-import { ArrowLeft, Phone, Envelope, MapPin, Infinity as InfinityIcon, Folder } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, Phone, Envelope, MapPin, Infinity as InfinityIcon, Folder, LockSimple } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +67,12 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
                   {formatInvestorBudget(investor.budget, investor.budgetUnlimited)}
                 </Badge>
               )}
+              {(investor.portalEnabled ?? 0) === 1 && (
+                <Badge variant="secondary" size="sm" className="gap-1 border-accent/30 text-accent">
+                  <LockSimple size={11} weight="bold" />
+                  Portál: přihlášení jménem {investor.name}
+                </Badge>
+              )}
               {investor.city && (
                 <span className="text-xs text-muted flex items-center gap-1">
                   <MapPin size={12} weight="bold" />
@@ -83,6 +89,7 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
             email: investor.email,
             budget: investor.budget,
             budgetUnlimited: investor.budgetUnlimited,
+            portalEnabled: investor.portalEnabled,
             notes: investor.notes,
           }} />
         </div>

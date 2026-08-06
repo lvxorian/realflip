@@ -119,11 +119,12 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 
 ## Investoři (Investor DB)
 - Route `/investors` (seznam karet) + `/investors/[id]` (detail: kontakt, budget, projekty). Menu položka "Investoři" (HandCoins) mezi Kontakty a Portfolio.
-- DB `investors` (SQLite `src/db/schema/investors.ts` + PG `src/db/pg/investors.ts`): id, name, city, phone, email, budget (integer Kč), budgetUnlimited (0/1), notes, createdAt/updatedAt. Migrace `0008_investors.sql` (PG ručně SQL).
+- DB `investors` (SQLite `src/db/schema/investors.ts` + PG `src/db/pg/investors.ts`): id, name, city, phone, email, budget (integer Kč), budgetUnlimited (0/1), portalEnabled (0/1), portalPasswordHash (bcrypt), notes, createdAt/updatedAt. Migrace `0008_investors.sql` (PG ručně SQL) + `0013_investor_portal.sql`.
 - `deals.investor_id` → investors.id (FK set null). **null = "Sám financuji"** (self-funded).
 - API: `GET/POST /api/investors`, `GET/PATCH/DELETE /api/investors/[id]`, `PATCH /api/deals/[id]` (změna investora).
 - Výběr investora při převodu leadu → deal (`/api/leads/[id]/convert` + select v lead-drawer; výchozí "Sám financuji"). Portfolio karta + detail zobrazují investora (badge / karta s budgetem + `InvestorSelector`).
 - `src/lib/investors.ts`: `formatInvestorBudget` (Neomezeno / mil./tis. Kč / Neuveden), `budgetCovers`.
+- **Investorský portál** (`/investor`, client pages mimo `(dashboard)`): vlastní HMAC cookie session (`src/lib/investor-session.ts`, NEPOUŽÍVÁ NextAuth — investoři nesmí do dashboardu). Přihlášení jménem + heslem (`investors.portal_enabled` / `portal_password_hash` bcrypt). API `/api/investor-portal/login|logout|properties|reserve`. Bílá listina polí dána v `src/lib/investor-portal-view.ts` — nikdy adresa/fotky/GPS/URL/kontakt; zisk z `leads.stage === "negotiation"` + `portal_visible=1`; „navržená cena" = `stageData.negotiation.currentAmount` fallback `targetPurchasePrice`. Rezervace: `leads.portal_status` (`available`/`reserved`) + `leads.portal_reserved_investor_id` FK investors. Admin: panel `src/components/leads/portal-panel.tsx` na detailu nemovitosti, portal sekce v `investor-modal.tsx`, PATCH `/api/leads/[id]/portal`, PATCH/POST `/api/investors*` (bcrypt hash). Migrace `scripts/migrate-investor-portal.ts` (SQLite + Neon direct non-pooler, `0003_investor_portal.sql` + `0013_investor_portal.sql`).
 
 ## Lokalitní inteligence (Locality Intelligence)
 - Modul `src/lib/locality/`: reálná data z ČSÚ, PČR a sreality. **Žádná vymyšlená čísla — chybějící data = null/0, nikdy odhad.**

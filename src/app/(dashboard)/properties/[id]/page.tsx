@@ -18,6 +18,7 @@ import { EditableCondition } from "@/components/properties/editable-condition";
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
+import { PortalPanel } from "@/components/leads/portal-panel";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -98,7 +99,13 @@ export default async function PropertyDetailPage({
 
   const session = await auth();
   let isFavorited = false;
-  let pipelineLead: { stage: string } | null = null;
+  let pipelineLead: {
+    id: string;
+    stage: string;
+    portalVisible: number | null;
+    portalStatus: string | null;
+    portalReservedInvestorId: string | null;
+  } | null = null;
   if (session?.user?.id) {
     const fav = await db
       .select()
@@ -114,7 +121,13 @@ export default async function PropertyDetailPage({
     isFavorited = !!fav;
 
     pipelineLead = await db
-      .select({ stage: leads.stage })
+      .select({
+        id: leads.id,
+        stage: leads.stage,
+        portalVisible: leads.portalVisible,
+        portalStatus: leads.portalStatus,
+        portalReservedInvestorId: leads.portalReservedInvestorId,
+      })
       .from(leads)
       .where(
         and(
@@ -352,6 +365,15 @@ export default async function PropertyDetailPage({
             </div>
           ) : (
             <InitiateButton propertyId={id} />
+          )}
+
+          {/* Investorský portál */}
+          {pipelineLead && (
+            <PortalPanel
+              leadId={pipelineLead.id}
+              initialVisible={(pipelineLead.portalVisible ?? 1) === 1}
+              initialReservedInvestorId={pipelineLead.portalReservedInvestorId}
+            />
           )}
 
           {/* Lokalitní inteligence */}

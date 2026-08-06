@@ -53,6 +53,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof body.notes === "string") patch.notes = body.notes.trim() || null;
     if (typeof body.budget === "number" && body.budget >= 0) patch.budget = Math.round(body.budget);
     if (body.budgetUnlimited !== undefined) patch.budgetUnlimited = body.budgetUnlimited ? 1 : 0;
+    if (body.portalEnabled !== undefined) patch.portalEnabled = body.portalEnabled ? 1 : 0;
+    if (typeof body.portalPassword === "string" && body.portalPassword.trim()) {
+      const { hash } = await import("bcryptjs");
+      patch.portalPasswordHash = await hash(body.portalPassword, 10);
+    }
 
     await db.update(investors).set(patch).where(eq(investors.id, id));
 

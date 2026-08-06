@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Trash, Infinity as InfinityIcon } from "@phosphor-icons/react";
+import { X, Check, Trash, Infinity as InfinityIcon, LockSimple, Key } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ export interface InvestorFormValue {
   email: string | null;
   budget: number | null;
   budgetUnlimited: number | null;
+  portalEnabled?: number | null;
   notes: string | null;
 }
 
@@ -76,6 +77,8 @@ function InvestorModalForm({
   const [email, setEmail] = useState(investor?.email ?? "");
   const [budget, setBudget] = useState(investor?.budget != null ? String(investor.budget) : "");
   const [budgetUnlimited, setBudgetUnlimited] = useState(!!investor?.budgetUnlimited);
+  const [portalEnabled, setPortalEnabled] = useState(!!investor?.portalEnabled);
+  const [portalPassword, setPortalPassword] = useState("");
   const [notes, setNotes] = useState(investor?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -97,6 +100,8 @@ function InvestorModalForm({
         email: email.trim() || null,
         budget: budgetUnlimited ? null : budget.trim() ? parseInt(budget.replace(/\s/g, ""), 10) : null,
         budgetUnlimited: budgetUnlimited ? 1 : 0,
+        portalEnabled: portalEnabled ? 1 : 0,
+        portalPassword: portalEnabled && portalPassword.trim() ? portalPassword.trim() : null,
         notes: notes.trim() || null,
       };
       const res = await fetch(
@@ -121,6 +126,7 @@ function InvestorModalForm({
         email: payload.email,
         budget: payload.budget,
         budgetUnlimited: payload.budgetUnlimited,
+        portalEnabled: payload.portalEnabled,
         notes: payload.notes,
       };
       onSaved(saved);
@@ -217,6 +223,45 @@ function InvestorModalForm({
           />
           {budgetUnlimited && (
             <p className="text-xs text-muted">Investor nemá horní limit — budget se nehlídá.</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border/50 bg-card-hover/30 p-4 space-y-3">
+          <button
+            type="button"
+            onClick={() => setPortalEnabled(!portalEnabled)}
+            className="w-full flex items-center justify-between gap-3"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-foreground/80">
+              <LockSimple size={16} weight="bold" className={portalEnabled ? "text-accent" : "text-muted"} />
+              Přístup k portálu investorů
+            </span>
+            <span
+              className={`flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition-colors ${
+                portalEnabled ? "justify-end bg-accent/30 border-accent/40" : "justify-start bg-card border-border"
+              }`}
+            >
+              <span className={`h-5 w-5 rounded-full transition-colors ${portalEnabled ? "bg-accent" : "bg-muted/40"}`} />
+            </span>
+          </button>
+          {portalEnabled && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="space-y-2"
+            >
+              <Input
+                label="Heslo pro portál"
+                type="password"
+                placeholder={isEdit ? "Nechte prázdné pro zachování" : "Např. Investor2026"}
+                value={portalPassword}
+                onChange={(e) => setPortalPassword(e.target.value)}
+              />
+              <p className="text-xs text-muted flex items-start gap-1.5">
+                <Key size={12} weight="bold" className="shrink-0 mt-0.5" />
+                Investor se přihlásí na /investor jménem &quot;{name.trim() || "jméno"}&quot; a tímto heslem.
+              </p>
+            </motion.div>
           )}
         </div>
 

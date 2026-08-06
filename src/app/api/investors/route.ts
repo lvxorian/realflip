@@ -34,6 +34,12 @@ export async function POST(req: Request) {
 
     const budget = typeof body.budget === "number" && body.budget >= 0 ? Math.round(body.budget) : null;
     const budgetUnlimited = body.budgetUnlimited ? 1 : 0;
+    const portalEnabled = body.portalEnabled ? 1 : 0;
+    const portalPassword = typeof body.portalPassword === "string" && body.portalPassword.trim() ? body.portalPassword.trim() : null;
+    const portalPasswordHash =
+      portalEnabled && portalPassword
+        ? await (await import("bcryptjs")).hash(portalPassword, 10)
+        : null;
     const now = ts();
 
     const id = generateId();
@@ -45,12 +51,14 @@ export async function POST(req: Request) {
       email: typeof body.email === "string" && body.email.trim() ? body.email.trim() : null,
       budget,
       budgetUnlimited,
+      portalEnabled,
+      portalPasswordHash,
       notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,
       createdAt: now,
       updatedAt: now,
     });
 
-    return NextResponse.json({ id, name, city: null, phone: null, email: null, budget, budgetUnlimited, notes: null, createdAt: now, updatedAt: now }, { status: 201 });
+    return NextResponse.json({ id, name, city: null, phone: null, email: null, budget, budgetUnlimited, portalEnabled, notes: null, createdAt: now, updatedAt: now }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

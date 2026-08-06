@@ -1,6 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { properties } from "./properties";
 import { users } from "./users";
+import { investors } from "./investors";
 
 export const leads = sqliteTable("leads", {
   id: text("id").primaryKey(),
@@ -16,6 +17,9 @@ export const leads = sqliteTable("leads", {
   notes: text("notes"),
   assignedTo: text("assigned_to"),
   stageData: text("stage_data").default("{}"),
+  portalVisible: integer("portal_visible").default(1),
+  portalStatus: text("portal_status").default("available"),
+  portalReservedInvestorId: text("portal_reserved_investor_id").references(() => investors.id, { onDelete: "set null" }),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });

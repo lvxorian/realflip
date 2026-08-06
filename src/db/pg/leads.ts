@@ -1,6 +1,7 @@
 ﻿import { pgTable, text, integer, bigint, jsonb } from "drizzle-orm/pg-core";
 import { properties } from "./properties";
 import { users } from "./users";
+import { investors } from "./investors";
 
 export const leads = pgTable("leads", {
   id: text("id").primaryKey(),
@@ -16,6 +17,9 @@ export const leads = pgTable("leads", {
   notes: text("notes"),
   assignedTo: text("assigned_to"),
   stageData: jsonb("stage_data").default({}),
+  portalVisible: integer("portal_visible").default(1),
+  portalStatus: text("portal_status").default("available"),
+  portalReservedInvestorId: text("portal_reserved_investor_id").references(() => investors.id, { onDelete: "set null" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
 });

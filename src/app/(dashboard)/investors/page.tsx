@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MagnifyingGlass, Plus, Phone, Envelope, MapPin, Infinity as InfinityIcon } from "@phosphor-icons/react";
+import { MagnifyingGlass, Plus, Phone, Envelope, MapPin, Infinity as InfinityIcon, LockSimple } from "@phosphor-icons/react";
 import Link from "next/link";
 import { InvestorModal, type InvestorFormValue } from "@/components/investors/investor-modal";
 import { formatInvestorBudget } from "@/lib/investors";
@@ -109,6 +109,12 @@ export default function InvestorsPage() {
                       ) : (
                         <Badge variant="secondary" size="sm" className="mt-1">
                           {formatInvestorBudget(i.budget, i.budgetUnlimited)}
+                        </Badge>
+                      )}
+                      {!!i.portalEnabled && (
+                        <Badge variant="secondary" size="sm" className="mt-1 ml-1 gap-1 border-accent/30 text-accent">
+                          <LockSimple size={11} weight="bold" />
+                          Portál
                         </Badge>
                       )}
                     </div>
