@@ -35,9 +35,9 @@ const TONES: Record<BrickTone, BrickToneColors> = {
 export function brickInnerMarkup(tone: BrickTone = "light"): string {
   const t = TONES[tone];
   return `
-  <path d="M10 31 L30 31 L39 26 L19 26 Z" fill="${t.top}" opacity="${t.topOpacity}"/>
-  <path d="M30 31 L39 26 L39 37 L30 42 Z" fill="${t.right}" opacity="${t.rightOpacity}"/>
-  <rect x="10" y="31" width="20" height="11" fill="${t.front}" opacity="${t.frontOpacity}"/>`;
+  <path d="M10 21 L30 21 L39 16 L19 16 Z" fill="${t.top}" opacity="${t.topOpacity}"/>
+  <path d="M30 21 L39 16 L39 27 L30 32 Z" fill="${t.right}" opacity="${t.rightOpacity}"/>
+  <rect x="10" y="21" width="20" height="11" fill="${t.front}" opacity="${t.frontOpacity}"/>`;
 }
 
 export function brickLogoSvg(size: number, tone: BrickTone = "light"): string {

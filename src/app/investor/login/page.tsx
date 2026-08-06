@@ -44,7 +44,7 @@ export default function InvestorLoginPage() {
         <div className="absolute inset-0 property-image-shimmer opacity-40" />
         <div className="relative text-center max-w-md px-8">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/20 border border-accent/30">
-            <BrickonLogo size={44} tone="light" />
+            <BrickonLogo size={48} tone="light" />
           </div>
           <h2 className="text-2xl font-semibold tracking-tight mb-3">{INVESTOR_BRAND}</h2>
           <p className="text-muted text-sm leading-relaxed">

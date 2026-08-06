@@ -23,8 +23,8 @@ describe("brickLogoSvg", () => {
 
   it("includes the clean isometric brick geometry", () => {
     const markup = brickInnerMarkup("light");
-    expect(markup).toContain("M10 31 L30 31 L39 26 L19 26 Z");
-    expect(markup).toContain("M30 31 L39 26 L39 37 L30 42 Z");
+    expect(markup).toContain("M10 21 L30 21 L39 16 L19 16 Z");
+    expect(markup).toContain("M30 21 L39 16 L39 27 L30 32 Z");
     expect(markup).toContain('width="20" height="11"');
   });
 });

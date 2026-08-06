@@ -31,8 +31,8 @@ export default function BrickonLanding() {
       <div className="bg-grid min-h-[100dvh]">
         <header className="sticky top-0 z-20 border-b border-border/60 bg-card/80 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 border border-accent/25">
-              <BrickonLogo size={24} tone="brand" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 border border-accent/25 shadow-[0_0_18px_rgba(16,185,129,0.18)]">
+              <BrickonLogo size={30} tone="brand" />
             </div>
             <p className="text-sm font-semibold tracking-tight">{INVESTOR_BRAND}</p>
             <div className="flex-1" />
@@ -202,8 +202,8 @@ export default function BrickonLanding() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
               >
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/15 border border-accent/30">
-                  <BrickonLogo size={44} tone="light" />
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-accent/15 border border-accent/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+                  <BrickonLogo size={52} tone="light" />
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Připraveni k první nabídce?</h2>
                 <p className="mt-3 text-sm text-muted">
