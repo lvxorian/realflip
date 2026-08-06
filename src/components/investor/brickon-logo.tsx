@@ -1,25 +1,19 @@
-"use client";
-
-import { brickInnerMarkup, type BrickTone } from "@/lib/investor-brick";
+﻿"use client";
 
 interface BrickonLogoProps {
   size?: number;
-  tone?: BrickTone;
+  tone?: "light" | "brand";
   className?: string;
 }
 
-export function BrickonLogo({ size = 28, tone = "light", className }: BrickonLogoProps) {
+export function BrickonLogo({ size = 28, tone = "light", className }: { size?: number; tone?: "light" | "brand"; className?: string }) {
   return (
-    <svg
+    <img
+      src="/brickon.png"
+      alt="Brickon"
       width={size}
       height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      role="img"
-      aria-label="Brickon"
-      data-logo="brickon"
-      className={className}
-      dangerouslySetInnerHTML={{ __html: brickInnerMarkup(tone) }}
+      style={{ objectFit: "contain" }}
     />
   );
 }

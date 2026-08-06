@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
       "scraping",
       "analýza trhu",
     ],
-    ...(investorOnly ? { icons: { icon: "/brickon.svg" } } : {}),
+    ...(investorOnly ? { icons: { icon: "/brickon.png" } } : {}),
   };
 }
 
@@ -40,3 +40,4 @@ export default function RootLayout({
     </html>
   );
 }
+
