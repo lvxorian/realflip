@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, notifications } from "@/db/schema";
+import { investors, leads, notifications, properties } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
@@ -36,8 +36,11 @@ export async function POST(req: NextRequest) {
       reservedById: leads.portalReservedInvestorId,
       userId: leads.userId,
       propertyId: leads.propertyId,
+      propertyTitle: properties.title,
+      propertyAddress: properties.address,
     })
     .from(leads)
+    .leftJoin(properties, eq(leads.propertyId, properties.id))
     .where(eq(leads.id, leadId))
     .limit(1);
 
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest) {
         id: generateId(),
         userId: lead.userId,
         title: "Rezervace v investor portálu",
-        message: `Investor rezervoval nemovitost ${lead.propertyId}.`,
+        message: `Investor ${session.name} rezervoval nemovitost ${lead.propertyTitle ?? lead.propertyId}${lead.propertyAddress ? `, ${lead.propertyAddress}` : ""}.`,
         type: "portal_reservation",
         read: false,
         data: JSON.stringify({ propertyId: lead.propertyId, leadId: lead.id }),
