@@ -62,13 +62,13 @@ export default function BrickonLanding() {
                   variants={item}
                   className="mt-5 text-4xl sm:text-5xl font-semibold tracking-tight leading-[1.1]"
                 >
-                  Skenujeme trh 24/7 a přinášíme
+                  Brickon hledá nabídky bez zbytečného čekání
                   <br />
-                  <span className="text-accent">nejrychlejší investiční příležitosti.</span>
+                  <span className="text-accent">a připravuje je pro investory v reálném čase.</span>
                 </motion.h1>
                 <motion.p variants={item} className="mt-5 max-w-lg text-muted leading-relaxed">
-                  Hledáme a hodnotíme nabídky nonstop, voláme investorům ihned po — nebo i před — jejich zveřejněním.
-                  Vyjednáváme ceny z inzerce, připravujeme reporty s očekávaným výnosem a stavíme na vlastní realizační partě.
+                  Monitorujeme trh nepřetržitě, oslovujeme nabídky ihned a budujeme obchodní cestu ke každé zajímavé nemovitosti.
+                  Dodáváme investorům jasné rozbory, cenové varianty a plán dalšího postupu.
                 </motion.p>
                 <motion.div variants={item} className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
@@ -141,8 +141,8 @@ export default function BrickonLanding() {
               className="mt-16 grid gap-2 sm:grid-cols-3"
             >
               {[
-                "24/7 tržní sken a rychlé upozornění",
-                "Vyjednáváme ceny z inzerce a off-market signály",
+                "Nepřetržitě sledujeme trh a nové signály",
+                "Vyjednáváme cenu z inzerce i nabídky mimo veřejný trh",
                 "Reporty se ziskem, ROI a dalším postupem",
               ].map((text) => (
                 <div
@@ -166,7 +166,7 @@ export default function BrickonLanding() {
                 className="text-center"
               >
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Jak to funguje</h2>
-                <p className="mt-2 text-sm text-muted">Od výběru nemovitosti po vaši rezervaci.</p>
+                <p className="mt-2 text-sm text-muted">Od prvního signálu po první rezervaci a návrh dalšího kroku.</p>
               </motion.div>
               <motion.div
                 initial="hidden"
@@ -176,10 +176,10 @@ export default function BrickonLanding() {
                 className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
               >
                 {[
-                  { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Sken trhu 24/7", text: "Nepřetržitě sledujeme inzerci i nové signály, abychom našli silné příležitosti dřív než ostatní." },
-                  { icon: <Gavel size={20} weight="bold" />, title: "Vyjednání ceny", text: "Voláme, vyjednáváme a srážíme cenu z inzerce — tak, aby investice měla reálnou rezervu." },
-                  { icon: <ChartLineUp size={20} weight="bold" />, title: "Reporty s výnosem", text: "Doručujeme snadno čitelný report s očekávaným ziskem, ROI a dalším plánem projektu." },
-                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Realizace s vlastní partou", text: "Máme svoji stavební partu a připravíme kompletní projekt od nákupu po rekonstrukci a prodej." },
+                  { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Skenujeme trh nonstop", text: "Sledujeme inzerci i nové signály a identifikujeme nabídky se ziskovým potenciálem." },
+                  { icon: <Gavel size={20} weight="bold" />, title: "Vyjednáváme obchod", text: "Osobně řešíme cenu a hledáme podmínky, které udržují rezervu pro investora." },
+                  { icon: <ChartLineUp size={20} weight="bold" />, title: "Dodáváme jasný report", text: "Připravujeme přehled s odhadem zisku, výnosem a dalším krokem k rozhodnutí." },
+                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Náš tým staví projekt", text: "Postaráme se o nákup a realizaci, včetně stavebního zajištění a dalšího rozvoje." },
                 ].map((step, i) => (
                   <motion.div
                     key={step.title}
@@ -220,11 +220,13 @@ export default function BrickonLanding() {
                 {[
                   {
                     title: "50/50",
-                    text: "Investor hradí kompletní náklady, my zařizujeme nákup, report, rekonstrukci a prodej. Zisk dělíme napůl.",
+                    icon: <HandCoins size={20} weight="bold" />,
+                    text: "Investor platí náklady, my zajišťujeme nákup, report a realizaci. Zisk dělíme rovnoměrně.",
                   },
                   {
                     title: "Sourcing fee",
-                    text: "Najdeme a vyjednáme obchod, investor pak řeší rekonstrukci nebo pronájem samostatně. My bereme pouze provizi za deal.",
+                    icon: <ChartLineUp size={20} weight="bold" />,
+                    text: "Najdeme a vyjednáme obchod pro investora, který chce samostatně řešit rekonstrukci nebo pronájem.",
                   },
                 ].map((plan) => (
                   <motion.div
@@ -232,7 +234,10 @@ export default function BrickonLanding() {
                     variants={item}
                     className="rounded-2xl border border-border/50 bg-card p-6"
                   >
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">{plan.title}</p>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 border border-accent/25 text-accent">
+                      {plan.icon}
+                    </div>
+                    <p className="mt-4 text-xs font-medium uppercase tracking-[0.2em] text-muted">{plan.title}</p>
                     <p className="mt-3 text-sm leading-relaxed text-foreground/90">{plan.text}</p>
                   </motion.div>
                 ))}
