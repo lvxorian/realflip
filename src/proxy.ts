@@ -5,7 +5,11 @@ const INVESTOR_ONLY = process.env.INVESTOR_ONLY === "1";
 const INVESTOR_PORTAL_URL = process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "");
 
 function isInvestorPath(pathname: string): boolean {
-  return pathname.startsWith("/investor") || pathname.startsWith("/api/investor-portal");
+  return (
+    pathname === "/investor" ||
+    pathname.startsWith("/investor/") ||
+    pathname.startsWith("/api/investor-portal")
+  );
 }
 
 export default auth((req) => {
@@ -23,12 +27,17 @@ export default auth((req) => {
   }
 
   // Hlavní aplikace (RealFlip): investorský portál žije na Brickonu.
-  // Stránky přesměrujeme na portálovou URL, API portálu zde vrací 404.
+  // S nastavenou portálovou URL stránky přesměrujeme a API portálu zde
+  // vrací 404. Bez nakonfigurované URL (lokální vývoj) portál funguje
+  // i na hlavní instanci — nic se nerozbije.
   if (isInvestorPath(pathname)) {
-    if (pathname.startsWith("/investor") && INVESTOR_PORTAL_URL) {
-      return NextResponse.redirect(`${INVESTOR_PORTAL_URL}${pathname}`);
+    if (INVESTOR_PORTAL_URL) {
+      if (pathname.startsWith("/investor")) {
+        return NextResponse.redirect(`${INVESTOR_PORTAL_URL}${pathname}`);
+      }
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return;
   }
 
   const isLoggedIn = !!req.auth;
