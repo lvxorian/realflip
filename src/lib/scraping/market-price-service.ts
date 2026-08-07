@@ -110,6 +110,21 @@ function fromCacheEntry(e: CachedEntry): MarketRangeResult {
   };
 }
 
+/**
+ * Cache segment rozšířený o hrubý GPS bucket (0,5° ≈ 40–55 km), když máme souřadnice.
+ * Okruhové výsledky (5–10 km) pak nesdílí klíč s celoměstskými — jinak by
+ * pořadí volání určovalo, jestli odhad dostane městský nebo lokální medián
+ * (nestabilita: stejný byt ≠ stejný výsledek napříč runy).
+ */
+function cacheSegment(ctx: PropertyMarketContext, segment: string): string {
+  if (ctx.lat != null && ctx.lng != null) {
+    const latB = Math.round(ctx.lat * 2) / 2;
+    const lngB = Math.round(ctx.lng * 2) / 2;
+    return `${segment}__g${latB}x${lngB}`;
+  }
+  return segment;
+}
+
 function cacheKey(city: string, segment: string): string {
   return `${city}__${segment}`;
 }
@@ -447,13 +462,14 @@ function cacheResult(result: MarketRangeResult, cityKey: string, segment: string
 
 export async function getPropertyMarketRange(ctx: PropertyMarketContext, force = false): Promise<MarketRangeResult | null> {
   const segment = segmentOf(ctx.condition, ctx.buildingType);
-  const key = cacheKey(ctx.cityKey, segment);
+  const seg = cacheSegment(ctx, segment);
+  const key = cacheKey(ctx.cityKey, seg);
 
   if (!force) {
     const mem = memCache.get(key);
     if (mem && Date.now() - mem.fetchedAt < MEMORY_TTL_MS) return fromCacheEntry(mem);
 
-    const dbCached = await readFromDbCache(ctx.cityKey, segment);
+    const dbCached = await readFromDbCache(ctx.cityKey, seg);
     if (dbCached && Date.now() - dbCached.fetchedAt < DB_TTL_MS) {
       memCache.set(key, dbCached);
       return fromCacheEntry(dbCached);
@@ -464,7 +480,7 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
   try {
     const dbStats = await fetchCompsForContext(ctx);
     if (dbStats) {
-      cacheResult(dbStats, ctx.cityKey, segment);
+      cacheResult(dbStats, ctx.cityKey, seg);
       return dbStats;
     }
   } catch {
@@ -491,10 +507,10 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
   }
 
   // Tier 4: fixní MARKET_DATA — konkrétní segment nemovitosti
-  const seg = marketDataFallback(ctx.cityKey, segment, ctx.category);
-  if (seg) {
-    cacheResult(seg, ctx.cityKey, segment);
-    return seg;
+  const md = marketDataFallback(ctx.cityKey, segment, ctx.category);
+  if (md) {
+    cacheResult(md, ctx.cityKey, seg);
+    return md;
   }
 
   // Tier 5: hardcoded fallback — poslední záchrana
@@ -506,7 +522,7 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
     source: "fallback",
     sampleSize: 0,
   };
-  cacheResult(result, ctx.cityKey, segment);
+  cacheResult(result, ctx.cityKey, seg);
   return result;
 }
 

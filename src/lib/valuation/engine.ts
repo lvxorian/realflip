@@ -48,11 +48,36 @@ function confidenceLabel(score: number): ConfidenceLabel {
   return "Nízká";
 }
 
-/** Úprava Kč/m² podle plochy — menší jednotky jsou na m² dražší. */
+/**
+ * Úprava Kč/m² podle plochy — menší jednotky jsou na m² dražší (realistická křivka
+ * českého trhu: 1+kk ~35 m² ≈ +15 %, 4+kk ~100 m² ≈ −12 %). Exponenciální model
+ * s exponentem 0,25 a clampem 0,7–1,3.
+ */
 export function areaSizeFactor(area: number | null | undefined): number {
   if (!area || area <= 0) return 1;
-  const f = Math.pow(60 / area, 0.1);
-  return Math.min(1.15, Math.max(0.85, f));
+  const f = Math.pow(60 / area, 0.25);
+  return Math.min(1.3, Math.max(0.7, f));
+}
+
+/**
+ * Úprava podle patra — přízemí a 1. patro (bez výtahu) jsou mírně levnější.
+ * Bez znalosti celkového počtu pater nelze top-floor detekovat, proto jen konzervativní srážky.
+ */
+export function floorMultiplier(floor: number | null | undefined): number {
+  if (floor == null || floor < 0) return 1;
+  if (floor === 0) return 0.95;
+  if (floor === 1) return 0.98;
+  return 1;
+}
+
+/** Úprava podle roku výstavby — novější fond je dražší (mírné, nesoupeří s condition). */
+export function yearBuiltMultiplier(year: number | null | undefined): number {
+  if (!year || year < 1850) return 1;
+  if (year < 1945) return 0.96;
+  if (year < 1990) return 0.98;
+  if (year <= 2005) return 1.02;
+  if (year <= 2015) return 1.05;
+  return 1.08;
 }
 
 /**
@@ -84,7 +109,12 @@ export async function estimateProperty(
   } = deps;
 
   const { cityKey, condition, buildingType, category, area, lat, lng } = input;
-  const mult = conditionMultiplier(condition ?? null) * buildingTypeMultiplier(buildingType ?? null) * categoryMultiplier(category ?? null);
+  const mult =
+    conditionMultiplier(condition ?? null) *
+    buildingTypeMultiplier(buildingType ?? null) *
+    categoryMultiplier(category ?? null) *
+    floorMultiplier(input.floor) *
+    yearBuiltMultiplier(input.yearBuilt);
   const areaFactor = areaSizeFactor(area);
 
   // ---------- 1) Sběr zdrojů (paralelně) ----------
@@ -170,7 +200,9 @@ export async function estimateProperty(
     let offerMedian = range.median;
     let clamped = false;
     if (realized && realized.avgPricePerSqm > 0) {
-      const band = { low: 0.75 * realizedAdj, high: 1.35 * realizedAdj };
+      // pásmo ±25 % kolem realizovaných — prémiové/luxusní nabídky (např. Žižkov 203k vs.
+      // realizované 150k) se nesmí odchýlit o víc, jinak tahají odhad mimo realitu trhu
+      const band = { low: 0.75 * realizedAdj, high: 1.25 * realizedAdj };
       if (offerMedian < band.low) {
         offerMedian = band.low;
         clamped = true;
@@ -248,7 +280,8 @@ export async function estimateProperty(
     if (r > 1.5) confidenceScore -= 10;
     else if (r > 1.25) confidenceScore -= 5;
   }
-  confidenceScore = Math.max(0, Math.min(100, Math.round(confidenceScore)));
+  // nikdy nehlasit 100 % — odhad je vždy jen odhad (Valuo ukazuje i u sebe rezervu)
+  confidenceScore = Math.max(0, Math.min(95, Math.round(confidenceScore)));
 
   const low = estimate * (1 - spread);
   const high = estimate * (1 + spread);

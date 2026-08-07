@@ -58,6 +58,8 @@ export async function POST(req: Request) {
           condition: listing.condition ?? undefined,
           buildingType: listing.buildingType ?? undefined,
           category: location.category ?? undefined,
+          floor: typeof listing.floor === "number" && listing.floor >= 0 ? listing.floor : undefined,
+          yearBuilt: typeof listing.yearBuilt === "number" ? listing.yearBuilt : undefined,
           askingPrice: listing.price,
           sourceUrl: url,
         };

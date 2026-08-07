@@ -17,7 +17,7 @@
 
 import { db } from "@/db";
 import { marketCache } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { RateLimiter } from "@/lib/scraping/rate-limiter";
 import { CITY_TO_REGION } from "@/lib/locality/crime";
 import { cityNamesFor } from "@/lib/analysis/location";
@@ -34,7 +34,10 @@ const HEADERS: Record<string, string> = {
 };
 
 const rateLimiter = RateLimiter.getInstance();
-const DB_TTL_MS = 7 * 24 * 60 * 60 * 1000; // transakce se aktualizují ~měsíčně
+// Regionální hladina se aktualizuje ~měsíčně, ale stará DB cache způsobovala
+// nestabilní výsledky (uživatel dostal kraj 112 430, přestože stránka už vrací 149 906).
+// TTL 1 den omezí rozsah zastaralosti; drill-down (okres/obec/čtvrť) je hlavní zdroj.
+const DB_TTL_MS = 24 * 60 * 60 * 1000;
 let memCache: { data: PriceMapData; fetchedAt: number } | null = null;
 const MEM_TTL_MS = 60 * 60 * 1000;
 
@@ -178,13 +181,22 @@ function extractTrend(html: string): TrendPoint[] {
 }
 
 async function fetchPage(): Promise<string> {
-  await rateLimiter.wait("sreality", 3000);
-  const res = await globalThis.fetch(PAGE_URL, {
-    headers: HEADERS,
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`Cenová mapa: HTTP ${res.status}`);
-  return res.text();
+  // jeden retry — síť/proxy výpadky nesmí shodit odhad
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await rateLimiter.wait("sreality", 3000);
+      const res = await globalThis.fetch(PAGE_URL, {
+        headers: HEADERS,
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) throw new Error(`Cenová mapa: HTTP ${res.status}`);
+      return await res.text();
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Cenová mapa: fetch selhal");
 }
 
 function parseHtml(html: string, fetchedAt: number): PriceMapData {
@@ -224,17 +236,27 @@ function parseHtml(html: string, fetchedAt: number): PriceMapData {
   };
 }
 
+/** Plausibilita regionálního listu — stará/korupovaná cache nesmí shodit odhad. */
+function plausibleRegions(d: PriceMapData | null): boolean {
+  if (!d || !Array.isArray(d.regions) || d.regions.length === 0) return false;
+  // reálná stránka má 14 krajů; kontrola polí chytí korupci a neúplné záznamy
+  return d.regions.every((r) => r.avgPricePerSqm > 5000 && r.avgPricePerSqm < 500000 && r.entityId != null);
+}
+
 async function readCache(): Promise<PriceMapData | null> {
   try {
     const row = await db
       .select({ payload: marketCache.payload, fetchedAt: marketCache.fetchedAt })
       .from(marketCache)
       .where(and(eq(marketCache.city, "cz"), eq(marketCache.segment, "price_map")))
+      .orderBy(desc(marketCache.fetchedAt))
       .limit(1)
       .then((r) => r[0]);
     if (!row || !row.payload) return null;
-    const d = JSON.parse(row.payload) as PriceMapData;
     if (Date.now() - Number(row.fetchedAt) > DB_TTL_MS) return null;
+    const d = JSON.parse(row.payload) as PriceMapData;
+    // korupovaná / neúplná cache (bez entityId, málo krajů, nesmyslné ceny) → obnovit
+    if (!plausibleRegions(d)) return null;
     return d;
   } catch {
     return null;
@@ -284,7 +306,10 @@ export async function fetchPriceMap(force = false): Promise<PriceMapData | null>
   try {
     const html = await fetchPage();
     const data = parseHtml(html, Date.now());
-    if (data.regions.length === 0) return null;
+    if (!plausibleRegions(data)) {
+      console.error("Price map parse produced implausible region list — ignored");
+      return null;
+    }
     memCache = { data, fetchedAt: Date.now() };
     persistCache(data).catch(() => {});
     return data;
@@ -305,72 +330,84 @@ async function fetchDrill(locality: string, cacheSegment: string): Promise<Drill
   const mem = drillMem.get(locality);
   if (mem && Date.now() - mem.fetchedAt < DRILL_MEM_TTL_MS) return mem.items;
 
-  // DB cache
+  // DB cache (seřazeno od nejnovějšího — ochrana proti duplicitním řádkům bez PK)
   try {
     const row = await db
       .select({ payload: marketCache.payload, fetchedAt: marketCache.fetchedAt })
       .from(marketCache)
       .where(and(eq(marketCache.city, locality), eq(marketCache.segment, cacheSegment)))
+      .orderBy(desc(marketCache.fetchedAt))
       .limit(1)
       .then((r) => r[0]);
     if (row?.payload && Date.now() - Number(row.fetchedAt) < DB_TTL_MS) {
       const items = JSON.parse(row.payload) as DrillItem[];
-      drillMem.set(locality, { items, fetchedAt: Date.now() });
-      return items;
+      // prázdný/neplatný list = kdysi špatná odpověď → nesmí blokovat čerstvý fetch
+      if (Array.isArray(items) && items.length > 0) {
+        drillMem.set(locality, { items, fetchedAt: Date.now() });
+        return items;
+      }
     }
   } catch {
     // fall through
   }
 
-  await rateLimiter.wait("sreality", 3000);
-  try {
-    const res = await globalThis.fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(20000) });
-    if (!res.ok) return null;
-    // API vrací snake_case — převedeme na camelCase DrillItem
-    const json = (await res.json()) as {
-      result?: { aggregated_list?: ({
-        avg_price_per_sqm?: number | null;
-        num_transactions?: number;
-        locality?: { entity_id?: number; entity_type?: string; name?: string | null; seo_name?: string | null } | null;
-      })[] };
-    };
-    const items: DrillItem[] = (json.result?.aggregated_list ?? [])
-      .map((it) => ({
-        entityId: it.locality?.entity_id ?? 0,
-        entityType: it.locality?.entity_type ?? "",
-        name: it.locality?.name ?? "",
-        seoName: it.locality?.seo_name ?? "",
-        avgPricePerSqm: it.avg_price_per_sqm ?? null,
-        numTransactions: it.num_transactions ?? 0,
-      }))
-      .filter((it) => it.entityId > 0);
-    drillMem.set(locality, { items, fetchedAt: Date.now() });
+  // jeden retry — přechodný výpadek API nesmí shodit drill-down na krajskou úroveň
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await rateLimiter.wait("sreality", 3000);
     try {
-      await db
-        .insert(marketCache)
-        .values({
-          city: locality,
-          segment: cacheSegment,
-          low: 0,
-          high: 0,
-          median: 0,
-          sampleSize: items.length,
-          source: "price_map",
-          fetchedAt: Date.now(),
-          payload: JSON.stringify(items),
-        })
-        .onConflictDoUpdate({
-          target: [marketCache.city, marketCache.segment],
-          set: { sampleSize: items.length, source: "price_map", fetchedAt: Date.now(), payload: JSON.stringify(items) },
-        });
-    } catch {
-      // best-effort
+      const res = await globalThis.fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(20000) });
+      if (!res.ok) {
+        if (attempt === 0) continue;
+        return null;
+      }
+      // API vrací snake_case — převedeme na camelCase DrillItem
+      const json = (await res.json()) as {
+        result?: { aggregated_list?: ({
+          avg_price_per_sqm?: number | null;
+          num_transactions?: number;
+          locality?: { entity_id?: number; entity_type?: string; name?: string | null; seo_name?: string | null } | null;
+        })[] };
+      };
+      const items: DrillItem[] = (json.result?.aggregated_list ?? [])
+        .map((it) => ({
+          entityId: it.locality?.entity_id ?? 0,
+          entityType: it.locality?.entity_type ?? "",
+          name: it.locality?.name ?? "",
+          seoName: it.locality?.seo_name ?? "",
+          avgPricePerSqm: it.avg_price_per_sqm ?? null,
+          numTransactions: it.num_transactions ?? 0,
+        }))
+        .filter((it) => it.entityId > 0);
+      drillMem.set(locality, { items, fetchedAt: Date.now() });
+      try {
+        await db
+          .insert(marketCache)
+          .values({
+            city: locality,
+            segment: cacheSegment,
+            low: 0,
+            high: 0,
+            median: 0,
+            sampleSize: items.length,
+            source: "price_map",
+            fetchedAt: Date.now(),
+            payload: JSON.stringify(items),
+          })
+          .onConflictDoUpdate({
+            target: [marketCache.city, marketCache.segment],
+            set: { sampleSize: items.length, source: "price_map", fetchedAt: Date.now(), payload: JSON.stringify(items) },
+          });
+      } catch {
+        // best-effort
+      }
+      return items;
+    } catch (e) {
+      if (attempt === 0) continue;
+      console.error("Price map drill failed:", e);
+      return null;
     }
-    return items;
-  } catch (e) {
-    console.error("Price map drill failed:", e);
-    return null;
   }
+  return null;
 }
 
 /**

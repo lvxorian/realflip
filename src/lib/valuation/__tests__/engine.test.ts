@@ -59,10 +59,16 @@ describe("areaSizeFactor", () => {
     expect(areaSizeFactor(100)).toBeLessThan(1);
     expect(areaSizeFactor(60)).toBeCloseTo(1, 5);
   });
-  it("clamp 0.85–1.15", () => {
-    expect(areaSizeFactor(5)).toBeLessThanOrEqual(1.15);
-    expect(areaSizeFactor(1000)).toBeGreaterThanOrEqual(0.85);
+  it("clamp 0.7–1.3", () => {
+    expect(areaSizeFactor(5)).toBeLessThanOrEqual(1.3);
+    expect(areaSizeFactor(1000)).toBeGreaterThanOrEqual(0.7);
     expect(areaSizeFactor(null)).toBe(1);
+  });
+  it("realistická křivka: 35 m² ≈ +15 %, 100 m² ≈ −12 %", () => {
+    expect(areaSizeFactor(35)).toBeCloseTo(Math.pow(60 / 35, 0.25), 5);
+    expect(areaSizeFactor(100)).toBeCloseTo(Math.pow(60 / 100, 0.25), 5);
+    expect(areaSizeFactor(35)).toBeGreaterThan(1.1);
+    expect(areaSizeFactor(100)).toBeLessThan(0.9);
   });
 });
 

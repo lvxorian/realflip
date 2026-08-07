@@ -244,6 +244,14 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **AI** (`ai.ts`): do promptu přidána adresa. Živě ověřeno (skript `valuation-check.ts`): Žižkov ward 160 324 Kč/m² (743 tx), byt K Lučinám 73 m² „průměrný" → odhad **11,17 mil. Kč** (153 025 Kč/m², rozmezí 10,0–12,34, ±11 %, confidence 91). Čistý testovací scénář (shrink + srážka) sedí na 9,58 mil. — blízko Valuo 9,375 mil.; zbývající odchylka živých dat = agregátní úroveň čtvrti/města vs. adresní hedonic model Valuo (mikro-poloha K Lučinám u Malešic je levnější než jádro Žižkova).
 - **Testy**: price-map (ward drill Praha s adresou/hinty, bez adresy → kraj), engine (ward label/shrink/mix-skew, 4 kontextové řádky, předání ctx) — celkem **410 testů / 33 souborů**.
 
+### Phase 36 — Odhad: stabilita výsledků (Done)
+- **Problém**: stejný byt (K Lučinám) dával napříč runy 8,3M / 11,2M / 12,1M — uživatel dostal regionální hladinu 112 430, ač stránka už vrací 149 906 (zastaralá 7denní DB cache v produkci).
+- **Opravy** (`price-map.ts`): TTL region cache 7 dní → **1 den**; `readCache`/drill čtení s `orderBy(fetchedAt desc)`; **plausibilita region listu** (prázdný/korupovaný/bez entityId → čerstvý fetch); **retry (2×)** na SSR fetch i drill API; drill cache vyžaduje neprázdný list.
+- **GPS bucket v offers cache** (`market-price-service.ts`): cache klíč rozšířen o hrubé souřadnice (0,5°) — okruhové výsledky (5–10 km) nesdílí klíč s celoměstskými (nestabilita pořadí volání).
+- **Engine**: používá `floor` a `yearBuilt` multiplikátory; **realističtější křivka velikosti** (exponent 0,25, clamp 0,7–1,3 — 1+kk ≈ +15 %, 4+kk ≈ −12 %); clamp nabídek zpřísněn na **±25 %** kolem realizovaných (prémiové Žižkov nabídky 203k vs. realizované 150k); **confidence cap 95** (nikdy 100 %).
+- **Živě ověřeno (determinismus)**: 3× spuštění stejného bytu → identický výsledek **11,62 mil. Kč** (159 189 Kč/m², čtvrť Žižkov 150 705 po korekcích, rozmezí 10,17–13,07, ±12 %, confidence 91). Cheb regrese OK (46 768 Kč/m²).
+- **Testy**: +1 (křivka velikosti) — celkem **411 testů / 33 souborů**.
+
 ## Key Files
 
 ### Core
