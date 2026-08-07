@@ -50,16 +50,16 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
       reservedByName: investors.name,
       district: propertyAnalysis.locationDistrict,
       city: propertyAnalysis.locationCity,
-      rentalYield: propertyAnalysis.rentalYield,
+      locationCategory: propertyAnalysis.locationCategory,
       condition: properties.condition,
       area: properties.area,
       rooms: properties.rooms,
       floor: properties.floor,
       originalPrice: properties.price,
       stageData: leads.stageData,
-      targetPurchasePrice: propertyAnalysis.targetPurchasePrice,
-      netProfit: propertyAnalysis.netProfit,
-      roi: propertyAnalysis.roi,
+      arv: propertyAnalysis.arv,
+      renovationCost: propertyAnalysis.renovationCost,
+      monthlyRent: propertyAnalysis.monthlyRent,
       calcMode: propertyAnalysis.calcMode,
     })
     .from(leads)
@@ -70,7 +70,9 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
     .orderBy(propertyAnalysis.netProfit);
 
   const score = (item: InvestorPortalItem) =>
-    item.calcMode === "rental" ? item.rentalYield ?? -Infinity : item.netProfit ?? -Infinity;
+    item.calcMode === "rental"
+      ? item.deal.type === "rental" ? item.deal.netYield ?? -Infinity : -Infinity
+      : item.deal.type === "flip" ? item.deal.netProfit ?? -Infinity : -Infinity;
 
   return rows
     .map((row) => toPortalView(row, investorId, budget))

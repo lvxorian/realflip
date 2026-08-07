@@ -34,6 +34,28 @@ function price(v: number | null): string {
   return v !== null ? escapeHtml(formatCompactPrice(v)) : "—";
 }
 
+function renderFlipRows(offer: InvestorPortalItem): string {
+  const deal = offer.deal?.type === "flip" ? offer.deal : null;
+  const netProfit = deal?.netProfit ?? null;
+  const annualizedRoi = deal?.annualizedRoi ?? null;
+  const roi = deal?.roi ?? null;
+  return [
+    row("Odhadovaný zisk", price(netProfit), netProfit !== null && netProfit >= 0),
+    row("ROI (celkem)", roi !== null ? `${roi.toFixed(1)} %` : "—"),
+    row("ROI (ročně)", annualizedRoi !== null ? `${annualizedRoi.toFixed(1)} %` : "—"),
+  ].join("");
+}
+
+function renderRentalRows(offer: InvestorPortalItem): string {
+  const deal = offer.deal?.type === "rental" ? offer.deal : null;
+  const netYield = deal?.netYield ?? null;
+  const cashFlowMonthly = deal?.cashFlowMonthly ?? null;
+  return [
+    row("Čistý výnos p.a.", netYield !== null ? `${netYield.toFixed(1)} %` : "—", netYield !== null && netYield >= 0),
+    row("Cash-flow / měsíc", price(cashFlowMonthly), cashFlowMonthly !== null && cashFlowMonthly >= 0),
+  ].join("");
+}
+
 function row(label: string, value: string, accent?: boolean): string {
   return `
     <tr>
@@ -77,14 +99,13 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
               <p style="margin:0;font-size:20px;font-weight:600;color:${T.foreground};">${escapeHtml(location)}</p>
               <p style="margin:8px 0 0;font-size:13px;color:${T.muted};">${escapeHtml(details)}</p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid ${T.border};">
-                ${row("Inzerovaná cena", price(offer.originalPrice))}
+${row("Inzerovaná cena", price(offer.originalPrice))}
                 ${row("Cena po vyjednání", price(offer.offerPrice))}
                 ${row("Sleva oproti inzerci", savings, offer.savingsPct !== null && offer.savingsPct > 0)}
                 ${
                   offer.calcMode === "rental"
-                    ? row("Čistý výnos", offer.rentalYield != null ? `${offer.rentalYield.toFixed(1)} %` : "—", offer.rentalYield != null)
-                    : `${row("Odhadovaný zisk", price(offer.netProfit), offer.netProfit !== null && offer.netProfit >= 0)}
-                ${row("ROI", offer.roi !== null ? `${offer.roi.toFixed(1)} %` : "—")}`
+                    ? renderRentalRows(offer)
+                    : renderFlipRows(offer)
                 }
               </table>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">

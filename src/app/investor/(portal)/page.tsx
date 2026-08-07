@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
+import { costsBreakdownForDeal } from "@/lib/investor-portal-view";
 
 interface PortalData {
   items: InvestorPortalItem[];
@@ -40,6 +41,7 @@ export default function InvestorPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const dismissedEmailPrompt = useRef(false);
 
@@ -229,24 +231,30 @@ export default function InvestorPortalPage() {
                       </thead>
                       <tbody className="divide-y divide-border/20">
                         {data.items.map((item, i) => (
-                          <motion.tr
-                            key={item.id}
+                          <Fragment key={item.id}>
+                            <motion.tr
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.03, duration: 0.25 }}
                             className="hover:bg-card-hover transition-colors"
                           >
                             <td className="p-3 pr-4 min-w-[180px]">
-                              <p className="font-semibold capitalize truncate">
-                                {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
-                              </p>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted whitespace-nowrap">
-                                <MapPin size={10} weight="bold" className="shrink-0" />
-                                <span className="truncate">{item.condition}</span>
-                                {item.area ? <span className="font-mono tabular-nums">{item.area} m²</span> : null}
-                                {item.rooms ? <span>{item.rooms}</span> : null}
-                                {item.floor !== null ? <span>{item.floor}. podlaží</span> : null}
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                                className="text-left w-full group"
+                              >
+                                <p className="font-semibold capitalize truncate group-hover:text-accent transition-colors">
+                                  {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
+                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted whitespace-nowrap">
+                                  <MapPin size={10} weight="bold" className="shrink-0" />
+                                  <span className="truncate">{item.condition}</span>
+                                  {item.area ? <span className="font-mono tabular-nums">{item.area} m²</span> : null}
+                                  {item.rooms ? <span>{item.rooms}</span> : null}
+                                  {item.floor !== null ? <span>{item.floor}. podlaží</span> : null}
+                                </div>
+                              </button>
                             </td>
                             <td className="p-3 text-right font-mono text-muted tabular-nums whitespace-nowrap">
                               {fmtPrice(item.originalPrice)}
@@ -265,24 +273,29 @@ export default function InvestorPortalPage() {
                             </td>
                             <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
                               {item.calcMode === "rental" ? (
-                                item.rentalYield != null ? (
-                                  <span className="text-emerald-400">{item.rentalYield.toFixed(1)} %</span>
+                                item.deal.type === "rental" && item.deal.netYield != null ? (
+                                  <span className="text-emerald-400">{item.deal.netYield.toFixed(1)} %</span>
                                 ) : (
                                   "—"
                                 )
-                              ) : item.netProfit !== null ? (
-                                <span className={item.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}>
-                                  {formatCompactPrice(item.netProfit)}
-                                </span>
                               ) : (
-                                "—"
+                                item.deal.type === "flip" && item.deal.netProfit !== null ? (
+                                  <span className={item.deal.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}>
+                                    {formatCompactPrice(item.deal.netProfit)}
+                                  </span>
+                                ) : (
+                                  "—"
+                                )
                               )}
                             </td>
                             <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
                               {item.calcMode === "rental" ? (
                                 "—"
-                              ) : item.roi !== null ? (
-                                formatPercent(item.roi)
+                              ) : item.deal.type === "flip" && item.deal.annualizedRoi !== null ? (
+                                <span>
+                                  {formatPercent(item.deal.annualizedRoi)}
+                                  <span className="text-[10px] text-muted"> p.a.</span>
+                                </span>
                               ) : (
                                 "—"
                               )}
@@ -294,6 +307,18 @@ export default function InvestorPortalPage() {
                               <ActionButton item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
                             </td>
                           </motion.tr>
+                          {expandedId === item.id && (
+                            <motion.tr
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="bg-card-hover/40"
+                            >
+                              <td colSpan={7} className="p-4">
+                                <DealDetail item={item} />
+                              </td>
+                            </motion.tr>
+                          )}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -344,18 +369,27 @@ export default function InvestorPortalPage() {
                           />
                           {item.calcMode === "rental" ? (
                             <Metric
-                              label="Čistý výnos"
-                              value={item.rentalYield != null ? `${item.rentalYield.toFixed(1)} %` : "—"}
-                              accent={item.rentalYield != null}
+                              label="Čistý výnos p.a."
+                              value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
+                              accent={item.deal.type === "rental" && item.deal.netYield != null}
                             />
                           ) : (
                             <Metric
                               label="Odhadovaný zisk"
-                              value={item.netProfit !== null ? formatCompactPrice(item.netProfit) : "—"}
-                              accent={item.netProfit !== null && item.netProfit >= 0}
+                              value={item.deal.type === "flip" && item.deal.netProfit !== null ? formatCompactPrice(item.deal.netProfit) : "—"}
+                              accent={item.deal.type === "flip" && item.deal.netProfit !== null && item.deal.netProfit >= 0}
                             />
                           )}
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                          className="w-full text-xs text-muted flex items-center justify-center gap-1 rounded-lg border border-border/40 bg-card-hover/40 py-2 hover:text-foreground hover:border-accent/30 transition-colors"
+                        >
+                          {expandedId === item.id ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
+                        </button>
+                        {expandedId === item.id && <DealDetail item={item} />}
 
                         <div className="flex justify-end">
                           <ActionButton size="sm" item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
@@ -390,6 +424,58 @@ export default function InvestorPortalPage() {
           setData((prev) => (prev ? { ...prev, investorEmail: email } : prev));
         }}
       />
+    </div>
+  );
+}
+
+function DealDetail({ item }: { item: InvestorPortalItem }) {
+  if (item.calcMode === "rental") {
+    const deal = item.deal.type === "rental" ? item.deal : null;
+    return (
+      <div className="rounded-xl border border-accent/20 bg-card/60 p-4 text-[13px] space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Výnosová analýza (rental)</p>
+          <Badge variant="secondary" size="sm">výpočet z vyjednané ceny</Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+          <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent />
+          <DetailRow label="Hrubý výnos" value={deal?.grossYield != null ? `${deal.grossYield.toFixed(1)} %` : "—"} />
+          <DetailRow label="Výnos po dani" value={deal?.netYieldAfterTax != null ? `${deal.netYieldAfterTax.toFixed(1)} %` : "—"} />
+          <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatCompactPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
+        </div>
+        <p className="text-[11px] text-muted pt-1 border-t border-border/20">Model předpokládá optimální pronájem bez hypotečního úvěru. Finální čísla poskytneme na vyžádání.</p>
+      </div>
+    );
+  }
+
+  const deal = item.deal.type === "flip" ? item.deal : null;
+  const breakdown = costsBreakdownForDeal(item.offerPrice ?? 0, deal?.arv ?? null, item.renovationCost, item.area);
+  return (
+    <div className="rounded-xl border border-accent/20 bg-card/60 p-4 text-[13px] space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Odhadovaný zisk a ROI</p>
+        <Badge variant="secondary" size="sm">výpočet z vyjednané ceny</Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+        <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatCompactPrice(deal.arv) : "—"} />
+        <DetailRow label="Kupní cena" value={item.offerPrice != null ? formatCompactPrice(item.offerPrice) : "—"} />
+        <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatCompactPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
+        <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
+        <DetailRow label="ROI p.a. (ročně)" value={deal?.annualizedRoi != null ? `${deal.annualizedRoi.toFixed(1)} %` : "—"} accent={deal?.annualizedRoi != null && deal.annualizedRoi >= 0} />
+        <DetailRow label="Celková investice" value={breakdown != null ? formatCompactPrice(breakdown.totalCost) : "—"} />
+      </div>
+      <p className="text-[11px] text-muted pt-1 border-t border-border/20">
+        Výpočet vychází z vyjednané kupní ceny {item.offerPrice != null ? formatCompactPrice(item.offerPrice) : "—"}, ARV {deal?.arv != null ? formatCompactPrice(deal.arv) : "—"} a odhadu rekonstrukce. Přesnější čísla poskytneme na vyžádání.
+      </p>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <p className="text-[11px] text-muted">{label}</p>
+      <p className={`font-mono tabular-nums text-right whitespace-nowrap ${accent ? "text-emerald-400" : "text-foreground"}`}>{value}</p>
     </div>
   );
 }

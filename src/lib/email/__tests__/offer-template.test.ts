@@ -13,10 +13,15 @@ const offer = (over: Partial<InvestorPortalItem> = {}): InvestorPortalItem => ({
   originalPrice: 13_690_000,
   offerPrice: 11_500_000,
   savingsPct: 16,
-  netProfit: 1_250_000,
-  roi: 10.8,
-  rentalYield: null,
   calcMode: "flip",
+  renovationCost: null,
+  deal: {
+    type: "flip",
+    netProfit: 1_250_000,
+    roi: 10.8,
+    annualizedRoi: 21.6,
+    arv: 13_700_000,
+  },
   status: "available",
   reservedByMe: false,
   reservedByName: null,
@@ -45,15 +50,27 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("Cena po vyjednání");
     expect(html).toContain("Sleva oproti inzerci");
     expect(html).toContain("Odhadovaný zisk");
+    expect(html).toContain("ROI (celkem)");
+    expect(html).toContain("10.8 %");
     expect(html).toContain("Vstoupit do portálu");
   });
 
   it("shows čistý výnos for rental mode instead of zisk/ROI", () => {
     const html = buildOfferEmailHtml(
-      offer({ calcMode: "rental", rentalYield: 5.2, netProfit: null, roi: null }),
+      offer({
+        calcMode: "rental",
+        deal: {
+          type: "rental",
+          grossYield: 6.4,
+          netYield: 5.2,
+          netYieldAfterTax: 3.9,
+          capRate: 5.0,
+          cashFlowMonthly: 3_800,
+        },
+      }),
       "https://realflip.app"
     );
-    expect(html).toContain("Čistý výnos");
+    expect(html).toContain("Čistý výnos p.a.");
     expect(html).toContain("5.2 %");
     expect(html).not.toContain("ROI");
     expect(html).not.toContain("Odhadovaný zisk");
@@ -67,7 +84,16 @@ describe("buildOfferEmailHtml", () => {
 
   it("handles missing values gracefully", () => {
     const html = buildOfferEmailHtml(
-      offer({ originalPrice: null, offerPrice: null, savingsPct: null, netProfit: null, roi: null, area: null, floor: null, district: null, city: null }),
+      offer({
+        originalPrice: null,
+        offerPrice: null,
+        savingsPct: null,
+        area: null,
+        floor: null,
+        district: null,
+        city: null,
+        deal: undefined,
+      }),
       "https://realflip.app"
     );
     expect(html).toContain("Neznámá lokalita");

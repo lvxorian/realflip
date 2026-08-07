@@ -14,9 +14,10 @@ const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   floor: 2,
   originalPrice: 4_990_000,
   stageData: null,
-  targetPurchasePrice: 3_900_000,
-  netProfit: 820_000,
-  roi: 18.4,
+  arv: 5_200_000,
+  renovationCost: 700_000,
+  monthlyRent: 18_000,
+  locationCategory: null,
   calcMode: "flip",
   ...over,
 });
@@ -68,7 +69,7 @@ describe("toPortalView", () => {
     expect(view.district).toBe("Žižkov");
     expect(view.city).toBe("Praha");
     expect(view.condition).toBe("Před rekonstrukcí");
-    expect(view.offerPrice).toBe(3_900_000);
+    expect(view.offerPrice).toBe(4_990_000);
   });
 
   it("uses negotiated amount as offer price instead of target", () => {
@@ -119,27 +120,42 @@ describe("toPortalView", () => {
     expect(toPortalView(row({ condition: null }), "inv", ctx).condition).toBe("—");
   });
 
-  it("uses stored flip metrics — does not fabricate from rentalYield", () => {
+  it("flip mode recomputes metrics from negotiated price, no fabrication", () => {
     const view = toPortalView(
-      row({ calcMode: "flip", rentalYield: 4.5, netProfit: 820_000, roi: 18.4 }),
+      row({
+        calcMode: "flip",
+        stageData: JSON.stringify({ negotiation: { currentAmount: 3_200_000 } }),
+        arv: 5_200_000,
+        renovationCost: 700_000,
+      }),
       "inv",
       { budget: null, unlimited: true }
     );
     expect(view.calcMode).toBe("flip");
-    expect(view.netProfit).toBe(820_000);
-    expect(view.roi).toBe(18.4);
-    expect(view.rentalYield).toBeNull();
+    expect(view.deal.type).toBe("flip");
+    if (view.deal.type !== "flip") return;
+    expect(view.deal.netProfit).toBeGreaterThan(0);
+    expect(view.deal.roi).toBeGreaterThan(0);
+    expect(view.deal.annualizedRoi).toBeGreaterThan(view.deal.roi!);
   });
 
-  it("rental mode exposes only čistý výnos, not fabricated flip metrics", () => {
+  it("rental mode exposes only čistý výnos recomputed from negotiated price", () => {
     const view = toPortalView(
-      row({ calcMode: "rental", rentalYield: 4.9, netProfit: 820_000, roi: 18.4 }),
+      row({
+        calcMode: "rental",
+        stageData: JSON.stringify({ negotiation: { currentAmount: 3_200_000 } }),
+        monthlyRent: 18_000,
+        arv: 5_200_000,
+        renovationCost: 700_000,
+      }),
       "inv",
       { budget: null, unlimited: true }
     );
     expect(view.calcMode).toBe("rental");
-    expect(view.rentalYield).toBe(4.9);
-    expect(view.netProfit).toBeNull();
-    expect(view.roi).toBeNull();
+    expect(view.deal.type).toBe("rental");
+    if (view.deal.type !== "rental") return;
+    expect(view.deal.netYield).toBeGreaterThan(0);
+    expect(view.deal.grossYield).toBeGreaterThan(view.deal.netYield!);
+    expect(view.deal.cashFlowMonthly).not.toBeNull();
   });
 });
