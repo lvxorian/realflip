@@ -318,13 +318,29 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       arv, renovationCost: currentRenovation, targetRoi, costConfig, mode, rental: rentalConfig,
       renovationMode, renovationLevel, renovationPerSqm, renovationItems,
       rentalRenovationMode, rentalRenovationLevel, rentalRenovationPerSqm, rentalRenovationTotal,
+      purchasePriceUsed: l.price,
     };
     try {
       localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset));
       await fetch(`/api/properties/${propertyId}/calc-preset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...preset, rentalNetYield: mode === "rental" ? rentalResults.netYield : null }),
+        body: JSON.stringify({
+          ...preset,
+          rentalNetYield: mode === "rental" ? rentalResults.netYield : null,
+          rentalGrossYield: mode === "rental" ? rentalResults.grossYield : null,
+          rentalNetYieldAfterTax: mode === "rental" ? rentalResults.netYieldAfterTax : null,
+          rentalCapRate: mode === "rental" ? rentalResults.capRate : null,
+          rentalCashFlowMonthly: mode === "rental" ? rentalResults.cashFlowMonthly : null,
+          rentalTotalInvested: mode === "rental" ? rentalResults.totalInvested : null,
+          rentalTargetPurchasePrice: mode === "rental" ? rentalResults.targetPurchasePrice : null,
+          flipNetProfit: mode === "flip" ? flipResults.netProfit : null,
+          flipRoi: mode === "flip" ? flipResults.roi : null,
+          flipAnnualizedRoi: mode === "flip" ? flipResults.annualizedRoi : null,
+          flipCashOnCash: mode === "flip" ? flipResults.cashOnCash : null,
+          flipTotalCost: mode === "flip" ? flipResults.costs.totalCost : null,
+          flipTargetPurchasePrice: mode === "flip" ? flipResults.targetPurchasePrice : null,
+        }),
       });
       setPresetSaved(true);
       setTimeout(() => setPresetSaved(false), 2000);

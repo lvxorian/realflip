@@ -104,21 +104,72 @@ export async function POST(
         typeof body.rental?.monthlyRent === "number" && body.rental.monthlyRent > 0
           ? Math.round(body.rental.monthlyRent)
           : null;
+      const snapshot = {
+        mode: "rental",
+        purchasePriceUsed: typeof body.purchasePriceUsed === "number" ? Math.round(body.purchasePriceUsed) : null,
+        monthlyRent,
+        netYield: typeof body.rentalNetYield === "number" ? body.rentalNetYield : null,
+        grossYield: typeof body.rentalGrossYield === "number" ? body.rentalGrossYield : null,
+        netYieldAfterTax: typeof body.rentalNetYieldAfterTax === "number" ? body.rentalNetYieldAfterTax : null,
+        capRate: typeof body.rentalCapRate === "number" ? body.rentalCapRate : null,
+        cashFlowMonthly: typeof body.rentalCashFlowMonthly === "number" ? Math.round(body.rentalCashFlowMonthly) : null,
+        totalInvested: typeof body.rentalTotalInvested === "number" ? Math.round(body.rentalTotalInvested) : null,
+        targetPurchasePrice: typeof body.rentalTargetPurchasePrice === "number" ? Math.round(body.rentalTargetPurchasePrice) : null,
+      };
       await db
         .update(propertyAnalysis)
         .set({
           calcMode: "rental",
           monthlyRent,
-          rentalYield: typeof body.rentalNetYield === "number" && body.rentalNetYield > 0
-            ? Math.round(body.rentalNetYield * 10) / 10
+          rentalYield: snapshot.netYield != null && snapshot.netYield > 0
+            ? Math.round(snapshot.netYield * 10) / 10
             : null,
+          cashFlowMonthly: snapshot.cashFlowMonthly,
+          calcSnapshot: JSON.stringify(snapshot),
+          netProfit: null,
+          roi: null,
+          annualizedRoi: null,
+          cashOnCash: null,
+          totalCost: null,
           updatedAt: now,
         })
         .where(eq(propertyAnalysis.propertyId, propertyId));
     } else {
+      const netProfit =
+        typeof body.flipNetProfit === "number" ? Math.round(body.flipNetProfit) : null;
+      const roi =
+        typeof body.flipRoi === "number" ? Math.round(body.flipRoi * 10) / 10 : null;
+      const annualizedRoi =
+        typeof body.flipAnnualizedRoi === "number" ? Math.round(body.flipAnnualizedRoi * 10) / 10 : null;
+      const snapshot = {
+        mode: "flip",
+        purchasePriceUsed: typeof body.purchasePriceUsed === "number" ? Math.round(body.purchasePriceUsed) : null,
+        arv: typeof body.arv === "number" ? Math.round(body.arv) : null,
+        renovationCost: typeof body.renovationCost === "number" ? Math.round(body.renovationCost) : null,
+        netProfit,
+        roi,
+        annualizedRoi,
+        cashOnCash: typeof body.flipCashOnCash === "number" ? Math.round(body.flipCashOnCash * 10) / 10 : null,
+        totalCost: typeof body.flipTotalCost === "number" ? Math.round(body.flipTotalCost) : null,
+        targetPurchasePrice: typeof body.flipTargetPurchasePrice === "number" ? Math.round(body.flipTargetPurchasePrice) : null,
+      };
       await db
         .update(propertyAnalysis)
-        .set({ calcMode: "flip", updatedAt: now })
+        .set({
+          calcMode: "flip",
+          arv: snapshot.arv,
+          renovationCost: snapshot.renovationCost,
+          netProfit,
+          roi,
+          annualizedRoi,
+          cashOnCash: snapshot.cashOnCash,
+          totalCost: snapshot.totalCost,
+          calcSnapshot: JSON.stringify(snapshot),
+          monthlyRent: null,
+          rentalYield: null,
+          cashFlowMonthly: null,
+          updatedAt: now,
+        })
         .where(eq(propertyAnalysis.propertyId, propertyId));
     }
 
