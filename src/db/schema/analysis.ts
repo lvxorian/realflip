@@ -46,6 +46,7 @@ export const propertyAnalysis = sqliteTable("property_analysis", {
   costsJson: text("costs_json"),
   alternativeStrategiesJson: text("alternative_strategies_json"),
   rentalYield: real("rental_yield"),
+  monthlyRent: integer("monthly_rent"),
   calcMode: text("calc_mode").default("flip"),
 
   // Lokalitní inteligence

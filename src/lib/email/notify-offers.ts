@@ -36,9 +36,10 @@ export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
       floor: properties.floor,
       originalPrice: properties.price,
       stageData: leads.stageData,
-      targetPurchasePrice: propertyAnalysis.targetPurchasePrice,
-      netProfit: propertyAnalysis.netProfit,
-      roi: propertyAnalysis.roi,
+      locationCategory: propertyAnalysis.locationCategory,
+      arv: propertyAnalysis.arv,
+      renovationCost: propertyAnalysis.renovationCost,
+      monthlyRent: propertyAnalysis.monthlyRent,
       calcMode: propertyAnalysis.calcMode,
     })
     .from(leads)

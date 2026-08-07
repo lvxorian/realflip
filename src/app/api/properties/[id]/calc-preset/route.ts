@@ -96,14 +96,19 @@ export async function POST(
       });
     }
 
-    // Propsat mód a čistý výnos do property_analysis, aby ho viděli
+// Propsat mód a čistý výnos do property_analysis, aby ho viděli
     // konzumenti DB (portál, report, call-mode, dashboard). calc_mode slouží
     // portálu k rozlišení výnosové rekau se mají zobrazit.
     if (body.mode === "rental") {
+      const monthlyRent =
+        typeof body.rental?.monthlyRent === "number" && body.rental.monthlyRent > 0
+          ? Math.round(body.rental.monthlyRent)
+          : null;
       await db
         .update(propertyAnalysis)
         .set({
           calcMode: "rental",
+          monthlyRent,
           rentalYield: typeof body.rentalNetYield === "number" && body.rentalNetYield > 0
             ? Math.round(body.rentalNetYield * 10) / 10
             : null,
