@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 export function generateMetadata(): Metadata {
   if (process.env.INVESTOR_ONLY === "1") {
     return {
-      title: "Brickon – Soukromý investorský portál",
+      title: "Brickon – Prověřené nabídky nemovitostí pro investory",
       description:
-        "Soukromé off-market nabídky nemovitostí s vyjednanou cenou pod trhem a kompletní analýzou zisku a návratnosti.",
+        "Soukromé off-market nabídky nemovitostí s vyjednanou slevou a kompletní analýzou zisku a návratnosti.",
     };
   }
   return {};

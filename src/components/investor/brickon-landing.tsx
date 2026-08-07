@@ -56,19 +56,19 @@ export default function BrickonLanding() {
                   className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-medium text-accent"
                 >
                   <SealCheck size={13} weight="bold" />
-                  Soukromý investorský portál
+                  Prověřené nabídky pro soukromé investory
                 </motion.p>
                 <motion.h1
                   variants={item}
                   className="mt-5 text-4xl sm:text-5xl font-semibold tracking-tight leading-[1.1]"
                 >
-                  Brickon hledá nabídky bez zbytečného čekání
+                  Nemovitosti s vyjednanou slevou,
                   <br />
-                  <span className="text-accent">a připravuje je pro investory v reálném čase.</span>
+                  <span className="text-accent">které na veřejných portálech nenajdete.</span>
                 </motion.h1>
                 <motion.p variants={item} className="mt-5 max-w-lg text-muted leading-relaxed">
-                  Monitorujeme trh nepřetržitě, oslovujeme nabídky ihned a budujeme obchodní cestu ke každé zajímavé nemovitosti.
-                  Dodáváme investorům jasné rozbory, cenové varianty a plán dalšího postupu.
+                  Denně sledujeme více než 10 realitních portálů, dražby i nabídky mimo veřejnou inzerci. Každou zajímavou
+                  nemovitost prověříme, vyjednáme a předáme vám s jasnou analýzou zisku, návratnosti a dalšího postupu.
                 </motion.p>
                 <motion.div variants={item} className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
@@ -141,9 +141,9 @@ export default function BrickonLanding() {
               className="mt-16 grid gap-2 sm:grid-cols-3"
             >
               {[
-                "Nepřetržitě sledujeme trh a nové signály",
-                "Vyjednáváme cenu z inzerce i nabídky mimo veřejný trh",
-                "Reporty se ziskem, ROI a dalším postupem",
+                "Denní monitoring 10+ portálů, dražeb i off-market zdrojů",
+                "Vyjednané slevy u každé nabídky",
+                "U každé nabídky analýza zisku, ROI a dalšího kroku",
               ].map((text) => (
                 <div
                   key={text}
@@ -176,10 +176,10 @@ export default function BrickonLanding() {
                 className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
               >
                 {[
-                  { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Skenujeme trh nonstop", text: "Sledujeme inzerci i nové signály a identifikujeme nabídky se ziskovým potenciálem." },
-                  { icon: <Gavel size={20} weight="bold" />, title: "Vyjednáváme obchod", text: "Osobně řešíme cenu a hledáme podmínky, které udržují rezervu pro investora." },
-                  { icon: <ChartLineUp size={20} weight="bold" />, title: "Dodáváme jasný report", text: "Připravujeme přehled s odhadem zisku, výnosem a dalším krokem k rozhodnutí." },
-                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Náš tým staví projekt", text: "Postaráme se o nákup a realizaci, včetně stavebního zajištění a dalšího rozvoje." },
+                  { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Sledujeme trh nepřetržitě", text: "Procházíme realitní portály, dražby i off-market zdroje a identifikujeme nabídky se ziskovým potenciálem." },
+                  { icon: <Gavel size={20} weight="bold" />, title: "Vyjednáváme za vás", text: "Osobně jednáme s prodávajícími tak, aby pro vás zůstala dostatečná rezerva na zisk." },
+                  { icon: <ChartLineUp size={20} weight="bold" />, title: "Dodáváme analýzu a report", text: "Ke každé nabídce připravíme přehled s odhadem zisku, návratnosti a doporučeným dalším krokem." },
+                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Postaráme se o realizaci", text: "Zajistíme koupi, rekonstrukci i další prodej nebo pronájem — od podpisu až po předání klíčů." },
                 ].map((step, i) => (
                   <motion.div
                     key={step.title}
@@ -208,7 +208,7 @@ export default function BrickonLanding() {
                 className="text-center"
               >
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Spolupracujeme ve dvou modelech</h2>
-                <p className="mt-2 text-sm text-muted">Vyberte, jak chcete investici řešit: kompletní servis nebo čistý sourcing.</p>
+                <p className="mt-2 text-sm text-muted">Vyberte si úroveň spolupráce — od kompletního servisu po čistý sourcing.</p>
               </motion.div>
               <motion.div
                 initial="hidden"
@@ -221,12 +221,12 @@ export default function BrickonLanding() {
                   {
                     title: "50/50",
                     icon: <HandCoins size={20} weight="bold" />,
-                    text: "Investor platí náklady, my zajišťujeme nákup, report a realizaci. Zisk dělíme rovnoměrně.",
+                    text: "Investor financuje nákup a náklady, my zajišťujeme sourcing, jednání i realizaci projektu. Zisk si dělíme rovným dílem.",
                   },
                   {
                     title: "Sourcing fee",
                     icon: <ChartLineUp size={20} weight="bold" />,
-                    text: "Najdeme a vyjednáme obchod pro investora, který chce samostatně řešit rekonstrukci nebo pronájem.",
+                    text: "Najdeme a vyjednáme pro vás obchod s reálnou slevou. Rekonstrukci i pronájem si řešíte sami — model pro samostatné investory.",
                   },
                 ].map((plan) => (
                   <motion.div
@@ -256,9 +256,9 @@ export default function BrickonLanding() {
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-accent/15 border border-accent/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
                   <BrickonLogo size={52} tone="light" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Připraveni k první nabídce?</h2>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Připraveni investovat?</h2>
                 <p className="mt-3 text-sm text-muted">
-                  Vstupte do portálu {INVESTOR_BRAND} a prohlédněte si aktuální příležitosti pod tržní cenou.
+                  Vstupte do portálu {INVESTOR_BRAND} a prohlédněte si aktuální nabídky s vyjednanou slevou.
                 </p>
                 <div className="mt-8 flex flex-col items-center gap-3">
                   <Link

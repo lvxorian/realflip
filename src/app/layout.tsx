@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title: "Brickon – Soukromý investorský portál",
       description:
-        "Soukromé off-market nabídky nemovitostí s vyjednanou cenou pod trhem a kompletní analýzou zisku a návratnosti.",
+        "Soukromé off-market nabídky nemovitostí s vyjednanou slevou a kompletní analýzou zisku a návratnosti.",
       icons: {
         icon: [
           { url: "/brickon.svg", type: "image/svg+xml", sizes: "any" },

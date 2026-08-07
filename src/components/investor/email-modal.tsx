@@ -70,7 +70,7 @@ export function EmailModal({ open, investorName, onClose, onSaved }: EmailModalP
                     {investorName ? `Vítejte v portálu ${INVESTOR_BRAND}, ${investorName}!` : `Vítejte v portálu ${INVESTOR_BRAND}!`}
                   </h2>
                   <p className="text-sm text-muted mt-1 leading-relaxed">
-                    Přihlaste se k e-mailovým notifikacím o nových nabídkách. Jakmile publikujeme novou příležitost pod tržní cenou, dorazí vám upozornění.
+                    Přihlaste se k upozorněním na nové nabídky. Jakmile zpřístupníme novou příležitost, dáme vám vědět.
                   </p>
                 </div>
                 <button

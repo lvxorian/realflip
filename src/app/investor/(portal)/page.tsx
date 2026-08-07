@@ -179,9 +179,9 @@ export default function InvestorPortalPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {[
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "24/7 tržní sken a prioritní upozornění" },
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Vyjednáváme ceny ještě před zveřejněním" },
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Reporty s očekávaným ziskem, ROI a dalším postupem" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Nepřetržitý monitoring trhu s prioritními upozorněními" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Vyjednané ceny ještě před veřejným zveřejněním" },
+                  { icon: <CheckCircle size={14} weight="bold" />, text: "Každá nabídka obsahuje analýzu zisku, ROI i další postup" },
                 ].map((item, i) => (
                   <div
                     key={i}
@@ -209,7 +209,7 @@ export default function InvestorPortalPage() {
                     <HandCoins size={24} weight="bold" className="text-muted" />
                   </div>
                   <p className="text-sm text-foreground/90 font-medium">Aktuálně nejsou k dispozici žádné nabídky.</p>
-                  <p className="text-xs text-muted mt-1">Nové příležitosti pod tržní cenou se objevují průběžně — vraťte se brzy.</p>
+                  <p className="text-xs text-muted mt-1">Nová prověřená nabídka se objeví zde. Jakmile budeme mít připravenou další příležitost, dáme vám vědět.</p>
                 </div>
               ) : (
                 <>
@@ -364,7 +364,7 @@ export default function InvestorPortalPage() {
 
               <p className="text-xs text-muted flex items-start gap-1.5">
                 <WarningCircle size={13} weight="bold" className="shrink-0 mt-0.5" />
-                Rezervace zakládá pořadí přístupu k nabídce a je nezávazná do uzavření a podpisu kupní smlouvy.
+                Rezervace zajišťuje přednostní přístup k nabídce a je nezávazná až do podpisu kupní smlouvy.
               </p>
             </>
           ) : (

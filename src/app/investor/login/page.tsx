@@ -48,11 +48,11 @@ export default function InvestorLoginPage() {
           </div>
           <h2 className="text-3xl font-semibold tracking-tight uppercase mb-3">{INVESTOR_BRAND}</h2>
           <p className="text-muted text-sm leading-relaxed">
-            Soukromý přístup k prověřeným nabídkám. Vyjednané ceny pod trhem, analýza zisku
-            a návratnosti — bez hluku veřejných inzerátů.
+            Soukromý přístup k prověřeným nabídkám z více než 10 realitních portálů i off-market zdrojů.
+            Vyjednané slevy za vás a analýza zisku — bez hluku veřejné inzerce.
           </p>
           <div className="mt-6 space-y-2.5 text-left">
-            {["Kurátorský výběr nemovitostí", "Cena vyjednaná pod tržní úrovní", "Odhadovaný zisk a návratnost u každé nabídky"].map((text) => (
+            {["Prověřené nabídky z portálů, dražeb i off-market zdrojů", "Vyjednaná sleva u každé nabídky", "Odhadovaný zisk a návratnost u každé nabídky"].map((text) => (
               <p key={text} className="flex items-center gap-2 text-xs text-muted">
                 <CheckCircle size={14} weight="bold" className="text-emerald-400 shrink-0" />
                 {text}
