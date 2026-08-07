@@ -78,6 +78,9 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
               <p className="text-sm text-gray-500 mt-1 tabular-nums">
                 {fmtPrice(v.low)} – {fmtPrice(v.high)}
               </p>
+              <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
+                {fmtPerSqm(v.lowPerSqm)} – {fmtPerSqm(v.highPerSqm)} · medián {fmtPerSqm(v.pricePerSqm)}
+              </p>
             </div>
             <div className="text-right">
               <p className={`text-lg font-semibold ${CONFIDENCE_COLOR[v.confidenceLabel] ?? "text-gray-700"}`}>

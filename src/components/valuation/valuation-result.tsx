@@ -83,7 +83,10 @@ export default function ValuationResultView({ result, ai, fields, onPrintReport 
               <p className="text-xs uppercase tracking-wider text-muted font-medium">Odhad tržní hodnoty</p>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mt-1 tabular-nums">{fmtPrice(result.estimate)}</h2>
               <p className="text-sm text-muted mt-1 tabular-nums">
-                rozmezí {fmtPrice(result.low)} – {fmtPrice(result.high)} · {Math.round(result.pricePerSqm).toLocaleString("cs-CZ")} Kč/m²
+                rozmezí {fmtPrice(result.low)} – {fmtPrice(result.high)}
+              </p>
+              <p className="text-xs text-muted/70 mt-0.5 tabular-nums">
+                {Math.round(result.lowPerSqm).toLocaleString("cs-CZ")} – {Math.round(result.highPerSqm).toLocaleString("cs-CZ")} Kč/m² · medián {Math.round(result.pricePerSqm).toLocaleString("cs-CZ")} Kč/m²
               </p>
               {(fields.address || fields.cityName) && (
                 <p className="text-sm text-muted/80 mt-2">
@@ -127,6 +130,11 @@ export default function ValuationResultView({ result, ai, fields, onPrintReport 
               <span>{fmtCompact(result.low)}</span>
               <span className="font-medium text-foreground">{fmtCompact(result.estimate)}</span>
               <span>{fmtCompact(result.high)}</span>
+            </div>
+            <div className="flex justify-between text-[10px] text-muted/60 mt-1 tabular-nums">
+              <span>{Math.round(result.lowPerSqm).toLocaleString("cs-CZ")} Kč/m²</span>
+              <span className="font-medium text-foreground/70">{Math.round(result.pricePerSqm).toLocaleString("cs-CZ")} Kč/m²</span>
+              <span>{Math.round(result.highPerSqm).toLocaleString("cs-CZ")} Kč/m²</span>
             </div>
           </div>
 

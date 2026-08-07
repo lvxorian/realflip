@@ -69,6 +69,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 
 ## Odhad (Valuation)
 - Modul `src/lib/valuation/`: `types.ts`, `price-map.ts` (Seznam cenová mapa SSR parse — realizované prodeje per kraj, cache 7 dní v `market_cache` source `price_map`), `czso-trend.ts` (ČSÚ index snapshot), `engine.ts` (vážený blend realizované 45 % / nabídky 35 %, rozmezí, confidence 0–100, kompy), `ai.ts` (Gemini zdůvodnění, bez vymýšlení čísel).
+- Komparace = jen lokální vzorky: GPS obou stran → okruh 10 km; chybí-li GPS, adresa musí obsahovat název města (`addressContainsCity`, word-boundary — nechytá „u mostu"). Váha nabídek dle kvality zdroje (db/sreality 1,0 / market_data 0,6 / fallback ČR 0,3). `CITY_TO_REGION` (crime.ts) pokrývá ~50 měst — Cheb→karlovarsky atd., bez něj realizované prodeje pro malá města nefungovaly. UI + PDF ukazují Kč/m² pod min/medián/maxem.
 - Route `/odhad` (menu Odhad, ikona Scales) + API `POST /api/valuation` (URL → pole → ocenění) + PDF `/report/valuation` (sessionStorage).
 - Diagnostika: `scripts/valuation-check.ts`.
 

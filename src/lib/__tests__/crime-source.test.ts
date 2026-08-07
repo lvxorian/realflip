@@ -8,7 +8,7 @@ vi.mock("@/db", () => ({
   },
 }));
 
-import { discoverLatestCrimeSource } from "../locality/crime";
+import { discoverLatestCrimeSource, CITY_TO_REGION } from "../locality/crime";
 
 function fakeResponse(html: string, ok = true) {
   return {
@@ -20,6 +20,17 @@ function fakeResponse(html: string, ok = true) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("CITY_TO_REGION", () => {
+  it("pokrývá Cheb a další města pro realizované prodeje (Odhad)", () => {
+    expect(CITY_TO_REGION["cheb"]).toBe("karlovarsky");
+    expect(CITY_TO_REGION["mariansk_lazne"]).toBe("karlovarsky");
+    expect(CITY_TO_REGION["kladno"]).toBe("stredocesky");
+    expect(CITY_TO_REGION["trutnov"]).toBe("kralovehradecky");
+    expect(CITY_TO_REGION["opava"]).toBe("moravskoslezsky");
+    expect(CITY_TO_REGION["jihlava"]).toBe("vysocina");
+  });
 });
 
 describe("discoverLatestCrimeSource", () => {

@@ -153,6 +153,53 @@ describe("estimateProperty — srovnatelné", () => {
   });
 });
 
+describe("estimateProperty — lokalita komparací", () => {
+  it("vzorek bez GPS z jiného města se nezobrazí, když má cíl GPS (regrese Cheb/Praha)", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 41000,
+      numTransactions: 900,
+      regionName: "Karlovarský kraj",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50000,
+    });
+    mockedRange.mockResolvedValue(rangeResult(42000));
+    // Cheb má GPS; pražský vzorek NEMÁ GPS a adresa neobsahuje město → musí být vyřazen
+    mockedComps.mockResolvedValue([
+      compSample({ lat: 50.07, lng: 12.37, address: "Cheb, Lomená", pricePerSqm: 40000 }), // v okruhu 10 km
+      compSample({ lat: null, lng: null, address: "Praha 5, Smíchov", pricePerSqm: 110000 }), // bez GPS, cizí město
+      compSample({ lat: 50.05, lng: 12.36, address: null, pricePerSqm: 43000 }), // GPS, bez adresy
+    ]);
+
+    const r = await estimateProperty(
+      { cityKey: "cheb", type: "flat", area: 70, lat: 50.08, lng: 12.38, condition: "good", buildingType: "brick" },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const offers = r.comparables.filter((c) => c.source === "offer");
+    expect(offers.some((c) => c.label.includes("Praha"))).toBe(false);
+    expect(offers.some((c) => c.label.includes("Cheb"))).toBe(true);
+    expect(offers.length).toBe(2); // Cheb + vzorek s GPS bez adresy
+  });
+
+  it("bez GPS cíle: vzorek z cizího města se vyřadí přes adresu", async () => {
+    mockedRealized.mockResolvedValue(null);
+    mockedRange.mockResolvedValue(rangeResult(42000));
+    mockedComps.mockResolvedValue([
+      compSample({ lat: null, lng: null, address: "Cheb, Lomená", pricePerSqm: 40000 }),
+      compSample({ lat: null, lng: null, address: "Praha 5, Smíchov", pricePerSqm: 110000 }),
+      compSample({ lat: null, lng: null, address: null, pricePerSqm: 45000 }), // bez adresy i GPS → vyřazeno
+    ]);
+
+    const r = await estimateProperty(
+      { cityKey: "cheb", type: "flat", area: 70 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const offers = r.comparables.filter((c) => c.source === "offer");
+    expect(offers.map((c) => c.label)).toEqual(["Cheb, Lomená"]);
+  });
+});
+
 describe("estimateProperty — vs inzerát", () => {
   it("vsAskingPct počítá rozdíl od inzerované ceny", async () => {
     mockedRealized.mockResolvedValue(null);
@@ -167,6 +214,30 @@ describe("estimateProperty — vs inzerát", () => {
     expect(r.vsAskingPct).not.toBeNull();
     expect(r.vsAskingPct!).toBeLessThan(0);
     expect(r.askingPrice).toBe(5_000_000);
+  });
+});
+
+describe("estimateProperty — váhy zdrojů", () => {
+  it("fallback (celoČR) má nižší váhu než reálné kompy", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 40000,
+      numTransactions: 800,
+      regionName: "Karlovarský kraj",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50000,
+    });
+    mockedRange.mockResolvedValue({ low: 30000, high: 50000, median: 40000, source: "fallback", sampleSize: 0 });
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "cheb", type: "flat", area: 70, condition: "good", buildingType: "brick" },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const offers = r.sources.find((s) => s.key === "offers");
+    expect(offers).toBeDefined();
+    expect(offers!.label).toContain("ČR (fallback)");
+    expect(offers!.weight).toBeLessThan(0.35);
   });
 });
 

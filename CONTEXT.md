@@ -220,6 +220,15 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Diagnostika**: `scripts/valuation-check.ts` (live kontrola realizovaných cen per kraj).
 - **Testy**: `src/lib/valuation/__tests__/engine.test.ts` (8, injectované deps) — celkem **393 testů / 32 souborů**.
 
+### Phase 33 — Odhad: oprava relevance komparací (Done)
+- **Bug**: komparace u malých měst (Cheb) obsahovaly inzeráty z jiných měst (Praha) — vzorek bez GPS prošel lokálním filtrem bez kontroly, protože podmínka vzdálenosti se aplikovala jen na vzorky s GPS.
+- **Oprava** (`engine.ts`): pokud cíl nebo vzorek nemá GPS → kontrola proběhne přes adresu města (nová `addressContainsCity` s word-boundary regexem — nechytá falešné shody typu „u mostu" pro město Most).
+- **Reálná data pro malá města**: `CITY_TO_REGION` v `locality/crime.ts` rozšířeno z 13 na ~50 měst (cheb→karlovarsky, kladno→stredocesky, trutnov→kralovehradecky…). Bez mapování vracel `regionKeyForCity` null → realizované prodeje z cenové mapy (ČÚZK) pro tato města vůbec nefungovaly.
+- **Váhy zdrojů podle kvality**: db/sreality = plná váha, market_data = 0,6×, fallback (celoČR) = 0,3× — Cheb už nedostane ceny Prahy/ČR jako městskou hladinu; labely zdrojů to transparentně říkají („ČR (fallback)").
+- **UI**: hero + range bar + PDF report nyní ukazují **Kč/m² pod min / mediánem / maxem** (jako Valuo) — `lowPerSqm` / `pricePerSqm` / `highPerSqm`.
+- **Živě ověřeno** (`scripts/valuation-check.ts`): Cheb → Karlovarský kraj, realizované 42 181 Kč/m² (2 420 transakcí), odhad 3,13 mil. Kč, **14 komparací, všechny z Chebu, 0 z cizích měst**.
+- **Testy**: regresní lokalitní testy (Cheb vs Praha s/bez GPS) + váhy fallbacku + CITY_TO_REGION — celkem **397 testů / 32 souborů**.
+
 ## Key Files
 
 ### Core

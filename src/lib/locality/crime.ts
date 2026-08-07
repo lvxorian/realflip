@@ -128,8 +128,15 @@ export async function fetchCrimeRegions(): Promise<CrimeRegionData[]> {
   return results;
 }
 
-/** Mapování cityKey -> kraj. */
+/**
+ * Mapování cityKey -> kraj. Pokrývá města z CITY_ALIASES (location.ts) s jednoznačným
+ * krajem, aby realizované prodeje z cenové mapy (regionKeyForCity) fungovaly i pro menší
+ * města jako Cheb, Kladno, Tábor apod. (jinak by spadly na celorepublikový fallback).
+ * Drobné obce bez jednoznačného kraje (Jarov, Vráž apod.) tu záměrně chybí — vrací null
+ * a odhad pro ně korektně staví na nabídkách a regionální hladině bez tvrzené přesnosti.
+ */
 export const CITY_TO_REGION: Record<string, string> = {
+  // velká města
   praha: "praha",
   brno: "jihomoravsky",
   plzen: "plzensky",
@@ -143,6 +150,62 @@ export const CITY_TO_REGION: Record<string, string> = {
   karlovy_vary: "karlovarsky",
   jihlava: "vysocina",
   ceske_budejovice: "jihocesky",
+  // Karlovarský kraj
+  cheb: "karlovarsky",
+  mariansk_lazne: "karlovarsky",
+  // Středočeský kraj
+  kladno: "stredocesky",
+  mlada_boleslav: "stredocesky",
+  kolin: "stredocesky",
+  pribram: "stredocesky",
+  benesov: "stredocesky",
+  beroun: "stredocesky",
+  melnik: "stredocesky",
+  cesky_brod: "stredocesky",
+  // Jihočeský kraj
+  cesky_krumlov: "jihocesky",
+  pisek: "jihocesky",
+  tabor: "jihocesky",
+  prachatice: "jihocesky",
+  // Plzeňský kraj
+  nyrsko: "plzensky",
+  tremosna: "plzensky",
+  horsovsky_tyn: "plzensky",
+  // Ústecký kraj
+  chomutov: "ustecky",
+  decin: "ustecky",
+  teplice: "ustecky",
+  most: "ustecky",
+  litvinov: "ustecky",
+  jirkov: "ustecky",
+  osek: "ustecky",
+  // Královéhradecký kraj
+  trutnov: "kralovehradecky",
+  zacler: "kralovehradecky",
+  // Pardubický kraj
+  letohrad: "pardubicky",
+  // Liberecký kraj
+  ceska_lipa: "liberecky",
+  // Vysočina
+  havlickuv_brod: "vysocina",
+  trebic: "vysocina",
+  polna: "vysocina",
+  // Jihomoravský kraj
+  znojmo: "jihomoravsky",
+  breclav: "jihomoravsky",
+  // Olomoucký kraj
+  prostejov: "olomoucky",
+  prerov: "olomoucky",
+  jesenik: "olomoucky",
+  // Zlínský kraj
+  kromeriz: "zlinsky",
+  // Moravskoslezský kraj
+  karvina: "moravskoslezsky",
+  havirov: "moravskoslezsky",
+  opava: "moravskoslezsky",
+  trinec: "moravskoslezsky",
+  bruntal: "moravskoslezsky",
+  krnov: "moravskoslezsky",
 };
 
 export async function getCrimeIndexForCity(cityKey: string): Promise<{

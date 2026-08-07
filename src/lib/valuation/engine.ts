@@ -55,6 +55,23 @@ export function areaSizeFactor(area: number | null | undefined): number {
   return Math.min(1.15, Math.max(0.85, f));
 }
 
+/**
+ * Adresní shoda s názvem města na hranicích slova.
+ * Oproti addressMatchesCity (naivní substring) nechytá falešné shody jako
+ * „u mostu" pro město Most nebo „na oseku" pro Osek — krátké/obecné názvy
+ * měst by jinak propustily cizí vzorky do komparací.
+ */
+function addressContainsCity(address: string | null | undefined, cityNames: string[]): boolean {
+  if (!address) return false;
+  const addr = address.toLowerCase();
+  return cityNames.some((name) => {
+    const n = name.trim().toLowerCase();
+    if (!n) return false;
+    const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^a-záčďéěíňóřšťúůýž])${esc}($|[^a-záčďéěíňóřšťúůýž])`).test(addr);
+  });
+}
+
 export async function estimateProperty(
   input: ValuationInput,
   deps: EngineDeps = {}
@@ -97,16 +114,28 @@ export async function estimateProperty(
 
   if (range && range.median > 0) {
     const offerMedian = range.median;
+    // Váha závisí na kvalitě zdroje: reálné kompy (DB/sreality) plná váha,
+    // odhad trhu z fixních dat nižší, celorepublikový fallback minimální
+    // (jinak by Cheb dostal ceny Prahy/ČR).
+    const sourceQuality =
+      range.source === "db" || range.source === "sreality" ? 1 : range.source === "market_data" ? 0.6 : 0.3;
+    const weight = VALUATION_WEIGHTS.offers * sourceQuality;
+    const label =
+      range.source === "db" || range.source === "sreality"
+        ? "Nabídkové ceny — město"
+        : range.source === "market_data"
+          ? "Nabídkové ceny — město (odhad trhu)"
+          : "Nabídkové ceny — ČR (fallback)";
     sources.push({
       key: "offers",
-      label: "Nabídkové ceny — město",
+      label,
       pricePerSqm: Math.round(offerMedian),
       sampleSize: range.sampleSize,
-      weight: VALUATION_WEIGHTS.offers,
+      weight,
       note: `Medián nabídkových cen pro ${cityKey} / segment (zdroj: ${range.source}${range.sampleSize ? `, ${range.sampleSize} vzorků` : ""}).`,
     });
-    weightedSum += offerMedian * VALUATION_WEIGHTS.offers;
-    weightTotal += VALUATION_WEIGHTS.offers;
+    weightedSum += offerMedian * weight;
+    weightTotal += weight;
   }
 
   // ---------- 3) Odhad ----------
@@ -134,7 +163,8 @@ export async function estimateProperty(
   let confidenceScore = 25;
   if (realized) confidenceScore += Math.min(30, 10 + Math.log10(Math.max(1, realized.numTransactions)) * 8);
   if (range && (range.source === "db" || range.source === "sreality")) confidenceScore += 15;
-  else if (range) confidenceScore += 5;
+  else if (range && range.source === "market_data") confidenceScore += 8;
+  else if (range) confidenceScore += 3;
   if (areaSafe) confidenceScore += 10;
   if (input.condition) confidenceScore += 5;
   if (input.category) confidenceScore += 5;
@@ -163,14 +193,19 @@ export async function estimateProperty(
     const cityNames = cityNamesFor(cityKey);
     const minArea = areaSafe ? areaSafe * 0.7 : null;
     const maxArea = areaSafe ? areaSafe * 1.3 : null;
+    const targetHasGps = lat != null && lng != null;
 
     const near = samples
       .filter((s) => {
         if (s.pricePerSqm <= 0) return false;
-        if (lat != null && lng != null) {
-          if (s.lat != null && s.lng != null && haversineKm(lat, lng, s.lat, s.lng) > 10) return false;
-        } else if (!cityNames.some((n) => (s.address ?? "").toLowerCase().includes(n.toLowerCase()))) {
-          return false;
+        const sampleHasGps = s.lat != null && s.lng != null;
+        if (targetHasGps && sampleHasGps) {
+          // obě strany mají GPS → okruh 10 km
+          if (haversineKm(lat!, lng!, s.lat!, s.lng!) > 10) return false;
+        } else {
+          // nemovitost nebo vzorek nemá GPS → kontrola musí proběhnout přes adresu města,
+          // jinak by se do komparací dostaly inzeráty z celé republiky
+          if (!addressContainsCity(s.address, cityNames)) return false;
         }
         if (minArea != null && s.area != null && (s.area < minArea || s.area > maxArea!)) return false;
         return true;
