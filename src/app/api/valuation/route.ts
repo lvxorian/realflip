@@ -1,0 +1,113 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { scrapeUrl } from "@/lib/scraping/url-scraper";
+import { applyAreaResolution } from "@/lib/scraping/area-resolver";
+import { isSaleListing } from "@/lib/scraping/filters";
+import { classifyLocation } from "@/lib/analysis/location";
+import { cityKeyToName } from "@/lib/geocode";
+import { estimateProperty, attachTrend } from "@/lib/valuation/engine";
+import { fetchPriceMap } from "@/lib/valuation/price-map";
+import { explainValuation } from "@/lib/valuation/ai";
+import type { ValuationInput } from "@/lib/valuation/types";
+
+function inferType(rooms: string | null, buildingType: string | null, title: string | null): "flat" | "house" | "land" {
+  const text = `${rooms ?? ""} ${buildingType ?? ""} ${title ?? ""}`.toLowerCase();
+  if (/pozemk|parcela|land/i.test(text)) return "land";
+  if (/d[uú]m|villa|chalupa|chata|house/i.test(text)) return "house";
+  return "flat";
+}
+
+export async function POST(req: Request) {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const url: string | undefined = typeof body.url === "string" && body.url.trim() ? body.url.trim() : undefined;
+    const fields: Partial<ValuationInput> | undefined =
+      body.fields && typeof body.fields === "object" ? body.fields : undefined;
+
+    // ---------- Fáze 1: URL → načti data inzerátu ----------
+    let listingFields: Partial<ValuationInput> = {};
+    if (url) {
+      try {
+        const { listing: rawListing } = await scrapeUrl(url);
+        const { resolved: listing } = applyAreaResolution(rawListing);
+        if (!isSaleListing(listing)) {
+          return NextResponse.json(
+            { error: "Tento inzerát není prodejní nabídkou (poptávky a nájmy nejsou podporovány)" },
+            { status: 400 }
+          );
+        }
+        if (!listing.price || listing.price <= 0) {
+          return NextResponse.json({ error: "Nepodařilo se načíst cenu inzerátu" }, { status: 400 });
+        }
+        const location = classifyLocation(listing.address, listing.title);
+        listingFields = {
+          address: listing.address,
+          cityKey: location.city !== "Neznámá" ? location.city : undefined,
+          cityName: location.city !== "Neznámá" ? cityKeyToName(location.city) : listing.address?.split(",")[0] ?? null,
+          lat: listing.lat ?? null,
+          lng: listing.lng ?? null,
+          type: inferType(listing.rooms, listing.buildingType, listing.title),
+          disposition: listing.rooms,
+          area: listing.area ?? undefined,
+          condition: listing.condition ?? undefined,
+          buildingType: listing.buildingType ?? undefined,
+          category: location.category ?? undefined,
+          askingPrice: listing.price,
+          sourceUrl: url,
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Načtení inzerátu selhalo";
+        return NextResponse.json({ error: msg.startsWith("HTTP 4") ? `Inzerát: ${msg}` : msg }, { status: 400 });
+      }
+    }
+
+    // Jen URL → vrať načtená pole (UI je nechá uživateli upravit)
+    if (!fields && url) {
+      return NextResponse.json({ parsed: listingFields });
+    }
+
+    // ---------- Fáze 2: ocenění ----------
+    if (!fields) {
+      return NextResponse.json({ error: "Chybí vstupní údaje (URL nebo pole)" }, { status: 400 });
+    }
+    const input: ValuationInput = {
+      ...listingFields,
+      ...fields,
+      cityKey: fields.cityKey || listingFields.cityKey || "",
+      area: fields.area ?? listingFields.area ?? null,
+      type: fields.type ?? listingFields.type ?? "flat",
+      lat: fields.lat ?? listingFields.lat ?? null,
+      lng: fields.lng ?? listingFields.lng ?? null,
+      askingPrice: fields.askingPrice ?? listingFields.askingPrice ?? null,
+      sourceUrl: fields.sourceUrl ?? listingFields.sourceUrl ?? null,
+    };
+    if (!input.cityKey || input.cityKey === "Neznámá" || input.cityKey === "unknown") {
+      return NextResponse.json({ error: "Chybí město — vyberte lokalitu" }, { status: 400 });
+    }
+    if (!input.area || input.area <= 0) {
+      return NextResponse.json({ error: "Chybí plocha (m²)" }, { status: 400 });
+    }
+
+    const [valuation, priceMap] = await Promise.all([
+      estimateProperty(input),
+      fetchPriceMap().catch(() => null),
+    ]);
+    const result = attachTrend(valuation, priceMap?.trend ?? []);
+
+    let ai = null;
+    if (process.env.GEMINI_API_KEY) {
+      ai = await explainValuation(input, result).catch(() => null);
+    }
+
+    return NextResponse.json({ valuation: result, ai, parsed: listingFields, sourceUrl: url ?? null });
+  } catch (error) {
+    console.error("Valuation error:", error);
+    return NextResponse.json({ error: "Chyba při výpočtu odhadu" }, { status: 500 });
+  }
+}

@@ -67,6 +67,11 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - **Aplikováno na Neon**: `0007_target_roi_real.sql` + `0008_investors.sql` (investors tabulka, deals.investor_id + FK set null) — ověřeno přes `@neondatabase/serverless` `sql.query`. Též `0010_market_audit.sql` (arv_price_per_sqm_high, market_source, market_sample_size).
 - Skripty: `scripts/reanalyze.ts` (progress log), `scripts/live-market-check.ts [city]`, `scripts/check-migration.ts`.
 
+## Odhad (Valuation)
+- Modul `src/lib/valuation/`: `types.ts`, `price-map.ts` (Seznam cenová mapa SSR parse — realizované prodeje per kraj, cache 7 dní v `market_cache` source `price_map`), `czso-trend.ts` (ČSÚ index snapshot), `engine.ts` (vážený blend realizované 45 % / nabídky 35 %, rozmezí, confidence 0–100, kompy), `ai.ts` (Gemini zdůvodnění, bez vymýšlení čísel).
+- Route `/odhad` (menu Odhad, ikona Scales) + API `POST /api/valuation` (URL → pole → ocenění) + PDF `/report/valuation` (sessionStorage).
+- Diagnostika: `scripts/valuation-check.ts`.
+
 ## Key Files
 - `src/lib/analysis/flip-costs.ts` — flip calculator (no VAT, tax fixed 21%)
 - `src/lib/analysis/rental-calc.ts` — rental calculator (cap rate = NOI ÷ price, yield on investment = NOI ÷ (price+acq), daň 15 % s paušálem 30 % cap 600k, geometric annualized ROI, DSCR, verdict relativní k `targetYield`: +1.5/+0/−1)

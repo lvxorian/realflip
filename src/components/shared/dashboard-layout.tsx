@@ -26,6 +26,7 @@ import {
   Gavel,
   ListChecks,
   ShieldCheck,
+  Scales,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/properties", label: "Nemovitosti", icon: Buildings },
   { href: "/analyzer", label: "Analyzátor", icon: MagnifyingGlass },
   { href: "/calculator", label: "Kalkulačka", icon: Calculator },
+  { href: "/odhad", label: "Odhad", icon: Scales },
   { href: "/searches", label: "Hledání", icon: Funnel },
   { href: "/leads", label: "Pipeline", icon: GitBranch },
   { href: "/call-mode", label: "Call Mode", icon: Phone },

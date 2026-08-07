@@ -171,16 +171,22 @@ async function readFromDbCache(cityKey: string, segment: string): Promise<Cached
 
 // ---------- Tier 1: vlastní DB kompy ----------
 
-interface CompSample {
+export interface CompSample {
   pricePerSqm: number;
   lat: number | null;
   lng: number | null;
   area: number | null;
   segment: SegmentKey;
   address: string | null;
+  price?: number | null;
+  condition?: string | null;
 }
 
-async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketRangeResult | null> {
+/**
+ * Surové srovnatelné vzorky z vlastní DB (aktivní nabídky, posledních 90 dní).
+ * Sdíleno kaskádou (Tier 1) i modulem Odhad (tabulka srovnatelných).
+ */
+export async function fetchComparableSamples(ctx: PropertyMarketContext): Promise<CompSample[]> {
   const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
 
   const rows = await db
@@ -207,9 +213,16 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
       area: row.area,
       segment: segmentOf(row.condition, row.buildingType),
       address: row.address,
+      price: row.price,
+      condition: row.condition,
     });
   }
 
+  return samples;
+}
+
+async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketRangeResult | null> {
+  const samples = await fetchComparableSamples(ctx);
   if (samples.length === 0) return null;
 
   const seg = segmentOf(ctx.condition, ctx.buildingType);

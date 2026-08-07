@@ -210,6 +210,16 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Odstranění ROI p.a.**: Z detailu v portálu byl odstraněn řádek "ROI p.a.".
 - **Verifikace**: `npx tsc --noEmit` a `npm run build` prošly bez chyb.
 
+### Phase 32 — Odhad ceny nemovitosti (Done)
+- **Nový modul „Odhad"** (`/odhad` v menu, ikona Scales, mezi Kalkulačkou a Hledáním) — automatické ocenění nemovitosti z URL inzerátu (sreality, realitymat, idnes.reality, bazos, bezrealitky…) nebo ručního formuláře s editačními poli.
+- **Zdroje (kaskáda)**: 1) **Realizované prodeje** — Seznam cenová mapa (`sreality.cz/cenova-mapa`, SSR parse) — **50 469 transakcí**, průměr Kč/m² per kraj (14), posledních 12 měsíců, ČÚZK data; cache 7 dní v `market_cache` (source `price_map`, city `cz`). 2) **Nabídkové kompy** — stávající kaskáda Tier 1–5 (`getPropertyMarketRange`). 3) **ČSÚ index cen bytů** — reálný snapshot (`czso-trend.ts`, 014008-26). Reas.cz záměrně vynechán (email v wizardu + ToS).
+- **Engine** (`src/lib/valuation/engine.ts`): vážený blend realizovaných (45 %) + nabídek (35 %), úprava plochy (elasticita 0,1, clamp 0,85–1,15), multiplikátory stav/typ/kategorie, rozmezí = odhad ± spread z kvality dat, **confidence 0–100** (Vysoká/Střední/Nízká), srovnatelné nabídky (GPS ≤ 10 km, plocha ± 30 %, dedup adres).
+- **AI vrstva** (`ai.ts`): Gemini vysvětlí odhad česky (JSON, teplota 0.2, **NESMÍ vymýšlet čísla** — vzor locality-guard), selhání → null.
+- **API**: `POST /api/valuation` — fáze 1 (jen URL → data inzerátu k úpravě) + fáze 2 (ocenění + AI + trend cenové mapy).
+- **UI**: `/odhad` (URL input → editační formulář → výsledek: hero rozmezí s range barem + bodový odhad, zdroje s vahami, tabulka srovnatelných, trend graf (recharts), AI hodnocení, metodika, disclaimer). **PDF report** `/report/valuation` (sessionStorage `valuation-report`, tisk jako auction report).
+- **Diagnostika**: `scripts/valuation-check.ts` (live kontrola realizovaných cen per kraj).
+- **Testy**: `src/lib/valuation/__tests__/engine.test.ts` (8, injectované deps) — celkem **393 testů / 32 souborů**.
+
 ## Key Files
 
 ### Core
