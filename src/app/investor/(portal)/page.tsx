@@ -215,92 +215,88 @@ export default function InvestorPortalPage() {
                 <>
                   {/* Desktop table */}
                   <div className="hidden lg:block rounded-2xl border border-border/50 bg-card overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border/30">
-                            <th className="text-left p-4 text-xs text-muted font-medium">Makrolokalita</th>
-                            <th className="text-left p-4 text-xs text-muted font-medium">Stav</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">m²</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Inzerovaná cena</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Cena po vyjednání</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Sleva oproti inzerci</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Odhadovaný zisk</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">ROI / Čistý výnos</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Status</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium"></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/20">
-                          {data.items.map((item, i) => (
-                            <motion.tr
-                              key={item.id}
-                              initial={{ opacity: 0, y: 8 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: i * 0.03, duration: 0.25 }}
-                              className="hover:bg-card-hover transition-colors"
-                            >
-                              <td className="p-4">
-                                <p className="font-medium capitalize whitespace-nowrap">
-                                  {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
-                                </p>
-                                <p className="text-xs text-muted mt-0.5 flex items-center gap-1 capitalize whitespace-nowrap">
-                                  <MapPin size={11} weight="bold" />
-                                  {[item.city, item.district].filter(Boolean).join(" · ") || "—"}
-                                  {item.floor !== null ? ` · ${item.floor}. podlaží` : ""}
-                                </p>
-                              </td>
-                              <td className="p-4">{item.condition}</td>
-                              <td className="p-4 text-right font-mono whitespace-nowrap">
-                                {item.area ?? "—"}
-                                {item.rooms ? <span className="text-xs text-muted"> ({item.rooms})</span> : null}
-                              </td>
-                              <td className="p-4 text-right font-mono text-muted">{fmtPrice(item.originalPrice)}</td>
-                              <td className="p-4 text-right">
-                                <span className="font-mono font-medium">{fmtPrice(item.offerPrice)}</span>
-                                {item.overBudget && (
-                                  <Badge variant="warning" size="sm" className="ml-2 gap-1">
-                                    <WarningCircle size={10} weight="bold" />
-                                    nad budget
-                                  </Badge>
-                                )}
-                              </td>
-                              <td className="p-4 text-right font-mono">
-                                {item.savingsPct !== null && item.savingsPct > 0 ? (
-                                  <span className="text-emerald-400">−{item.savingsPct.toFixed(1)} %</span>
-                                ) : (
-                                  <span className="text-muted">—</span>
-                                )}
-                              </td>
-                              <td className="p-4 text-right font-mono whitespace-nowrap">
-                                {item.netProfit !== null ? (
-                                  <span className={item.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}>
-                                    {formatCompactPrice(item.netProfit)}
-                                  </span>
+                    <table className="w-full text-[13px] leading-tight">
+                      <thead>
+                        <tr className="border-b border-border/30">
+                          <th className="text-left px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Nabídka</th>
+                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Inzerovaná cena</th>
+                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Cena po vyjednání</th>
+                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Odhad zisk / Čistý výnos</th>
+                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">ROI</th>
+                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Status</th>
+                          <th className="text-right p-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/20">
+                        {data.items.map((item, i) => (
+                          <motion.tr
+                            key={item.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03, duration: 0.25 }}
+                            className="hover:bg-card-hover transition-colors"
+                          >
+                            <td className="p-3 pr-4 min-w-[180px]">
+                              <p className="font-semibold capitalize truncate">
+                                {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted whitespace-nowrap">
+                                <MapPin size={10} weight="bold" className="shrink-0" />
+                                <span className="truncate">{item.condition}</span>
+                                {item.area ? <span className="font-mono tabular-nums">{item.area} m²</span> : null}
+                                {item.rooms ? <span>{item.rooms}</span> : null}
+                                {item.floor !== null ? <span>{item.floor}. podlaží</span> : null}
+                              </div>
+                            </td>
+                            <td className="p-3 text-right font-mono text-muted tabular-nums whitespace-nowrap">
+                              {fmtPrice(item.originalPrice)}
+                            </td>
+                            <td className="p-3 text-right whitespace-nowrap">
+                              <span className="font-mono font-semibold tabular-nums">{fmtPrice(item.offerPrice)}</span>
+                              {item.savingsPct !== null && item.savingsPct > 0 && (
+                                <span className="text-emerald-400 text-[11px] font-mono tabular-nums ml-1">−{item.savingsPct.toFixed(1)} %</span>
+                              )}
+                              {item.overBudget && (
+                                <Badge variant="warning" size="sm" className="ml-1.5 gap-1">
+                                  <WarningCircle size={10} weight="bold" />
+                                  nad budget
+                                </Badge>
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
+                              {item.calcMode === "rental" ? (
+                                item.rentalYield != null ? (
+                                  <span className="text-emerald-400">{item.rentalYield.toFixed(1)} %</span>
                                 ) : (
                                   "—"
-                                )}
-                              </td>
-                              <td className="p-4 text-right font-mono whitespace-nowrap">
-                                {item.rentalYield != null ? (
-                                  <span className="text-muted">{formatPercent(item.rentalYield)}</span>
-                                ) : item.roi !== null ? (
-                                  formatPercent(item.roi)
-                                ) : (
-                                  "—"
-                                )}
-                              </td>
-                              <td className="p-4 text-right">
-                                <StatusPill item={item} />
-                              </td>
-                              <td className="p-4 text-right">
-                                <ActionButton item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
-                              </td>
-                            </motion.tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                )
+                              ) : item.netProfit !== null ? (
+                                <span className={item.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}>
+                                  {formatCompactPrice(item.netProfit)}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
+                              {item.calcMode === "rental" ? (
+                                "—"
+                              ) : item.roi !== null ? (
+                                formatPercent(item.roi)
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td className="p-3 text-right">
+                              <StatusPill item={item} />
+                            </td>
+                            <td className="p-3 text-right">
+                              <ActionButton item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
 
                   {/* Mobile cards */}
@@ -314,20 +310,20 @@ export default function InvestorPortalPage() {
                         className="rounded-2xl border border-border/50 bg-card p-4 space-y-3"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold leading-tight">
+                          <div className="min-w-0">
+                            <p className="font-semibold leading-tight truncate">
                               {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
                             </p>
                             <p className="text-xs text-muted mt-1 flex items-center gap-1.5 flex-wrap">
-                              <Badge variant="secondary" size="sm">{item.condition}</Badge>
-                              {item.area && <span className="font-mono">{item.area} m²</span>}
+                              <span className="capitalize">{item.condition}</span>
+                              {item.area && <span className="font-mono tabular-nums">{item.area} m²</span>}
                               {item.rooms && <span>{item.rooms}</span>}
                             </p>
                           </div>
                           <StatusPill item={item} />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
                           <Metric label="Inzerovaná cena" value={fmtPrice(item.originalPrice)} muted />
                           <Metric label="Cena po vyjednání" value={fmtPrice(item.offerPrice)} strong>
                             {item.overBudget && (
@@ -349,7 +345,7 @@ export default function InvestorPortalPage() {
                           {item.calcMode === "rental" ? (
                             <Metric
                               label="Čistý výnos"
-                              value={item.rentalYield != null ? formatPercent(item.rentalYield) : "—"}
+                              value={item.rentalYield != null ? `${item.rentalYield.toFixed(1)} %` : "—"}
                               accent={item.rentalYield != null}
                             />
                           ) : (
@@ -474,10 +470,10 @@ function Metric({
   children?: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-[11px] text-muted">{label}</p>
       <p
-        className={`font-mono mt-0.5 ${strong ? "font-semibold" : ""} ${
+        className={`font-mono tabular-nums mt-0.5 truncate ${strong ? "font-semibold" : ""} ${
           accent ? "text-emerald-400" : muted ? "text-muted" : ""
         }`}
       >
