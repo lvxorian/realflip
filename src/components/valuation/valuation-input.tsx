@@ -88,7 +88,7 @@ export default function ValuationInput({
         <CardContent className="p-6">
           <p className="text-sm font-medium mb-1.5">Odkaz na inzerát</p>
           <p className="text-xs text-muted mb-3">
-            Podporované portály: sreality.cz, bezrealitky.cz, reality.cz, realitymat.cz, idnes.reality.cz, bazos.cz, mmreality.cz, hyperinzerce.cz, annonce.cz
+            Podporované portály: sreality.cz, bezrealitky.cz, reality.cz, realitymat.cz, reality.idnes.cz, bazos.cz, mmreality.cz, hyperinzerce.cz, annonce.cz
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <input

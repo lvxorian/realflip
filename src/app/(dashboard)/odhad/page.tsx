@@ -35,29 +35,36 @@ function OdhadPageContent() {
 
   const stepIndex = result ? 2 : parsed ? 1 : 0;
 
-  const handleParseUrl = useCallback(async () => {
-    setParsing(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/valuation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Načtení inzerátu selhalo");
-        return;
+  // urlToParse umožňuje auto-načtení z ?url= bez stale-closure (useCallback s [] by
+  // zachytil první prázdnou hodnotu url a API by vrátilo „Chybí vstupní údaje").
+  const handleParseUrl = useCallback(
+    async (urlToParse?: string) => {
+      const target = (urlToParse ?? url ?? "").trim();
+      if (!target) return;
+      setParsing(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/valuation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: target }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error ?? "Načtení inzerátu selhalo");
+          return;
+        }
+        const p = data.parsed ?? {};
+        setFields((prev) => ({ ...prev, ...p }));
+        setParsed(true);
+      } catch {
+        setError("Načtení inzerátu selhalo — zkuste to prosím znovu.");
+      } finally {
+        setParsing(false);
       }
-      const p = data.parsed ?? {};
-      setFields((prev) => ({ ...prev, ...p }));
-      setParsed(true);
-    } catch {
-      setError("Načtení inzerátu selhalo — zkuste to prosím znovu.");
-    } finally {
-      setParsing(false);
-    }
-  }, []);
+    },
+    [url]
+  );
 
   // Podpora /odhad?url=… — předvyplní URL a automaticky načte inzerát (odkaz z detailu/Analyzátoru).
   // Spouští se až po ověření session (jinak by API vrátilo 401).
@@ -68,7 +75,8 @@ function OdhadPageContent() {
     if (!qUrl || autoRunRef.current || status !== "authenticated") return;
     autoRunRef.current = true;
     setUrl(qUrl);
-    const t = setTimeout(() => handleParseUrl(), 300);
+    // předáme URL explicitně — timeout by jinak použil stale closure z prvního renderu
+    const t = setTimeout(() => handleParseUrl(qUrl), 300);
     return () => clearTimeout(t);
   }, [searchParams, handleParseUrl, status]);
 
