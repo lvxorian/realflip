@@ -449,6 +449,30 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
   if (item.calcMode === "rental") {
     const deal = item.deal.type === "rental" ? item.deal : null;
     const snap = item.snapshot?.mode === "rental" ? item.snapshot : null;
+    const hasItemized = snap && (snap.legalFee != null || snap.appraisalFee != null || snap.sourcingFee != null || snap.renovationCost != null || snap.noiAnnual != null || snap.cashOnCash != null);
+    if (hasItemized) {
+      return (
+        <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Výnosová analýza</p>
+            <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
+          </div>
+          <div className="space-y-2 text-[12px]">
+            <DetailRow label="Kupní cena" value={snap.targetPurchasePrice != null ? formatCompactPrice(snap.targetPurchasePrice) : "—"} />
+            {snap.legalFee != null && snap.legalFee > 0 && <DetailRow label="Právní služby" value={formatCompactPrice(snap.legalFee)} />}
+            {snap.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatCompactPrice(snap.appraisalFee)} />}
+            {snap.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatCompactPrice(snap.sourcingFee)} />}
+            {snap.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatCompactPrice(snap.renovationCost)} />}
+            {snap.totalInvested != null && <DetailRow label="Celková investice" value={formatCompactPrice(snap.totalInvested)} accent />}
+            {snap.noiAnnual != null && <DetailRow label="NOI ročně" value={formatCompactPrice(snap.noiAnnual)} />}
+            <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent={deal?.netYield != null && deal.netYield >= 0} />
+            <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatCompactPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
+            {snap.cashOnCash != null && <DetailRow label="Cash-on-cash" value={`${snap.cashOnCash.toFixed(1)} %`} accent={snap.cashOnCash >= 0} />}
+          </div>
+          <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -470,6 +494,37 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
 
   const deal = item.deal.type === "flip" ? item.deal : null;
   const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
+  const hasItemized = snap && (snap.legalFees != null || snap.appraisalFee != null || snap.contingency != null || snap.holdingCosts != null || snap.sellingCommission != null || snap.marketingPhoto != null || snap.mortgageCost != null || snap.sourcingFee != null || snap.incomeTax != null);
+  if (hasItemized) {
+    const targetPrice = snap.targetPurchasePrice ?? snap.purchasePriceUsed;
+    return (
+      <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Odhadovaný zisk a ROI</p>
+          <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
+        </div>
+        <div className="space-y-2 text-[12px]">
+          <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatCompactPrice(targetPrice) : "—"}</div>
+          <DetailRow label="Kupní cena" value={targetPrice != null ? formatCompactPrice(targetPrice) : "—"} />
+          {snap.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatCompactPrice(snap.legalFees)} />}
+          {snap.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatCompactPrice(snap.appraisalFee)} />}
+          {snap.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatCompactPrice(snap.renovationCost)} />}
+          {snap.contingency != null && snap.contingency > 0 && <DetailRow label="Rezerva 10 %" value={formatCompactPrice(snap.contingency)} />}
+          {snap.sellingCommission != null && snap.sellingCommission > 0 && <DetailRow label="Provize RK prodejní (5 %)" value={formatCompactPrice(snap.sellingCommission)} />}
+          {snap.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatCompactPrice(snap.marketingPhoto)} />}
+          {snap.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatCompactPrice(snap.holdingCosts)} />}
+          {snap.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatCompactPrice(snap.mortgageCost)} />}
+          {snap.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatCompactPrice(snap.sourcingFee)} />}
+          {snap.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatCompactPrice(snap.incomeTax)} />}
+          {snap.totalCost != null && <DetailRow label="Náklady celkem" value={formatCompactPrice(snap.totalCost)} accent />}
+          {deal?.arv != null && <DetailRow label="ARV (po rekonstrukci)" value={formatCompactPrice(deal.arv)} />}
+          <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatCompactPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
+          <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
+        </div>
+        <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -482,7 +537,6 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
         <DetailRow label="Rekonstrukce" value={snap?.renovationCost != null ? formatCompactPrice(snap.renovationCost) : "—"} />
         <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatCompactPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
         <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
-        <DetailRow label="ROI p.a." value={deal?.annualizedRoi != null ? `${deal.annualizedRoi.toFixed(1)} %` : "—"} accent={deal?.annualizedRoi != null && deal.annualizedRoi >= 0} />
       </div>
       {snap?.totalCost != null && (
         <div className="rounded-lg border border-border/30 bg-card/60 p-3">

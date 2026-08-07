@@ -199,6 +199,11 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **`PATCH /api/properties/[id]`**: validace `condition` ∈ 5 hodnot (jinak 400), `.set({ condition })`. Při změně stavu **žhavý přepočet** — `getAnalysisRanges({ cityKey, lat, lng, condition: new, buildingType, area, category })` (jen když `locationCity` známá a ≠ "Neznámá"), čerstvé `dynamicRange`/`arvRange` + `marketSource`/`marketSampleSize`; při selhání fallback na uložené range (offline re-analysis).
 - **Testy/typy/build**: 290 testů / 22 souborů zelené, `tsc --noEmit` čistý, `next build` OK.
 
+### Phase 30 — Investor portal polish (Done)
+- Fixed Brickon investor portal list in `src/app/investor/(portal)/page.tsx`: key metric cell values no longer wrap, locality labels use `capitalize`, and ROI now prefers `propertyAnalysis.rentalYield` when available.
+- Backend selection updated in `src/lib/investor-portal.ts` to include `propertyAnalysis.rentalYield`; mapping updated in `src/lib/investor-portal-view.ts`.
+- Verified with `npx tsc --noEmit` and `npx next build`.
+
 ## Key Files
 
 ### Core

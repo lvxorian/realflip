@@ -23,10 +23,9 @@ export interface RentalDealView {
 
 export type DealMetricsView = FlipDealView | RentalDealView;
 
-/** Uložený "snímek" z kalkulačky — přesně ta čísla, která admin v RealFlip
- * kalkulačce viděl při posledním Uložit. Portál je zobrazuje bez přepočtu. */
 export interface CalcSnapshotFlip {
   mode: "flip";
+  /** Cena, z níž se počítá „Výpočet při cílové ceně" (PDF kalkulačka). */
   purchasePriceUsed: number | null;
   arv: number | null;
   renovationCost: number | null;
@@ -36,6 +35,17 @@ export interface CalcSnapshotFlip {
   cashOnCash: number | null;
   totalCost: number | null;
   targetPurchasePrice: number | null;
+  /** Položkový rozpis (PDF kalkulačka) – null = není k dispozici. */
+  legalFees: number | null;
+  appraisalFee: number | null;
+  contingency: number | null;
+  holdingCosts: number | null;
+  holdingMonths: number | null;
+  sellingCommission: number | null;
+  marketingPhoto: number | null;
+  mortgageCost: number | null;
+  sourcingFee: number | null;
+  incomeTax: number | null;
 }
 
 export interface CalcSnapshotRental {
@@ -49,6 +59,13 @@ export interface CalcSnapshotRental {
   cashFlowMonthly: number | null;
   totalInvested: number | null;
   targetPurchasePrice: number | null;
+  /** Položkový rozpis investice (PDF kalkulačka) */
+  legalFee: number | null;
+  appraisalFee: number | null;
+  sourcingFee: number | null;
+  renovationCost: number | null;
+  noiAnnual: number | null;
+  cashOnCash: number | null;
 }
 
 export type CalcSnapshot = CalcSnapshotFlip | CalcSnapshotRental;

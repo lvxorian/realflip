@@ -115,6 +115,12 @@ export async function POST(
         cashFlowMonthly: typeof body.rentalCashFlowMonthly === "number" ? Math.round(body.rentalCashFlowMonthly) : null,
         totalInvested: typeof body.rentalTotalInvested === "number" ? Math.round(body.rentalTotalInvested) : null,
         targetPurchasePrice: typeof body.rentalTargetPurchasePrice === "number" ? Math.round(body.rentalTargetPurchasePrice) : null,
+        legalFee: typeof body.rentalLegalFee === "number" ? Math.round(body.rentalLegalFee) : null,
+        appraisalFee: typeof body.rentalAppraisalFee === "number" ? Math.round(body.rentalAppraisalFee) : null,
+        sourcingFee: typeof body.rentalSourcingFee === "number" ? Math.round(body.rentalSourcingFee) : null,
+        renovationCost: typeof body.rentalRenovationCost === "number" ? Math.round(body.rentalRenovationCost) : null,
+        noiAnnual: typeof body.rentalNoiAnnual === "number" ? Math.round(body.rentalNoiAnnual) : null,
+        cashOnCash: typeof body.rentalCashOnCash === "number" ? body.rentalCashOnCash : null,
       };
       await db
         .update(propertyAnalysis)
@@ -152,6 +158,16 @@ export async function POST(
         cashOnCash: typeof body.flipCashOnCash === "number" ? Math.round(body.flipCashOnCash * 10) / 10 : null,
         totalCost: typeof body.flipTotalCost === "number" ? Math.round(body.flipTotalCost) : null,
         targetPurchasePrice: typeof body.flipTargetPurchasePrice === "number" ? Math.round(body.flipTargetPurchasePrice) : null,
+        legalFees: typeof body.flipLegalFees === "number" ? Math.round(body.flipLegalFees) : null,
+        appraisalFee: typeof body.flipAppraisalFee === "number" ? Math.round(body.flipAppraisalFee) : null,
+        contingency: typeof body.flipContingency === "number" ? Math.round(body.flipContingency) : null,
+        holdingCosts: typeof body.flipHoldingCosts === "number" ? Math.round(body.flipHoldingCosts) : null,
+        holdingMonths: typeof body.flipHoldingMonths === "number" ? Math.round(body.flipHoldingMonths) : null,
+        sellingCommission: typeof body.flipSellingCommission === "number" ? Math.round(body.flipSellingCommission) : null,
+        marketingPhoto: typeof body.flipMarketingPhoto === "number" ? Math.round(body.flipMarketingPhoto) : null,
+        mortgageCost: typeof body.flipMortgageCost === "number" ? Math.round(body.flipMortgageCost) : null,
+        sourcingFee: typeof body.flipSourcingFee === "number" ? Math.round(body.flipSourcingFee) : null,
+        incomeTax: typeof body.flipIncomeTax === "number" ? Math.round(body.flipIncomeTax) : null,
       };
       await db
         .update(propertyAnalysis)

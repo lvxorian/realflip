@@ -13,7 +13,7 @@ import {
   calculateItemizedRenovation,
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
-import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, type RentalConfig } from "@/lib/analysis/rental-calc";
+import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp } from "@phosphor-icons/react";
 
 const verdictColors: Record<string, string> = {
@@ -318,28 +318,49 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
       arv, renovationCost: currentRenovation, targetRoi, costConfig, mode, rental: rentalConfig,
       renovationMode, renovationLevel, renovationPerSqm, renovationItems,
       rentalRenovationMode, rentalRenovationLevel, rentalRenovationPerSqm, rentalRenovationTotal,
-      purchasePriceUsed: l.price,
+      purchasePriceUsed:
+        mode === "rental"
+          ? (targetRentalResults?.targetPurchasePrice ?? rentalResults.targetPurchasePrice)
+          : (targetFlipResults?.targetPurchasePrice ?? flipResults.targetPurchasePrice),
     };
     try {
       localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset));
+      const targetFlip = targetFlipResults ?? flipResults;
+      const targetRental = targetRentalResults ?? rentalResults;
       await fetch(`/api/properties/${propertyId}/calc-preset`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...preset,
-          rentalNetYield: mode === "rental" ? rentalResults.netYield : null,
-          rentalGrossYield: mode === "rental" ? rentalResults.grossYield : null,
-          rentalNetYieldAfterTax: mode === "rental" ? rentalResults.netYieldAfterTax : null,
-          rentalCapRate: mode === "rental" ? rentalResults.capRate : null,
-          rentalCashFlowMonthly: mode === "rental" ? rentalResults.cashFlowMonthly : null,
-          rentalTotalInvested: mode === "rental" ? rentalResults.totalInvested : null,
-          rentalTargetPurchasePrice: mode === "rental" ? rentalResults.targetPurchasePrice : null,
-          flipNetProfit: mode === "flip" ? flipResults.netProfit : null,
-          flipRoi: mode === "flip" ? flipResults.roi : null,
-          flipAnnualizedRoi: mode === "flip" ? flipResults.annualizedRoi : null,
-          flipCashOnCash: mode === "flip" ? flipResults.cashOnCash : null,
-          flipTotalCost: mode === "flip" ? flipResults.costs.totalCost : null,
-          flipTargetPurchasePrice: mode === "flip" ? flipResults.targetPurchasePrice : null,
+          rentalNetYield: mode === "rental" ? targetRental.netYield : null,
+          rentalGrossYield: mode === "rental" ? targetRental.grossYield : null,
+          rentalNetYieldAfterTax: mode === "rental" ? targetRental.netYieldAfterTax : null,
+          rentalCapRate: mode === "rental" ? targetRental.capRate : null,
+          rentalCashFlowMonthly: mode === "rental" ? targetRental.cashFlowMonthly : null,
+          rentalTotalInvested: mode === "rental" ? targetRental.totalInvested : null,
+          rentalTargetPurchasePrice: mode === "rental" ? targetRental.targetPurchasePrice : null,
+          rentalNoiAnnual: mode === "rental" ? targetRental.noiAnnual : null,
+          rentalCashOnCash: mode === "rental" ? targetRental.cashOnCash : null,
+          rentalLegalFee: mode === "rental" ? rentalConfig.legalFee : null,
+          rentalAppraisalFee: mode === "rental" && rentalConfig.appraisal ? RENTAL_CONSTANTS.appraisalFee : null,
+          rentalSourcingFee: mode === "rental" ? resolveSourcingFee(targetRental.targetPurchasePrice, rentalConfig) : null,
+          rentalRenovationCost: mode === "rental" && rentalConfig.renovationBeforeRent ? rentalRenovationCost : null,
+          flipNetProfit: mode === "flip" ? targetFlip.netProfit : null,
+          flipRoi: mode === "flip" ? targetFlip.roi : null,
+          flipAnnualizedRoi: mode === "flip" ? targetFlip.annualizedRoi : null,
+          flipCashOnCash: mode === "flip" ? targetFlip.cashOnCash : null,
+          flipTotalCost: mode === "flip" ? targetFlip.costs.totalCost : null,
+          flipTargetPurchasePrice: mode === "flip" ? targetFlip.targetPurchasePrice : null,
+          flipLegalFees: mode === "flip" ? targetFlip.costs.legalFees : null,
+          flipAppraisalFee: mode === "flip" ? targetFlip.costs.appraisalFee : null,
+          flipContingency: mode === "flip" ? targetFlip.costs.contingency : null,
+          flipHoldingCosts: mode === "flip" ? targetFlip.costs.holdingCosts : null,
+          flipHoldingMonths: mode === "flip" ? costConfig.holdingMonths : null,
+          flipSellingCommission: mode === "flip" ? targetFlip.costs.sellingCommission : null,
+          flipMarketingPhoto: mode === "flip" ? targetFlip.costs.marketingPhoto : null,
+          flipMortgageCost: mode === "flip" ? targetFlip.costs.mortgageCost : null,
+          flipSourcingFee: mode === "flip" ? targetFlip.costs.sourcingFee : null,
+          flipIncomeTax: mode === "flip" ? targetFlip.costs.incomeTax : null,
         }),
       });
       setPresetSaved(true);
