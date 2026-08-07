@@ -204,6 +204,12 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Backend selection updated in `src/lib/investor-portal.ts` to include `propertyAnalysis.rentalYield`; mapping updated in `src/lib/investor-portal-view.ts`.
 - Verified with `npx tsc --noEmit` and `npx next build`.
 
+### Phase 31 — Investor Portal Itemized Breakdown (Done)
+- **Rozpis položek v portálu**: Přidán položkový rozpad výpočtu z kalkulačky pro flip i nájemní nemovitosti v klientském portálu pro investory (`src/app/investor/(portal)/page.tsx`).
+- **Nové snapshot položky**: API routa `/api/properties/[id]/calc-preset` a view typy v `src/lib/investor-portal-view.ts` rozšířeny o položky `legalFees`, `appraisalFee`, `contingency`, `holdingCosts`, `sellingCommission`, `marketingPhoto`, `mortgageCost`, `sourcingFee`, `incomeTax`, `noiAnnual`, `cashOnCash`, atd.
+- **Odstranění ROI p.a.**: Z detailu v portálu byl odstraněn řádek "ROI p.a.".
+- **Verifikace**: `npx tsc --noEmit` a `npm run build` prošly bez chyb.
+
 ## Key Files
 
 ### Core
