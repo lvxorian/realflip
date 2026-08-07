@@ -35,50 +35,54 @@ function OdhadPageContent() {
 
   const stepIndex = result ? 2 : parsed ? 1 : 0;
 
-  // urlToParse umožňuje auto-načtení z ?url= bez stale-closure (useCallback s [] by
-  // zachytil první prázdnou hodnotu url a API by vrátilo „Chybí vstupní údaje").
-  const handleParseUrl = useCallback(
-    async (urlToParse?: string) => {
-      const target = (urlToParse ?? url ?? "").trim();
-      if (!target) return;
-      setParsing(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/valuation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: target }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error ?? "Načtení inzerátu selhalo");
-          return;
-        }
-        const p = data.parsed ?? {};
-        setFields((prev) => ({ ...prev, ...p }));
-        setParsed(true);
-      } catch {
-        setError("Načtení inzerátu selhalo — zkuste to prosím znovu.");
-      } finally {
-        setParsing(false);
+  // URL držíme i v refu — handleParseUrl je stabilní (deps []), aby se při setUrl
+  // nezměnila jeho identita a effect na to nereagoval (předtím cleanup zrušil
+  // naplánované auto-načtení → „URL se přidá, ale nic se nestane").
+  const urlRef = useRef("");
+  useEffect(() => {
+    urlRef.current = url;
+  }, [url]);
+
+  const handleParseUrl = useCallback(async (urlToParse?: string) => {
+    const target = (urlToParse ?? urlRef.current ?? "").trim();
+    if (!target) return;
+    setParsing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/valuation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: target }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Načtení inzerátu selhalo");
+        return;
       }
-    },
-    [url]
-  );
+      const p = data.parsed ?? {};
+      setFields((prev) => ({ ...prev, ...p }));
+      setParsed(true);
+    } catch {
+      setError("Načtení inzerátu selhalo — zkuste to prosím znovu.");
+    } finally {
+      setParsing(false);
+    }
+  }, []);
 
   // Podpora /odhad?url=… — předvyplní URL a automaticky načte inzerát (odkaz z detailu/Analyzátoru).
-  // Spouští se až po ověření session (jinak by API vrátilo 401).
+  // Volá se okamžitě (bez timeoutu, který by mohl cleanup zrušit). Guard srovnává poslední
+  // zpracovanou URL — chrání před double-fire v StrictMode, ale novou ?url= (zpět/vpřed,
+  // klik z jiného detailu) znovu načte. Spouští se až po ověření session (jinak API vrátí 401).
   const searchParams = useSearchParams();
-  const autoRunRef = useRef(false);
+  const autoParsedUrlRef = useRef<string | null>(null);
   useEffect(() => {
+    if (status !== "authenticated") return;
     const qUrl = searchParams.get("url");
-    if (!qUrl || autoRunRef.current || status !== "authenticated") return;
-    autoRunRef.current = true;
+    if (!qUrl || autoParsedUrlRef.current === qUrl) return;
+    autoParsedUrlRef.current = qUrl;
     setUrl(qUrl);
-    // předáme URL explicitně — timeout by jinak použil stale closure z prvního renderu
-    const t = setTimeout(() => handleParseUrl(qUrl), 300);
-    return () => clearTimeout(t);
-  }, [searchParams, handleParseUrl, status]);
+    void handleParseUrl(qUrl);
+  }, [searchParams, status, handleParseUrl]);
 
   const handleEstimate = async () => {
     if (!fields.cityKey || !fields.area) return;

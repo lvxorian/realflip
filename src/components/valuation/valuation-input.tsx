@@ -43,7 +43,7 @@ interface Props {
   estimating: boolean;
   error: string | null;
   parsed: boolean;
-  onParseUrl: () => void;
+  onParseUrl: (url?: string) => void;
   onEstimate: () => void;
 }
 
@@ -97,7 +97,7 @@ export default function ValuationInput({
               placeholder="https://www.sreality.cz/detail/prodej/byt/…"
               className={inputCls}
             />
-            <Button onClick={onParseUrl} disabled={!url.trim() || parsing} className="shrink-0 sm:w-auto">
+            <Button onClick={() => onParseUrl(url)} disabled={!url.trim() || parsing} className="shrink-0 sm:w-auto">
               {parsing ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
