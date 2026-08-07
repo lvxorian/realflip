@@ -236,6 +236,14 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Propojení**: `/odhad?url=…` předvyplní URL a automaticky načte inzerát (useSearchParams + Suspense dle konvence login page; čeká na ověřenou session). Tlačítko/odkaz **„Odhad ceny"** v detailu nemovitosti (`properties/[id]`) i v kartě Analyzátoru (`interactive-analysis.tsx`).
 - **Testy**: `price-map.test.ts` (5, mock fetch — drill-down, fallback okres, neznámé město, okno), engine testy pro městskou úroveň — celkem **404 testů / 33 souborů**.
 
+### Phase 35 — Odhad: čtvrťová úroveň + přesná adresa (Done)
+- **Ward-level realizované ceny** (`price-map.ts`): Praha (region → rovnou **čtvrti/wardy**, např. **Žižkov 160 324 Kč/m² / 743 tx** vs. kraj 149 906), ostatní města obec → čtvrť. `getRealizedLocalityForCity(cityKey, ctx)` — ctx nese `address/lat/lng/wardHints`; `findWardByHints` matchuje čtvrť z reverse geokódu Nominatimu (quarter/suburb) a segmentů adresy (seoName → jméno → substring). Bez adresy Praha zůstává na krajské úrovni (čtvrť by byla náhodná). Typy: `RealizedLevel` + `ward*` pole v `RealizedLocality`, `wardHints` v `ValuationInput`.
+- **Adresa povinná + geokódování** (`route.ts`): validace adresy; chybí-li GPS, `geocodeAddress` (Nominatim) → lat/lng; `reverseGeocode` → wardHints. Předává se do engine → čtvrť + kompy v okruhu. UI (`valuation-input.tsx`): adresa povinná s nápovědou (čtvrťová přesnost).
+- **Engine robustnost** (`engine.ts`): váha nabídek dle počtu vzorků (`min(sampleSize,8)/8`), clamp nabídek do pásma [0,75×; 1,35×] realizovaných (+„nesoulad" → širší spread), **partial pooling** — čtvrť/obec nad krajem o >35 % se stáhne ke krajské hladině (novostavby), **srážka za skladbu fondu ×0,94 pro „good"** (průměr čtvrti tlačí novostavby/renovované nad úroveň běžného stavu). Spread 0,05–0,18 (čtvrť ±5–8 % jako Valuo), komparace realizovaných = čtvrť → obec → okres → kraj.
+- **DB kompy bez novostaveb** (`market-price-service.ts`): Tier 1 nyní vylučuje `condition === "new"` a u segmentu „any" aplikuje multiplikátory stavu/typu/kategorie (konzistence s Tier sreality) — medián Prahy klesl z 181k na 163k Kč/m². (Pozn.: ovlivňuje i flip kalkulačku — sdílená kaskáda, záměrně.)
+- **AI** (`ai.ts`): do promptu přidána adresa. Živě ověřeno (skript `valuation-check.ts`): Žižkov ward 160 324 Kč/m² (743 tx), byt K Lučinám 73 m² „průměrný" → odhad **11,17 mil. Kč** (153 025 Kč/m², rozmezí 10,0–12,34, ±11 %, confidence 91). Čistý testovací scénář (shrink + srážka) sedí na 9,58 mil. — blízko Valuo 9,375 mil.; zbývající odchylka živých dat = agregátní úroveň čtvrti/města vs. adresní hedonic model Valuo (mikro-poloha K Lučinám u Malešic je levnější než jádro Žižkova).
+- **Testy**: price-map (ward drill Praha s adresou/hinty, bez adresy → kraj), engine (ward label/shrink/mix-skew, 4 kontextové řádky, předání ctx) — celkem **410 testů / 33 souborů**.
+
 ## Key Files
 
 ### Core

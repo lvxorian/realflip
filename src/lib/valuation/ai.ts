@@ -31,6 +31,7 @@ Vysvětli odhad srozumitelně česky pro realitního investora.
 Vstupní údaje:
 ${JSON.stringify({
   cityKey: input.cityKey,
+  address: input.address,
   type: input.type,
   disposition: input.disposition,
   area: input.area,

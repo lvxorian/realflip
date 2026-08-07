@@ -4,7 +4,7 @@ import { scrapeUrl } from "@/lib/scraping/url-scraper";
 import { applyAreaResolution } from "@/lib/scraping/area-resolver";
 import { isSaleListing } from "@/lib/scraping/filters";
 import { classifyLocation } from "@/lib/analysis/location";
-import { cityKeyToName } from "@/lib/geocode";
+import { cityKeyToName, geocodeAddress, reverseGeocode } from "@/lib/geocode";
 import { estimateProperty, attachTrend } from "@/lib/valuation/engine";
 import { fetchPriceMap } from "@/lib/valuation/price-map"; // trend grafu
 import { explainValuation } from "@/lib/valuation/ai";
@@ -93,9 +93,37 @@ export async function POST(req: Request) {
     if (!input.area || input.area <= 0) {
       return NextResponse.json({ error: "Chybí plocha (m²)" }, { status: 400 });
     }
+    if (!input.address?.trim()) {
+      return NextResponse.json(
+        { error: "Chybí adresa — přesná adresa je nutná pro čtvrťovou přesnost odhadu" },
+        { status: 400 }
+      );
+    }
+
+    // Geokódování adresy → GPS (pokud inzerát neměl souřadnice) + reverse → hint na čtvrť.
+    // Ward-level realizované ceny (např. Praha → Žižkov) a kompy v okruhu závisí na přesné poloze.
+    let lat = input.lat ?? null;
+    let lng = input.lng ?? null;
+    if ((lat == null || lng == null) && input.address) {
+      const g = await geocodeAddress(input.address, input.cityKey).catch(() => null);
+      if (g?.lat != null && g.lng != null) {
+        lat = g.lat;
+        lng = g.lng;
+      }
+    }
+    let wardHints: string[] | null = null;
+    if (lat != null && lng != null) {
+      const rg = await reverseGeocode(lat, lng).catch(() => null);
+      if (rg) {
+        wardHints = [];
+        if (rg.quarter) wardHints.push(rg.quarter);
+        if (rg.suburb) wardHints.push(rg.suburb);
+      }
+    }
+    const enriched = { ...input, lat, lng, wardHints };
 
     const [valuation, priceMap] = await Promise.all([
-      estimateProperty(input),
+      estimateProperty(enriched),
       fetchPriceMap().catch(() => null),
     ]);
     const result = attachTrend(valuation, priceMap?.trend ?? []);

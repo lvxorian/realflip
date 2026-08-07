@@ -228,11 +228,29 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
   const seg = segmentOf(ctx.condition, ctx.buildingType);
   const cityNames = cityNamesFor(ctx.cityKey);
 
+  // Novostavby mají jinou cenovou hladinu a do statistik běžného fondu nepatří
+  // (stejný princip jako Tier sreality). Luxusní/developerové vzorky by jinak
+  // nafoukly medián (ověřeno na Praze: „new" inzeráty 174–187k Kč/m²).
+  const existing = samples.filter((s) => s.condition !== "new");
+
+  // Pro segment „any" aplikujeme multiplikátory stavu/typu/kategorie — medián
+  // smíšeného vzorku je nad úrovní konkrétní nemovitosti (konzistence s Tier sreality).
+  const adj =
+    seg === "any"
+      ? conditionMultiplier(ctx.condition ?? null) *
+        buildingTypeMultiplier(ctx.buildingType ?? null) *
+        categoryMultiplier(ctx.category ?? null)
+      : 1;
+
   const statsFrom = (subset: CompSample[]): MarketRangeResult | null => {
     if (subset.length < 3) return null;
     const stats = computeStats(subset.map((s) => s.pricePerSqm));
     if (!stats) return null;
-    return toResult(stats, "db", subset.length);
+    return toResult(
+      { median: stats.median * adj, p25: stats.p25 * adj, p75: stats.p75 * adj },
+      "db",
+      subset.length
+    );
   };
 
   const hasGps = ctx.lat != null && ctx.lng != null;
@@ -240,8 +258,8 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
   const maxArea = ctx.area != null ? ctx.area * 1.3 : null;
 
   if (hasGps) {
-    // a) do 5 km + segment + plocha ±30 %
-    let subset = samples.filter(
+    // a) do 5 km + segment + plocha ±30 % (novostavby vyloučeny)
+    let subset = existing.filter(
       (s) =>
         s.lat != null &&
         s.lng != null &&
@@ -252,7 +270,7 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
     if (subset.length >= 3) return statsFrom(subset);
 
     // b) do 10 km + segment
-    subset = samples.filter(
+    subset = existing.filter(
       (s) =>
         s.lat != null &&
         s.lng != null &&
@@ -263,13 +281,13 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
   }
 
   // c) město + segment
-  let subset = samples.filter(
+  let subset = existing.filter(
     (s) => addressMatchesCity(s.address, cityNames) && (seg === "any" || s.segment === seg)
   );
   if (subset.length >= 3) return statsFrom(subset);
 
   // d) město
-  subset = samples.filter((s) => addressMatchesCity(s.address, cityNames));
+  subset = existing.filter((s) => addressMatchesCity(s.address, cityNames));
   if (subset.length >= 3) return statsFrom(subset);
 
   return null;

@@ -75,6 +75,15 @@ export function regionKeyForCity(cityKey: string): string | null {
   return CITY_TO_REGION[cityKey as keyof typeof CITY_TO_REGION] ?? null;
 }
 
+/** Kontext pro drill-down na městskou čtvrť (ward) — adresa a/nebo GPS + hinty z reverse geokódu. */
+export interface RealizedContext {
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  /** Názvy čtvrtí („Žižkov", „Praha 3") z reverse geokódu Nominatimu — server-only. */
+  wardHints?: string[] | null;
+}
+
 function regionKeyFromName(name: string): string {
   const slug = name
     .toLowerCase()
@@ -395,11 +404,58 @@ function findDrillItem(items: DrillItem[], cityKey: string, preferExactName: str
   return bySub.sort((a, b) => b.numTransactions - a.numTransactions)[0];
 }
 
+/** Normalizace názvu pro shodu čtvrtí (bez diakritiky, malými, pomlčky). */
+function normWardName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /**
- * Realizovaný průměr pro konkrétní město s drill-downem kraj → okres → obec.
- * Vrací nejpřesnější úroveň, která má data (obec > okres > kraj) + kontext vyšších úrovní.
+ * Najde městskou čtvrť (ward) podle hintů — reverse geokód (Nominatim quarter/suburb)
+ * a segmenty adresy („Žižkov", „Praha 3-Žižkov"). Pořadí: seoName/jméno shoda → substring.
  */
-export async function getRealizedLocalityForCity(cityKey: string): Promise<RealizedLocality | null> {
+function findWardByHints(items: DrillItem[], ctx: RealizedContext): DrillItem | null {
+  const raw: string[] = [...(ctx.wardHints ?? [])];
+  if (ctx.address) {
+    for (const seg of ctx.address.split(",")) {
+      const t = seg.trim();
+      if (t.length >= 3 && !/^\d+$/.test(t)) raw.push(t);
+    }
+  }
+  const hints = raw.map(normWardName).filter((h) => h.length >= 3);
+  if (hints.length === 0) return null;
+
+  for (const h of hints) {
+    const bySeo = items.filter((it) => normWardName(it.seoName) === h);
+    if (bySeo.length > 0) return bySeo.sort((a, b) => b.numTransactions - a.numTransactions)[0];
+    const byName = items.filter((it) => normWardName(it.name) === h);
+    if (byName.length > 0) return byName.sort((a, b) => b.numTransactions - a.numTransactions)[0];
+  }
+  for (const h of hints) {
+    if (h.length < 5) continue;
+    const bySub = items.filter((it) => {
+      const n = normWardName(it.name);
+      return n.includes(h) || h.includes(n);
+    });
+    if (bySub.length > 0) return bySub.sort((a, b) => b.numTransactions - a.numTransactions)[0];
+  }
+  return null;
+}
+
+/**
+ * Realizovaný průměr pro konkrétní město s drill-downem kraj → okres → obec → čtvrť.
+ * Vrací nejpřesnější úroveň, která má data (čtvrť > obec > okres > kraj) + kontext vyšších úrovní.
+ * Praha (region → rovnou čtvrti) a obec → čtvrť se vyhodnocují jen s adresou/GPS (ctx),
+ * jinak zůstává obec/okres/kraj — čtvrť bez adresy by byla náhodná.
+ */
+export async function getRealizedLocalityForCity(
+  cityKey: string,
+  ctx: RealizedContext = {}
+): Promise<RealizedLocality | null> {
   const regionKey = regionKeyForCity(cityKey);
   if (!regionKey) return null;
 
@@ -418,6 +474,11 @@ export async function getRealizedLocalityForCity(cityKey: string): Promise<Reali
     districtAvgPricePerSqm: null,
     districtTransactions: null,
     localityName: null,
+    localityAvgPricePerSqm: null,
+    localityTransactions: null,
+    wardName: null,
+    wardAvgPricePerSqm: null,
+    wardTransactions: null,
     entityType: "region",
     period: `${data.dateFrom} – ${data.dateTo}`,
     totalTransactions: data.totalTransactions,
@@ -425,9 +486,29 @@ export async function getRealizedLocalityForCity(cityKey: string): Promise<Reali
 
   if (!region.entityId) return base;
 
-  // okresy kraje → najdi okres města (např. okres Cheb)
-  const districts = await fetchDrill(`region,${region.entityId}`, "price_map_district");
-  const district = districts ? findDrillItem(districts, cityKey, null) : null;
+  // Úroveň 1: children regionu — Praha vrací rovnou čtvrti (ward), ostatní kraje okresy.
+  const lvl1 = await fetchDrill(`region,${region.entityId}`, "price_map_district");
+  if (!lvl1 || lvl1.length === 0) return base;
+
+  const wardCount = lvl1.filter((i) => i.entityType === "ward").length;
+  const isWardLevel = wardCount > lvl1.length / 2;
+
+  if (isWardLevel) {
+    // Praha: region → čtvrti. Bez adresy/hintů nemůžeme čtvrť určit → zůstává kraj.
+    const ward = findWardByHints(lvl1, ctx);
+    if (ward && ward.numTransactions > 0 && ward.avgPricePerSqm != null) {
+      base.wardName = ward.name;
+      base.wardAvgPricePerSqm = ward.avgPricePerSqm;
+      base.wardTransactions = ward.numTransactions;
+      base.avgPricePerSqm = ward.avgPricePerSqm;
+      base.numTransactions = ward.numTransactions;
+      base.entityType = "ward";
+    }
+    return base;
+  }
+
+  // Ostatní kraje: okresy → obec → čtvrti (čtvrti jen s adresou).
+  const district = findDrillItem(lvl1, cityKey, null);
 
   if (district && district.numTransactions > 0 && district.avgPricePerSqm != null) {
     base.districtName = district.name;
@@ -438,15 +519,32 @@ export async function getRealizedLocalityForCity(cityKey: string): Promise<Reali
     base.entityType = "district";
   }
 
-  // obce okresu → najdi konkrétní město (Cheb)
   if (district) {
     const municipalities = await fetchDrill(`district,${district.entityId}`, "price_map_municipality");
     const municipality = municipalities ? findDrillItem(municipalities, cityKey, district.name) : null;
     if (municipality && municipality.numTransactions > 0 && municipality.avgPricePerSqm != null) {
       base.localityName = municipality.name;
+      base.localityAvgPricePerSqm = municipality.avgPricePerSqm;
+      base.localityTransactions = municipality.numTransactions;
       base.avgPricePerSqm = municipality.avgPricePerSqm;
       base.numTransactions = municipality.numTransactions;
       base.entityType = "municipality";
+
+      // čtvrti obce (např. Brno-střed, Liberec-centrum) — jen s adresou a jen když
+      // obecní průměr není už tak robustní, že by čtvrť nic nezlepšila (ušetří 3 s rate-limit)
+      const hasHints = (ctx.wardHints?.length ?? 0) > 0 || Boolean(ctx.address?.trim());
+      if (hasHints && municipality.numTransactions < 2500) {
+        const wards = await fetchDrill(`municipality,${municipality.entityId}`, "price_map_ward");
+        const ward = wards ? findWardByHints(wards, ctx) : null;
+        if (ward && ward.numTransactions > 0 && ward.avgPricePerSqm != null) {
+          base.wardName = ward.name;
+          base.wardAvgPricePerSqm = ward.avgPricePerSqm;
+          base.wardTransactions = ward.numTransactions;
+          base.avgPricePerSqm = ward.avgPricePerSqm;
+          base.numTransactions = ward.numTransactions;
+          base.entityType = "ward";
+        }
+      }
     }
   }
 

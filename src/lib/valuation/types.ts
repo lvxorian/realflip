@@ -25,6 +25,8 @@ export interface ValuationInput {
   balcony?: boolean | null;
   garage?: boolean | null;
   sourceUrl?: string | null;
+  /** Hinty na městskou čtvrť (z reverse geokódu / adresy) — pro ward-level realizované ceny. Server-only. */
+  wardHints?: string[] | null;
 }
 
 export interface SourceInfo {
@@ -103,7 +105,7 @@ export interface PriceMapRegion {
 }
 
 /** Úroveň lokalizace realizovaných cen. */
-export type RealizedLevel = "municipality" | "district" | "region";
+export type RealizedLevel = "ward" | "municipality" | "district" | "region";
 
 /** Výsledek drill-downu realizovaných cen pro konkrétní město. */
 export interface RealizedLocality {
@@ -119,6 +121,12 @@ export interface RealizedLocality {
   districtTransactions?: number | null;
   /** obec/město, pokud byl nalezen */
   localityName?: string | null;
+  localityAvgPricePerSqm?: number | null;
+  localityTransactions?: number | null;
+  /** městská čtvrť (ward), pokud byla nalezena podle adresy */
+  wardName?: string | null;
+  wardAvgPricePerSqm?: number | null;
+  wardTransactions?: number | null;
   entityType?: RealizedLevel;
   period: string;
   totalTransactions: number;

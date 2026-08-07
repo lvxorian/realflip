@@ -77,9 +77,10 @@ export default function ValuationInput({
 
   const set = <K extends keyof ValuationInput>(k: K, v: ValuationInput[K]) => setFields({ ...fields, [k]: v });
 
-  const canEstimate = Boolean(fields.cityKey && fields.area && fields.area > 0);
+  const canEstimate = Boolean(fields.cityKey && fields.area && fields.area > 0 && fields.address?.trim());
   const missingCity = !fields.cityKey;
   const missingArea = !fields.area || fields.area <= 0;
+  const missingAddress = !fields.address?.trim();
 
   return (
     <div className="space-y-4">
@@ -218,8 +219,20 @@ export default function ValuationInput({
             </div>
 
             <div className="sm:col-span-2 lg:col-span-3">
-              <label className={labelCls}>Adresa (nepovinné)</label>
-              <input value={fields.address ?? ""} onChange={(e) => set("address", e.target.value || null)} placeholder="Ulice, číslo popisné…" className={inputCls} />
+              <label className={labelCls}>
+                Adresa <span className="text-danger">*</span>
+              </label>
+              <input
+                value={fields.address ?? ""}
+                onChange={(e) => set("address", e.target.value || null)}
+                placeholder="Ulice, číslo popisné… (např. K Lučinám 1218/5, Praha 3-Žižkov)"
+                className={`${inputCls} ${missingAddress ? "border-amber-500/50" : ""}`}
+              />
+              <p className="text-[10px] text-muted mt-1">
+                Přesná adresa určuje čtvrť — realizované ceny z cenové mapy (např. Žižkov vs. zbytek Prahy) a
+                srovnatelné nabídky v okolí. Bez adresy je odhad jen na krajské úrovni.
+              </p>
+              {missingAddress && <p className="text-[10px] text-amber-400 mt-1">Adresa je nutná pro přesný odhad</p>}
             </div>
           </div>
 
@@ -238,7 +251,7 @@ export default function ValuationInput({
                 "Vytvořit odhad"
               )}
             </Button>
-            {!canEstimate && <p className="text-xs text-muted">Doplňte lokalitu a plochu</p>}
+            {!canEstimate && <p className="text-xs text-muted">Doplňte lokalitu, plochu a adresu</p>}
           </div>
         </CardContent>
       </Card>

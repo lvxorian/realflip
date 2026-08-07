@@ -128,3 +128,82 @@ describe("getRealizedLocalityForCity", () => {
     expect(r).toBeNull();
   });
 });
+
+describe("getRealizedLocalityForCity — ward úroveň (Praha)", () => {
+  const PRAGUE_SSR_HTML = `
+    <script id="__NEXT_DATA__" type="application/json">
+      {"props":{"pageProps":{"dehydratedState":{"queries":[
+        {"state":{"data":{"aggregatedList":[
+          {"avgPricePerSqm":112430,"locality":{"entityId":10,"entityType":"region","name":"Hlavní město Praha","seoName":"hlavni-mesto-praha"},"numTransactions":12672}
+        ]}},"queryKey":["PriceMapList",{"category":1,"dateFrom":"2025-08","dateTo":"2026-07"}]}
+      ]}}}
+    </script>
+  `;
+
+  const WARDS = (rows: { name: string; seo: string; avg: number; tx: number }[]) => ({
+    result: {
+      aggregated_list: rows.map((r) => ({
+        locality: { entity_id: Math.abs(r.name.length * 97), entity_type: "ward", name: r.name, seo_name: r.seo },
+        avg_price_per_sqm: r.avg,
+        num_transactions: r.tx,
+      })),
+    },
+  });
+
+  beforeEach(() => {
+    clearPriceMapCache();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00Z"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u === "https://www.sreality.cz/cenova-mapa")
+          return Promise.resolve({ ok: true, status: 200, text: async () => PRAGUE_SSR_HTML } as Response);
+        if (u.includes("locality=region,10"))
+          return Promise.resolve(
+            ok(
+              WARDS([
+                { name: "Vinohrady", seo: "vinohrady", avg: 168000, tx: 900 },
+                { name: "Žižkov", seo: "zizkov", avg: 160324, tx: 743 },
+                { name: "Libeň", seo: "liben", avg: 135000, tx: 600 },
+              ])
+            )
+          );
+        return Promise.resolve({ ok: false, status: 404, json: async () => ({}), text: async () => "" } as Response);
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("s adresou/hintem najde čtvrť (Žižkov) místo krajského průměru", async () => {
+    const r = await getRealizedLocalityForCity("praha", {
+      address: "K Lučinám, Praha - Žižkov, Praha",
+      wardHints: ["Žižkov", "Praha 3"],
+    });
+    expect(r).not.toBeNull();
+    expect(r!.entityType).toBe("ward");
+    expect(r!.wardName).toBe("Žižkov");
+    expect(r!.avgPricePerSqm).toBe(160324);
+    expect(r!.numTransactions).toBe(743);
+    // region zůstává jako kontext
+    expect(r!.regionAvgPricePerSqm).toBe(112430);
+  });
+
+  it("čtvrť najde i z adresy bez explicitních hintů (substring Žižkov)", async () => {
+    const r = await getRealizedLocalityForCity("praha", { address: "K Lučinám, Praha - Žižkov, Praha" });
+    expect(r!.entityType).toBe("ward");
+    expect(r!.wardName).toBe("Žižkov");
+  });
+
+  it("bez adresy zůstává krajská hladina (čtvrť by byla náhodná)", async () => {
+    const r = await getRealizedLocalityForCity("praha");
+    expect(r!.entityType).toBe("region");
+    expect(r!.avgPricePerSqm).toBe(112430);
+    expect(r!.wardName).toBeNull();
+  });
+});
