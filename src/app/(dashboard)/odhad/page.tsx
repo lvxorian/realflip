@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import ValuationInput from "@/components/valuation/valuation-input";
 import ValuationResultView from "@/components/valuation/valuation-result";
@@ -11,7 +11,7 @@ import type { ValuationAiOutput, ValuationInput as ValuationFields, ValuationRes
 
 const STEPS = ["Vstup", "Údaje", "Výsledek"];
 
-export default function OdhadPage() {
+function OdhadPageContent() {
   const { status } = useSession();
   const router = useRouter();
 
@@ -35,7 +35,7 @@ export default function OdhadPage() {
 
   const stepIndex = result ? 2 : parsed ? 1 : 0;
 
-  const handleParseUrl = async () => {
+  const handleParseUrl = useCallback(async () => {
     setParsing(true);
     setError(null);
     try {
@@ -57,7 +57,20 @@ export default function OdhadPage() {
     } finally {
       setParsing(false);
     }
-  };
+  }, []);
+
+  // Podpora /odhad?url=… — předvyplní URL a automaticky načte inzerát (odkaz z detailu/Analyzátoru).
+  // Spouští se až po ověření session (jinak by API vrátilo 401).
+  const searchParams = useSearchParams();
+  const autoRunRef = useRef(false);
+  useEffect(() => {
+    const qUrl = searchParams.get("url");
+    if (!qUrl || autoRunRef.current || status !== "authenticated") return;
+    autoRunRef.current = true;
+    setUrl(qUrl);
+    const t = setTimeout(() => handleParseUrl(), 300);
+    return () => clearTimeout(t);
+  }, [searchParams, handleParseUrl, status]);
 
   const handleEstimate = async () => {
     if (!fields.cityKey || !fields.area) return;
@@ -153,5 +166,13 @@ export default function OdhadPage() {
         </div>
       )}
     </motion.div>
+  );
+}
+
+export default function OdhadPage() {
+  return (
+    <Suspense fallback={null}>
+      <OdhadPageContent />
+    </Suspense>
   );
 }

@@ -22,12 +22,12 @@ import {
 } from "@/lib/scraping/market-price-service";
 import { conditionMultiplier, buildingTypeMultiplier, categoryMultiplier } from "@/lib/analysis/market-data";
 import { cityNamesFor } from "@/lib/analysis/location";
-import { getRealizedRegionForCity } from "./price-map";
+import { getRealizedLocalityForCity } from "./price-map";
 import { CSUZ_INDEX } from "./czso-trend";
-import type { ComparableRow, ConfidenceLabel, SourceInfo, ValuationInput, ValuationResult } from "./types";
+import type { ComparableRow, ConfidenceLabel, RealizedLocality, SourceInfo, ValuationInput, ValuationResult } from "./types";
 
 interface EngineDeps {
-  getRealized?: (cityKey: string) => ReturnType<typeof getRealizedRegionForCity>;
+  getRealized?: (cityKey: string) => Promise<RealizedLocality | null>;
   getRange?: (ctx: Parameters<typeof getPropertyMarketRange>[0]) => Promise<MarketRangeResult | null>;
   getComps?: (ctx: Parameters<typeof fetchComparableSamples>[0]) => Promise<CompSample[]>;
   now?: number;
@@ -77,7 +77,7 @@ export async function estimateProperty(
   deps: EngineDeps = {}
 ): Promise<ValuationResult> {
   const {
-    getRealized = getRealizedRegionForCity,
+    getRealized = getRealizedLocalityForCity,
     getRange = (ctx) => getPropertyMarketRange(ctx),
     getComps = fetchComparableSamples,
     now = Date.now(),
@@ -100,13 +100,26 @@ export async function estimateProperty(
 
   if (realized && realized.avgPricePerSqm > 0) {
     const realizedAdj = realized.avgPricePerSqm * mult;
+    // nejpřesnější dostupná úroveň: obec > okres > kraj
+    const levelLabel =
+      realized.entityType === "municipality"
+        ? `Realizované prodeje — ${realized.localityName ?? "město"}`
+        : realized.entityType === "district"
+          ? `Realizované prodeje — okres (${realized.districtName ?? ""})`
+          : `Realizované prodeje — ${realized.regionName}`;
+    const levelNote =
+      realized.entityType === "municipality" && realized.localityName
+        ? `Město ${realized.localityName} (okres ${realized.districtName ?? "—"}, ${realized.regionName}): průměr ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² z ${realized.numTransactions.toLocaleString("cs-CZ")} transakcí (ČÚZK přes Seznam cenovou mapu).`
+        : realized.entityType === "district"
+          ? `Okres ${realized.districtName ?? ""} (${realized.regionName}): průměr ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² z ${realized.numTransactions.toLocaleString("cs-CZ")} transakcí.`
+          : `${realized.regionName}, ${realized.period}. Průměrná cena ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² z ${realized.numTransactions.toLocaleString("cs-CZ")} transakcí.`;
     sources.push({
       key: "realized",
-      label: "Realizované prodeje — kraj",
+      label: levelLabel,
       pricePerSqm: Math.round(realizedAdj),
       sampleSize: realized.numTransactions,
       weight: VALUATION_WEIGHTS.realized,
-      note: `${realized.regionName}, ${realized.period}. Průměrná cena ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² z ${realized.numTransactions.toLocaleString("cs-CZ")} transakcí (ČÚZK přes Seznam cenovou mapu), upraveno multiplikátory stav/typ.`,
+      note: `${levelNote} Upraveno multiplikátory stav/typ.`,
     });
     weightedSum += realizedAdj * VALUATION_WEIGHTS.realized;
     weightTotal += VALUATION_WEIGHTS.realized;
@@ -182,11 +195,43 @@ export async function estimateProperty(
   // ---------- 5) Srovnatelné ----------
   const comparables: ComparableRow[] = [];
   if (realized) {
-    comparables.push({
-      label: `Průměr kraje (${realized.regionName})`,
-      pricePerSqm: realized.avgPricePerSqm,
-      source: "realized",
-    });
+    // město (nejpřesnější) → okres → kraj jako kontext
+    if (realized.entityType === "municipality" && realized.localityName) {
+      comparables.push({
+        label: `Průměr města (${realized.localityName})`,
+        pricePerSqm: realized.avgPricePerSqm,
+        source: "realized",
+      });
+      if (realized.districtAvgPricePerSqm != null && realized.districtName) {
+        comparables.push({
+          label: `Okres (${realized.districtName})`,
+          pricePerSqm: realized.districtAvgPricePerSqm,
+          source: "realized",
+        });
+      }
+      comparables.push({
+        label: `Kraj (${realized.regionName})`,
+        pricePerSqm: realized.regionAvgPricePerSqm,
+        source: "realized",
+      });
+    } else if (realized.entityType === "district" && realized.districtName) {
+      comparables.push({
+        label: `Okres (${realized.districtName})`,
+        pricePerSqm: realized.avgPricePerSqm,
+        source: "realized",
+      });
+      comparables.push({
+        label: `Kraj (${realized.regionName})`,
+        pricePerSqm: realized.regionAvgPricePerSqm,
+        source: "realized",
+      });
+    } else {
+      comparables.push({
+        label: `Průměr kraje (${realized.regionName})`,
+        pricePerSqm: realized.avgPricePerSqm,
+        source: "realized",
+      });
+    }
   }
   try {
     const samples = await getComps({ cityKey, lat, lng, condition, buildingType, area, category });
@@ -238,8 +283,14 @@ export async function estimateProperty(
     "Odhad kombinuje realizované prodejní ceny (ČÚZK data přes Seznam cenovou mapu, posledních 12 měsíců) a nabídkové ceny z vlastní databáze nemovitostí.",
   ];
   if (realized) {
+    const scope =
+      realized.entityType === "municipality" && realized.localityName
+        ? `města ${realized.localityName} (okres ${realized.districtName ?? "—"}, kraj ${realized.regionName})`
+        : realized.entityType === "district" && realized.districtName
+          ? `okresu ${realized.districtName} (kraj ${realized.regionName})`
+          : `kraje ${realized.regionName}`;
     methodology.push(
-      `Realizované prodeje: průměr kraje ${realized.regionName} je ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² (${realized.numTransactions.toLocaleString("cs-CZ")} transakcí, ${realized.period}).`
+      `Realizované prodeje: průměr ${scope} je ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² (${realized.numTransactions.toLocaleString("cs-CZ")} transakcí, ${realized.period}).`
     );
   }
   if (range) {

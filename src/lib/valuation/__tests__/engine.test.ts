@@ -14,6 +14,7 @@ vi.mock("@/lib/scraping/rate-limiter", () => ({
 }));
 vi.mock("@/lib/valuation/price-map", () => ({
   getRealizedRegionForCity: state.realized,
+  getRealizedLocalityForCity: state.realized,
 }));
 vi.mock("@/lib/scraping/market-price-service", async (orig) => {
   const actual = (await orig()) as Record<string, unknown>;
@@ -62,6 +63,63 @@ describe("areaSizeFactor", () => {
     expect(areaSizeFactor(5)).toBeLessThanOrEqual(1.15);
     expect(areaSizeFactor(1000)).toBeGreaterThanOrEqual(0.85);
     expect(areaSizeFactor(null)).toBe(1);
+  });
+});
+
+describe("estimateProperty — městská úroveň realizovaných", () => {
+  it("obec > okres > kraj — použije nejpřesnější úroveň a přidá kontext do komparací", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 46768,
+      numTransactions: 251,
+      regionName: "Karlovarský kraj",
+      regionAvgPricePerSqm: 42181,
+      regionTransactions: 2420,
+      districtName: "Cheb",
+      districtAvgPricePerSqm: 43009,
+      districtTransactions: 627,
+      localityName: "Cheb",
+      entityType: "municipality",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(49574));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "cheb", type: "flat", area: 70, condition: "good", buildingType: "brick" },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realizedSource = r.sources.find((s) => s.key === "realized");
+    expect(realizedSource!.label).toContain("Cheb");
+    expect(realizedSource!.label).not.toContain("kraj");
+    // komparace: město + okres + kraj
+    const realizedComps = r.comparables.filter((c) => c.source === "realized");
+    expect(realizedComps).toHaveLength(3);
+    expect(realizedComps[0].label).toContain("Průměr města");
+    expect(realizedComps[0].pricePerSqm).toBe(46768);
+  });
+
+  it("bez okresu/města — použije krajskou hladinu", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 42181,
+      numTransactions: 2420,
+      regionName: "Karlovarský kraj",
+      regionAvgPricePerSqm: 42181,
+      regionTransactions: 2420,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(49574));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "cheb", type: "flat", area: 70 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+    expect(r.sources.find((s) => s.key === "realized")!.label).toContain("Karlovarský kraj");
+    expect(r.comparables.filter((c) => c.source === "realized")).toHaveLength(1);
   });
 });
 

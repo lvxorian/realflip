@@ -199,28 +199,56 @@ export default function ValuationResultView({ result, ai, fields, onPrintReport 
                       <th className="py-2 pr-3 font-medium">Nemovitost</th>
                       <th className="py-2 pr-3 text-right font-medium">m²</th>
                       <th className="py-2 pr-3 text-right font-medium">Cena</th>
-                      <th className="py-2 text-right font-medium">Kč/m²</th>
+                      <th className="py-2 pr-3 text-right font-medium">Kč/m²</th>
+                      <th className="py-2 text-right font-medium">Odhad</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {result.comparables.slice(0, 12).map((c, i) => (
-                      <tr key={i}>
-                        <td className="py-2 pr-3">
-                          <p className="text-xs truncate max-w-[180px]">{c.label}</p>
-                          <p className="text-[10px] text-muted">
-                            {c.source === "realized" ? "realizované prodeje" : "nabídka"}
-                            {c.distanceKm != null ? ` · ${c.distanceKm.toFixed(1)} km` : ""}
-                          </p>
-                        </td>
-                        <td className="py-2 pr-3 text-right text-muted tabular-nums">{c.area ? c.area : "—"}</td>
-                        <td className="py-2 pr-3 text-right text-muted tabular-nums">{c.price ? fmtCompact(c.price) : "—"}</td>
-                        <td className="py-2 text-right font-medium tabular-nums">
-                          {Math.round(c.pricePerSqm).toLocaleString("cs-CZ")}
-                        </td>
-                      </tr>
-                    ))}
+                    {result.comparables.slice(0, 12).map((c, i) => {
+                      const ratio =
+                        result.pricePerSqm > 0 ? Math.round((c.pricePerSqm / result.pricePerSqm) * 100) : null;
+                      const outlier = ratio != null && (ratio < 75 || ratio > 130);
+                      const rowCls = outlier ? "bg-amber-500/[0.06]" : "";
+                      return (
+                        <tr key={i} className={rowCls}>
+                          <td className="py-2 pr-3">
+                            <p className="text-xs truncate max-w-[170px]">{c.label}</p>
+                            <p className="text-[10px] text-muted">
+                              {c.source === "realized" ? "realizované prodeje" : "nabídka"}
+                              {c.distanceKm != null ? ` · ${c.distanceKm.toFixed(1)} km` : ""}
+                            </p>
+                          </td>
+                          <td className="py-2 pr-3 text-right text-muted tabular-nums">{c.area ? c.area : "—"}</td>
+                          <td className="py-2 pr-3 text-right text-muted tabular-nums">{c.price ? fmtCompact(c.price) : "—"}</td>
+                          <td className="py-2 pr-3 text-right font-medium tabular-nums">
+                            {Math.round(c.pricePerSqm).toLocaleString("cs-CZ")}
+                          </td>
+                          <td className="py-2 text-right tabular-nums">
+                            {ratio != null ? (
+                              <span
+                                className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
+                                  ratio < 75
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : ratio > 130
+                                      ? "bg-red-500/10 text-red-400"
+                                      : "text-muted"
+                                }`}
+                              >
+                                {ratio < 100 ? "−" : "+"}
+                                {Math.abs(100 - ratio)} %
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+                <p className="text-[10px] text-muted/60 mt-2">
+                  Poměr = Kč/m² srovnatelné vs. medián odhadu. Zvýrazněné řádky jsou mimo pásmo 75–130 % (outliers).
+                </p>
               </div>
             )}
           </CardContent>

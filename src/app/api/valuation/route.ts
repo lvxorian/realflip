@@ -6,7 +6,7 @@ import { isSaleListing } from "@/lib/scraping/filters";
 import { classifyLocation } from "@/lib/analysis/location";
 import { cityKeyToName } from "@/lib/geocode";
 import { estimateProperty, attachTrend } from "@/lib/valuation/engine";
-import { fetchPriceMap } from "@/lib/valuation/price-map";
+import { fetchPriceMap } from "@/lib/valuation/price-map"; // trend grafu
 import { explainValuation } from "@/lib/valuation/ai";
 import type { ValuationInput } from "@/lib/valuation/types";
 

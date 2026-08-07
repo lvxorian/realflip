@@ -229,6 +229,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Živě ověřeno** (`scripts/valuation-check.ts`): Cheb → Karlovarský kraj, realizované 42 181 Kč/m² (2 420 transakcí), odhad 3,13 mil. Kč, **14 komparací, všechny z Chebu, 0 z cizích měst**.
 - **Testy**: regresní lokalitní testy (Cheb vs Praha s/bez GPS) + váhy fallbacku + CITY_TO_REGION — celkem **397 testů / 32 souborů**.
 
+### Phase 34 — Odhad: městská úroveň realizovaných cen + propojení (Done)
+- **Drill-down cenové mapy na město** (`price-map.ts`): nalezeno veřejné API `GET /api/v1/price_map/list?category_main_cb=1&date_from=YYYY-MM&date_to=YYYY-MM&locality=<entity_type>,<entity_id>` — hierarchie country → region → district → municipality. Nová `getRealizedLocalityForCity` vrací **nejpřesnější úroveň (obec > okres > kraj)** + kontext vyšších úrovní; cache 7 dní v `market_cache` (segmenty `price_map_district`/`price_map_municipality`, klíč `region,<id>`/`district,<id>`). Stará SSR cache bez entityId se automaticky obnoví.
+- **Engine** (`engine.ts`): zdroj realizovaných nyní nese label dle úrovně („Realizované prodeje — Cheb" / „— okres" / „— kraj") a komparace ukazují město → okres → kraj jako kontext (3 řádky realized). Živě ověřeno: Cheb 46 768 Kč/m² (251 tx) místo krajských 42 181.
+- **Tabulka srovnatelných** (UI + PDF): nový sloupec **„Odhad"** — poměr Kč/m² komp vs. medián odhadu (± %), zvýraznění outliers (< 75 % / > 130 %) jantarovým podbarvením.
+- **Propojení**: `/odhad?url=…` předvyplní URL a automaticky načte inzerát (useSearchParams + Suspense dle konvence login page; čeká na ověřenou session). Tlačítko/odkaz **„Odhad ceny"** v detailu nemovitosti (`properties/[id]`) i v kartě Analyzátoru (`interactive-analysis.tsx`).
+- **Testy**: `price-map.test.ts` (5, mock fetch — drill-down, fallback okres, neznámé město, okno), engine testy pro městskou úroveň — celkem **404 testů / 33 souborů**.
+
 ## Key Files
 
 ### Core

@@ -1,19 +1,28 @@
 /**
- * Live smoke test modulu Odhad — Cheb.
- * Ověřuje: (1) regionKeyForCity("cheb") → karlovarsky, (2) realizované prodeje z cenové mapy,
- * (3) engine odhad + komparace bez vzorků z cizích měst.
+ * Live smoke test modulu Odhad — Cheb s drill-downem na městskou úroveň.
  * Spustit: npx tsx scripts/valuation-check.ts
  */
-import { regionKeyForCity, getRealizedRegionForCity } from "../src/lib/valuation/price-map";
+import { regionKeyForCity, getRealizedLocalityForCity } from "../src/lib/valuation/price-map";
 import { estimateProperty } from "../src/lib/valuation/engine";
 import { fetchComparableSamples } from "../src/lib/scraping/market-price-service";
 
 async function main() {
-  const region = regionKeyForCity("cheb");
-  console.log("regionKeyForCity(cheb):", region);
+  console.log("regionKeyForCity(cheb):", regionKeyForCity("cheb"));
 
-  const realized = await getRealizedRegionForCity("cheb");
-  console.log("realizované pro Cheb:", realized ? JSON.stringify(realized) : "NULL");
+  const realized = await getRealizedLocalityForCity("cheb");
+  console.log(
+    "realizované pro Cheb (drill-down):",
+    realized
+      ? JSON.stringify({
+          level: realized.entityType,
+          locality: realized.localityName,
+          district: realized.districtName,
+          avg: realized.avgPricePerSqm,
+          tx: realized.numTransactions,
+          region: realized.regionName,
+        })
+      : "NULL"
+  );
 
   const result = await estimateProperty(
     {
@@ -28,7 +37,7 @@ async function main() {
       lng: 12.3736,
       askingPrice: 2990000,
     },
-    { getRealized: getRealizedRegionForCity, getComps: fetchComparableSamples }
+    { getRealized: getRealizedLocalityForCity, getComps: fetchComparableSamples }
   );
 
   console.log("\n=== Odhad ===");
@@ -40,10 +49,6 @@ async function main() {
   for (const c of result.comparables) {
     console.log(`- [${c.source}] ${c.label} | ${c.pricePerSqm} Kč/m² | ${c.distanceKm ? c.distanceKm.toFixed(1) + " km" : "—"}`);
   }
-  const foreign = result.comparables.filter(
-    (c) => c.source === "offer" && c.label && !/cheb|chebsk/i.test(c.label)
-  );
-  console.log("\nkompy z cizích měst:", foreign.length, foreign.map((c) => c.label));
 }
 
 main().catch((e) => {

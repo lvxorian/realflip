@@ -143,21 +143,29 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
                   <th className="text-right px-3 py-2 font-medium text-gray-500 text-xs uppercase tracking-wide">Plocha</th>
                   <th className="text-right px-3 py-2 font-medium text-gray-500 text-xs uppercase tracking-wide">Cena</th>
                   <th className="text-right px-3 py-2 font-medium text-gray-500 text-xs uppercase tracking-wide">Kč/m²</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-500 text-xs uppercase tracking-wide">Odhad</th>
                   <th className="text-right px-6 py-2 font-medium text-gray-500 text-xs uppercase tracking-wide">Zdroj</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {v.comparables.slice(0, 12).map((c, i) => (
-                  <tr key={i} className={c.source === "realized" ? "bg-emerald-50/60" : undefined}>
-                    <td className="px-6 py-2 text-gray-800">{c.label}</td>
-                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{c.area ? `${c.area} m²` : "—"}</td>
-                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{c.price ? fmtPrice(c.price) : "—"}</td>
-                    <td className="px-3 py-2 text-right font-mono text-gray-900 tabular-nums">{fmtPerSqm(c.pricePerSqm)}</td>
-                    <td className="px-6 py-2 text-right text-gray-500">
-                      {c.source === "realized" ? "realizované prodeje" : "nabídka"}
-                    </td>
-                  </tr>
-                ))}
+                {v.comparables.slice(0, 12).map((c, i) => {
+                  const ratio = v.pricePerSqm > 0 ? Math.round((c.pricePerSqm / v.pricePerSqm) * 100) : null;
+                  const outlier = ratio != null && (ratio < 75 || ratio > 130);
+                  return (
+                    <tr key={i} className={c.source === "realized" ? "bg-emerald-50/60" : outlier ? "bg-amber-50" : undefined}>
+                      <td className="px-6 py-2 text-gray-800">{c.label}</td>
+                      <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{c.area ? `${c.area} m²` : "—"}</td>
+                      <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{c.price ? fmtPrice(c.price) : "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono text-gray-900 tabular-nums">{fmtPerSqm(c.pricePerSqm)}</td>
+                      <td className="px-3 py-2 text-right text-gray-700 tabular-nums">
+                        {ratio != null ? `${ratio < 100 ? "−" : "+"}${Math.abs(100 - ratio)} %` : "—"}
+                      </td>
+                      <td className="px-6 py-2 text-right text-gray-500">
+                        {c.source === "realized" ? "realizované prodeje" : "nabídka"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

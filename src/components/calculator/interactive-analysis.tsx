@@ -14,7 +14,8 @@ import {
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
 import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
-import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp } from "@phosphor-icons/react";
+import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp, Scales } from "@phosphor-icons/react";
+import Link from "next/link";
 
 const verdictColors: Record<string, string> = {
   strongBuy: "success",
@@ -623,6 +624,13 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 <Badge variant="score" score={a.investmentScore} size="sm" />
                 {l.condition && <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{conditionLabel(l.condition)}</span>}
                 <span className="rounded-lg bg-card-hover border border-border/50 px-2 py-0.5 text-[10px] text-foreground/80">{portalLabel(result.portal)}</span>
+                <Link
+                  href={`/odhad?url=${encodeURIComponent(result.url)}`}
+                  className="inline-flex items-center gap-1 rounded-lg border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent hover:bg-accent/20 transition-colors"
+                >
+                  <Scales size={11} weight="bold" />
+                  Odhad ceny
+                </Link>
               </div>
             </div>
           </div>

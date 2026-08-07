@@ -98,6 +98,30 @@ export interface PriceMapRegion {
   name: string;
   avgPricePerSqm: number;
   numTransactions: number;
+  /** entity_id z API cenové mapy (pro drill-down do okresů) */
+  entityId?: number | null;
+}
+
+/** Úroveň lokalizace realizovaných cen. */
+export type RealizedLevel = "municipality" | "district" | "region";
+
+/** Výsledek drill-downu realizovaných cen pro konkrétní město. */
+export interface RealizedLocality {
+  avgPricePerSqm: number;
+  numTransactions: number;
+  /** region vždy (fallback hladina) */
+  regionName: string;
+  regionAvgPricePerSqm: number;
+  regionTransactions: number;
+  /** okres, pokud byl nalezen */
+  districtName?: string | null;
+  districtAvgPricePerSqm?: number | null;
+  districtTransactions?: number | null;
+  /** obec/město, pokud byl nalezen */
+  localityName?: string | null;
+  entityType?: RealizedLevel;
+  period: string;
+  totalTransactions: number;
 }
 
 export interface PriceMapData {
