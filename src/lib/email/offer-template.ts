@@ -77,11 +77,15 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
               <p style="margin:0;font-size:20px;font-weight:600;color:${T.foreground};">${escapeHtml(location)}</p>
               <p style="margin:8px 0 0;font-size:13px;color:${T.muted};">${escapeHtml(details)}</p>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;border-top:1px solid ${T.border};">
-                ${row("Tržní cena", price(offer.originalPrice))}
-                ${row("Kupní cena", price(offer.offerPrice))}
-                ${row("Sleva oproti trhu", savings, offer.savingsPct !== null && offer.savingsPct > 0)}
-                ${row("Odhadovaný zisk", price(offer.netProfit), offer.netProfit !== null && offer.netProfit >= 0)}
-                ${row("ROI", offer.roi !== null ? `${offer.roi.toFixed(1)} %` : "—")}
+                ${row("Inzerovaná cena", price(offer.originalPrice))}
+                ${row("Cena po vyjednání", price(offer.offerPrice))}
+                ${row("Sleva oproti inzerci", savings, offer.savingsPct !== null && offer.savingsPct > 0)}
+                ${
+                  offer.calcMode === "rental"
+                    ? row("Čistý výnos", offer.rentalYield != null ? `${offer.rentalYield.toFixed(1)} %` : "—", offer.rentalYield != null)
+                    : `${row("Odhadovaný zisk", price(offer.netProfit), offer.netProfit !== null && offer.netProfit >= 0)}
+                ${row("ROI", offer.roi !== null ? `${offer.roi.toFixed(1)} %` : "—")}`
+                }
               </table>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
                 <tr>

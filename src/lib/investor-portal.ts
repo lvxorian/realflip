@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { leads, properties, propertyAnalysis, investors } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { toPortalView } from "@/lib/investor-portal-view";
+import { toPortalView, type InvestorPortalItem } from "@/lib/investor-portal-view";
 
 export {
   parseStageData,
@@ -60,6 +60,7 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
       targetPurchasePrice: propertyAnalysis.targetPurchasePrice,
       netProfit: propertyAnalysis.netProfit,
       roi: propertyAnalysis.roi,
+      calcMode: propertyAnalysis.calcMode,
     })
     .from(leads)
     .innerJoin(properties, eq(leads.propertyId, properties.id))
@@ -68,9 +69,12 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
     .where(and(eq(leads.stage, PORTAL_STAGE), eq(leads.portalVisible, 1), eq(properties.isActive, 1)))
     .orderBy(propertyAnalysis.netProfit);
 
+  const score = (item: InvestorPortalItem) =>
+    item.calcMode === "rental" ? item.rentalYield ?? -Infinity : item.netProfit ?? -Infinity;
+
   return rows
     .map((row) => toPortalView(row, investorId, budget))
-    .sort((a, b) => (b.netProfit ?? -Infinity) - (a.netProfit ?? -Infinity));
+    .sort((a, b) => score(b) - score(a));
 }
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();

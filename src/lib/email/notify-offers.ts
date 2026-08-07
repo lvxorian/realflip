@@ -39,6 +39,7 @@ export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
       targetPurchasePrice: propertyAnalysis.targetPurchasePrice,
       netProfit: propertyAnalysis.netProfit,
       roi: propertyAnalysis.roi,
+      calcMode: propertyAnalysis.calcMode,
     })
     .from(leads)
     .innerJoin(properties, eq(leads.propertyId, properties.id))

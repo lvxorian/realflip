@@ -16,7 +16,8 @@ export interface InvestorPortalItem {
   savingsPct: number | null;
   netProfit: number | null;
   roi: number | null;
-  rentalYield?: number | null;
+  rentalYield: number | null;
+  calcMode: "flip" | "rental";
   status: PortalStatus;
   reservedByMe: boolean;
   reservedByName: string | null;
@@ -40,6 +41,7 @@ export interface PortalRow {
   targetPurchasePrice: number | null;
   netProfit: number | null;
   roi: number | null;
+  calcMode: string | null;
 }
 
 export function parseStageData(raw: unknown): StageData | null {
@@ -67,6 +69,10 @@ export function offerPriceOf(stageData: StageData | null): number | null {
   return null;
 }
 
+function resolveCalcMode(raw: string | null | undefined): "flip" | "rental" {
+  return raw === "rental" ? "rental" : "flip";
+}
+
 export function toPortalView(
   row: PortalRow,
   investorId: string,
@@ -83,14 +89,10 @@ export function toPortalView(
       ? offerPrice > budget.budget
       : false;
 
-  let displayNetProfit = row.netProfit;
-  let displayRoi = row.roi;
-  if (row.rentalYield != null) {
-    displayRoi = row.rentalYield;
-    if (row.originalPrice != null && row.rentalYield != null) {
-      displayNetProfit = Math.round((row.originalPrice * row.rentalYield) / 100);
-    }
-  }
+  const isRental = resolveCalcMode(row.calcMode) === "rental";
+  const netProfit = isRental ? null : row.netProfit;
+  const roi = isRental ? null : row.roi;
+  const rentalYield = isRental ? row.rentalYield ?? null : null;
 
   return {
     id: row.leadId,
@@ -103,9 +105,10 @@ export function toPortalView(
     originalPrice: row.originalPrice,
     offerPrice,
     savingsPct,
-    netProfit: displayNetProfit,
-    roi: displayRoi,
-    rentalYield: row.rentalYield ?? null,
+    netProfit,
+    roi,
+    rentalYield,
+    calcMode: resolveCalcMode(row.calcMode),
     status: row.portalStatus === "reserved" ? "reserved" : "available",
     reservedByMe: row.reservedById === investorId,
     reservedByName: row.reservedById ? row.reservedByName : null,

@@ -46,6 +46,7 @@ export const propertyAnalysis = pgTable("property_analysis", {
   costsJson: text("costs_json"),
   alternativeStrategiesJson: text("alternative_strategies_json"),
   rentalYield: real("rental_yield"),
+  calcMode: text("calc_mode").default("flip"),
 
   // Lokalitní inteligence
   localityScore: integer("locality_score"),

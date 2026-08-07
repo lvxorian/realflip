@@ -17,6 +17,7 @@ const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   targetPurchasePrice: 3_900_000,
   netProfit: 820_000,
   roi: 18.4,
+  calcMode: "flip",
   ...over,
 });
 
@@ -116,5 +117,29 @@ describe("toPortalView", () => {
     expect(toPortalView(row({ condition: "renovated" }), "inv", ctx).condition).toBe("Po rekonstrukci");
     expect(toPortalView(row({ condition: "dilapidated" }), "inv", ctx).condition).toBe("Neobyvatelný");
     expect(toPortalView(row({ condition: null }), "inv", ctx).condition).toBe("—");
+  });
+
+  it("uses stored flip metrics — does not fabricate from rentalYield", () => {
+    const view = toPortalView(
+      row({ calcMode: "flip", rentalYield: 4.5, netProfit: 820_000, roi: 18.4 }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.calcMode).toBe("flip");
+    expect(view.netProfit).toBe(820_000);
+    expect(view.roi).toBe(18.4);
+    expect(view.rentalYield).toBeNull();
+  });
+
+  it("rental mode exposes only čistý výnos, not fabricated flip metrics", () => {
+    const view = toPortalView(
+      row({ calcMode: "rental", rentalYield: 4.9, netProfit: 820_000, roi: 18.4 }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.calcMode).toBe("rental");
+    expect(view.rentalYield).toBe(4.9);
+    expect(view.netProfit).toBeNull();
+    expect(view.roi).toBeNull();
   });
 });

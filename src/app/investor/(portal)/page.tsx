@@ -222,11 +222,11 @@ export default function InvestorPortalPage() {
                             <th className="text-left p-4 text-xs text-muted font-medium">Makrolokalita</th>
                             <th className="text-left p-4 text-xs text-muted font-medium">Stav</th>
                             <th className="text-right p-4 text-xs text-muted font-medium">m²</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Tržní cena</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Kupní cena</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">Sleva oproti trhu</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Inzerovaná cena</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Cena po vyjednání</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">Sleva oproti inzerci</th>
                             <th className="text-right p-4 text-xs text-muted font-medium">Odhadovaný zisk</th>
-                            <th className="text-right p-4 text-xs text-muted font-medium">ROI</th>
+                            <th className="text-right p-4 text-xs text-muted font-medium">ROI / Čistý výnos</th>
                             <th className="text-right p-4 text-xs text-muted font-medium">Status</th>
                             <th className="text-right p-4 text-xs text-muted font-medium"></th>
                           </tr>
@@ -328,8 +328,8 @@ export default function InvestorPortalPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                          <Metric label="Tržní cena" value={fmtPrice(item.originalPrice)} muted />
-                          <Metric label="Kupní cena" value={fmtPrice(item.offerPrice)} strong>
+                          <Metric label="Inzerovaná cena" value={fmtPrice(item.originalPrice)} muted />
+                          <Metric label="Cena po vyjednání" value={fmtPrice(item.offerPrice)} strong>
                             {item.overBudget && (
                               <Badge variant="warning" size="sm" className="ml-1.5 gap-1">
                                 <WarningCircle size={10} weight="bold" />
@@ -338,7 +338,7 @@ export default function InvestorPortalPage() {
                             )}
                           </Metric>
                           <Metric
-                            label="Sleva oproti trhu"
+                            label="Sleva oproti inzerci"
                             value={
                               item.savingsPct !== null && item.savingsPct > 0
                                 ? `−${item.savingsPct.toFixed(1)} %`
@@ -346,11 +346,19 @@ export default function InvestorPortalPage() {
                             }
                             accent={item.savingsPct !== null && item.savingsPct > 0}
                           />
-                          <Metric
-                            label="Odhadovaný zisk"
-                            value={item.netProfit !== null ? formatCompactPrice(item.netProfit) : "—"}
-                            accent={item.netProfit !== null && item.netProfit >= 0}
-                          />
+                          {item.calcMode === "rental" ? (
+                            <Metric
+                              label="Čistý výnos"
+                              value={item.rentalYield != null ? formatPercent(item.rentalYield) : "—"}
+                              accent={item.rentalYield != null}
+                            />
+                          ) : (
+                            <Metric
+                              label="Odhadovaný zisk"
+                              value={item.netProfit !== null ? formatCompactPrice(item.netProfit) : "—"}
+                              accent={item.netProfit !== null && item.netProfit >= 0}
+                            />
+                          )}
                         </div>
 
                         <div className="flex justify-end">

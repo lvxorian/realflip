@@ -15,6 +15,8 @@ const offer = (over: Partial<InvestorPortalItem> = {}): InvestorPortalItem => ({
   savingsPct: 16,
   netProfit: 1_250_000,
   roi: 10.8,
+  rentalYield: null,
+  calcMode: "flip",
   status: "available",
   reservedByMe: false,
   reservedByName: null,
@@ -39,11 +41,22 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("fonts.googleapis.com/css2?family=Geist");
     expect(html).toContain("'Geist',Arial,Helvetica,sans-serif");
     expect(html).toContain("'Geist Mono',ui-monospace,monospace");
-    expect(html).toContain("Tržní cena");
-    expect(html).toContain("Kupní cena");
-    expect(html).toContain("Sleva oproti trhu");
+    expect(html).toContain("Inzerovaná cena");
+    expect(html).toContain("Cena po vyjednání");
+    expect(html).toContain("Sleva oproti inzerci");
     expect(html).toContain("Odhadovaný zisk");
     expect(html).toContain("Vstoupit do portálu");
+  });
+
+  it("shows čistý výnos for rental mode instead of zisk/ROI", () => {
+    const html = buildOfferEmailHtml(
+      offer({ calcMode: "rental", rentalYield: 5.2, netProfit: null, roi: null }),
+      "https://realflip.app"
+    );
+    expect(html).toContain("Čistý výnos");
+    expect(html).toContain("5.2 %");
+    expect(html).not.toContain("ROI");
+    expect(html).not.toContain("Odhadovaný zisk");
   });
 
   it("escapes HTML in location", () => {

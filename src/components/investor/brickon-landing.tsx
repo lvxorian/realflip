@@ -102,9 +102,9 @@ export default function BrickonLanding() {
                   </div>
                   <div className="mt-4 divide-y divide-border/30">
                     {[
-                      { label: "Tržní cena", value: "13,69 mil. Kč", muted: true },
-                      { label: "Kupní cena", value: "11,5 mil. Kč", strong: true },
-                      { label: "Sleva oproti trhu", value: "−16,0 %", accent: true },
+                      { label: "Inzerovaná cena", value: "13,69 mil. Kč", muted: true },
+                      { label: "Cena po vyjednání", value: "11,5 mil. Kč", strong: true },
+                      { label: "Sleva oproti inzerci", value: "−16,0 %", accent: true },
                       { label: "Odhadovaný zisk", value: "1,25 mil. Kč", accent: true },
                       { label: "ROI", value: "+10,8 %", accent: true },
                     ].map((row) => (
