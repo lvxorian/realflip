@@ -61,6 +61,13 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
       renovationCost: propertyAnalysis.renovationCost,
       monthlyRent: propertyAnalysis.monthlyRent,
       calcMode: propertyAnalysis.calcMode,
+      netProfit: propertyAnalysis.netProfit,
+      roi: propertyAnalysis.roi,
+      annualizedRoi: propertyAnalysis.annualizedRoi,
+      cashOnCash: propertyAnalysis.cashOnCash,
+      rentalYield: propertyAnalysis.rentalYield,
+      cashFlowMonthly: propertyAnalysis.cashFlowMonthly,
+      calcSnapshot: propertyAnalysis.calcSnapshot,
     })
     .from(leads)
     .innerJoin(properties, eq(leads.propertyId, properties.id))

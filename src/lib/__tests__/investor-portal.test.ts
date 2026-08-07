@@ -19,6 +19,13 @@ const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   monthlyRent: 18_000,
   locationCategory: null,
   calcMode: "flip",
+  netProfit: null,
+  roi: null,
+  annualizedRoi: null,
+  cashOnCash: null,
+  rentalYield: null,
+  cashFlowMonthly: null,
+  calcSnapshot: null,
   ...over,
 });
 
@@ -120,33 +127,70 @@ describe("toPortalView", () => {
     expect(toPortalView(row({ condition: null }), "inv", ctx).condition).toBe("—");
   });
 
-  it("flip mode recomputes metrics from negotiated price, no fabrication", () => {
+  it("flip mode passes stored snapshot verbatim — no recompute", () => {
     const view = toPortalView(
       row({
         calcMode: "flip",
-        stageData: JSON.stringify({ negotiation: { currentAmount: 3_200_000 } }),
+        netProfit: 820_000,
+        roi: 18.4,
+        annualizedRoi: 36.8,
         arv: 5_200_000,
-        renovationCost: 700_000,
+        calcSnapshot: JSON.stringify({
+          mode: "flip",
+          purchasePriceUsed: 4_990_000,
+          arv: 5_200_000,
+          renovationCost: 700_000,
+          netProfit: 820_000,
+          roi: 18.4,
+          annualizedRoi: 36.8,
+          cashOnCash: 16.9,
+          totalCost: 4_380_000,
+          targetPurchasePrice: 3_900_000,
+        }),
       }),
       "inv",
       { budget: null, unlimited: true }
     );
     expect(view.calcMode).toBe("flip");
     expect(view.deal.type).toBe("flip");
+    expect(view.snapshot?.mode).toBe("flip");
     if (view.deal.type !== "flip") return;
-    expect(view.deal.netProfit).toBeGreaterThan(0);
-    expect(view.deal.roi).toBeGreaterThan(0);
-    expect(view.deal.annualizedRoi).toBeGreaterThan(view.deal.roi!);
+    expect(view.deal.netProfit).toBe(820_000);
+    expect(view.deal.roi).toBe(18.4);
+    expect(view.deal.annualizedRoi).toBe(36.8);
+    expect(view.deal.cashOnCash).toBe(16.9);
   });
 
-  it("rental mode exposes only čistý výnos recomputed from negotiated price", () => {
+  it("flip falls back to stored columns when snapshot missing", () => {
+    const view = toPortalView(
+      row({ calcMode: "flip", netProfit: 610_000, roi: 13.2, annualizedRoi: 26.4 }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.deal.type).toBe("flip");
+    if (view.deal.type !== "flip") return;
+    expect(view.deal.netProfit).toBe(610_000);
+    expect(view.deal.roi).toBe(13.2);
+  });
+
+  it("rental mode passes stored snapshot verbatim and never fabricates flip metrics", () => {
     const view = toPortalView(
       row({
         calcMode: "rental",
-        stageData: JSON.stringify({ negotiation: { currentAmount: 3_200_000 } }),
-        monthlyRent: 18_000,
-        arv: 5_200_000,
-        renovationCost: 700_000,
+        rentalYield: 4.9,
+        cashFlowMonthly: 11_200,
+        calcSnapshot: JSON.stringify({
+          mode: "rental",
+          purchasePriceUsed: 4_990_000,
+          monthlyRent: 18_000,
+          netYield: 4.9,
+          grossYield: 4.3,
+          netYieldAfterTax: 4.1,
+          capRate: 4.9,
+          cashFlowMonthly: 11_200,
+          totalInvested: 4_900_000,
+          targetPurchasePrice: 4_300_000,
+        }),
       }),
       "inv",
       { budget: null, unlimited: true }
@@ -154,8 +198,32 @@ describe("toPortalView", () => {
     expect(view.calcMode).toBe("rental");
     expect(view.deal.type).toBe("rental");
     if (view.deal.type !== "rental") return;
-    expect(view.deal.netYield).toBeGreaterThan(0);
-    expect(view.deal.grossYield).toBeGreaterThan(view.deal.netYield!);
-    expect(view.deal.cashFlowMonthly).not.toBeNull();
+    expect(view.deal.netYield).toBe(4.9);
+    expect(view.deal.cashFlowMonthly).toBe(11_200);
+    expect(view.deal).not.toHaveProperty("netProfit");
+    expect(view.deal).not.toHaveProperty("roi");
+  });
+
+  it("rental falls back to stored yield column when snapshot missing", () => {
+    const view = toPortalView(
+      row({ calcMode: "rental", rentalYield: 5.4, cashFlowMonthly: 9_800 }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.deal.type).toBe("rental");
+    if (view.deal.type !== "rental") return;
+    expect(view.deal.netYield).toBe(5.4);
+    expect(view.deal.cashFlowMonthly).toBe(9_800);
+  });
+
+  it("surfaces deal for sorting by netProfit/netYield", () => {
+    const view = toPortalView(
+      row({ calcMode: "flip", netProfit: 1_000_000, roi: 20 }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.deal.type).toBe("flip");
+    if (view.deal.type !== "flip") return;
+    expect(view.deal.netProfit).toBe(1_000_000);
   });
 });

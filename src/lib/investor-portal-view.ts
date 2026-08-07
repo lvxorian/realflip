@@ -1,5 +1,4 @@
 import { conditionLabel } from "@/lib/utils";
-import { computeFlipDeal, computeRentalDeal } from "@/lib/investor/deal-metrics";
 import type { StageData } from "@/components/leads/types";
 
 export type PortalStatus = "available" | "reserved";
@@ -10,6 +9,7 @@ export interface FlipDealView {
   roi: number | null;
   annualizedRoi: number | null;
   arv: number | null;
+  cashOnCash: number | null;
 }
 
 export interface RentalDealView {
@@ -22,6 +22,46 @@ export interface RentalDealView {
 }
 
 export type DealMetricsView = FlipDealView | RentalDealView;
+
+/** Uložený "snímek" z kalkulačky — přesně ta čísla, která admin v RealFlip
+ * kalkulačce viděl při posledním Uložit. Portál je zobrazuje bez přepočtu. */
+export interface CalcSnapshotFlip {
+  mode: "flip";
+  purchasePriceUsed: number | null;
+  arv: number | null;
+  renovationCost: number | null;
+  netProfit: number | null;
+  roi: number | null;
+  annualizedRoi: number | null;
+  cashOnCash: number | null;
+  totalCost: number | null;
+  targetPurchasePrice: number | null;
+}
+
+export interface CalcSnapshotRental {
+  mode: "rental";
+  purchasePriceUsed: number | null;
+  monthlyRent: number | null;
+  netYield: number | null;
+  grossYield: number | null;
+  netYieldAfterTax: number | null;
+  capRate: number | null;
+  cashFlowMonthly: number | null;
+  totalInvested: number | null;
+  targetPurchasePrice: number | null;
+}
+
+export type CalcSnapshot = CalcSnapshotFlip | CalcSnapshotRental;
+
+export function parseCalcSnapshot(raw: string | null | undefined): CalcSnapshot | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as CalcSnapshot;
+    return parsed && (parsed.mode === "flip" || parsed.mode === "rental") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface InvestorPortalItem {
   id: string;
@@ -37,6 +77,7 @@ export interface InvestorPortalItem {
   calcMode: "flip" | "rental";
   deal: DealMetricsView;
   renovationCost: number | null;
+  snapshot: CalcSnapshot | null;
   status: PortalStatus;
   reservedByMe: boolean;
   reservedByName: string | null;
@@ -61,6 +102,13 @@ export interface PortalRow {
   monthlyRent: number | null;
   locationCategory: string | null;
   calcMode: string | null;
+  netProfit: number | null;
+  roi: number | null;
+  annualizedRoi: number | null;
+  cashOnCash: number | null;
+  rentalYield: number | null;
+  cashFlowMonthly: number | null;
+  calcSnapshot: string | null;
 }
 
 export function parseStageData(raw: unknown): StageData | null {
@@ -92,6 +140,35 @@ function resolveCalcMode(raw: string | null | undefined): "flip" | "rental" {
   return raw === "rental" ? "rental" : "flip";
 }
 
+/** Deal hodnoty se berou PŘÍMO z uloženého snapshotu kalkulačky (verbatim).
+ *  Když snapshot chybí, použij se uložená analýza (sloupce
+ *  property_analysis.net_profit/roi/rental_yield). Nic se nepřepočítává. */
+function dealFromColumns(row: PortalRow, calcMode: "flip" | "rental"): DealMetricsView {
+  const snapshot = parseCalcSnapshot(row.calcSnapshot);
+
+  if (calcMode === "flip") {
+    const s = snapshot && snapshot.mode === "flip" ? snapshot : null;
+    return {
+      type: "flip",
+      netProfit: s ? s.netProfit : row.netProfit,
+      roi: s ? s.roi : row.roi,
+      annualizedRoi: s ? s.annualizedRoi : row.annualizedRoi,
+      arv: s ? s.arv : row.arv,
+      cashOnCash: s ? s.cashOnCash : row.cashOnCash,
+    };
+  }
+
+  const s = snapshot && snapshot.mode === "rental" ? snapshot : null;
+  return {
+    type: "rental",
+    grossYield: s ? s.grossYield : null,
+    netYield: s ? s.netYield : row.rentalYield,
+    netYieldAfterTax: s ? s.netYieldAfterTax : null,
+    capRate: s ? s.capRate : null,
+    cashFlowMonthly: s ? s.cashFlowMonthly : row.cashFlowMonthly,
+  };
+}
+
 export function toPortalView(
   row: PortalRow,
   investorId: string,
@@ -109,29 +186,6 @@ export function toPortalView(
       : false;
 
   const calcMode = resolveCalcMode(row.calcMode);
-  const price = offerPrice ?? 0;
-
-  const deal: DealMetricsView =
-    calcMode === "rental"
-      ? {
-          type: "rental",
-          ...computeRentalDeal({
-            price,
-            monthlyRent: row.monthlyRent,
-            area: row.area,
-            cityKey: row.city,
-            locationCategory: row.locationCategory,
-          }),
-        }
-      : {
-          type: "flip",
-          ...computeFlipDeal({
-            price,
-            arv: row.arv,
-            renovationCost: row.renovationCost,
-            area: row.area,
-          }),
-        };
 
   return {
     id: row.leadId,
@@ -145,13 +199,12 @@ export function toPortalView(
     offerPrice,
     savingsPct,
     calcMode,
-    deal,
+    deal: dealFromColumns(row, calcMode),
     renovationCost: row.renovationCost,
+    snapshot: parseCalcSnapshot(row.calcSnapshot),
     status: row.portalStatus === "reserved" ? "reserved" : "available",
     reservedByMe: row.reservedById === investorId,
     reservedByName: row.reservedById ? row.reservedByName : null,
     overBudget,
   };
 }
-
-export { costsBreakdownForDeal } from "@/lib/investor/deal-metrics";

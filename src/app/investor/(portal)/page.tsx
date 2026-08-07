@@ -21,7 +21,6 @@ import {
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
-import { costsBreakdownForDeal } from "@/lib/investor-portal-view";
 
 interface PortalData {
   items: InvestorPortalItem[];
@@ -219,13 +218,13 @@ export default function InvestorPortalPage() {
                   <div className="hidden lg:block rounded-2xl border border-border/50 bg-card overflow-hidden">
                     <table className="w-full text-[13px] leading-tight">
                       <thead>
-                        <tr className="border-b border-border/30">
-                          <th className="text-left px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Nabídka</th>
-                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Inzerovaná cena</th>
-                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Cena po vyjednání</th>
-                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Odhad zisk / Čistý výnos</th>
-                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">ROI</th>
-                          <th className="text-right px-3 py-3 text-[11px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Status</th>
+                        <tr className="border-b border-border/30 bg-card-elevated/40">
+                          <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Nabídka</th>
+                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Inzerovaná cena</th>
+                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Cena po vyjednání</th>
+                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">{data && data.items.some((i) => i.calcMode === "rental") ? "Zisk / Čistý výnos" : "Odhadovaný zisk"}</th>
+                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">ROI / Výnos</th>
+                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Status</th>
                           <th className="text-right p-3"></th>
                         </tr>
                       </thead>
@@ -238,16 +237,21 @@ export default function InvestorPortalPage() {
                             transition={{ delay: i * 0.03, duration: 0.25 }}
                             className="hover:bg-card-hover transition-colors"
                           >
-                            <td className="p-3 pr-4 min-w-[180px]">
+                            <td className="p-3 pr-4 min-w-[200px]">
                               <button
                                 type="button"
                                 onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                                 className="text-left w-full group"
                               >
-                                <p className="font-semibold capitalize truncate group-hover:text-accent transition-colors">
-                                  {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
-                                </p>
-                                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted whitespace-nowrap">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-semibold capitalize truncate group-hover:text-accent transition-colors">
+                                    {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
+                                  </p>
+                                  <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${item.calcMode === "rental" ? "border-info/40 bg-info-soft text-info" : "border-accent/40 bg-accent-soft text-accent"}`}>
+                                    {item.calcMode === "rental" ? "Nájem" : "Flip"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted whitespace-nowrap">
                                   <MapPin size={10} weight="bold" className="shrink-0" />
                                   <span className="truncate">{item.condition}</span>
                                   {item.area ? <span className="font-mono tabular-nums">{item.area} m²</span> : null}
@@ -291,10 +295,9 @@ export default function InvestorPortalPage() {
                             <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
                               {item.calcMode === "rental" ? (
                                 "—"
-                              ) : item.deal.type === "flip" && item.deal.annualizedRoi !== null ? (
-                                <span>
-                                  {formatPercent(item.deal.annualizedRoi)}
-                                  <span className="text-[10px] text-muted"> p.a.</span>
+                              ) : item.deal.type === "flip" && item.deal.roi !== null ? (
+                                <span className={item.deal.roi >= 15 ? "text-emerald-400" : item.deal.roi >= 10 ? "text-amber-400" : "text-red-400"}>
+                                  {formatPercent(item.deal.roi)}
                                 </span>
                               ) : (
                                 "—"
@@ -368,17 +371,31 @@ export default function InvestorPortalPage() {
                             accent={item.savingsPct !== null && item.savingsPct > 0}
                           />
                           {item.calcMode === "rental" ? (
-                            <Metric
-                              label="Čistý výnos p.a."
-                              value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
-                              accent={item.deal.type === "rental" && item.deal.netYield != null}
-                            />
+                            <>
+                              <Metric
+                                label="Čistý výnos p.a."
+                                value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
+                                accent={item.deal.type === "rental" && item.deal.netYield != null}
+                              />
+                              <Metric
+                                label="Cash-flow / měsíc"
+                                value={item.deal.type === "rental" && item.deal.cashFlowMonthly != null ? formatCompactPrice(item.deal.cashFlowMonthly) : "—"}
+                                accent={item.deal.type === "rental" && item.deal.cashFlowMonthly != null && item.deal.cashFlowMonthly >= 0}
+                              />
+                            </>
                           ) : (
-                            <Metric
-                              label="Odhadovaný zisk"
-                              value={item.deal.type === "flip" && item.deal.netProfit !== null ? formatCompactPrice(item.deal.netProfit) : "—"}
-                              accent={item.deal.type === "flip" && item.deal.netProfit !== null && item.deal.netProfit >= 0}
-                            />
+                            <>
+                              <Metric
+                                label="Odhadovaný zisk"
+                                value={item.deal.type === "flip" && item.deal.netProfit !== null ? formatCompactPrice(item.deal.netProfit) : "—"}
+                                accent={item.deal.type === "flip" && item.deal.netProfit !== null && item.deal.netProfit >= 0}
+                              />
+                              <Metric
+                                label="ROI (celkem)"
+                                value={item.deal.type === "flip" && item.deal.roi != null ? `${item.deal.roi.toFixed(1)} %` : "—"}
+                                accent={item.deal.type === "flip" && item.deal.roi != null && item.deal.roi >= 0}
+                              />
+                            </>
                           )}
                         </div>
 
@@ -431,41 +448,52 @@ export default function InvestorPortalPage() {
 function DealDetail({ item }: { item: InvestorPortalItem }) {
   if (item.calcMode === "rental") {
     const deal = item.deal.type === "rental" ? item.deal : null;
+    const snap = item.snapshot?.mode === "rental" ? item.snapshot : null;
     return (
-      <div className="rounded-xl border border-accent/20 bg-card/60 p-4 text-[13px] space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Výnosová analýza (rental)</p>
-          <Badge variant="secondary" size="sm">výpočet z vyjednané ceny</Badge>
+      <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Výnosová analýza</p>
+          <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
           <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent />
           <DetailRow label="Hrubý výnos" value={deal?.grossYield != null ? `${deal.grossYield.toFixed(1)} %` : "—"} />
           <DetailRow label="Výnos po dani" value={deal?.netYieldAfterTax != null ? `${deal.netYieldAfterTax.toFixed(1)} %` : "—"} />
           <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatCompactPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
+          <DetailRow label="Měsíční nájem" value={snap?.monthlyRent != null ? formatCompactPrice(snap.monthlyRent) : "—"} />
+          <DetailRow label="Investice celkem" value={snap?.totalInvested != null ? formatCompactPrice(snap.totalInvested) : "—"} />
         </div>
-        <p className="text-[11px] text-muted pt-1 border-t border-border/20">Model předpokládá optimální pronájem bez hypotečního úvěru. Finální čísla poskytneme na vyžádání.</p>
+        <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
       </div>
     );
   }
 
   const deal = item.deal.type === "flip" ? item.deal : null;
-  const breakdown = costsBreakdownForDeal(item.offerPrice ?? 0, deal?.arv ?? null, item.renovationCost, item.area);
+  const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
   return (
-    <div className="rounded-xl border border-accent/20 bg-card/60 p-4 text-[13px] space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">Odhadovaný zisk a ROI</p>
-        <Badge variant="secondary" size="sm">výpočet z vyjednané ceny</Badge>
+    <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Odhadovaný zisk a ROI</p>
+        <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
       </div>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
         <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatCompactPrice(deal.arv) : "—"} />
-        <DetailRow label="Kupní cena" value={item.offerPrice != null ? formatCompactPrice(item.offerPrice) : "—"} />
+        <DetailRow label="Kupní cena (v kalkulačce)" value={snap?.purchasePriceUsed != null ? formatCompactPrice(snap.purchasePriceUsed) : "—"} />
+        <DetailRow label="Rekonstrukce" value={snap?.renovationCost != null ? formatCompactPrice(snap.renovationCost) : "—"} />
         <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatCompactPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
         <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
-        <DetailRow label="ROI p.a. (ročně)" value={deal?.annualizedRoi != null ? `${deal.annualizedRoi.toFixed(1)} %` : "—"} accent={deal?.annualizedRoi != null && deal.annualizedRoi >= 0} />
-        <DetailRow label="Celková investice" value={breakdown != null ? formatCompactPrice(breakdown.totalCost) : "—"} />
+        <DetailRow label="ROI p.a." value={deal?.annualizedRoi != null ? `${deal.annualizedRoi.toFixed(1)} %` : "—"} accent={deal?.annualizedRoi != null && deal.annualizedRoi >= 0} />
       </div>
-      <p className="text-[11px] text-muted pt-1 border-t border-border/20">
-        Výpočet vychází z vyjednané kupní ceny {item.offerPrice != null ? formatCompactPrice(item.offerPrice) : "—"}, ARV {deal?.arv != null ? formatCompactPrice(deal.arv) : "—"} a odhadu rekonstrukce. Přesnější čísla poskytneme na vyžádání.
+      {snap?.totalCost != null && (
+        <div className="rounded-lg border border-border/30 bg-card/60 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-muted">Náklady celkem (kupní + rekonstrukce + poplatky + daň)</span>
+            <span className="font-mono tabular-nums font-semibold text-foreground">{formatCompactPrice(snap.totalCost)}</span>
+          </div>
+        </div>
+      )}
+      <p className="text-[11px] text-muted pt-2 border-t border-border/20">
+        Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
       </p>
     </div>
   );
