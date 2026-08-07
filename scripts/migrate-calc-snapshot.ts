@@ -1,5 +1,5 @@
 import "./_env";
-import { neon } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
 import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
@@ -7,16 +7,31 @@ import fs from "node:fs";
 async function main() {
   if (process.env.DATABASE_URL) {
     const directUrl = process.env.DATABASE_URL.replace("-pooler", "");
-    const sql = neon(directUrl);
-    for (const column of ["cash_flow_monthly", "calc_snapshot"]) {
-      const existing = await sql`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'property_analysis' AND column_name = ${column}`;
-      if (existing.length > 0) {
-        console.log(`[Neon] sloupec ${column} už existuje — přeskočeno`);
-      } else {
-        const type = column === "calc_snapshot" ? "text" : "integer";
-        await sql.unsafe(`ALTER TABLE property_analysis ADD COLUMN "${column}" ${type}`);
-        console.log(`[Neon] přidán sloupec ${column} do property_analysis`);
+    const pool = new Pool({ connectionString: directUrl });
+    try {
+      for (const column of ["cash_flow_monthly", "calc_snapshot"]) {
+        const existing = await pool.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'property_analysis' AND column_name = $1",
+          [column]
+        );
+        if (existing.rowCount && existing.rowCount > 0) {
+          console.log(`[Neon] sloupec ${column} už existuje — přeskočeno`);
+        } else {
+          const type = column === "calc_snapshot" ? "text" : "integer";
+          await pool.query(`ALTER TABLE property_analysis ADD COLUMN "${column}" ${type}`);
+          const check = await pool.query(
+            "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'property_analysis' AND column_name = $1",
+            [column]
+          );
+          if (check.rowCount && check.rowCount > 0) {
+            console.log(`[Neon] přidán sloupec ${column} do property_analysis (ověřeno)`);
+          } else {
+            throw new Error(`ALTER TABLE proběhl, ale sloupec ${column} se neobjevil`);
+          }
+        }
       }
+    } finally {
+      await pool.end();
     }
   } else {
     console.log("[Neon] DATABASE_URL nenalezen — Neon přeskočen");
