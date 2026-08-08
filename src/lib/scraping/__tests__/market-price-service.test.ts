@@ -222,6 +222,29 @@ describe("getPropertyMarketRange — Tier 1 (DB kompy)", () => {
     expect(result!.sampleSize).toBe(3);
   });
 
+  it("ořezává extrémní vzorky při ≥8 vzorcích (garsonky/luxus netáhnou medián)", async () => {
+    // 11 vzorků do 5 km: 9 × 50 000 + garsonka 250 000 + luxus 350 000
+    dbState.propertiesRows = [
+      ...Array.from({ length: 9 }, (_, i) =>
+        compRow({ price: 3_000_000, area: 60, lat: 49.2 + i * 0.001, lng: 16.6, condition: null, buildingType: null })
+      ),
+      compRow({ price: 15_000_000, area: 60, lat: 49.205, lng: 16.6, condition: null, buildingType: null }),
+      compRow({ price: 21_000_000, area: 60, lat: 49.206, lng: 16.6, condition: null, buildingType: null }),
+    ];
+
+    const result = await getPropertyMarketRange({
+      cityKey: "brno",
+      lat: 49.2,
+      lng: 16.6,
+      condition: null,
+      buildingType: null,
+    });
+    expect(result).not.toBeNull();
+    expect(result!.source).toBe("db");
+    expect(result!.sampleSize).toBe(9); // 11 vzorků − 1 nejdražší − 1 nejlevnější
+    expect(result!.median).toBe(50_000);
+  });
+
   it("ignoruje realizované prodeje starší než 12 měsíců", async () => {
     // 3+ staré prodeje (jinak by tier nevznikl kvůli <3 vzorkům, ne kvůli TTL)
     dbState.propertiesRows = [];

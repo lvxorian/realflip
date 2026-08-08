@@ -35,6 +35,7 @@ export const BEZREALITKY_ESTATE_LABEL: Record<string, string> = {
 export const BEZREALITKY_CONDITION: Record<string, string> = {
   NEW_BUILDING: "new",
   AFTER_RENOVATION: "renovated",
+  VERY_GOOD: "renovated", // „Velmi dobrý" — druhý nejlepší stupeň, blízko po rekonstrukci
   GOOD: "good",
   ORIGINAL: "original",
   BEFORE_RENOVATION: "dilapidated",
@@ -42,6 +43,21 @@ export const BEZREALITKY_CONDITION: Record<string, string> = {
   DEMOLITION: "dilapidated",
   UNDER_CONSTRUCTION: "new",
 };
+
+/** Vlastnictví bytu — bezrealitky kódy → naše hodnoty (ownershipMultiplier). */
+const BEZREALITKY_OWNERSHIP: Record<string, string> = {
+  OSOBNI: "personal",
+  DRUZSTEVNI: "cooperative",
+  PODILOVE: "other",
+  JINE: "other",
+};
+
+function normalizeOwnership(raw: string | null | undefined): "personal" | "cooperative" | "other" | null {
+  if (!raw) return null;
+  // Nenamapovaný kód → null (žádný multiplikátor) — neznámé vlastnictví nesmí tiše
+  // srazit odhad o 5 % ("other" = 0,95).
+  return (BEZREALITKY_OWNERSHIP[raw.trim().toUpperCase()] ?? null) as "personal" | "cooperative" | "other" | null;
+}
 
 type Cache = Record<string, unknown>;
 
@@ -72,6 +88,13 @@ interface AdvertLike {
   description?: string | null;
   etage?: number | null;
   totalFloors?: number | null;
+  /** Výtah — boolean pole `lift` z inzerátu. */
+  lift?: boolean | null;
+  ownership?: string | null;
+  balconySurface?: number | null;
+  terraceSurface?: number | null;
+  loggiaSurface?: number | null;
+  cellarSurface?: number | null;
   gps?: { lat?: number | null; lng?: number | null } | null;
   publicImages?: Array<ImageRef | null> | null;
   mainImage?: ImageRef | null;
@@ -147,6 +170,14 @@ export function parseBezrealitkyAdvert(advert: AdvertLike, cache: Cache, url: st
   const yearBuilt = yearMatch ? parseInt(yearMatch[0]) : null;
 
   const floor = typeof advert.etage === "number" ? advert.etage : null;
+  const totalFloors = typeof advert.totalFloors === "number" && advert.totalFloors > 0 ? advert.totalFloors : null;
+  const elevator = typeof advert.lift === "boolean" ? advert.lift : null;
+  const ownership = normalizeOwnership(advert.ownership ?? null);
+  // Balkón/lodžie/terasa — sčítáme plochy (m²); zahrada jen jako číselná plocha
+  const balconyArea = [advert.balconySurface, advert.terraceSurface, advert.loggiaSurface]
+    .map((v) => (typeof v === "number" && v > 0 ? v : 0))
+    .reduce((a, b) => a + b, 0) || null;
+  const cellarArea = typeof advert.cellarSurface === "number" && advert.cellarSurface > 0 ? advert.cellarSurface : null;
 
   const images = (advert.publicImages ?? [])
     .map((img) => resolveImageUrl(img, cache))
@@ -163,6 +194,11 @@ export function parseBezrealitkyAdvert(advert: AdvertLike, cache: Cache, url: st
     area: surface,
     rooms,
     floor,
+    totalFloors,
+    elevator,
+    ownership,
+    balconyArea,
+    cellarArea,
     condition,
     buildingType,
     yearBuilt,

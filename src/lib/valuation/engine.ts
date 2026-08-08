@@ -45,6 +45,10 @@ interface EngineDeps {
 const VALUATION_WEIGHTS = {
   realized: 0.45,
   offers: 0.35,
+  // Cenovka inzerátu = nejlokálnější aktuální tržní signál (přímo na tento byt).
+  // Pouze pro vstupy se známou nabídkovou cenou (URL flow); ruční odhady bez ceny
+  // zůstávají čistě na realizovaných + nabídkách.
+  asking: 0.2,
 } as const;
 
 function roundKc(n: number): number {
@@ -152,8 +156,31 @@ export async function estimateProperty(
   let weightTotal = 0;
   let offersClamped = false;
   let realizedAdj = 0;
+  // Cenovka inzerátu (Kč/m²) — kotva; null když není cena nebo je nevěrohodná
+  const askingPerSqmBlock =
+    input.askingPrice && area && area > 0 && input.askingPrice / area > 30000 && input.askingPrice / area < 300000
+      ? input.askingPrice / area
+      : null;
 
   if (realized && realized.avgPricePerSqm > 0) {
+    // Kotva na cenovku inzerátu: průměr čtvrti/obce/kraje (ČÚZK) nesmí implikovat
+    // hodnotu výrazně nad tím, co majitel dnes žádá — asking ≥ realized je tržní norma.
+    // Pokud je čtvrťový průměr vysoko nad cenovkou, je zkreslený novostavbami a/nebo
+    // malým vzorkem (Kyje: 145 068 Kč/m² z 29 tx vs. cenovka paneláku 115 844 Kč/m²).
+    // Referenční hladinu pak omezíme na 105 % cenovky. Cenovka mimo rozumný rozsah
+    // (překlep, jiný typ) cap nespouští; 0,5× hranice chrání před extrémně nízkou
+    // cenovkou (podíl, nezvyklý typ).
+    const askingCap =
+      askingPerSqmBlock != null && askingPerSqmBlock >= realized.avgPricePerSqm * 0.5
+        ? askingPerSqmBlock * 1.05
+        : null;
+    let realizedRef = realized.avgPricePerSqm;
+    let realizedCapped = false;
+    if (askingCap != null && realized.avgPricePerSqm > askingCap) {
+      realizedRef = askingCap;
+      realizedCapped = true;
+    }
+
     // Čtvrťové/obecní průměry bývají zkreslené novostavbami (developerské prodeje),
     // hlavně v prémiových lokalitách (Žižkov 160k vs. kraj Praha 112k). Pokud je čtvrť
     // výrazně nad regionem, stáhneme ji k regionu (partial pooling) — konzervativnější
@@ -161,9 +188,13 @@ export async function estimateProperty(
     const regionRatio = realized.avgPricePerSqm / Math.max(1, realized.regionAvgPricePerSqm);
     const shrinkToRegion =
       (realized.entityType === "ward" || realized.entityType === "municipality") && regionRatio > 1.35;
-    realizedAdj = realized.avgPricePerSqm * mult;
+    realizedAdj = realizedRef * mult;
     if (shrinkToRegion) {
-      realizedAdj = (0.75 * realized.avgPricePerSqm + 0.25 * realized.regionAvgPricePerSqm) * mult;
+      // Obě korekce jsou konzervativní — vezmeme nižší referenci, takže cap na cenovku
+      // platí i ve chvíli, kdy se čtvrť táhne ke kraji (jinak by shrink surový průměr
+      // čtvrti cap obešel).
+      const shrinkRef = 0.75 * realized.avgPricePerSqm + 0.25 * realized.regionAvgPricePerSqm;
+      realizedAdj = Math.min(realizedRef, shrinkRef) * mult;
     }
     // Skladba fondu: průměr čtvrti/města zahrnuje novostavby (×1,15) a renovované
     // (×1,08) — nejsilnější segment, který průměr tlačí nad úroveň běžného fondu.
@@ -200,7 +231,7 @@ export async function estimateProperty(
       pricePerSqm: Math.round(realizedAdj),
       sampleSize: realized.numTransactions,
       weight: VALUATION_WEIGHTS.realized,
-      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}`,
+      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 105 % nabídkové ceny." : ""}`,
     });
     weightedSum += realizedAdj * VALUATION_WEIGHTS.realized;
     weightTotal += VALUATION_WEIGHTS.realized;
@@ -220,9 +251,11 @@ export async function estimateProperty(
     let offerMedian = range.median;
     let clamped = false;
     if (realized && realized.avgPricePerSqm > 0) {
-      // pásmo ±25 % kolem realizovaných — prémiové/luxusní nabídky (např. Žižkov 203k vs.
-      // realizované 150k) se nesmí odchýlit o víc, jinak tahají odhad mimo realitu trhu
-      const band = { low: 0.75 * realizedAdj, high: 1.25 * realizedAdj };
+      // pásmo ±20 % kolem realizovaných — prémiové/luxusní nabídky (např. centrum Prahy
+      // 194k vs. panelový Žižkov 132k) se nesmí odchýlit o víc, jinak tahají odhad
+      // mimo realitu trhu. Pásmo je užší než dříve (±25 %): „any" segment bez znalosti
+      // konstrukce by jinak propustil luxusní nabídky (K Lučinám bez buildingType → 12M).
+      const band = { low: 0.8 * realizedAdj, high: 1.2 * realizedAdj };
       if (offerMedian < band.low) {
         offerMedian = band.low;
         clamped = true;
@@ -248,6 +281,32 @@ export async function estimateProperty(
     weightedSum += offerMedian * weight;
     weightTotal += weight;
     if (clamped) offersClamped = true;
+  }
+
+  if (askingPerSqmBlock != null) {
+    // Kotva je asymetrická — má odhad táhnout DOLŮ, když je čtvrťový průměr nafouknutý
+    // novostavbami. Aby předražený inzerát (vyjednávání proti majiteli) odhad netáhl
+    // nahoru, vynecháme kotvu, když je cenovka o víc než 40 % nad tržním blendem
+    // (realizované + nabídky).
+    const marketLevel = weightTotal > 0 ? weightedSum / weightTotal : null;
+    const withinBand = marketLevel == null || askingPerSqmBlock <= marketLevel * 1.4;
+    if (withinBand) {
+      // Cenovka inzerátu jako třetí zdroj — aktuální tržní signál přímo na tuto nemovitost.
+      // Nepřejímá multiplikátory stavu/typu (jsou už v ceně bytu zahrnuté) a ruší plošnou
+      // úpravu plochy/dopravy (vztahuje se k tomuto konkrétnímu bytu), proto ji de-skálujeme
+      // před závěrečným násobením areaFactor × transportMult.
+      const scale = Math.max(0.1, areaFactor * transportMult);
+      sources.push({
+        key: "asking",
+        label: "Cenovka inzerátu (kotva)",
+        pricePerSqm: Math.round(askingPerSqmBlock),
+        sampleSize: 1,
+        weight: VALUATION_WEIGHTS.asking,
+        note: `Nabídková cena inzerátu (${Math.round(askingPerSqmBlock / 1000)} tis. Kč/m²) — aktuální tržní signál přímo na tuto nemovitost.`,
+      });
+      weightedSum += (askingPerSqmBlock / scale) * VALUATION_WEIGHTS.asking;
+      weightTotal += VALUATION_WEIGHTS.asking;
+    }
   }
 
   // ---------- 3) Odhad ----------
@@ -413,6 +472,11 @@ export async function estimateProperty(
   methodology.push(
     `Úprava plochy ${areaFactor.toFixed(2)}× (menší jednotky = vyšší Kč/m²); multiplikátory: ${multParts.length ? multParts.join(", ") : "žádné"} (celkem ${mult.toFixed(2)}×).`
   );
+  if (askingPerSqmBlock != null) {
+    methodology.push(
+      `Cenovka inzerátu (kotva, váha ${Math.round(VALUATION_WEIGHTS.asking * 100)} %): ${Math.round(askingPerSqmBlock).toLocaleString("cs-CZ")} Kč/m² — aktuální nabídková cena přímo na tuto nemovitost, ukotvuje odhad k dnešnímu trhu.`
+    );
+  }
   if (input.asOfDate) {
     methodology.push(`Odhad k datu ${input.asOfDate}: okno realizovaných prodejů končí zvoleným měsícem (zpětný odhad).`);
   }

@@ -44,6 +44,54 @@ describe("parseBezrealitkyAdvert", () => {
     expect(BEZREALITKY_DISPOSITION.DISP_4_KK).toBe("4+kk");
     expect(BEZREALITKY_DISPOSITION.GARSONKA).toBe("1+kk");
   });
+
+  it("mapuje VERY_GOOD, totalFloors, ownership, lift a venkovní plochy", () => {
+    const advert = {
+      __typename: "Advert",
+      id: "1051982",
+      uri: "1051982-nabidka-prodej-bytu-travna-praha",
+      estateType: "BYT",
+      offerType: "PRODEJ",
+      disposition: "DISP_3_1",
+      surface: 77,
+      price: 8_920_000,
+      condition: "VERY_GOOD",
+      construction: "PANEL",
+      address: "Travná, Praha - Kyje",
+      etage: 3,
+      totalFloors: 5,
+      lift: false,
+      ownership: "OSOBNI",
+      balconySurface: 4,
+      terraceSurface: 2,
+      cellarSurface: 3,
+    };
+
+    const listing = parseBezrealitkyAdvert(
+      advert,
+      {},
+      "https://www.bezrealitky.cz/nemovitosti-byty-domy/1051982-nabidka-prodej-bytu-travna-praha"
+    );
+
+    expect(listing.condition).toBe("renovated");
+    expect(listing.buildingType).toBe("panel");
+    expect(listing.floor).toBe(3);
+    expect(listing.totalFloors).toBe(5);
+    expect(listing.elevator).toBe(false);
+    expect(listing.ownership).toBe("personal");
+    expect(listing.balconyArea).toBe(6); // balkón 4 + terasa 2
+    expect(listing.cellarArea).toBe(3);
+  });
+
+  it("družstevní vlastnictví a neznámý stav se mapují konzervativně", () => {
+    const listing = parseBezrealitkyAdvert(
+      { condition: "BEFORE_RENOVATION", construction: "PANEL", ownership: "DRUZSTEVNI", etage: 0 },
+      {},
+      "https://x.cz/1"
+    );
+    expect(listing.condition).toBe("dilapidated");
+    expect(listing.ownership).toBe("cooperative");
+  });
 });
 
 describe("parseBezrealitkySearch", () => {

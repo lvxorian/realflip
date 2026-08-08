@@ -101,6 +101,17 @@ function toResult(stats: { median: number; p25: number; p75: number }, source: M
   return { low: stats.p25, high: stats.p75, median: stats.median, source, sampleSize };
 }
 
+/**
+ * Robustní statistika — při ≥8 vzorcích odřízne 5 % nejlevnějších a 5 % nejdražších,
+ * aby extrémní jednotky (garsonky za 250k/m², luxusní byty) netáhly medián.
+ */
+function trimmedPrices(prices: number[]): number[] {
+  if (prices.length < 8) return prices;
+  const sorted = [...prices].sort((a, b) => a - b);
+  const drop = Math.max(1, Math.round(sorted.length * 0.05));
+  return sorted.slice(drop, Math.max(drop, sorted.length - drop));
+}
+
 function fromCacheEntry(e: CachedEntry): MarketRangeResult {
   return {
     low: e.low,
@@ -112,15 +123,16 @@ function fromCacheEntry(e: CachedEntry): MarketRangeResult {
 }
 
 /**
- * Cache segment rozšířený o hrubý GPS bucket (0,5° ≈ 40–55 km), když máme souřadnice.
+ * Cache segment rozšířený o GPS bucket (0,1° ≈ 8–11 km), když máme souřadnice.
  * Okruhové výsledky (5–10 km) pak nesdílí klíč s celoměstskými — jinak by
- * pořadí volání určovalo, jestli odhad dostane městský nebo lokální medián
- * (nestabilita: stejný byt ≠ stejný výsledek napříč runy).
+ * pořadí volání určovalo, jestli odhad dostane městský nebo lokální medián.
+ * (Dříve 0,5° ≈ celá Praha — jeden záznam sloužil nesouvisejícím nemovitostem
+ * a umožnil, aby se do odhadu dostal cizí medián, např. 204 598 Kč/m².)
  */
 function cacheSegment(ctx: PropertyMarketContext, segment: string): string {
   if (ctx.lat != null && ctx.lng != null) {
-    const latB = Math.round(ctx.lat * 2) / 2;
-    const lngB = Math.round(ctx.lng * 2) / 2;
+    const latB = Math.round(ctx.lat * 10) / 10;
+    const lngB = Math.round(ctx.lng * 10) / 10;
     return `${segment}__g${latB}x${lngB}`;
   }
   return segment;
@@ -304,14 +316,24 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
         categoryMultiplier(ctx.category ?? null)
       : 1;
 
+  /** Ořez extrémů — mikro-byty (≤30 m²) a luxusní jednotky nesmí táhnout medián. */
+  const areaOk = (s: CompSample): boolean =>
+    (s.area == null || s.area >= 30) &&
+    (minArea == null || (s.area != null && s.area >= minArea && s.area <= maxArea!));
+
   const statsFrom = (subset: CompSample[]): MarketRangeResult | null => {
     if (subset.length < 3) return null;
-    const stats = computeStats(subset.map((s) => s.pricePerSqm));
+    // robustní statistika: při ≥8 vzorcích odřízneme 5 % nejdražších a 5 % nejlevnějších
+    // (garsonky/luxus by jinak zkreslily medián — ověřeno: Praha „any" 18 vzorků → 204 598)
+    const prices = trimmedPrices(subset.map((s) => s.pricePerSqm));
+    if (prices.length < 3) return null;
+    const stats = computeStats(prices);
     if (!stats) return null;
+    // sampleSize = skutečně použitý počet (po ořezu extrémů) — transparentní číslo
     return toResult(
       { median: stats.median * adj, p25: stats.p25 * adj, p75: stats.p75 * adj },
       "db",
-      subset.length
+      prices.length
     );
   };
 
@@ -327,29 +349,31 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
         s.lng != null &&
         haversineKm(ctx.lat!, ctx.lng!, s.lat, s.lng) <= 5 &&
         (seg === "any" || s.segment === seg) &&
-        (minArea == null || (s.area != null && s.area >= minArea && s.area <= maxArea!))
+        areaOk(s)
     );
     if (subset.length >= 3) return statsFrom(subset);
 
-    // b) do 10 km + segment
+    // b) do 10 km + segment + plocha ±30 % (stejná ochrana jako u 5 km — bez plošného
+    // filtru sem prosakovaly garsonky a luxusní jednotky, které medián nafoukly)
     subset = existing.filter(
       (s) =>
         s.lat != null &&
         s.lng != null &&
         haversineKm(ctx.lat!, ctx.lng!, s.lat, s.lng) <= 10 &&
-        (seg === "any" || s.segment === seg)
+        (seg === "any" || s.segment === seg) &&
+        areaOk(s)
     );
     if (subset.length >= 3) return statsFrom(subset);
   }
 
   // c) město + segment
   let subset = existing.filter(
-    (s) => addressMatchesCity(s.address, cityNames) && (seg === "any" || s.segment === seg)
+    (s) => addressMatchesCity(s.address, cityNames) && (seg === "any" || s.segment === seg) && areaOk(s)
   );
   if (subset.length >= 3) return statsFrom(subset);
 
   // d) město
-  subset = existing.filter((s) => addressMatchesCity(s.address, cityNames));
+  subset = existing.filter((s) => addressMatchesCity(s.address, cityNames) && areaOk(s));
   if (subset.length >= 3) return statsFrom(subset);
 
   return null;
@@ -504,7 +528,9 @@ function cacheResult(result: MarketRangeResult, cityKey: string, segment: string
     fetchedAt: Date.now(),
   };
   memCache.set(cacheKey(cityKey, segment), entry);
-  persistCache(entry).catch(() => {});
+  // GPS-okruhové výsledky se nepersistují do DB (24 h) — DB kompy se počítají z lokální
+  // tabulky levně a perzistence sdíleného klíče mezi nemovitostmi kazila medián.
+  if (!segment.includes("__g")) persistCache(entry).catch(() => {});
 }
 
 export async function getPropertyMarketRange(ctx: PropertyMarketContext, force = false): Promise<MarketRangeResult | null> {
@@ -516,10 +542,14 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
     const mem = memCache.get(key);
     if (mem && Date.now() - mem.fetchedAt < MEMORY_TTL_MS) return fromCacheEntry(mem);
 
-    const dbCached = await readFromDbCache(ctx.cityKey, seg);
-    if (dbCached && Date.now() - dbCached.fetchedAt < DB_TTL_MS) {
-      memCache.set(key, dbCached);
-      return fromCacheEntry(dbCached);
+    // GPS-okruhové klíče se v DB nikdy nepersistují (viz cacheResult) — staré záznamy
+    // z doby hrubých bucketů by jinak vracely cizí mediány ještě 24 h.
+    if (!seg.includes("__g")) {
+      const dbCached = await readFromDbCache(ctx.cityKey, seg);
+      if (dbCached && Date.now() - dbCached.fetchedAt < DB_TTL_MS) {
+        memCache.set(key, dbCached);
+        return fromCacheEntry(dbCached);
+      }
     }
   }
 

@@ -34,6 +34,8 @@ async function main() {
   );
 
   // 3) kompletní odhad pro byt z valuo.cz srovnání
+  // (buildingType je nutný — bez něj běží segment „any", který v centru Prahy
+  // mísí luxusní nabídky a odhad nadhodnocuje; v app toku ho URL parser vždy dodá)
   const input: ValuationInput = {
     cityKey: "praha",
     cityName: "Praha",
@@ -42,6 +44,7 @@ async function main() {
     disposition: "3+1",
     area: 73,
     condition: "good",
+    buildingType: "panel",
     lat: 50.084,
     lng: 14.478,
     wardHints: ["Žižkov", "Praha 3"],

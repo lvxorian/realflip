@@ -477,6 +477,175 @@ describe("estimateProperty — váhy zdrojů", () => {
   });
 });
 
+describe("estimateProperty — kotva na cenovku inzerátu", () => {
+  const realizedRegion = {
+    avgPricePerSqm: 90000,
+    numTransactions: 12000,
+    regionName: "Hlavní město Praha",
+    regionAvgPricePerSqm: 90000,
+    regionTransactions: 12672,
+    entityType: "region",
+    period: "2025-08 – 2026-07",
+    totalTransactions: 50469,
+  };
+  const deps = { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 };
+
+  it("přidá zdroj asking (váha 20 %) a posune odhad k cenovce", async () => {
+    mockedRealized.mockResolvedValue(realizedRegion);
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([]);
+
+    const without = await estimateProperty({ cityKey: "praha", type: "flat", area: 60 }, deps);
+    const withAsking = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, askingPrice: 5_500_000 },
+      deps
+    );
+
+    const asking = withAsking.sources.find((s) => s.key === "asking");
+    expect(asking).toBeDefined();
+    expect(asking!.weight).toBe(0.2);
+    expect(asking!.pricePerSqm).toBe(Math.round(5_500_000 / 60));
+    expect(withAsking.estimate).toBeGreaterThan(without.estimate);
+    expect(withAsking.methodology.join(" ")).toContain("Cenovka inzerátu (kotva");
+  });
+
+  it("cap: čtvrť nad cenovkou ×1,05 se stáhne na cenovku ×1,05 (Travná/Kyje)", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 145068,
+      numTransactions: 29,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 149906,
+      regionTransactions: 12672,
+      wardName: "Kyje",
+      wardAvgPricePerSqm: 145068,
+      wardTransactions: 29,
+      localityName: null,
+      districtName: null,
+      entityType: "ward",
+      period: "2026-02 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "Travná, Praha - Kyje",
+        type: "flat",
+        area: 77,
+        condition: "renovated",
+        buildingType: "panel",
+        floor: 3,
+        askingPrice: 8_920_000,
+      },
+      deps
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    // cenovka 115 844 × 1,05 = 121 636; × 0,918 (1,08 renovated × 0,85 panel) = 111 662
+    expect(realized.pricePerSqm).toBe(111662);
+    expect(realized.note).toContain("omezena na 105 %");
+    // odhad pod cenovkou 8,92M — kotva táhne dolů, ne nahoru
+    expect(r.estimate).toBeLessThan(8_920_000);
+  });
+
+  it("cap se nespustí u nevěrohodné cenovky (< 0,5× průměru čtvrti)", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 145068,
+      numTransactions: 29,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 149906,
+      regionTransactions: 12672,
+      wardName: "Kyje",
+      wardAvgPricePerSqm: 145068,
+      wardTransactions: 29,
+      localityName: null,
+      districtName: null,
+      entityType: "ward",
+      period: "2026-02 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+
+    // cenovka 40 000 Kč/m² (překlep/podíl) → 40 000 < 72 534 (0,5×145 068) → žádný cap
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "Travná, Praha - Kyje",
+        type: "flat",
+        area: 77,
+        condition: "renovated",
+        buildingType: "panel",
+        askingPrice: 77 * 40_000,
+      },
+      deps
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    expect(realized.pricePerSqm).toBe(133172); // 145 068 × 0,918 bez capu
+    expect(realized.note).not.toContain("omezena na 105 %");
+  });
+
+  it("absurdní cenovka (> 300 000/m²) kotvu nepřidá", async () => {
+    mockedRealized.mockResolvedValue(realizedRegion);
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, askingPrice: 60 * 400_000 },
+      deps
+    );
+    expect(r.sources.find((s) => s.key === "asking")).toBeUndefined();
+  });
+
+  it("předražená cenovka (> 1,4× tržní blend) kotvu vynechá — netáhne odhad nahoru", async () => {
+    mockedRealized.mockResolvedValue(realizedRegion);
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([]);
+
+    // tržní blend (realizované 90k + nabídky 85k) ≈ 87 812 → cenovka 150k je nad 1,4×
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, askingPrice: 60 * 150_000 },
+      deps
+    );
+    expect(r.sources.find((s) => s.key === "asking")).toBeUndefined();
+  });
+
+  it("cap platí i při shrinkToRegion (interakce shrink × cenovka)", async () => {
+    // Žižkov: čtvrť 160 324 > 1,35× kraj 112 430 (shrink by se aktivoval)
+    // cenovka 5 000 000 / 60 m² = 83 333/m² → cap 87 500 → nižší než shrink 148 350
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 160324,
+      numTransactions: 743,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 112430,
+      regionTransactions: 12672,
+      wardName: "Žižkov",
+      wardAvgPricePerSqm: 160324,
+      wardTransactions: 743,
+      localityName: null,
+      districtName: null,
+      entityType: "ward",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(120000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, condition: "good", askingPrice: 5_000_000 },
+      deps
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    // cap: 83 333 × 1,05 = 87 500 × 0,97 (mixSkew) = 84 875 → vyhrává nad shrinkem 148 350
+    expect(realized.pricePerSqm).toBe(84875);
+    expect(realized.note).toContain("omezena na 105 %");
+  });
+});
+
 describe("transportMultiplier (Vlak Index)", () => {
   it("skóre 50 = průměr (×1,00)", () => {
     expect(transportMultiplier(50)).toBeCloseTo(1, 5);
