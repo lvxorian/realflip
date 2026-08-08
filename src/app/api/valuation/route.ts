@@ -5,10 +5,34 @@ import { applyAreaResolution } from "@/lib/scraping/area-resolver";
 import { isSaleListing } from "@/lib/scraping/filters";
 import { classifyLocation } from "@/lib/analysis/location";
 import { cityKeyToName, geocodeAddress, reverseGeocode } from "@/lib/geocode";
-import { estimateProperty, attachTrend } from "@/lib/valuation/engine";
+import { estimateProperty, attachTrend, scaleToDate } from "@/lib/valuation/engine";
 import { fetchPriceMap } from "@/lib/valuation/price-map"; // trend grafu
 import { correctValuation, explainValuation } from "@/lib/valuation/ai";
 import type { ValuationInput } from "@/lib/valuation/types";
+
+/**
+ * Velká města s velkou likviditou trhu — realizované prodeje za posledních 6 měsíců
+ * (jako Valuo) jsou relevantnější než 12M. Malá města potřebují 12M (málo transakcí).
+ * Uživatel může okno přepsat polem lookbackMonths (6/12/24).
+ */
+const LIQUID_CITIES = new Set([
+  "praha",
+  "brno",
+  "ostrava",
+  "plzen",
+  "olomouc",
+  "hradec",
+  "pardubice",
+  "ceske_budejovice",
+  "liberec",
+  "zlin",
+  "karlovy_vary",
+  "kladno",
+  "mlada_boleslav",
+  "kolin",
+  "jihlava",
+  "usti",
+]);
 
 function inferType(rooms: string | null, buildingType: string | null, title: string | null): "flat" | "house" | "land" {
   const text = `${rooms ?? ""} ${buildingType ?? ""} ${title ?? ""}`.toLowerCase();
@@ -59,7 +83,13 @@ export async function POST(req: Request) {
           buildingType: listing.buildingType ?? undefined,
           category: location.category ?? undefined,
           floor: typeof listing.floor === "number" && listing.floor >= 0 ? listing.floor : undefined,
+          totalFloors: typeof listing.totalFloors === "number" && listing.totalFloors > 0 ? listing.totalFloors : undefined,
+          elevator: listing.elevator ?? undefined,
           yearBuilt: typeof listing.yearBuilt === "number" ? listing.yearBuilt : undefined,
+          ownership: listing.ownership ?? undefined,
+          balconyArea: listing.balconyArea ?? undefined,
+          gardenArea: listing.gardenArea ?? undefined,
+          cellarArea: listing.cellarArea ?? undefined,
           askingPrice: listing.price,
           sourceUrl: url,
         };
@@ -137,13 +167,24 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("Transport factor failed:", e);
     }
-    const enriched = { ...input, lat, lng, wardHints, transport };
+    // Okno realizovaných prodejů: auto dle likvidity města (velká → 6M), přepsatelné uživatelem
+    const lookbackMonths: ValuationInput["lookbackMonths"] =
+      fields.lookbackMonths === 6 || fields.lookbackMonths === 24
+        ? fields.lookbackMonths
+        : LIQUID_CITIES.has(input.cityKey)
+          ? 6
+          : 12;
+    const enriched = { ...input, lat, lng, wardHints, transport, lookbackMonths };
 
     const [valuation, priceMap] = await Promise.all([
       estimateProperty(enriched),
       fetchPriceMap().catch(() => null),
     ]);
-    const result = attachTrend(valuation, priceMap?.trend ?? []);
+    let result = attachTrend(valuation, priceMap?.trend ?? []);
+    // Odhad „k datu" — zpětný přepočet podle trendu realizovaných cen
+    if (enriched.asOfDate) {
+      result = scaleToDate(result, enriched.asOfDate, priceMap?.trend ?? []);
+    }
 
     let ai = null;
     let aiCorrection = null;

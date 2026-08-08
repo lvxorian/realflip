@@ -131,6 +131,7 @@ const CONDITION_LABELS: Record<string, string> = {
   original: "Před rekonstrukcí",
   dilapidated: "Neobyvatelný",
   project: "Projekt",
+  luxury: "Luxusní",
 };
 
 export function conditionLabel(condition: string | null): string {

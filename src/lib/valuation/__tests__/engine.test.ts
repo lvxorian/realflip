@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { estimateProperty, attachTrend, areaSizeFactor, transportMultiplier } from "../engine";
+import {
+  estimateProperty,
+  attachTrend,
+  areaSizeFactor,
+  transportMultiplier,
+  scaleToDate,
+} from "../engine";
+import {
+  ownershipMultiplier,
+  floorMultiplier,
+  balconyMultiplier,
+  gardenMultiplier,
+  cellarMultiplier,
+  buildingTypeMultiplier,
+} from "@/lib/analysis/market-data";
 import type { MarketRangeResult, CompSample } from "@/lib/scraping/market-price-service";
 
 const state = vi.hoisted(() => ({
@@ -175,8 +189,9 @@ describe("estimateProperty — čtvrťová (ward) úroveň", () => {
     const src = r.sources.find((s) => s.key === "realized")!;
     expect(src.label).toContain("čtvrť Žižkov");
     // čtvrť (160 324) je nad krajem (112 430) o 43 % → korigováno 0.75/0.25 = 148 351,
-    // a byt v běžném stavu (good) dostane srážku za skladbu fondu ×0,94 → 139 449
-    expect(src.pricePerSqm).toBe(139449);
+    // a byt v běžném stavu (good) dostane mírnou srážku za skladbu fondu ×0,97 → 143 900
+    // (0,94 by bylo přehnané — s panel ×0,75 by se odhad propadl hluboko pod Valuo)
+    expect(src.pricePerSqm).toBe(143900);
     expect(src.note).toContain("korigováno");
     expect(src.note).toContain("Srážka za běžný stav");
     // komparace: Čtvrť + Kraj (bez obce/okresu) — kontext ukazuje surové hodnoty
@@ -574,5 +589,120 @@ describe("attachTrend", () => {
     const withTrend = attachTrend(base, [{ monthYear: "01/2026", price: 85000 }]);
     expect(withTrend.trend).toHaveLength(1);
     expect(withTrend.trend[0].price).toBe(85000);
+  });
+});
+
+describe("Valuo-style vstupy — multiplikátory", () => {
+  it("panel je ~15 % pod smíšeným průměrem (ne 25 % — průměr už mix obsahuje)", () => {
+    expect(buildingTypeMultiplier("panel")).toBe(0.85);
+    expect(buildingTypeMultiplier("brick")).toBe(1);
+    expect(buildingTypeMultiplier(null)).toBe(1);
+  });
+
+  it("družstevní vlastnictví = sleva ~14 %", () => {
+    expect(ownershipMultiplier("cooperative")).toBe(0.86);
+    expect(ownershipMultiplier("personal")).toBe(1);
+    expect(ownershipMultiplier("other")).toBe(0.95);
+    expect(ownershipMultiplier(null)).toBe(1);
+  });
+
+  it("přízemí −7 %, bez výtahu od 3. patra −10 %, podkroví −7 %", () => {
+    expect(floorMultiplier(0)).toBe(0.93);
+    expect(floorMultiplier(1)).toBe(0.98);
+    expect(floorMultiplier(3, null, false)).toBe(0.9);
+    expect(floorMultiplier(4, 5, false)).toBe(0.9); // 4. patro bez výtahu
+    expect(floorMultiplier(5, 5, null)).toBe(0.93); // nejvyšší patro, výtah neznámý
+    expect(floorMultiplier(5, 5, true)).toBe(0.96); // nejvyšší patro s výtahem
+    expect(floorMultiplier(2, 5, true)).toBe(1);
+    expect(floorMultiplier(null)).toBe(1);
+  });
+
+  it("balkón +4–10 %, zahrada +8–20 %, sklep mírně", () => {
+    expect(balconyMultiplier(null)).toBe(1);
+    expect(balconyMultiplier(6)).toBeCloseTo(1.064, 3);
+    expect(balconyMultiplier(30)).toBe(1.1); // cap +10 %
+    expect(gardenMultiplier(0)).toBe(1);
+    expect(gardenMultiplier(10)).toBeCloseTo(1.12, 3);
+    expect(gardenMultiplier(40)).toBe(1.2); // cap +20 %
+    expect(cellarMultiplier(5)).toBeCloseTo(1.01, 3);
+    expect(cellarMultiplier(null)).toBe(1);
+  });
+
+  it("engine aplikuje družstevní vlastnictví, podkroví i balkón do odhadu", async () => {
+    const realized = {
+      avgPricePerSqm: 90000,
+      numTransactions: 12000,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 90000,
+      regionTransactions: 12672,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    };
+    mockedRealized.mockResolvedValue(realized);
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([]);
+
+    const base = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, condition: "good", buildingType: "panel", floor: 0 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+    const cooperative = await estimateProperty(
+      {
+        cityKey: "praha",
+        type: "flat",
+        area: 60,
+        condition: "good",
+        buildingType: "panel",
+        floor: 0,
+        ownership: "cooperative",
+        balconyArea: 8,
+        gardenArea: 0,
+        cellarArea: 0,
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    // družstevní (0,86) + balkón (~1,07) vs. jen přízemí — očekáváme nižší odhad
+    expect(cooperative.estimate).toBeLessThan(base.estimate);
+    expect(cooperative.methodology.join(" ")).toContain("vlastnictví");
+    expect(cooperative.methodology.join(" ")).toContain("balkón");
+  });
+});
+
+describe("scaleToDate — odhad k datu", () => {
+  const trend = [
+    { monthYear: "08/2025", price: 100000 },
+    { monthYear: "01/2026", price: 105000 },
+    { monthYear: "07/2026", price: 110000 },
+  ];
+  const base = {
+    estimate: 5_000_000,
+    low: 4_600_000,
+    high: 5_400_000,
+    pricePerSqm: 100_000,
+    lowPerSqm: 92_000,
+    highPerSqm: 108_000,
+    confidenceScore: 80,
+    confidenceLabel: "Vysoká" as const,
+    sources: [],
+    comparables: [],
+    trend: [],
+    methodology: ["Metodika"],
+    generatedAt: 1_000,
+  };
+
+  it("zpětný odhad indexuje ceny dolů dle trendu", () => {
+    // 08/2025 = 100 000 vs. nejnovější 07/2026 = 110 000 → faktor 0,909
+    const r = scaleToDate(base, "2025-08", trend);
+    expect(r.estimate).toBe(Math.round(5_000_000 * (100000 / 110000)));
+    expect(r.pricePerSqm).toBe(Math.round(100_000 * (100000 / 110000)));
+    expect(r.methodology.join(" ")).toContain("indexovány");
+  });
+
+  it("bez validního data / trendu vrací výsledek beze změny", () => {
+    expect(scaleToDate(base, null, trend)).toEqual(base);
+    expect(scaleToDate(base, "2025-13", trend)).toEqual(base);
+    expect(scaleToDate(base, "2025-08", [])).toEqual(base);
   });
 });

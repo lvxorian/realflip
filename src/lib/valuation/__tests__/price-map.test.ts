@@ -24,6 +24,33 @@ describe("priceMapWindow", () => {
     expect(w.dateFrom).toBe("2025-08");
     vi.useRealTimers();
   });
+
+  it("6měsíční okno (big-city likvidita jako Valuo)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00Z"));
+    const w = priceMapWindow(6);
+    expect(w.dateTo).toBe("2026-07");
+    expect(w.dateFrom).toBe("2026-02");
+    vi.useRealTimers();
+  });
+
+  it("24měsíční okno (malá města / stabilita)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00Z"));
+    const w = priceMapWindow(24);
+    expect(w.dateTo).toBe("2026-07");
+    expect(w.dateFrom).toBe("2024-08");
+    vi.useRealTimers();
+  });
+
+  it("odhad k datu posune konec okna do minulosti", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00Z"));
+    const w = priceMapWindow(12, "2025-06");
+    expect(w.dateTo).toBe("2025-05");
+    expect(w.dateFrom).toBe("2024-06");
+    vi.useRealTimers();
+  });
 });
 
 describe("regionKeyForCity", () => {

@@ -250,4 +250,16 @@ export interface RawListing {
   imageUrls: string[];
   publishedAt: number;
   updatedAt: number;
+  /** Celkový počet podlaží budovy (pro podkroví/nejvyšší patro). */
+  totalFloors?: number | null;
+  /** Má dům výtah? (sreality POI / detail). */
+  elevator?: boolean | null;
+  /** Vlastnictví: personal | cooperative | other. */
+  ownership?: "personal" | "cooperative" | "other" | null;
+  /** Balkón/lodžie/terasa v m². */
+  balconyArea?: number | null;
+  /** Vlastní zahrada/předzahrádka v m². */
+  gardenArea?: number | null;
+  /** Sklep v m². */
+  cellarArea?: number | null;
 }

@@ -19,13 +19,28 @@ export interface ValuationInput {
   disposition?: string | null;
   area?: number | null;
   floor?: number | null;
+  /** Celkový počet podlaží budovy (pro detekci podkroví/nejvyššího patra). */
+  totalFloors?: number | null;
+  /** Výtah v domě (true/false) — bez výtahu od 3. patra srážka −10–15 %. */
+  elevator?: boolean | null;
   condition?: string | null;
   buildingType?: string | null;
   category?: string | null;
   yearBuilt?: number | null;
+  /** Vlastnictví: personal (osobní) / cooperative (družstevní) / other. Družstevní = sleva ~14 %. */
+  ownership?: "personal" | "cooperative" | "other" | null;
   askingPrice?: number | null;
   balcony?: boolean | null;
-  garage?: boolean | null;
+  /** Balkón/lodžie/terasa v m² — přirážka +4–10 %. */
+  balconyArea?: number | null;
+  /** Vlastní zahrada/předzahrádka v m² — přirážka +8–20 %. */
+  gardenArea?: number | null;
+  /** Sklep v m² — mírná přirážka. */
+  cellarArea?: number | null;
+  /** Okno realizovaných prodejů (6/12/24 měsíců). null = auto dle likvidity města. */
+  lookbackMonths?: 6 | 12 | 24 | null;
+  /** Datum odhadu „k datu" (YYYY-MM) — zpětný odhad indexovaný cenovým vývojem. */
+  asOfDate?: string | null;
   sourceUrl?: string | null;
   /** Hinty na městskou čtvrť (z reverse geokódu / adresy) — pro ward-level realizované ceny. Server-only. */
   wardHints?: string[] | null;

@@ -20,7 +20,16 @@ import {
   type MarketRangeResult,
   type CompSample,
 } from "@/lib/scraping/market-price-service";
-import { conditionMultiplier, buildingTypeMultiplier, categoryMultiplier } from "@/lib/analysis/market-data";
+import {
+  conditionMultiplier,
+  buildingTypeMultiplier,
+  categoryMultiplier,
+  ownershipMultiplier,
+  floorMultiplier,
+  balconyMultiplier,
+  gardenMultiplier,
+  cellarMultiplier,
+} from "@/lib/analysis/market-data";
 import { cityNamesFor } from "@/lib/analysis/location";
 import { getRealizedLocalityForCity, type RealizedContext } from "./price-map";
 import { CSUZ_INDEX } from "./czso-trend";
@@ -57,17 +66,6 @@ export function areaSizeFactor(area: number | null | undefined): number {
   if (!area || area <= 0) return 1;
   const f = Math.pow(60 / area, 0.25);
   return Math.min(1.3, Math.max(0.7, f));
-}
-
-/**
- * Úprava podle patra — přízemí a 1. patro (bez výtahu) jsou mírně levnější.
- * Bez znalosti celkového počtu pater nelze top-floor detekovat, proto jen konzervativní srážky.
- */
-export function floorMultiplier(floor: number | null | undefined): number {
-  if (floor == null || floor < 0) return 1;
-  if (floor === 0) return 0.95;
-  if (floor === 1) return 0.98;
-  return 1;
 }
 
 /** Úprava podle roku výstavby — novější fond je dražší (mírné, nesoupeří s condition). */
@@ -124,8 +122,12 @@ export async function estimateProperty(
     conditionMultiplier(condition ?? null) *
     buildingTypeMultiplier(buildingType ?? null) *
     categoryMultiplier(category ?? null) *
-    floorMultiplier(input.floor) *
-    yearBuiltMultiplier(input.yearBuilt);
+    ownershipMultiplier(input.ownership) *
+    floorMultiplier(input.floor, input.totalFloors, input.elevator) *
+    yearBuiltMultiplier(input.yearBuilt) *
+    balconyMultiplier(input.balconyArea) *
+    gardenMultiplier(input.gardenArea) *
+    cellarMultiplier(input.cellarArea);
   const areaFactor = areaSizeFactor(area);
   // Dopravní vrstva (Vlak Index) — skóre z reálných POI vzdáleností (metro/vlak/bus).
   const transportMult = transportMultiplier(input.transport?.score);
@@ -138,6 +140,8 @@ export async function estimateProperty(
       lat: input.lat,
       lng: input.lng,
       wardHints: input.wardHints,
+      lookbackMonths: input.lookbackMonths,
+      asOfDate: input.asOfDate,
     }).catch(() => null),
     getRange({ cityKey, lat, lng, condition, buildingType, area, category }).catch(() => null),
   ]);
@@ -166,9 +170,12 @@ export async function estimateProperty(
     // Byt v běžném stavu („good") je proto pod průměrem čtvrti (K Lučinám vs. Valuo:
     // 160k průměr Žižkova vs. ~130k běžný stav). Srážka jen pro čtvrti/obce —
     // na krajské hladině je mix vyrovnanější.
+    // mixSkew 0,94 → 0,97: průměr čtvrti/obce sice obsahuje novostavby a renovované,
+    // ale už ne dvoucifernou srážku — spolu s panel 0,85 a rokem by se odhad propadl
+    // hluboko pod trh (K Lučinám: 0,75×0,98×0,94 = 0,69 vs. Valuo 0,81).
     const mixSkew = condition === "good" && (realized.entityType === "ward" || realized.entityType === "municipality");
     if (mixSkew) {
-      realizedAdj *= 0.94;
+      realizedAdj *= 0.97;
     }
     // nejpřesnější dostupná úroveň: čtvrť > obec > okres > kraj
     const levelLabel =
@@ -393,9 +400,25 @@ export async function estimateProperty(
       `Nabídkové ceny: medián ${range.median.toLocaleString("cs-CZ")} Kč/m² (rozmezí ${range.low.toLocaleString("cs-CZ")}–${range.high.toLocaleString("cs-CZ")}, zdroj ${range.source}${range.sampleSize ? `, ${range.sampleSize} vzorků` : ""}).`
     );
   }
+  const multParts: string[] = [];
+  if (condition) multParts.push(`stav ${conditionMultiplier(condition).toFixed(2)}×`);
+  if (buildingType) multParts.push(`konstrukce ${buildingTypeMultiplier(buildingType).toFixed(2)}×`);
+  if (category) multParts.push(`lokalita ${categoryMultiplier(category).toFixed(2)}×`);
+  if (input.ownership) multParts.push(`vlastnictví ${ownershipMultiplier(input.ownership).toFixed(2)}×`);
+  if (input.floor != null) multParts.push(`patro ${floorMultiplier(input.floor, input.totalFloors, input.elevator).toFixed(2)}×`);
+  if (input.yearBuilt) multParts.push(`rok ${yearBuiltMultiplier(input.yearBuilt).toFixed(2)}×`);
+  if (input.balconyArea && input.balconyArea > 0) multParts.push(`balkón ${balconyMultiplier(input.balconyArea).toFixed(2)}×`);
+  if (input.gardenArea && input.gardenArea > 0) multParts.push(`zahrada ${gardenMultiplier(input.gardenArea).toFixed(2)}×`);
+  if (input.cellarArea && input.cellarArea > 0) multParts.push(`sklep ${cellarMultiplier(input.cellarArea).toFixed(2)}×`);
   methodology.push(
-    `Úprava plochy ${areaFactor.toFixed(2)}× (menší jednotky = vyšší Kč/m²), multiplikátory stav/typ/kategorie ${mult.toFixed(2)}×.`
+    `Úprava plochy ${areaFactor.toFixed(2)}× (menší jednotky = vyšší Kč/m²); multiplikátory: ${multParts.length ? multParts.join(", ") : "žádné"} (celkem ${mult.toFixed(2)}×).`
   );
+  if (input.asOfDate) {
+    methodology.push(`Odhad k datu ${input.asOfDate}: okno realizovaných prodejů končí zvoleným měsícem (zpětný odhad).`);
+  }
+  if (input.lookbackMonths) {
+    methodology.push(`Období dat: posledních ${input.lookbackMonths} měsíců realizovaných prodejů.`);
+  }
   if (input.transport && input.transport.sampleSize >= 3) {
     const parts = [
       input.transport.metroDistance != null ? `metro ${fmtDist(input.transport.metroDistance)}` : null,
@@ -446,4 +469,82 @@ function fmtDist(meters: number): string {
 /** Dopočte trend z cenové mapy a vloží do výsledku (UI vrstva). */
 export function attachTrend(result: ValuationResult, trend: { monthYear: string; price: number }[]): ValuationResult {
   return { ...result, trend };
+}
+
+/** Najde cenu v trendu pro daný měsíc (YYYY-MM) s lineární interpolací mezi sousedy. */
+function trendPriceAt(trend: { monthYear: string; price: number }[], asOf: string): number | null {
+  // formát bodů: "2026/07" nebo "07/2026"
+  const mAsOf = asOf.match(/^(\d{4})-(\d{2})$/);
+  if (!mAsOf) return null;
+  const target = new Date(`${asOf}-01T00:00:00Z`);
+  const pts = trend
+    .map((t) => {
+      const m = t.monthYear.match(/^(\d{4})\/(\d{2})$|^(\d{2})\/(\d{4})$/);
+      if (!m) return null;
+      const y = m[1] ? Number(m[1]) : Number(m[4]);
+      const mo = m[2] ? Number(m[2]) : Number(m[3]);
+      return { ts: Date.UTC(y, mo - 1, 1), price: t.price };
+    })
+    .filter((p): p is { ts: number; price: number } => p != null && p.price > 0)
+    .sort((a, b) => a.ts - b.ts);
+  if (pts.length === 0) return null;
+  const targetTs = target.getTime();
+  const before = [...pts].reverse().find((p) => p.ts <= targetTs);
+  const after = pts.find((p) => p.ts >= targetTs);
+  if (!before && after) return after.price;
+  if (before && !after) return before.price;
+  if (before && after && before.ts === after.ts) return before.price;
+  if (before && after) {
+    const ratio = (targetTs - before.ts) / (after.ts - before.ts);
+    return before.price + (after.price - before.price) * ratio;
+  }
+  return null;
+}
+
+/**
+ * Zpětný odhad „k datu" — přepočte odhad na cenu v minulém měsíci podle trendu
+ * realizovaných cen (Seznam cenová mapa). Čistá funkce (testovatelná); bez trendu
+ * nebo při nevalidním datu vrací výsledek beze změny.
+ */
+export function scaleToDate(
+  result: ValuationResult,
+  asOfDate: string | null | undefined,
+  trend: { monthYear: string; price: number }[]
+): ValuationResult {
+  if (!asOfDate || !/^\d{4}-\d{2}$/.test(asOfDate)) return result;
+  const atAsOf = trendPriceAt(trend, asOfDate);
+  // nejnovější bod trendu — cena, ke které je odhad počítán „dnes".
+  // Body parsujeme a bereme max ts — nezávisle na pořadí pole trendu.
+  let latest: number | null = null;
+  let latestTs = -1;
+  for (const t of trend) {
+    const m = t.monthYear.match(/^(\d{4})\/(\d{2})$|^(\d{2})\/(\d{4})$/);
+    if (!m || typeof t.price !== "number" || t.price <= 0) continue;
+    const y = m[1] ? Number(m[1]) : Number(m[4]);
+    const mo = m[2] ? Number(m[2]) : Number(m[3]);
+    const ts = Date.UTC(y, mo - 1, 1);
+    if (ts > latestTs) {
+      latestTs = ts;
+      latest = t.price;
+    }
+  }
+  if (!atAsOf || !latest || latest <= 0) return result;
+  const factor = atAsOf / latest;
+  // rozumné meze — trend nesmí odhad otočit o víc než ±40 %
+  if (factor <= 0.6 || factor >= 1.4) return result;
+  const scale = (n: number) => Math.round(n * factor);
+  const estimate = scale(result.estimate);
+  const askingPrice = result.askingPrice ?? null;
+  return {
+    ...result,
+    estimate,
+    low: scale(result.low),
+    high: scale(result.high),
+    pricePerSqm: scale(result.pricePerSqm),
+    lowPerSqm: scale(result.lowPerSqm),
+    highPerSqm: scale(result.highPerSqm),
+    // přepočtený odhad k datu → srovnání s inzerátem je zastaralé (inzerát je „dnes")
+    vsAskingPct: null,
+    methodology: [...result.methodology, `Zpětný přepočet k datu ${asOfDate}: ceny indexovány faktorem ${(factor * 100).toFixed(1)} % dle trendu realizovaných prodejů.`],
+  };
 }

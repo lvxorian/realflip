@@ -85,6 +85,10 @@ export interface RealizedContext {
   lng?: number | null;
   /** Názvy čtvrtí („Žižkov", „Praha 3") z reverse geokódu Nominatimu — server-only. */
   wardHints?: string[] | null;
+  /** Okno realizovaných prodejů v měsících (6/12/24) — default 12. */
+  lookbackMonths?: number | null;
+  /** Datum odhadu „k datu" (YYYY-MM) — okno končí tímto měsícem (zpětný odhad). */
+  asOfDate?: string | null;
 }
 
 function regionKeyFromName(name: string): string {
@@ -102,11 +106,29 @@ export function clearPriceMapCache(): void {
   drillMem.clear();
 }
 
-/** Aktuální 12měsíční okno (date_to = minulý měsíc, date_from = 11 měsíců před ním). */
-export function priceMapWindow(): { dateFrom: string; dateTo: string } {
+/**
+ * Okno realizovaných prodejů (date_to = minulý měsíc, date_from = (months-1) měsíců před ním).
+ * Big-city s velkou likviditou (Praha, Brno…) lépe ocení i kratší okno 6 měsíců —
+ * ceny z posledního půl roku jsou relevantnější (Valuo používá ~6M). Malá města
+ * potřebují 12–24M kvůli nízkému počtu transakcí.
+ */
+export function priceMapWindow(
+  months: number = 12,
+  asOfDate?: string | null
+): { dateFrom: string; dateTo: string } {
   const now = new Date();
-  const to = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const from = new Date(to.getFullYear(), to.getMonth() - 11, 1);
+  // datum odhadu „k datu": okno končí zvoleným měsícem místo „nyní"
+  let toYear = now.getFullYear();
+  let toMonth = now.getMonth();
+  if (asOfDate && /^\d{4}-\d{2}$/.test(asOfDate)) {
+    const [y, m] = asOfDate.split("-").map(Number);
+    if (y >= 2000 && y <= now.getFullYear() + 1 && m >= 1 && m <= 12) {
+      toYear = y;
+      toMonth = m - 1;
+    }
+  }
+  const to = new Date(toYear, toMonth - 1, 1); // minulý měsíc
+  const from = new Date(to.getFullYear(), to.getMonth() - (months - 1), 1);
   const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   return { dateFrom: fmt(from), dateTo: fmt(to) };
 }
@@ -321,13 +343,24 @@ export async function fetchPriceMap(force = false): Promise<PriceMapData | null>
 
 // ---------- API drill-down (okresy → města) ----------
 
-/** Fetch listu lokalit z API cenové mapy pro daný filtr. */
-async function fetchDrill(locality: string, cacheSegment: string): Promise<DrillItem[] | null> {
-  const { dateFrom, dateTo } = priceMapWindow();
+/**
+ * Fetch listu lokalit z API cenové mapy pro daný filtr.
+ * Okno (months) se propisuje do URL i do cache segmentu — 6M a 12M výsledky
+ * se nesmí míchat (jinak by odhad závisel na tom, kdo cache zapsal první).
+ */
+async function fetchDrill(
+  locality: string,
+  cacheSegment: string,
+  months: number = 12,
+  asOfDate?: string | null
+): Promise<DrillItem[] | null> {
+  const { dateFrom, dateTo } = priceMapWindow(months, asOfDate);
   const url = `${API_LIST}?category_main_cb=1&date_from=${dateFrom}&date_to=${dateTo}&category=1&locality=${locality}`;
 
+  const segKey = `${cacheSegment}_${months}m${asOfDate ? "_" + asOfDate : ""}`;
+
   // memory cache
-  const mem = drillMem.get(locality);
+  const mem = drillMem.get(`${locality}|${segKey}`);
   if (mem && Date.now() - mem.fetchedAt < DRILL_MEM_TTL_MS) return mem.items;
 
   // DB cache (seřazeno od nejnovějšího — ochrana proti duplicitním řádkům bez PK)
@@ -335,7 +368,7 @@ async function fetchDrill(locality: string, cacheSegment: string): Promise<Drill
     const row = await db
       .select({ payload: marketCache.payload, fetchedAt: marketCache.fetchedAt })
       .from(marketCache)
-      .where(and(eq(marketCache.city, locality), eq(marketCache.segment, cacheSegment)))
+      .where(and(eq(marketCache.city, locality), eq(marketCache.segment, segKey)))
       .orderBy(desc(marketCache.fetchedAt))
       .limit(1)
       .then((r) => r[0]);
@@ -343,7 +376,7 @@ async function fetchDrill(locality: string, cacheSegment: string): Promise<Drill
       const items = JSON.parse(row.payload) as DrillItem[];
       // prázdný/neplatný list = kdysi špatná odpověď → nesmí blokovat čerstvý fetch
       if (Array.isArray(items) && items.length > 0) {
-        drillMem.set(locality, { items, fetchedAt: Date.now() });
+        drillMem.set(`${locality}|${segKey}`, { items, fetchedAt: Date.now() });
         return items;
       }
     }
@@ -378,13 +411,13 @@ async function fetchDrill(locality: string, cacheSegment: string): Promise<Drill
           numTransactions: it.num_transactions ?? 0,
         }))
         .filter((it) => it.entityId > 0);
-      drillMem.set(locality, { items, fetchedAt: Date.now() });
+      drillMem.set(`${locality}|${segKey}`, { items, fetchedAt: Date.now() });
       try {
         await db
           .insert(marketCache)
           .values({
             city: locality,
-            segment: cacheSegment,
+            segment: segKey,
             low: 0,
             high: 0,
             median: 0,
@@ -501,6 +534,12 @@ export async function getRealizedLocalityForCity(
   const region = data.regions.find((r) => r.regionKey === regionKey);
   if (!region || region.avgPricePerSqm <= 0) return null;
 
+  const months = ctx.lookbackMonths === 6 || ctx.lookbackMonths === 24 ? ctx.lookbackMonths : 12;
+  // perioda dle skutečně použitého okna (6/12/24M a případného data odhadu) —
+  // ne dle 12M okna SSR stránky, které se používá jen pro krajskou hladinu
+  const window = priceMapWindow(months, ctx.asOfDate);
+  const period = `${window.dateFrom} – ${window.dateTo}`;
+
   const base: RealizedLocality = {
     avgPricePerSqm: region.avgPricePerSqm,
     numTransactions: region.numTransactions,
@@ -517,14 +556,14 @@ export async function getRealizedLocalityForCity(
     wardAvgPricePerSqm: null,
     wardTransactions: null,
     entityType: "region",
-    period: `${data.dateFrom} – ${data.dateTo}`,
+    period,
     totalTransactions: data.totalTransactions,
   };
 
   if (!region.entityId) return base;
 
   // Úroveň 1: children regionu — Praha vrací rovnou čtvrti (ward), ostatní kraje okresy.
-  const lvl1 = await fetchDrill(`region,${region.entityId}`, "price_map_district");
+  const lvl1 = await fetchDrill(`region,${region.entityId}`, "price_map_district", months, ctx.asOfDate);
   if (!lvl1 || lvl1.length === 0) return base;
 
   const wardCount = lvl1.filter((i) => i.entityType === "ward").length;
@@ -557,7 +596,12 @@ export async function getRealizedLocalityForCity(
   }
 
   if (district) {
-    const municipalities = await fetchDrill(`district,${district.entityId}`, "price_map_municipality");
+    const municipalities = await fetchDrill(
+      `district,${district.entityId}`,
+      "price_map_municipality",
+      months,
+      ctx.asOfDate
+    );
     const municipality = municipalities ? findDrillItem(municipalities, cityKey, district.name) : null;
     if (municipality && municipality.numTransactions > 0 && municipality.avgPricePerSqm != null) {
       base.localityName = municipality.name;
@@ -571,7 +615,12 @@ export async function getRealizedLocalityForCity(
       // obecní průměr není už tak robustní, že by čtvrť nic nezlepšila (ušetří 3 s rate-limit)
       const hasHints = (ctx.wardHints?.length ?? 0) > 0 || Boolean(ctx.address?.trim());
       if (hasHints && municipality.numTransactions < 2500) {
-        const wards = await fetchDrill(`municipality,${municipality.entityId}`, "price_map_ward");
+        const wards = await fetchDrill(
+          `municipality,${municipality.entityId}`,
+          "price_map_ward",
+          months,
+          ctx.asOfDate
+        );
         const ward = wards ? findWardByHints(wards, ctx) : null;
         if (ward && ward.numTransactions > 0 && ward.avgPricePerSqm != null) {
           base.wardName = ward.name;

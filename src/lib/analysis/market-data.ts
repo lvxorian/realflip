@@ -293,12 +293,77 @@ export function conditionMultiplier(condition: string | null): number {
     case "original": return 0.85;
     case "dilapidated": return 0.7;
     case "project": return 0.75;
+    case "luxury": return 1.25;
     default: return 1.0;
   }
 }
 
+/**
+ * Typ budovy vs. průměr lokality.
+ * Panel je o ~20–25 % levnější než cihla (RE/MAX, 2024–2026), ALE průměr čtvrti/města
+ * už panel i cihlu MÍSÍ — srážka vůči smíšenému průměru je proto menší (~15 %),
+ * jinak bychom panel penalizovali dvakrát (K Lučinám: 160 324 × 0,75 × 0,98 × 0,94 = 110 768
+ * vs. Valuo ~129 385 → s panel 0,85 × 0,98 × 0,97 = 0,808 vychází 129 542).
+ */
 export function buildingTypeMultiplier(buildingType: string | null): number {
-  return buildingType === "panel" ? 0.75 : 1.0;
+  return buildingType === "panel" ? 0.85 : 1.0;
+}
+
+/**
+ * Vlastnictví — družstevní byty se prodávají se slevou ~14–15 % (Praha, RE/MAX)
+ * až 10–20 % obecně (horší financování hypotečním úvěrem, menší právní autonomie).
+ */
+export function ownershipMultiplier(ownership: string | null | undefined): number {
+  if (ownership === "cooperative") return 0.86;
+  if (ownership === "other") return 0.95;
+  return 1.0;
+}
+
+/**
+ * Podlaží + celkový počet podlaží + výtah.
+ * Výzkum: přízemí −7 %, podkroví/nejvyšší patro −9 %, bez výtahu od 3. patra −10–15 %.
+ * Bez znalosti celkového počtu pater a výtahu používáme jen konzervativní srážky.
+ */
+export function floorMultiplier(
+  floor: number | null | undefined,
+  totalFloors?: number | null,
+  elevator?: boolean | null
+): number {
+  if (floor == null || floor < 0) return 1;
+  // bez výtahu od 3. patra: −10–15 % (námaha každodenního přístupu)
+  if (elevator === false && floor >= 3) return 0.9;
+  // přízemí: −7 % (hluk, méně soukromí, riziko vlhkosti)
+  if (floor === 0) return 0.93;
+  // nejvyšší patro (podkroví): −9 % dle výzkumu; s výtahem mírněji
+  if (totalFloors != null && totalFloors >= 3 && floor >= totalFloors - 1) return elevator === true ? 0.96 : 0.93;
+  if (floor === 1) return 0.98;
+  return 1;
+}
+
+/**
+ * Balkón/lodžie/terasa (m²): přítomnost zvyšuje atraktivitu o ~5–10 %
+ * (až 9 z 10 kupujících balkón vyžaduje). Velikost škáluje nahoru (cap +10 %).
+ */
+export function balconyMultiplier(balconyArea: number | null | undefined): number {
+  if (!balconyArea || balconyArea <= 0) return 1;
+  return 1 + Math.min(0.1, 0.04 + balconyArea * 0.004);
+}
+
+/**
+ * Vlastní zahrada/předzahrádka (m²): prémiový prvek +10–20 % oproti bytu bez venkovního
+ * prostoru (blíží se komfortu rodinného bydlení).
+ */
+export function gardenMultiplier(gardenArea: number | null | undefined): number {
+  if (!gardenArea || gardenArea <= 0) return 1;
+  return 1 + Math.min(0.2, 0.08 + gardenArea * 0.004);
+}
+
+/**
+ * Sklep (m²): standardní součást, jeho absence/velikost je korekční prvek — mírná přirážka.
+ */
+export function cellarMultiplier(cellarArea: number | null | undefined): number {
+  if (!cellarArea || cellarArea <= 0) return 1;
+  return 1 + Math.min(0.03, cellarArea * 0.002);
 }
 
 export function categoryMultiplier(category: string | null | undefined): number {

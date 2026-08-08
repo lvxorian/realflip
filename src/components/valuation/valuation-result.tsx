@@ -110,6 +110,14 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                   {fields.disposition ? ` · ${fields.disposition}` : ""}
                   {fields.area ? ` · ${fields.area} m²` : ""}
                   {fields.condition ? ` · ${conditionLabel(fields.condition)}` : ""}
+                  {fields.ownership === "cooperative" ? " · Družstevní vlastnictví" : ""}
+                  {fields.ownership === "personal" ? " · Osobní vlastnictví" : ""}
+                  {fields.floor != null ? ` · ${fields.floor}. patro` : ""}
+                  {fields.totalFloors != null ? `/${fields.totalFloors}` : ""}
+                  {fields.elevator != null ? (fields.elevator ? " · výtah" : " · bez výtahu") : ""}
+                  {fields.balconyArea ? ` · balkón ${fields.balconyArea} m²` : ""}
+                  {fields.gardenArea ? ` · zahrada ${fields.gardenArea} m²` : ""}
+                  {fields.asOfDate ? ` · odhad k ${fields.asOfDate}` : ""}
                 </p>
               )}
 

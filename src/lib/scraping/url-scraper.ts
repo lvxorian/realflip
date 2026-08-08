@@ -227,6 +227,27 @@ async function scrapeSreality(url: string): Promise<RawListing> {
   const gardenArea = typeof r.garden_area === "number" ? r.garden_area : null;
   const balconyArea = typeof r.balcony_area === "number" ? r.balcony_area : null;
 
+  // Celková podlaží + výtah (sreality detail API: total_floor, has_elevator)
+  const totalFloors = typeof r.total_floor === "number" && r.total_floor > 0 ? r.total_floor : null;
+  const elevator =
+    typeof r.has_elevator === "boolean"
+      ? r.has_elevator
+      : typeof r.has_elevator === "number"
+        ? r.has_elevator === 1
+        : null;
+
+  // Vlastnictví: sreality má pole ownership s názvem („Osobní" / „Družstevní")
+  let ownership: "personal" | "cooperative" | "other" | null = null;
+  const ownRaw =
+    typeof r.ownership === "string"
+      ? r.ownership
+      : r.ownership?.name ?? r.ownership_name ?? r.ownership_type?.name ?? null;
+  if (typeof ownRaw === "string" && ownRaw) {
+    if (/družstev/i.test(ownRaw)) ownership = "cooperative";
+    else if (/osobn/i.test(ownRaw)) ownership = "personal";
+    else ownership = "other";
+  }
+
   return {
     portalName: "sreality",
     url,
@@ -251,6 +272,12 @@ async function scrapeSreality(url: string): Promise<RawListing> {
     imageUrls: images,
     publishedAt: r.since ? new Date(r.since).getTime() : Date.now(),
     updatedAt: r.edited ? new Date(r.edited).getTime() : Date.now(),
+    totalFloors,
+    elevator,
+    ownership,
+    balconyArea,
+    gardenArea,
+    cellarArea: typeof r.cellar_area === "number" ? r.cellar_area : null,
   };
 }
 

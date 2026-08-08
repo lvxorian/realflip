@@ -15,6 +15,7 @@ const CONDITION_OPTIONS = [
   { key: "original", label: "Před rekonstrukcí" },
   { key: "dilapidated", label: "Neobyvatelný" },
   { key: "project", label: "Projekt" },
+  { key: "luxury", label: "Luxusní" },
 ];
 
 const BUILDING_OPTIONS = [
@@ -22,6 +23,12 @@ const BUILDING_OPTIONS = [
   { key: "panel", label: "Panelový" },
   { key: "new", label: "Novostavba" },
   { key: "mixed", label: "Smíšený" },
+];
+
+const OWNERSHIP_OPTIONS = [
+  { key: "personal", label: "Osobní" },
+  { key: "cooperative", label: "Družstevní" },
+  { key: "other", label: "Jiné" },
 ];
 
 const TYPE_OPTIONS = [
@@ -204,13 +211,81 @@ export default function ValuationInput({
             </div>
 
             <div>
+              <label className={labelCls}>Vlastnictví</label>
+              <select value={fields.ownership ?? ""} onChange={(e) => set("ownership", (e.target.value || null) as ValuationInput["ownership"])} className={inputCls}>
+                <option value="">Neznámé</option>
+                {OWNERSHIP_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted mt-1">Družstevní vlastnictví = sleva ~14 %</p>
+            </div>
+
+            <div>
               <label className={labelCls}>Patro</label>
-              <input type="number" value={fields.floor ?? ""} onChange={(e) => set("floor", e.target.value ? Number(e.target.value) : null)} placeholder="např. 3" className={inputCls} />
+              <input type="number" min={0} value={fields.floor ?? ""} onChange={(e) => set("floor", e.target.value ? Number(e.target.value) : null)} placeholder="např. 3" className={inputCls} />
+            </div>
+
+            <div>
+              <label className={labelCls}>Celkem podlaží</label>
+              <input type="number" min={1} value={fields.totalFloors ?? ""} onChange={(e) => set("totalFloors", e.target.value ? Number(e.target.value) : null)} placeholder="např. 5" className={inputCls} />
+              <p className="text-[10px] text-muted mt-1">Určuje podkroví/nejvyšší patro</p>
+            </div>
+
+            <div>
+              <label className={labelCls}>Výtah</label>
+              <select value={fields.elevator == null ? "" : fields.elevator ? "yes" : "no"} onChange={(e) => set("elevator", e.target.value === "" ? null : e.target.value === "yes")} className={inputCls}>
+                <option value="">Neznámý</option>
+                <option value="yes">Ano</option>
+                <option value="no">Ne</option>
+              </select>
             </div>
 
             <div>
               <label className={labelCls}>Rok výstavby</label>
               <input type="number" min={1500} max={2100} value={fields.yearBuilt ?? ""} onChange={(e) => set("yearBuilt", e.target.value ? Number(e.target.value) : null)} placeholder="např. 1985" className={inputCls} />
+            </div>
+
+            <div>
+              <label className={labelCls}>Balkón (m²)</label>
+              <input type="number" min={0} value={fields.balconyArea ?? ""} onChange={(e) => set("balconyArea", e.target.value ? Number(e.target.value) : null)} placeholder="např. 6" className={inputCls} />
+            </div>
+
+            <div>
+              <label className={labelCls}>Zahrada (m²)</label>
+              <input type="number" min={0} value={fields.gardenArea ?? ""} onChange={(e) => set("gardenArea", e.target.value ? Number(e.target.value) : null)} placeholder="např. 0" className={inputCls} />
+            </div>
+
+            <div>
+              <label className={labelCls}>Sklep (m²)</label>
+              <input type="number" min={0} value={fields.cellarArea ?? ""} onChange={(e) => set("cellarArea", e.target.value ? Number(e.target.value) : null)} placeholder="např. 5" className={inputCls} />
+            </div>
+
+            <div>
+              <label className={labelCls}>Období dat</label>
+              <select
+                value={fields.lookbackMonths ?? ""}
+                onChange={(e) => set("lookbackMonths", (e.target.value ? Number(e.target.value) : null) as ValuationInput["lookbackMonths"])}
+                className={inputCls}
+              >
+                <option value="">Auto (velká města 6M, ostatní 12M)</option>
+                <option value={6}>Posledních 6 měsíců</option>
+                <option value={12}>Posledních 12 měsíců</option>
+                <option value={24}>Posledních 24 měsíců</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={labelCls}>Datum odhadu</label>
+              <input
+                type="month"
+                value={fields.asOfDate ?? ""}
+                onChange={(e) => set("asOfDate", e.target.value || null)}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-muted mt-1">Odhad „k datu" — zpětný výpočet</p>
             </div>
 
             <div>

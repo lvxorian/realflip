@@ -173,8 +173,14 @@ ${JSON.stringify({
   disposition: input.disposition ?? null,
   area: input.area ?? null,
   floor: input.floor ?? null,
+  totalFloors: input.totalFloors ?? null,
+  elevator: input.elevator ?? null,
   condition: input.condition ?? null,
   buildingType: input.buildingType ?? null,
+  ownership: input.ownership ?? null,
+  balconyArea: input.balconyArea ?? null,
+  gardenArea: input.gardenArea ?? null,
+  cellarArea: input.cellarArea ?? null,
   askingPrice: input.askingPrice ?? null,
 })}
 

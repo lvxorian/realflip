@@ -67,8 +67,19 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
           {f.disposition && <span>Dispozice: {f.disposition}</span>}
           {f.area && <span>Plocha: {f.area} m²</span>}
           {f.condition && <span>Stav: {conditionLabel(f.condition)}</span>}
-          {f.floor != null && <span>Patro: {f.floor}</span>}
+          {f.ownership === "cooperative" && <span>Družstevní vlastnictví</span>}
+          {f.ownership === "personal" && <span>Osobní vlastnictví</span>}
+          {f.floor != null && (
+            <span>
+              Patro: {f.floor}
+              {f.totalFloors != null ? `/${f.totalFloors}` : ""}
+            </span>
+          )}
+          {f.elevator != null && <span>{f.elevator ? "Výtah ano" : "Bez výtahu"}</span>}
           {f.yearBuilt && <span>Rok: {f.yearBuilt}</span>}
+          {f.balconyArea ? <span>Balkón: {f.balconyArea} m²</span> : null}
+          {f.gardenArea ? <span>Zahrada: {f.gardenArea} m²</span> : null}
+          {f.asOfDate && <span>Odhad k datu: {f.asOfDate}</span>}
         </div>
       </div>
 
