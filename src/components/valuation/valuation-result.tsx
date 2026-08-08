@@ -267,7 +267,11 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                           <td className="py-2 pr-3">
                             <p className="text-xs truncate max-w-[170px]">{c.label}</p>
                             <p className="text-[10px] text-muted">
-                              {c.source === "realized" ? "realizované prodeje" : "nabídka"}
+                              {c.source === "realized"
+                                ? c.soldAt
+                                  ? `prodej · ${new Date(c.soldAt).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
+                                  : "realizované prodeje"
+                                : "nabídka"}
                               {c.distanceKm != null ? ` · ${c.distanceKm.toFixed(1)} km` : ""}
                             </p>
                           </td>
@@ -298,10 +302,10 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                       );
                     })}
                   </tbody>
-                </table>
-                <p className="text-[10px] text-muted/60 mt-2">
-                  Poměr = Kč/m² srovnatelné vs. medián odhadu. Zvýrazněné řádky jsou mimo pásmo 75–130 % (outliers).
-                </p>
+                </table>                            <p className="text-[10px] text-muted/60 mt-2">
+                              Poměr = Kč/m² srovnatelné vs. medián odhadu. Zvýrazněné řádky jsou mimo pásmo 75–130 % (outliers).
+                              {" "}„Prodej · datum" = realizovaná transakce z vlastní historie (zmizelý inzerát).
+                            </p>
               </div>
             )}
           </CardContent>

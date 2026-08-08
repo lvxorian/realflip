@@ -1,5 +1,6 @@
 import { db } from "@/db";
-import { marketCache, properties } from "@/db/schema";
+import { marketCache, properties, realizedSales } from "@/db/schema";
+import { REALIZED_SALE_TTL_MS } from "./sold-pairing";
 import { eq, and, gte } from "drizzle-orm";
 import { RateLimiter } from "./rate-limiter";
 import { getSrealitySitemapIds, pickSrealitySampleIds } from "./sreality-sitemap";
@@ -195,10 +196,15 @@ export interface CompSample {
   address: string | null;
   price?: number | null;
   condition?: string | null;
+  /** Pravdivá transakce z vlastní historie prodejů (párování zmizelých inzerátů). */
+  realized?: boolean;
+  /** Kdy byl prodej spárován (proxy data transakce). */
+  soldAt?: number | null;
 }
 
 /**
- * Surové srovnatelné vzorky z vlastní DB (aktivní nabídky, posledních 90 dní).
+ * Surové srovnatelné vzorky z vlastní DB (aktivní nabídky, posledních 90 dní)
+ * + realizované prodeje z vlastní historie (párování zmizelých inzerátů, 12 měsíců).
  * Sdíleno kaskádou (Tier 1) i modulem Odhad (tabulka srovnatelných).
  */
 export async function fetchComparableSamples(ctx: PropertyMarketContext): Promise<CompSample[]> {
@@ -231,6 +237,47 @@ export async function fetchComparableSamples(ctx: PropertyMarketContext): Promis
       price: row.price,
       condition: row.condition,
     });
+  }
+
+  // Realizované prodeje z vlastní historie — skutečné transakce (posledních 12 měsíců).
+  // Tyto vzorky mají vyšší vypovídací hodnotu než nabídky; engine je označí
+  // jako „realizované prodeje" (source: realized) místo „nabídka".
+  // Filtr TTL je v JS (ne SQL) — sdílená funkce je tak testovatelná bez mockování
+  // drizzle where klauzulí a chování je stejné.
+  try {
+    const soldCutoff = Date.now() - REALIZED_SALE_TTL_MS;
+    const soldRows = await db
+      .select({
+        price: realizedSales.price,
+        area: realizedSales.area,
+        address: realizedSales.address,
+        lat: realizedSales.lat,
+        lng: realizedSales.lng,
+        condition: realizedSales.condition,
+        buildingType: realizedSales.buildingType,
+        soldAt: realizedSales.soldAt,
+      })
+      .from(realizedSales)
+      .limit(500);
+
+    for (const row of soldRows) {
+      if (!row.area || row.area <= 0 || !row.price || row.price <= 0) continue;
+      if (row.soldAt == null || row.soldAt < soldCutoff) continue;
+      samples.push({
+        pricePerSqm: Math.round(row.price / row.area),
+        lat: row.lat,
+        lng: row.lng,
+        area: row.area,
+        segment: segmentOf(row.condition, row.buildingType),
+        address: row.address,
+        price: row.price,
+        condition: row.condition,
+        realized: true,
+        soldAt: row.soldAt,
+      });
+    }
+  } catch {
+    // historie prodejů je doplněk — selhání nebrání komparacím
   }
 
   return samples;

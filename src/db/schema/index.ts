@@ -1,6 +1,6 @@
 export { users, accounts, sessions, verificationTokens } from "./users";
 export { userPreferences, subscriptions } from "./profiles";
-export { properties, priceHistory } from "./properties";
+export { properties, priceHistory, realizedSales } from "./properties";
 export { favorites } from "./favorites";
 export { propertyAnalysis } from "./analysis";
 export { leads, contacts, callQueue, callLogs } from "./leads";

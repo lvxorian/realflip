@@ -50,6 +50,8 @@ export interface ComparableRow {
   distanceKm?: number | null;
   source: "realized" | "offer";
   condition?: string | null;
+  /** Datum prodeje (vlastní historie — párování zmizelých inzerátů). */
+  soldAt?: number | null;
 }
 
 export interface TrendPoint {

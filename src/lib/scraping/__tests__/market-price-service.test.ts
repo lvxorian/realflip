@@ -10,6 +10,7 @@ import {
 
 const dbState = vi.hoisted(() => ({
   propertiesRows: [] as Array<Record<string, unknown>>,
+  realizedSalesRows: [] as Array<Record<string, unknown>>,
   cacheRows: [] as Array<Record<string, unknown>>,
   insertPayloads: [] as Array<Record<string, unknown>>,
 }));
@@ -19,10 +20,21 @@ const sitemapState = vi.hoisted(() => ({ ids: [] as number[] }));
 vi.mock("@/db", () => {
   const db = {
     select: () => ({
-      from: () => ({
+      from: (table: any) => ({
         where: () => ({
-          limit: async () => dbState.propertiesRows.map((r) => ({ ...r })),
+          limit: async () => {
+            const name = table?.[Symbol.for("drizzle:Name")];
+            const rows =
+              name === "realized_sales" ? dbState.realizedSalesRows : dbState.propertiesRows;
+            return rows.map((r) => ({ ...r }));
+          },
         }),
+        limit: async () => {
+          const name = table?.[Symbol.for("drizzle:Name")];
+          const rows =
+            name === "realized_sales" ? dbState.realizedSalesRows : dbState.propertiesRows;
+          return rows.map((r) => ({ ...r }));
+        },
       }),
     }),
     insert: () => ({
@@ -64,6 +76,7 @@ beforeEach(() => {
   clearCache();
   fetchMocks = [];
   dbState.propertiesRows = [];
+  dbState.realizedSalesRows = [];
   dbState.cacheRows = [];
   dbState.insertPayloads = [];
   sitemapState.ids = [];
@@ -182,6 +195,50 @@ describe("getPropertyMarketRange — Tier 1 (DB kompy)", () => {
     const result = await getPropertyMarketRange({ cityKey: "neexistujici_mesto" });
     expect(result).not.toBeNull();
     expect(result!.source).toBe("fallback");
+  });
+
+  it("započítává realizované prodeje z vlastní historie do DB komparací", async () => {
+    // jen 2 aktivní nabídky (méně než 3) + 1 realizovaný prodej → dohromady 3 vzorky
+    dbState.propertiesRows = [
+      compRow({ price: 3_000_000, area: 60 }),
+      compRow({ price: 3_600_000, area: 60 }),
+    ];
+    dbState.realizedSalesRows = [
+      {
+        price: 4_200_000,
+        area: 60,
+        address: "Prodaná 5, Brno",
+        lat: 49.2,
+        lng: 16.6,
+        condition: "good",
+        buildingType: "brick",
+        soldAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
+      },
+    ];
+
+    const result = await getPropertyMarketRange({ cityKey: "brno" });
+    expect(result).not.toBeNull();
+    expect(result!.source).toBe("db");
+    expect(result!.sampleSize).toBe(3);
+  });
+
+  it("ignoruje realizované prodeje starší než 12 měsíců", async () => {
+    // 3+ staré prodeje (jinak by tier nevznikl kvůli <3 vzorkům, ne kvůli TTL)
+    dbState.propertiesRows = [];
+    dbState.realizedSalesRows = [1, 2, 3].map((i) => ({
+      price: (3_000_000 + i * 600_000),
+      area: 60,
+      address: `Stará ${i}, Brno`,
+      lat: 49.2,
+      lng: 16.6,
+      condition: "good",
+      buildingType: "brick",
+      soldAt: Date.now() - 400 * 24 * 60 * 60 * 1000, // 13 měsíců
+    }));
+
+    const result = await getPropertyMarketRange({ cityKey: "brno" });
+    expect(result).not.toBeNull();
+    expect(result!.source).toBe("market_data"); // staré prodeje nesmí vytvořit DB tier
   });
 });
 

@@ -43,3 +43,25 @@ export const priceHistory = pgTable("price_history", {
   price: integer("price").notNull(),
   recordedAt: bigint("recorded_at", { mode: "number" }).notNull(),
 });
+
+/** Vlastní historie realizovaných prodejů (párování zmizelých inzerátů). */
+export const realizedSales = pgTable("realized_sales", {
+  id: text("id").primaryKey(),
+  propertyId: text("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  url: text("url"),
+  portalName: text("portal_name"),
+  title: text("title"),
+  price: integer("price").notNull(),
+  pricePerSqm: real("price_per_sqm"),
+  area: real("area"),
+  rooms: text("rooms"),
+  condition: text("condition"),
+  buildingType: text("building_type"),
+  address: text("address"),
+  lat: real("lat"),
+  lng: real("lng"),
+  soldAt: bigint("sold_at", { mode: "number" }).notNull(),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+});

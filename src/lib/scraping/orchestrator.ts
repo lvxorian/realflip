@@ -4,7 +4,8 @@ import { matchFilters, isCzechListing, isSaleListing } from "./filters";
 import { applyAreaResolution } from "./area-resolver";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties, leads } from "@/db/schema";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties, leads, realizedSales } from "@/db/schema";
+import { toRealizedSale } from "./sold-pairing";
 import { eq, and, ne, notInArray, inArray, lte, gt } from "drizzle-orm";
 import { listingMatches, PROPERTY_STATUS, REMOVAL_GRACE_MS, type RelistCandidate } from "./relisting";
 import { analyzeListing } from "@/lib/analysis/analyzer";
@@ -309,6 +310,8 @@ export class ScrapingOrchestrator {
           propertyId: existing.id,
           createdAt: ts(),
         });
+        // Inzerát se vrátil → nebyl prodán → zruš párování na realizovaný prodej.
+        await db.delete(realizedSales).where(eq(realizedSales.propertyId, existing.id));
       }
 
       // Check for price change
@@ -453,6 +456,8 @@ export class ScrapingOrchestrator {
       // Nová URL — možná je to re-listace (inzerát nahozený znovu pod jinou URL).
       const relisted = await this.findRelistedProperty(listing);
       if (relisted) {
+        // Inzerát se vrátil pod novou URL → nebyl prodán → zruš párování na prodej.
+        await db.delete(realizedSales).where(eq(realizedSales.propertyId, relisted.id));
         // Přesuneme záznam na novou URL a oživíme ho; zbytek (cena, analýza,
         // linky) dořeší opětovný vstup do existující větve saveListing.
         await db
@@ -647,21 +652,66 @@ export class ScrapingOrchestrator {
   }
 
   // Potvrdí odstraněné inzeráty, které už 7+ dní nejsou na portálu k vidění
-  // (status removed + removedAt). Pro leady v aktivní fázi zaloguje varování.
+  // (status removed + removedAt). Pro leady v aktivní fázi zaloguje varování
+  // a zmizelý inzerát spáruje na realizovaný prodej (vlastní historie transakcí).
   private async sweepRemovedListings(): Promise<number> {
     const cutoff = Date.now() - REMOVAL_GRACE_MS;
 
     const candidates = await db
-      .select({ id: properties.id, title: properties.title })
+      .select({
+        id: properties.id,
+        url: properties.url,
+        portalName: properties.portalName,
+        title: properties.title,
+        price: properties.price,
+        area: properties.area,
+        rooms: properties.rooms,
+        condition: properties.condition,
+        buildingType: properties.buildingType,
+        address: properties.address,
+        lat: properties.lat,
+        lng: properties.lng,
+        removedAt: properties.removedAt,
+      })
       .from(properties)
       .where(and(eq(properties.isActive, 0), eq(properties.status, PROPERTY_STATUS.ACTIVE), lte(properties.lastSeen, cutoff)));
 
     if (candidates.length === 0) return 0;
 
+    const now = ts();
     await db
       .update(properties)
-      .set({ status: PROPERTY_STATUS.REMOVED, removedAt: ts() })
+      .set({ status: PROPERTY_STATUS.REMOVED, removedAt: now })
       .where(inArray(properties.id, candidates.map((c) => c.id)));
+
+    // Párování na realizované prodeje — vlastní historie transakcí pro komparace.
+    let paired = 0;
+    for (const candidate of candidates) {
+      const sale = toRealizedSale({ ...candidate, removedAt: now });
+      if (!sale) continue;
+      try {
+        await db
+          .insert(realizedSales)
+          .values({ ...sale, createdAt: now });
+        paired++;
+      } catch (e) {
+        // Duplicita (PK = property.id) = inzerát už spárován — ignoruj; jiné chyby
+        // (např. chybějící tabulka v prod) zaloguj, ať nepropadnou tiše.
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!/unique|constraint/i.test(msg)) {
+          console.error(`[scraping] Párování prodeje selhalo (${candidate.id}): ${msg}`);
+        }
+      }
+    }
+
+    if (paired > 0) {
+      await db.insert(activityLog).values({
+        id: generateId(),
+        type: "scraping",
+        message: `Spárováno ${paired} inzerátů na realizované prodeje (vlastní historie)`,
+        createdAt: now,
+      });
+    }
 
     const titleById = new Map(candidates.map((c) => [c.id, c.title]));
     const relatedLeads = await db
@@ -676,7 +726,7 @@ export class ScrapingOrchestrator {
         type: "scraping",
         message: `Inzerat odstranen - pravdepodobne prodan: ${titleById.get(lead.propertyId)}`,
         propertyId: lead.propertyId,
-        createdAt: ts(),
+        createdAt: now,
       });
     }
 

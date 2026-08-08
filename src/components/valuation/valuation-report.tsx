@@ -216,7 +216,11 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
                         {ratio != null ? `${ratio < 100 ? "−" : "+"}${Math.abs(100 - ratio)} %` : "—"}
                       </td>
                       <td className="px-6 py-2 text-right text-gray-500">
-                        {c.source === "realized" ? "realizované prodeje" : "nabídka"}
+                        {c.source === "realized"
+                          ? c.soldAt
+                            ? `prodej ${new Date(c.soldAt).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
+                            : "realizované prodeje"
+                          : "nabídka"}
                       </td>
                     </tr>
                   );

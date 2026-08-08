@@ -43,3 +43,31 @@ export const priceHistory = sqliteTable("price_history", {
   price: integer("price").notNull(),
   recordedAt: integer("recorded_at").notNull(),
 });
+
+/**
+ * Vlastní historie realizovaných prodejů — párování inzerátů.
+ * Když inzerát zmizí z portálu (sweep potvrdí odstranění po grace periodě),
+ * uložíme jeho finální cenu jako realizovaný prodej a používáme ho jako komparaci.
+ */
+export const realizedSales = sqliteTable("realized_sales", {
+  id: text("id").primaryKey(),
+  propertyId: text("property_id")
+    .notNull()
+    .references(() => properties.id, { onDelete: "cascade" }),
+  url: text("url"),
+  portalName: text("portal_name"),
+  title: text("title"),
+  /** Finální (poslední známá) cena inzerátu před zmizením. */
+  price: integer("price").notNull(),
+  pricePerSqm: real("price_per_sqm"),
+  area: real("area"),
+  rooms: text("rooms"),
+  condition: text("condition"),
+  buildingType: text("building_type"),
+  address: text("address"),
+  lat: real("lat"),
+  lng: real("lng"),
+  /** Kdy inzerát zmizel (potvrzené odstranění) — proxy data prodeje. */
+  soldAt: integer("sold_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+});

@@ -257,6 +257,12 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **AI**: `correctValuation` prompt dostává transport (vzdálenosti m + skóre + prémie) s pravidly (metro <300 m = +1..3 % atd., 100000 = stanice neexistuje).
 - **UI**: badge „Doprava: Výborná · 66/100" + chips Metro/Vlak/Bus v hero kartě; PDF sekce „Doprava — Vlak Index".
 - **Živě**: Praha 3 → metro 833 m / vlak 2 042 m / bus 153 m / skóre 66 (100 vzorků). Testy +5 (transportMultiplier + engine s transportem) → 423 testů / 34 souborů.
+
+### Phase 39 — Odhad: párování inzerátů na realizované prodeje (Done)
+- **Tabulka `realized_sales`** (SQLite + PG): PK = property.id (1 nemovitost = max 1 spárovaný prodej), FK cascade, cena/plocha/Kč-m²/adresa/GPS/stav, `soldAt` (potvrzené odstranění = proxy data prodeje). Migrace `scripts/migrate-realized-sales.ts` + `0021_realized_sales.sql`.
+- **Párování** (`sold-pairing.ts` čistá `toRealizedSale`): validace price>0, area>0, Kč/m² 5 000–500 000 (počítané z price/area — autoritativní pole); TTL 12 měsíců. `orchestrator.ts` `sweepRemovedListings` vybírá plná data a po potvrzení odstranění (grace 7 dní) insertuje prodej; reaktivace vráceného inzerátu i relist **maže párování** (nebyl prodán).
+- **Komparace** (`market-price-service.ts`): `fetchComparableSamples` přidává realizované prodeje z posledních 12 měsíců (limit 500, TTL filtr v JS pro testovatelnost) → dostávají se i do Tier 1 tržních rozmezí (skutečné transakce mají vyšší váhu než nabídky). Engine: `source: "realized"` + `soldAt` → UI „prodej · měs. rok" místo „realizované prodeje" (ČÚZK agregáty zůstávají bez data).
+- **Testy +10** (sold-pairing validace, Tier 1 s realizovanými prodeji, TTL filtr, engine source realized/soldAt) → **433 testů / 35 souborů**. Code review: TTL test přes mock (where ignorován), catch u párování loguje ne-duplicitní chyby, mrtvé pricePerSqm odstraněno.
 - **Testy**: `ai.test.ts` — celkem **418 testů / 34 souborů**.
 
 ### Phase 36 — Odhad: stabilita výsledků (Done)

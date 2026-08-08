@@ -352,8 +352,11 @@ export async function estimateProperty(
         pricePerSqm: s.pricePerSqm,
         distanceKm:
           lat != null && lng != null && s.lat != null && s.lng != null ? haversineKm(lat, lng, s.lat, s.lng) : null,
-        source: "offer" as const,
+        // Realizované prodeje z vlastní historie (párování zmizelých inzerátů)
+        // se zobrazí jako „realizované prodeje" místo „nabídka".
+        source: s.realized ? ("realized" as const) : ("offer" as const),
         condition: s.condition ?? null,
+        soldAt: s.realized ? s.soldAt ?? null : null,
       }))
       .sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))
       .slice(0, 14);

@@ -370,6 +370,38 @@ describe("estimateProperty — lokalita komparací", () => {
     expect(offers.length).toBe(2); // Cheb + vzorek s GPS bez adresy
   });
 
+  it("realizovaný prodej z vlastní historie má source realized + soldAt", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 90000,
+      numTransactions: 5000,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 90000,
+      regionTransactions: 5000,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 30000,
+    });
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([
+      compSample({ lat: 50.08, lng: 14.44, address: "Prodaná 5, Praha", pricePerSqm: 82000, realized: true, soldAt: 1_750_000_000_000 }),
+      compSample({ lat: 50.08, lng: 14.44, address: "Nabídková 3, Praha", pricePerSqm: 95000 }),
+    ]);
+
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, lat: 50.08, lng: 14.44 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const sold = r.comparables.find((c) => c.label.includes("Prodaná"));
+    const offer = r.comparables.find((c) => c.label.includes("Nabídková"));
+    expect(sold).toBeDefined();
+    expect(sold!.source).toBe("realized");
+    expect(sold!.soldAt).toBe(1_750_000_000_000);
+    expect(offer).toBeDefined();
+    expect(offer!.source).toBe("offer");
+    expect(offer!.soldAt).toBeNull();
+  });
+
   it("bez GPS cíle: vzorek z cizího města se vyřadí přes adresu", async () => {
     mockedRealized.mockResolvedValue(null);
     mockedRange.mockResolvedValue(rangeResult(42000));
