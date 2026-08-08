@@ -289,6 +289,15 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Route `/api/valuation`**: explicitní `input.wardHints` z výběru adresy mají **přednost** před reverse geokódem (reverse jen jako záchrana — přepis by vrátil jinou čtvrť, než uživatel zvolil).
 - **Živě ověřeno**: Travná → Nominatim vrací k.ú. Jahodnice (není v cenové mapě → region úroveň, ale asking cap absorbuje → ~8,7M, URL flow beze změny 8,0M). Testy: geocode suggest (+5) — celkem **457 testů / 35 souborů**. Code review: dead code, dropdown re-open, ARIA, spinner, throttling pozice — vše opraveno.
 
+### Phase 43 — Odhad: doladění proti Valuo (Travná +3,4 % → −1,1 %) (Done)
+- **Diagnóza**: po Phase 41 ukazovala Travná 8,154M (105 895/m²) vs. Valuo 7,883M (102 381) = +3,4 % — uvnitř Valuo rozmezí, ale systematicky vysoko. Valuo je transakční hedonic model (102 381); náš odhad táhly nahoru DVA nabídkové signály: cenovka (115 844, +13 % nad Valuo) a nabídky (120 347, clampnuté na 1,2× realizované).
+- **Cenovka se používala dvakrát**: jednou přes cap realizované reference (105 % cenovky), podruhé jako zdroj kotvy s vahou **20 %** — váha 20 % systémově tlačila odhad nad transakční hladinu (inzeráty běžně žádají 5–15 % nad tržní hodnotou; Valuo cenovku vůbec nezná). **Kotva 0,20 → 0,10** (zůstává doplňkový signál pro malé lokality, cap dál dělá hlavní práci).
+- **Clamp nabídek horní hranice 1,2× → 1,15× realizované reference** (spodní −20 % zůstává) — horké nabídky paneláků (~127k) nesmí sedět 20 % nad transakční hladinou; K Lučinám (143 699 ≤ 1,15×132 187) a Cheb (49 574 ≤ 1,15×45 357) zůstávají neclampnuté → beze změny.
+- **Spread malých čtvrtí**: <100 tx → +2 p.b., <1000 tx → +1 p.b. (Kyje 29 tx: ±8,5 % → ±9,5 %; Valuo ukazuje u takových lokalit ±17 % — jsme skromnější, ne arogantní).
+- **Label zdroje realizovaných** ukazuje korekci: `Realizované prodeje — čtvrť Kyje (omezeno cenovkou)` / `(korigováno)` / `(běžný stav)` — UI tak vysvětlí rozdíl mezi hodnotou zdroje (100k) a surovou v tabulce srovnatelných (145 068, +37 %).
+- **Živě ověřeno**: Travná **7,795M (101 237/m²) = −1,1 % vs. Valuo** (rozmezí 91 619–110 854, vsAsking −12,6 %); K Lučinám **9,483M (129 901/m²) = +1,1 %** a Cheb 2,653M **beze změny** (regrese OK). Ověřeno i, že inzerát nemá výtah (`lift: false`) — floorMultiplier 0,90 je správný, ne bug.
+- **Testy**: +2 (clamp 1,15×, spread <100 tx), váha kotvy 0,2→0,1, label suffix — celkem **459 testů / 35 souborů**.
+
 ### Phase 36 — Odhad: stabilita výsledků (Done)
 - **Problém**: stejný byt (K Lučinám) dával napříč runy 8,3M / 11,2M / 12,1M — uživatel dostal regionální hladinu 112 430, ač stránka už vrací 149 906 (zastaralá 7denní DB cache v produkci).
 - **Opravy** (`price-map.ts`): TTL region cache 7 dní → **1 den**; `readCache`/drill čtení s `orderBy(fetchedAt desc)`; **plausibilita region listu** (prázdný/korupovaný/bez entityId → čerstvý fetch); **retry (2×)** na SSR fetch i drill API; drill cache vyžaduje neprázdný list.

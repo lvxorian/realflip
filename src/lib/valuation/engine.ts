@@ -6,9 +6,11 @@
  *     12 měsíců, upravený multiplikátory stav/typ/kategorie na profil nemovitosti.
  *  2. Nabídkové kompy (vlastní DB + sreality vzorky + MARKET_DATA fallback):
  *     medián Kč/m² pro město/segment z existující kaskády Tier 1–5.
- *  3. Blend = vážený průměr (realizované 45 % / nabídky 35 %, po normalizaci vah).
- *  4. Úprava plochy: menší byty mívají vyšší Kč/m² (elasticita ~0,1, clamp 0,85–1,15).
- *  5. Rozmezí = odhad ± spread odvozený z kvality dat; confidence 0–100.
+ *  3. Cenovka inzerátu (kotva, jen URL flow se známou cenou): doplňkový signál 10 %
+ *     — cenovka už jednou vstupuje přes cap realizované reference (105 %), proto jen 10 %.
+ *  4. Blend = vážený průměr (realizované 45 % / nabídky 35 % / kotva 10 %, po normalizaci vah).
+ *  5. Úprava plochy: menší byty mívají vyšší Kč/m² (elasticita ~0,1, clamp 0,85–1,15).
+ *  6. Rozmezí = odhad ± spread odvozený z kvality dat; confidence 0–100.
  *
  * Všechny zdroje jsou volitelné (injekce) kvůli testovatelnosti.
  */
@@ -46,9 +48,11 @@ const VALUATION_WEIGHTS = {
   realized: 0.45,
   offers: 0.35,
   // Cenovka inzerátu = nejlokálnější aktuální tržní signál (přímo na tento byt).
-  // Pouze pro vstupy se známou nabídkovou cenou (URL flow); ruční odhady bez ceny
-  // zůstávají čistě na realizovaných + nabídkách.
-  asking: 0.2,
+  // Jen jako doplňková kotva (10 %) — cenovka už raz vstupuje přes cap realizované
+  // reference (105 %), takže plná váha by cenovku započítala DVAKRÁT a systémově
+  // by tlačila odhad nad transakční hladinu (Valuo cenovku nezná vůbec; inzeráty
+  // běžně žádají 5–15 % nad tržní hodnotou).
+  asking: 0.1,
 } as const;
 
 function roundKc(n: number): number {
@@ -209,7 +213,7 @@ export async function estimateProperty(
       realizedAdj *= 0.97;
     }
     // nejpřesnější dostupná úroveň: čtvrť > obec > okres > kraj
-    const levelLabel =
+    let levelLabel =
       realized.entityType === "ward"
         ? `Realizované prodeje — čtvrť ${realized.wardName ?? ""}`
         : realized.entityType === "municipality"
@@ -217,6 +221,14 @@ export async function estimateProperty(
           : realized.entityType === "district"
             ? `Realizované prodeje — okres (${realized.districtName ?? ""})`
             : `Realizované prodeje — ${realized.regionName}`;
+    // Transparentnost: když se surový průměr koriguje (cap/shrink/stav), UI ukáže proč
+    // je hodnota jiná než surová v tabulce srovnatelných (Kyje: 100k zdroj vs. 145k raw).
+    const labelSuffix = [
+      realizedCapped ? "omezeno cenovkou" : null,
+      shrinkToRegion ? "korigováno" : null,
+      mixSkew ? "běžný stav" : null,
+    ].filter(Boolean);
+    if (labelSuffix.length > 0) levelLabel += ` (${labelSuffix.join(" · ")})`;
     const levelNote =
       realized.entityType === "ward" && realized.wardName
         ? `Čtvrť ${realized.wardName} (${realized.localityName ? `obec ${realized.localityName}, ` : ""}${realized.regionName}): průměr ${realized.avgPricePerSqm.toLocaleString("cs-CZ")} Kč/m² z ${realized.numTransactions.toLocaleString("cs-CZ")} transakcí (ČÚZK přes Seznam cenovou mapu).`
@@ -251,11 +263,11 @@ export async function estimateProperty(
     let offerMedian = range.median;
     let clamped = false;
     if (realized && realized.avgPricePerSqm > 0) {
-      // pásmo ±20 % kolem realizovaných — prémiové/luxusní nabídky (např. centrum Prahy
-      // 194k vs. panelový Žižkov 132k) se nesmí odchýlit o víc, jinak tahají odhad
-      // mimo realitu trhu. Pásmo je užší než dříve (±25 %): „any" segment bez znalosti
-      // konstrukce by jinak propustil luxusní nabídky (K Lučinám bez buildingType → 12M).
-      const band = { low: 0.8 * realizedAdj, high: 1.2 * realizedAdj };
+      // Horní hranice +15 % (bylo ±20 %): nabídkové ceny běžně sedí 5–15 % nad
+      // transakční hladinou — širší strop by nechal horké nabídky (Kyje: panelové
+      // kompy ~127k vs. realizovaná reference 100k) tahat odhad nad úroveň Valuo.
+      // Spodní hranice −20 % zůstává (levné inzeráty stále nesmí tlačit dolů).
+      const band = { low: 0.8 * realizedAdj, high: 1.15 * realizedAdj };
       if (offerMedian < band.low) {
         offerMedian = band.low;
         clamped = true;
@@ -319,7 +331,11 @@ export async function estimateProperty(
       if (realized.entityType === "ward") spread -= 0.025;
       else if (realized.entityType === "municipality") spread -= 0.02;
       else if (realized.entityType === "district") spread -= 0.01;
-      if (realized.numTransactions < 1000) spread += 0.01;
+      // Malý vzorek čtvrti = velká nejistota (Kyje: 29 tx zamořených novostavbami).
+      // Valuo u takových lokalit ukazuje široké rozmezí ±17 % — my musíme být skromnější
+      // než ±8,5 %; pod 100 tx přidáme +2 p.b., pod 1000 tx +1 p.b.
+      if (realized.numTransactions < 100) spread += 0.02;
+      else if (realized.numTransactions < 1000) spread += 0.01;
     }
     if (range) {
       const r = range.low > 0 && range.high > 0 ? range.high / range.low : 1;

@@ -490,7 +490,7 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
   };
   const deps = { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 };
 
-  it("přidá zdroj asking (váha 20 %) a posune odhad k cenovce", async () => {
+  it("přidá zdroj asking (váha 10 %) a posune odhad k cenovce", async () => {
     mockedRealized.mockResolvedValue(realizedRegion);
     mockedRange.mockResolvedValue(rangeResult(85000));
     mockedComps.mockResolvedValue([]);
@@ -503,7 +503,7 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
 
     const asking = withAsking.sources.find((s) => s.key === "asking");
     expect(asking).toBeDefined();
-    expect(asking!.weight).toBe(0.2);
+    expect(asking!.weight).toBe(0.1);
     expect(asking!.pricePerSqm).toBe(Math.round(5_500_000 / 60));
     expect(withAsking.estimate).toBeGreaterThan(without.estimate);
     expect(withAsking.methodology.join(" ")).toContain("Cenovka inzerátu (kotva");
@@ -546,8 +546,73 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
     // cenovka 115 844 × 1,05 = 121 636; × 0,918 (1,08 renovated × 0,85 panel) = 111 662
     expect(realized.pricePerSqm).toBe(111662);
     expect(realized.note).toContain("omezena na 105 %");
+    // label transparentně říká, že raw průměr (145 068) byl omezen cenovkou
+    expect(realized.label).toContain("čtvrť Kyje");
+    expect(realized.label).toContain("omezeno cenovkou");
     // odhad pod cenovkou 8,92M — kotva táhne dolů, ne nahoru
     expect(r.estimate).toBeLessThan(8_920_000);
+  });
+
+  it("nabídky nad 1,15× realizované reference se clampnou na 1,15×", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 100000,
+      numTransactions: 12000,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 100000,
+      regionTransactions: 12672,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    // nabídky 140k jsou nad pásmem [80k, 115k] kolem realizovaných 100k
+    mockedRange.mockResolvedValue(rangeResult(140000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const offers = r.sources.find((s) => s.key === "offers")!;
+    expect(offers.pricePerSqm).toBe(115000); // 100 000 × 1,15
+    expect(offers.note).toContain("omezeno na něj");
+  });
+
+  it("čtvrť s malým vzorkem (<100 tx) má širší rozmezí než velká čtvrť", async () => {
+    const small = {
+      avgPricePerSqm: 100000,
+      numTransactions: 29,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 100000,
+      regionTransactions: 12672,
+      wardName: "Kyje",
+      wardAvgPricePerSqm: 100000,
+      wardTransactions: 29,
+      localityName: null,
+      districtName: null,
+      entityType: "ward" as const,
+      period: "2026-02 – 2026-07",
+      totalTransactions: 50469,
+    };
+    const big = { ...small, numTransactions: 5000, wardTransactions: 5000, wardName: "Žižkov" };
+    mockedRange.mockResolvedValue(rangeResult(100000));
+    mockedComps.mockResolvedValue([]);
+
+    mockedRealized.mockResolvedValue(small);
+    const rSmall = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+    mockedRealized.mockResolvedValue(big);
+    const rBig = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const spreadSmall = (rSmall.high - rSmall.low) / (2 * rSmall.estimate);
+    const spreadBig = (rBig.high - rBig.low) / (2 * rBig.estimate);
+    expect(spreadSmall).toBeGreaterThan(spreadBig);
+    expect(spreadSmall).toBeGreaterThanOrEqual(0.08);
   });
 
   it("cap se nespustí u nevěrohodné cenovky (< 0,5× průměru čtvrti)", async () => {
