@@ -249,6 +249,14 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **`sanitizeAiCorrection`** (pure funkce, 7 testů): clamp ±15 %, `typeof adjustmentPct === "number"` (odmítá null/string/bool), `adjustedPricePerSqm`/`adjustedEstimate` = base × (1+pct/100), směr up/down/neutral, faktory max 4.
 - **Route**: `Promise.all([explainValuation, correctValuation(enriched, result)])` → `aiCorrection` v odpovědi; selhání AI → null (odhad statistický).
 - **UI**: karta „AI korekce — mikro-poloha" (statistický vs. po korekci, delta badge, reasoning, faktory, jistota) + sekce v PDF reportu; `ValuationReportData.aiCorrection?` zpětně kompatibilní.
+
+### Phase 38 — Odhad: dopravní vrstva (Vlak Index) (Done)
+- **Data**: `poi.ts` `fetchTransportPoiDistances` — mediány metro/vlak/bus vzdáleností z reálných sreality POI inzerátů (search API `results`, NONE=100000), per čtvrť (`locality_district_id` + filtr quarter) nebo město; <3 vzorků → null.
+- **Faktor**: `transport.ts` `getTransportDistancesForValuation` — rozlišení čtvrti z sreality detail URL (quarter_id) nebo Nominatim reverse geocode + `matchQuarterToSreality`; **fallback na město** při <3 vzorcích čtvrti; cache `rents` segment `transport:dist:quarter:{id}` / `transport:dist:city` TTL 24 h; **chybějící data → null, nikdy skóre 0** (stub 0 by přes `transportMultiplier(0)=0,94` tiše srazil odhad −6 %).
+- **Engine**: `transportMultiplier(score)` — skóre 0–100 → ×0,94–1,06 (lineární kolem 50, clamp), aplikace na Kč/m² po areaFactor; +4 confidence (sampleSize ≥3); metodika s konkrétními vzdálenostmi + prémií města; `result.transport` pro UI.
+- **AI**: `correctValuation` prompt dostává transport (vzdálenosti m + skóre + prémie) s pravidly (metro <300 m = +1..3 % atd., 100000 = stanice neexistuje).
+- **UI**: badge „Doprava: Výborná · 66/100" + chips Metro/Vlak/Bus v hero kartě; PDF sekce „Doprava — Vlak Index".
+- **Živě**: Praha 3 → metro 833 m / vlak 2 042 m / bus 153 m / skóre 66 (100 vzorků). Testy +5 (transportMultiplier + engine s transportem) → 423 testů / 34 souborů.
 - **Testy**: `ai.test.ts` — celkem **418 testů / 34 souborů**.
 
 ### Phase 36 — Odhad: stabilita výsledků (Done)

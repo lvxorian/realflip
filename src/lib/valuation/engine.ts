@@ -81,6 +81,17 @@ export function yearBuiltMultiplier(year: number | null | undefined): number {
 }
 
 /**
+ * Dopravní faktor (Vlak Index) — skóre dopravní dostupnosti 0–100 → násobitel.
+ * Skóre 50 = průměr (×1,00), 100 = výborná doprava (×1,06), 0 = bez dopravy (×0,94).
+ * Lineární křivka jako Valuo Vlak Index; doprava nikdy nesmí měnit odhad o víc než ±6 %.
+ */
+export function transportMultiplier(score: number | null | undefined): number {
+  if (score == null || !Number.isFinite(score)) return 1;
+  const clamped = Math.max(0, Math.min(100, score));
+  return Math.min(1.06, Math.max(0.94, 1 + ((clamped - 50) / 50) * 0.06));
+}
+
+/**
  * Adresní shoda s názvem města na hranicích slova.
  * Oproti addressMatchesCity (naivní substring) nechytá falešné shody jako
  * „u mostu" pro město Most nebo „na oseku" pro Osek — krátké/obecné názvy
@@ -116,6 +127,8 @@ export async function estimateProperty(
     floorMultiplier(input.floor) *
     yearBuiltMultiplier(input.yearBuilt);
   const areaFactor = areaSizeFactor(area);
+  // Dopravní vrstva (Vlak Index) — skóre z reálných POI vzdáleností (metro/vlak/bus).
+  const transportMult = transportMultiplier(input.transport?.score);
 
   // ---------- 1) Sběr zdrojů (paralelně) ----------
   // realizované prodeje dostávají adresu/GPS/hinty → drill-down až na městskou čtvrť (ward)
@@ -235,7 +248,7 @@ export async function estimateProperty(
   // spread dle kvality dat: čtvrť/obec = nejužší (±5–6 % jako Valuo), kraj = širší
   let spread = 0.08;
   if (weightTotal > 0) {
-    pricePerSqm = (weightedSum / weightTotal) * areaFactor;
+    pricePerSqm = (weightedSum / weightTotal) * areaFactor * transportMult;
     if (realized) {
       if (realized.entityType === "ward") spread -= 0.025;
       else if (realized.entityType === "municipality") spread -= 0.02;
@@ -280,6 +293,7 @@ export async function estimateProperty(
     if (r > 1.5) confidenceScore -= 10;
     else if (r > 1.25) confidenceScore -= 5;
   }
+  if (input.transport && input.transport.sampleSize >= 3) confidenceScore += 4;
   // nikdy nehlasit 100 % — odhad je vždy jen odhad (Valuo ukazuje i u sebe rezervu)
   confidenceScore = Math.max(0, Math.min(95, Math.round(confidenceScore)));
 
@@ -379,6 +393,16 @@ export async function estimateProperty(
   methodology.push(
     `Úprava plochy ${areaFactor.toFixed(2)}× (menší jednotky = vyšší Kč/m²), multiplikátory stav/typ/kategorie ${mult.toFixed(2)}×.`
   );
+  if (input.transport && input.transport.sampleSize >= 3) {
+    const parts = [
+      input.transport.metroDistance != null ? `metro ${fmtDist(input.transport.metroDistance)}` : null,
+      input.transport.trainDistance != null ? `vlak ${fmtDist(input.transport.trainDistance)}` : null,
+      input.transport.busDistance != null ? `bus ${fmtDist(input.transport.busDistance)}` : null,
+    ].filter(Boolean);
+    methodology.push(
+      `Doprava (Vlak Index): ${parts.join(", ") || "bez dat"} → skóre ${input.transport.score}/100 → úprava ${transportMult > 1 ? "+" : ""}${Math.round((transportMult - 1) * 1000) / 10} % na cenu za m².${input.transport.premiumPct != null ? ` V tomto městě dosahují dopravně výborné lokality prémie ${input.transport.premiumPct > 0 ? "+" : ""}${input.transport.premiumPct} % (z reálných inzerátů).` : ""}`
+    );
+  }
   methodology.push("Odhad je orientační, založený na veřejných datech. Nenahrazuje znalecký posudek.");
 
   const askingPrice = input.askingPrice && input.askingPrice > 0 ? input.askingPrice : null;
@@ -404,9 +428,16 @@ export async function estimateProperty(
     askingPrice,
     vsAskingPct:
       askingPrice && estimate > 0 ? Math.round(((estimate - askingPrice) / askingPrice) * 1000) / 10 : null,
+    transport: input.transport ?? null,
     methodology,
     generatedAt: now,
   };
+}
+
+/** Formátování vzdálenosti (m) — pod 1000 m v metrech, jinak v km. */
+function fmtDist(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} km`;
 }
 
 /** Dopočte trend z cenové mapy a vloží do výsledku (UI vrstva). */

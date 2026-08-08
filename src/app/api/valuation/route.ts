@@ -122,7 +122,22 @@ export async function POST(req: Request) {
         if (rg.suburb) wardHints.push(rg.suburb);
       }
     }
-    const enriched = { ...input, lat, lng, wardHints };
+    // Dopravní vrstva (Vlak Index): reálné POI vzdálenosti metra/vlaku/busu
+    // z locality modulu — per čtvrť (z URL/GPS) nebo městský průměr.
+    let transport = null;
+    try {
+      const { getTransportDistancesForValuation } = await import("@/lib/locality/transport");
+      transport = await getTransportDistancesForValuation({
+        cityKey: input.cityKey,
+        sourceUrl: input.sourceUrl ?? undefined,
+        lat,
+        lng,
+        wardHints,
+      });
+    } catch (e) {
+      console.error("Transport factor failed:", e);
+    }
+    const enriched = { ...input, lat, lng, wardHints, transport };
 
     const [valuation, priceMap] = await Promise.all([
       estimateProperty(enriched),

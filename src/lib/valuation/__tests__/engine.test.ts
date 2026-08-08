@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { estimateProperty, attachTrend, areaSizeFactor } from "../engine";
+import { estimateProperty, attachTrend, areaSizeFactor, transportMultiplier } from "../engine";
 import type { MarketRangeResult, CompSample } from "@/lib/scraping/market-price-service";
 
 const state = vi.hoisted(() => ({
@@ -427,6 +427,105 @@ describe("estimateProperty — váhy zdrojů", () => {
     expect(offers).toBeDefined();
     expect(offers!.label).toContain("ČR (fallback)");
     expect(offers!.weight).toBeLessThan(0.35);
+  });
+});
+
+describe("transportMultiplier (Vlak Index)", () => {
+  it("skóre 50 = průměr (×1,00)", () => {
+    expect(transportMultiplier(50)).toBeCloseTo(1, 5);
+    expect(transportMultiplier(null)).toBe(1);
+    expect(transportMultiplier(undefined)).toBe(1);
+    expect(transportMultiplier(Number.NaN)).toBe(1);
+  });
+  it("výborná doprava = prémie, slabá = srážka", () => {
+    expect(transportMultiplier(100)).toBeCloseTo(1.06, 5);
+    expect(transportMultiplier(0)).toBeCloseTo(0.94, 5);
+    expect(transportMultiplier(80)).toBeGreaterThan(1);
+    expect(transportMultiplier(20)).toBeLessThan(1);
+  });
+  it("clamp mimo 0–100", () => {
+    expect(transportMultiplier(500)).toBe(1.06);
+    expect(transportMultiplier(-10)).toBe(0.94);
+  });
+});
+
+describe("estimateProperty — dopravní vrstva (Vlak Index)", () => {
+  it("aplikuje transportMultiplier na odhad a vrátí transport v resultu", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 90000,
+      numTransactions: 12000,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 90000,
+      regionTransactions: 12672,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([]);
+
+    const transport = {
+      metroDistance: 250,
+      trainDistance: 400,
+      busDistance: 120,
+      score: 88,
+      sampleSize: 24,
+      source: "quarter" as const,
+      quarterLabel: "Žižkov",
+      premiumPct: 4.2,
+    };
+    const base = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, condition: "renovated", buildingType: "brick" },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+    const withTransport = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, condition: "renovated", buildingType: "brick", transport },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    expect(withTransport.estimate).toBeGreaterThan(base.estimate);
+    expect(withTransport.transport).toEqual(transport);
+    expect(withTransport.methodology.join(" ")).toContain("Doprava (Vlak Index)");
+  });
+
+  it("slabá doprava stáhne odhad dolů", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 90000,
+      numTransactions: 12000,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 90000,
+      regionTransactions: 12672,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(85000));
+    mockedComps.mockResolvedValue([]);
+
+    const base = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+    const withTransport = await estimateProperty(
+      {
+        cityKey: "praha",
+        type: "flat",
+        area: 60,
+        transport: {
+          metroDistance: 5000,
+          trainDistance: 8000,
+          busDistance: 2000,
+          score: 5,
+          sampleSize: 12,
+          source: "city" as const,
+          quarterLabel: null,
+          premiumPct: null,
+        },
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+    expect(withTransport.estimate).toBeLessThan(base.estimate);
+    expect(withTransport.confidenceScore).toBeGreaterThanOrEqual(base.confidenceScore);
   });
 });
 

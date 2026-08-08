@@ -21,6 +21,7 @@ import {
   FilePdf,
   SealCheck,
   Sparkle,
+  Train,
 } from "@phosphor-icons/react";
 import { conditionLabel } from "@/lib/utils";
 import type { ValuationAiCorrection, ValuationAiOutput, ValuationInput, ValuationResult } from "@/lib/valuation/types";
@@ -33,6 +34,20 @@ const fmtCompact = (v: number | null | undefined) => {
   if (v >= 1_000_000) return `${(v / 1_000_000).toLocaleString("cs-CZ", { maximumFractionDigits: 2 })} mil.`;
   if (v >= 1_000) return `${Math.round(v / 1_000).toLocaleString("cs-CZ")} tis.`;
   return v.toLocaleString("cs-CZ");
+};
+
+const fmtDist = (m: number | null | undefined) => {
+  if (m == null || m >= 100000) return null;
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} km`;
+};
+
+const transportLabel = (score: number) => {
+  if (score >= 80) return "Výborná";
+  if (score >= 60) return "Dobrá";
+  if (score >= 40) return "Průměrná";
+  if (score >= 20) return "Slabší";
+  return "Omezená";
 };
 
 const CONFIDENCE_STYLE: Record<string, { badge: string; text: string }> = {
@@ -96,6 +111,43 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                   {fields.area ? ` · ${fields.area} m²` : ""}
                   {fields.condition ? ` · ${conditionLabel(fields.condition)}` : ""}
                 </p>
+              )}
+
+              {/* Dopravní vrstva — Vlak Index */}
+              {result.transport && result.transport.sampleSize >= 3 && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${
+                      result.transport.score >= 60
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        : result.transport.score >= 40
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                          : "border-red-500/30 bg-red-500/10 text-red-400"
+                    }`}
+                    title="Dopravní dostupnost z reálných vzdáleností k metru/vlaku/busu (sreality POI)"
+                  >
+                    <Train size={13} weight="fill" />
+                    Doprava: {transportLabel(result.transport.score)} · {result.transport.score}/100
+                  </span>
+                  {[
+                    fmtDist(result.transport.metroDistance) ? `Metro ${fmtDist(result.transport.metroDistance)}` : null,
+                    fmtDist(result.transport.trainDistance) ? `Vlak ${fmtDist(result.transport.trainDistance)}` : null,
+                    fmtDist(result.transport.busDistance) ? `Bus ${fmtDist(result.transport.busDistance)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .slice(0, 3)
+                    .map((t) => (
+                      <span key={t} className="inline-flex items-center rounded-lg border border-border/50 bg-card-hover px-2.5 py-1 text-xs text-muted">
+                        {t}
+                      </span>
+                    ))}
+                  {result.transport.premiumPct != null && (
+                    <span className="text-[10px] text-muted/70">
+                      prémie výborné dopravy v městě {result.transport.premiumPct > 0 ? "+" : ""}
+                      {result.transport.premiumPct} %
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             <div className="flex flex-col items-end gap-2">

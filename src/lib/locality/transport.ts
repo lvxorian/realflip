@@ -131,3 +131,175 @@ export async function getTransportMetrics(cityKey: string): Promise<{ premiumPct
   if (!row) return null;
   return { premiumPct: row.rentPerSqm ?? null, sampleSize: row.sampleSize, fetchedAt: Number(row.fetchedAt) };
 }
+
+/** Dopravní faktor pro Odhad — vzdálenosti (m) + skóre 0–100 + prémie města. */
+export interface TransportFactor {
+  metroDistance: number | null;
+  trainDistance: number | null;
+  busDistance: number | null;
+  score: number;
+  sampleSize: number;
+  /** "quarter" (čtvrť) | "city" (městský průměr) | null */
+  source: "quarter" | "city" | null;
+  /** Název čtvrti, pokud je k dispozici. */
+  quarterLabel: string | null;
+  /** Prémie dopravně výborných lokalit v tomto městě (z reálných sreality dat). */
+  premiumPct: number | null;
+}
+
+const DIST_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Dopravní dostupnost pro oceňovanou nemovitost — Vlak Index.
+ * Priorita: sreality čtvrť (z URL detailu) → Nominatim čtvrť (z GPS) → město.
+ * Cache v rents (segment "transport:dist" / "transport:dist:quarter:{id}"), TTL 24 h.
+ */
+export async function getTransportDistancesForValuation(input: {
+  cityKey: string;
+  sourceUrl?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  wardHints?: string[] | null;
+}): Promise<TransportFactor | null> {
+  const { cityKey } = input;
+  if (!cityKey || cityKey === "Neznámá" || cityKey === "unknown") return null;
+
+  // ---------- 1) Rozlišení čtvrti ----------
+  let quarterId: number | null = null;
+  let districtId: number | null = null;
+  let quarterName: string | null = null;
+  let source: "quarter" | "city" | null = null;
+  let quarterLabel: string | null = null;
+
+  // a) sreality URL → detail API → quarter_id (přesné)
+  if (input.sourceUrl) {
+    try {
+      const { getSrealityDetailFromUrl } = await import("@/lib/scraping/sreality-detail");
+      const detail = await getSrealityDetailFromUrl(input.sourceUrl);
+      if (detail?.quarterId != null) {
+        quarterId = detail.quarterId;
+        districtId = detail.districtId;
+        quarterName = detail.quarterName;
+        quarterLabel = detail.quarterName ?? null;
+        source = "quarter";
+      }
+    } catch {
+      // fall back
+    }
+  }
+
+  // b) GPS → reverse-geocode → Nominatim čtvrť → quarter_id
+  if (!source && input.lat != null && input.lng != null) {
+    try {
+      const { reverseGeocode } = await import("@/lib/geocode");
+      const { matchQuarterToSreality } = await import("./quarter-map");
+      const rev = await reverseGeocode(input.lat, input.lng);
+      const match =
+        matchQuarterToSreality(rev.quarter, cityKey) ??
+        matchQuarterToSreality(rev.suburb, cityKey);
+      if (match) {
+        quarterId = match.quarterId;
+        districtId = match.districtId;
+        quarterName = match.label;
+        quarterLabel = match.label;
+        source = "quarter";
+      }
+    } catch {
+      // fall back
+    }
+  }
+
+  // ---------- 2) Cache segment ----------
+  const segment = quarterId != null ? `transport:dist:quarter:${quarterId}` : "transport:dist:city";
+  const row = await db
+    .select()
+    .from(rents)
+    .where(and(eq(rents.cityKey, cityKey), eq(rents.segment, segment)))
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (row && Date.now() - Number(row.fetchedAt) < DIST_TTL_MS) {
+    try {
+      const parsed = JSON.parse(row.countsJson ?? "{}") as {
+        metroDistance: number | null;
+        trainDistance: number | null;
+        busDistance: number | null;
+        sampleSize: number;
+      };
+      if (parsed && typeof parsed.sampleSize === "number") {
+        const score = transportScore(parsed.metroDistance, parsed.trainDistance, parsed.busDistance);
+        const metrics = await getTransportMetrics(cityKey);
+        return {
+          metroDistance: parsed.metroDistance,
+          trainDistance: parsed.trainDistance,
+          busDistance: parsed.busDistance,
+          score,
+          sampleSize: parsed.sampleSize,
+          source,
+          quarterLabel,
+          premiumPct: metrics?.premiumPct ?? null,
+        };
+      }
+    } catch {
+      // fall through → fresh fetch
+    }
+  }
+
+  // ---------- 3) Čerstvá data ----------
+  try {
+    const { fetchTransportPoiDistances } = await import("./poi");
+    // Priorita: čtvrť → fallback město. Chybějící data NIKDY nesmí penalizovat
+    // odhad (stub se skóre 0 by přes transportMultiplier(0)=0,94 tiše srazil −6 %).
+    let distances: Awaited<ReturnType<typeof fetchTransportPoiDistances>> = null;
+    if (source === "quarter") {
+      distances = await fetchTransportPoiDistances(cityKey, { districtId, quarterName });
+      if (distances && distances.sampleSize < 3) distances = null;
+    }
+    if (!distances || distances.sampleSize < 3) {
+      const cityDist = await fetchTransportPoiDistances(cityKey);
+      if (cityDist && cityDist.sampleSize >= 3) {
+        distances = cityDist;
+        source = "city";
+        quarterLabel = null;
+      }
+    }
+    if (!distances) return null;
+
+    await db
+      .insert(rents)
+      .values({
+        cityKey,
+        segment,
+        rentPerSqm: null,
+        medianRent: null,
+        walkability: null,
+        countsJson: JSON.stringify(distances),
+        sampleSize: distances.sampleSize,
+        fetchedAt: ts(),
+      })
+      .onConflictDoUpdate({
+        target: [rents.cityKey, rents.segment],
+        set: {
+          countsJson: JSON.stringify(distances),
+          sampleSize: distances.sampleSize,
+          fetchedAt: ts(),
+        },
+      });
+
+    const score = transportScore(distances.metroDistance, distances.trainDistance, distances.busDistance);
+    const metrics = await getTransportMetrics(cityKey);
+    return {
+      metroDistance: distances.metroDistance,
+      trainDistance: distances.trainDistance,
+      busDistance: distances.busDistance,
+      score,
+      sampleSize: distances.sampleSize,
+      source,
+      quarterLabel,
+      premiumPct: metrics?.premiumPct ?? null,
+    };
+  } catch (e) {
+    console.error("Transport distances fetch failed:", e);
+    return null;
+  }
+}

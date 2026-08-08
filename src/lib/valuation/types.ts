@@ -5,6 +5,8 @@
  * a nabídkové kompy z vlastní DB.
  */
 
+import type { TransportFactor } from "@/lib/locality/transport";
+
 export type ConfidenceLabel = "Vysoká" | "Střední" | "Nízká";
 
 export interface ValuationInput {
@@ -27,6 +29,8 @@ export interface ValuationInput {
   sourceUrl?: string | null;
   /** Hinty na městskou čtvrť (z reverse geokódu / adresy) — pro ward-level realizované ceny. Server-only. */
   wardHints?: string[] | null;
+  /** Dopravní dostupnost (Vlak Index) — vzdálenosti metra/vlaku/busu, vyplňuje server. */
+  transport?: TransportFactor | null;
 }
 
 export interface SourceInfo {
@@ -66,6 +70,8 @@ export interface ValuationResult {
   comparables: ComparableRow[];
   trend: TrendPoint[];
   csuzIndex?: { value: number; praha: number; growthPct: number; note: string } | null;
+  /** Dopravní vrstva odhadu (Vlak Index) — použitý faktor i pro UI. */
+  transport?: TransportFactor | null;
   askingPrice?: number | null;
   vsAskingPct?: number | null;
   methodology: string[];

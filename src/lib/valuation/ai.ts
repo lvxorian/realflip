@@ -178,6 +178,28 @@ ${JSON.stringify({
   askingPrice: input.askingPrice ?? null,
 })}
 
+Doprava (Vlak Index — reálné vzdálenosti z inzerátů v lokalitě):
+${JSON.stringify(
+  input.transport
+    ? {
+        metroDistanceM: input.transport.metroDistance,
+        trainDistanceM: input.transport.trainDistance,
+        busDistanceM: input.transport.busDistance,
+        score: input.transport.score,
+        source: input.transport.source,
+        quarter: input.transport.quarterLabel,
+        cityPremiumPct: input.transport.premiumPct,
+      }
+    : null
+)}
+
+PRAVIDLA pro dopravu:
+- Metro do 300 m / vlak do 500 m / bus do 150 m = výborná dostupnost → argument pro mírně vyšší úpravu (+1 až +3 %).
+- Metro 300–800 m / vlak 500–1500 m / bus 150–500 m = dobrá dostupnost → neutrální až mírně pozitivní.
+- Metro 800+ m / vlak 1500+ m / bus 500+ m = slabší doprava → argument pro mírně nižší úpravu (−1 až −3 %).
+- Hodnota 100000 = stanice neexistuje (např. metro mimo Prahu) — nezapočítávej ji jako negativum.
+- Skóre 0–100 už dopravu shrnuje; ber ho jako orientační, hlavní signál jsou konkrétní vzdálenosti.
+
 Statistický odhad:
 ${JSON.stringify({
   estimateKc: result.estimate,

@@ -20,6 +20,12 @@ function fmtPerSqm(v: number | null | undefined): string {
   return `${Math.round(v).toLocaleString("cs-CZ")} Kč/m²`;
 }
 
+function fmtDist(m: number | null | undefined): string {
+  if (m == null || m >= 100000) return "—";
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} km`;
+}
+
 const CONFIDENCE_COLOR: Record<string, string> = {
   Vysoká: "text-emerald-700",
   Střední: "text-amber-700",
@@ -129,6 +135,54 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
           )}
         </div>
       </div>
+
+      {/* Doprava — Vlak Index */}
+      {v.transport && v.transport.sampleSize >= 3 && (
+        <div className="rp-card border border-gray-200 rounded-xl overflow-hidden mb-6">
+          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Doprava — Vlak Index</h2>
+          </div>
+          <div className="p-6">
+            <div className="flex flex-wrap gap-x-8 gap-y-2">
+              <div>
+                <p className="text-xs text-gray-500">Skóre dopravní dostupnosti</p>
+                <p className="text-lg font-bold text-gray-900 tabular-nums">{v.transport.score} / 100</p>
+              </div>
+              {v.transport.metroDistance != null && (
+                <div>
+                  <p className="text-xs text-gray-500">Metro</p>
+                  <p className="text-lg font-bold text-gray-900 tabular-nums">{fmtDist(v.transport.metroDistance)}</p>
+                </div>
+              )}
+              {v.transport.trainDistance != null && (
+                <div>
+                  <p className="text-xs text-gray-500">Vlak</p>
+                  <p className="text-lg font-bold text-gray-900 tabular-nums">{fmtDist(v.transport.trainDistance)}</p>
+                </div>
+              )}
+              {v.transport.busDistance != null && (
+                <div>
+                  <p className="text-xs text-gray-500">Bus / MHD</p>
+                  <p className="text-lg font-bold text-gray-900 tabular-nums">{fmtDist(v.transport.busDistance)}</p>
+                </div>
+              )}
+              {v.transport.quarterLabel && (
+                <div>
+                  <p className="text-xs text-gray-500">Lokalita</p>
+                  <p className="text-lg font-bold text-gray-900">{v.transport.quarterLabel}</p>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Vzdálenosti k zastávkám z reálných inzerátů v lokalitě (sreality POI, {v.transport.sampleSize} vzorků)
+              {v.transport.premiumPct != null
+                ? ` · prémie dopravně výborných lokalit v městě ${v.transport.premiumPct > 0 ? "+" : ""}${v.transport.premiumPct} %`
+                : ""}
+              .
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Srovnatelné */}
       {v.comparables.length > 1 && (

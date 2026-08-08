@@ -59,6 +59,64 @@ export interface PoiResult {
   sampleSize: number;
 }
 
+/** Mediány vzdáleností k dopravě z reálných sreality POI dat (metry). */
+export interface TransportPoiDistances {
+  metroDistance: number | null;
+  trainDistance: number | null;
+  busDistance: number | null;
+  sampleSize: number;
+}
+
+function medianDistances(items: SrealityPoiItem[]): TransportPoiDistances {
+  const dist = (key: keyof SrealityPoiItem): number[] =>
+    items.map((i) => i[key] ?? NONE).filter((d) => d < NONE);
+  const metro = dist("poi_metro_distance");
+  const train = dist("poi_train_distance");
+  const bus = dist("poi_bus_public_transport_distance");
+  return {
+    metroDistance: metro.length ? median(metro) : null,
+    trainDistance: train.length ? median(train) : null,
+    busDistance: bus.length ? median(bus) : null,
+    sampleSize: items.length,
+  };
+}
+
+/**
+ * Mediány vzdáleností k metru/vlaku/busu z reálných sreality POI dat.
+ * Priorita: čtvrť (quarterName + district filter) → město. Null při < 3 vzorků.
+ * Používá se jako Vlak Index pro Odhad (statistický model + AI korekce).
+ */
+export async function fetchTransportPoiDistances(
+  cityKey: string,
+  opts: { districtId?: number | null; quarterName?: string | null } = {}
+): Promise<TransportPoiDistances | null> {
+  const districtParam = opts.districtId != null ? `&locality_district_id=${opts.districtId}` : "";
+  const url = `${BASE_API}?category_main_cb=1&category_type_cb=1&limit=${RESULTS_PER_PAGE}&offset=0${districtParam}`;
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) {
+    if (res.status === 429 || res.status === 403) {
+      await new Promise((r) => setTimeout(r, 20000));
+      return fetchTransportPoiDistances(cityKey, opts);
+    }
+    throw new Error(`HTTP ${res.status}: ${url}`);
+  }
+  const data = await res.json();
+  const cityLower = normalizeCity(cityKey);
+  const quarterLower = opts.quarterName ? normalizeQuarter(opts.quarterName) : null;
+
+  const items = (data?.results ?? []).filter((it: any) => {
+    const city = it.locality?.city ?? "";
+    if (normalizeCity(city) !== cityLower) return false;
+    if (quarterLower) {
+      const q = normalizeQuarter(it.locality?.quarter ?? "");
+      if (q && q !== quarterLower) return false;
+    }
+    return true;
+  });
+  if (items.length < 3) return null;
+  return medianDistances(items);
+}
+
 /** Získá POI vzdálenosti pro dané město (přes sreality search + okres filter). */
 async function fetchSrealityPoi(cityKey: string, districtSeoName?: string): Promise<SrealityPoiItem[]> {
   const url = `${BASE_API}?category_main_cb=1&category_type_cb=1&limit=${RESULTS_PER_PAGE}&offset=0`;
