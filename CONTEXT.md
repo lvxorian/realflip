@@ -244,6 +244,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **AI** (`ai.ts`): do promptu přidána adresa. Živě ověřeno (skript `valuation-check.ts`): Žižkov ward 160 324 Kč/m² (743 tx), byt K Lučinám 73 m² „průměrný" → odhad **11,17 mil. Kč** (153 025 Kč/m², rozmezí 10,0–12,34, ±11 %, confidence 91). Čistý testovací scénář (shrink + srážka) sedí na 9,58 mil. — blízko Valuo 9,375 mil.; zbývající odchylka živých dat = agregátní úroveň čtvrti/města vs. adresní hedonic model Valuo (mikro-poloha K Lučinám u Malešic je levnější než jádro Žižkova).
 - **Testy**: price-map (ward drill Praha s adresou/hinty, bez adresy → kraj), engine (ward label/shrink/mix-skew, 4 kontextové řádky, předání ctx) — celkem **410 testů / 33 souborů**.
 
+### Phase 37 — Odhad: AI korekce mikro-polohy (Done)
+- **`correctValuation`** (`src/lib/valuation/ai.ts`): Gemini prompt s adresou, čtvrtí (z `enriched` — lat/lng/wardHints), srovnatelnými (realizované + nabídky s odstupem km) → úprava statistického odhadu v %.
+- **`sanitizeAiCorrection`** (pure funkce, 7 testů): clamp ±15 %, `typeof adjustmentPct === "number"` (odmítá null/string/bool), `adjustedPricePerSqm`/`adjustedEstimate` = base × (1+pct/100), směr up/down/neutral, faktory max 4.
+- **Route**: `Promise.all([explainValuation, correctValuation(enriched, result)])` → `aiCorrection` v odpovědi; selhání AI → null (odhad statistický).
+- **UI**: karta „AI korekce — mikro-poloha" (statistický vs. po korekci, delta badge, reasoning, faktory, jistota) + sekce v PDF reportu; `ValuationReportData.aiCorrection?` zpětně kompatibilní.
+- **Testy**: `ai.test.ts` — celkem **418 testů / 34 souborů**.
+
 ### Phase 36 — Odhad: stabilita výsledků (Done)
 - **Problém**: stejný byt (K Lučinám) dával napříč runy 8,3M / 11,2M / 12,1M — uživatel dostal regionální hladinu 112 430, ač stránka už vrací 149 906 (zastaralá 7denní DB cache v produkci).
 - **Opravy** (`price-map.ts`): TTL region cache 7 dní → **1 den**; `readCache`/drill čtení s `orderBy(fetchedAt desc)`; **plausibilita region listu** (prázdný/korupovaný/bez entityId → čerstvý fetch); **retry (2×)** na SSR fetch i drill API; drill cache vyžaduje neprázdný list.

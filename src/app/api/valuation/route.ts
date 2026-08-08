@@ -7,7 +7,7 @@ import { classifyLocation } from "@/lib/analysis/location";
 import { cityKeyToName, geocodeAddress, reverseGeocode } from "@/lib/geocode";
 import { estimateProperty, attachTrend } from "@/lib/valuation/engine";
 import { fetchPriceMap } from "@/lib/valuation/price-map"; // trend grafu
-import { explainValuation } from "@/lib/valuation/ai";
+import { correctValuation, explainValuation } from "@/lib/valuation/ai";
 import type { ValuationInput } from "@/lib/valuation/types";
 
 function inferType(rooms: string | null, buildingType: string | null, title: string | null): "flat" | "house" | "land" {
@@ -131,11 +131,16 @@ export async function POST(req: Request) {
     const result = attachTrend(valuation, priceMap?.trend ?? []);
 
     let ai = null;
+    let aiCorrection = null;
     if (process.env.GEMINI_API_KEY) {
-      ai = await explainValuation(input, result).catch(() => null);
+      // AI korekce potřebuje adresu/čtvrť/wardHints → enriched (má lat/lng/GPS)
+      [ai, aiCorrection] = await Promise.all([
+        explainValuation(input, result).catch(() => null),
+        correctValuation(enriched, result).catch(() => null),
+      ]);
     }
 
-    return NextResponse.json({ valuation: result, ai, parsed: listingFields, sourceUrl: url ?? null });
+    return NextResponse.json({ valuation: result, ai, aiCorrection, parsed: listingFields, sourceUrl: url ?? null });
   } catch (error) {
     console.error("Valuation error:", error);
     return NextResponse.json({ error: "Chyba při výpočtu odhadu" }, { status: 500 });

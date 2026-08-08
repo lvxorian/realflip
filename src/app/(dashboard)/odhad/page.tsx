@@ -7,7 +7,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import ValuationInput from "@/components/valuation/valuation-input";
 import ValuationResultView from "@/components/valuation/valuation-result";
-import type { ValuationAiOutput, ValuationInput as ValuationFields, ValuationResult } from "@/lib/valuation/types";
+import type {
+  ValuationAiCorrection,
+  ValuationAiOutput,
+  ValuationInput as ValuationFields,
+  ValuationResult,
+} from "@/lib/valuation/types";
 
 const STEPS = ["Vstup", "Údaje", "Výsledek"];
 
@@ -27,6 +32,7 @@ function OdhadPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ValuationResult | null>(null);
   const [ai, setAi] = useState<ValuationAiOutput | null>(null);
+  const [aiCorrection, setAiCorrection] = useState<ValuationAiCorrection | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,6 +107,7 @@ function OdhadPageContent() {
       }
       setResult(data.valuation);
       setAi(data.ai ?? null);
+      setAiCorrection(data.aiCorrection ?? null);
       setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch {
       setError("Výpočet odhadu selhal — zkuste to prosím znovu.");
@@ -114,7 +121,7 @@ function OdhadPageContent() {
     try {
       sessionStorage.setItem(
         "valuation-report",
-        JSON.stringify({ valuation: result, fields, ai })
+        JSON.stringify({ valuation: result, fields, ai, aiCorrection })
       );
       window.open("/report/valuation", "_blank");
     } catch {
@@ -174,7 +181,13 @@ function OdhadPageContent() {
 
       {result && (
         <div ref={resultRef} className="scroll-mt-6">
-          <ValuationResultView result={result} ai={ai} fields={fields} onPrintReport={handlePrintReport} />
+          <ValuationResultView
+            result={result}
+            ai={ai}
+            aiCorrection={aiCorrection}
+            fields={fields}
+            onPrintReport={handlePrintReport}
+          />
         </div>
       )}
     </motion.div>

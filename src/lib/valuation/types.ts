@@ -78,6 +78,27 @@ export interface ValuationAiOutput {
   caveats: string[];
 }
 
+/**
+ * AI korekce odhadu směrem k mikro-poloze (adresa/ulice/čtvrť).
+ * Gemini dostane kompy + čtvrť a navrhne úpravu v % kolem statistického odhadu.
+ * `adjustmentPct` je clampnutý serverem na ±15 % — model nemůže vymyslet libovolná čísla.
+ */
+export interface ValuationAiCorrection {
+  /** Úprava v % kolem statistického mediánu (např. -6.5 = -6,5 %). */
+  adjustmentPct: number;
+  /** Upravená cena Kč/m² (statistický medián × (1 + adjustmentPct/100)). */
+  adjustedPricePerSqm: number;
+  /** Upravená celková cena Kč. */
+  adjustedEstimate: number;
+  /** "up" | "down" | "neutral" — dle znaménka úpravy. */
+  direction: "up" | "down" | "neutral";
+  confidence: ConfidenceLabel;
+  /** Odůvodnění česky (mikro-poloha: ulice, doprava, občanská vybavenost, hluk…). */
+  reasoning: string;
+  /** 2-4 klíčové mikro-polohové faktory. */
+  factors: string[];
+}
+
 /** Region (kraj) — klíče shodné s CITY_TO_REGION v locality/crime.ts. */
 export type RegionKey =
   | "praha"

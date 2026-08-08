@@ -1,12 +1,13 @@
 "use client";
 
-import type { ValuationInput, ValuationResult, ValuationAiOutput } from "@/lib/valuation/types";
+import type { ValuationAiCorrection, ValuationInput, ValuationResult, ValuationAiOutput } from "@/lib/valuation/types";
 import { conditionLabel } from "@/lib/utils";
 
 export interface ValuationReportData {
   valuation: ValuationResult;
   fields: ValuationInput;
   ai: ValuationAiOutput | null;
+  aiCorrection?: ValuationAiCorrection | null;
 }
 
 function fmtPrice(v: number | null | undefined): string {
@@ -26,7 +27,7 @@ const CONFIDENCE_COLOR: Record<string, string> = {
 };
 
 export default function ValuationReport({ data }: { data: ValuationReportData }) {
-  const { valuation: v, fields: f, ai } = data;
+  const { valuation: v, fields: f, ai, aiCorrection } = data;
   const typeLabel = f.type === "flat" ? "Byt" : f.type === "house" ? "Dům" : "Pozemek";
 
   return (
@@ -169,6 +170,41 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* AI korekce mikro-polohy */}
+      {aiCorrection && (
+        <div className="rp-card border border-gray-200 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">AI korekce — mikro-poloha</h2>
+          <div className="flex flex-wrap gap-x-8 gap-y-2 items-baseline mb-3">
+            <div>
+              <p className="text-xs text-gray-500">Statistický odhad</p>
+              <p className="text-lg font-bold text-gray-900 tabular-nums">{fmtPrice(v.estimate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Po AI korekci</p>
+              <p className="text-lg font-bold text-gray-900 tabular-nums">{fmtPrice(aiCorrection.adjustedEstimate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Úprava</p>
+              <p className={`text-lg font-bold tabular-nums ${aiCorrection.direction === "up" ? "text-emerald-700" : aiCorrection.direction === "down" ? "text-amber-700" : "text-gray-700"}`}>
+                {aiCorrection.adjustmentPct > 0 ? "+" : ""}
+                {aiCorrection.adjustmentPct.toLocaleString("cs-CZ")} % · {aiCorrection.adjustedPricePerSqm.toLocaleString("cs-CZ")} Kč/m²
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-700">{aiCorrection.reasoning}</p>
+          {aiCorrection.factors.length > 0 && (
+            <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+              {aiCorrection.factors.map((f, i) => (
+                <li key={i}>{f}</li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-gray-400 mt-2">
+            Jistota: {aiCorrection.confidence}. Korekce je doporučení modelu podle adresy a srovnatelných, nikoli statistický výpočet.
+          </p>
         </div>
       )}
 

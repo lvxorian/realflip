@@ -23,7 +23,7 @@ import {
   Sparkle,
 } from "@phosphor-icons/react";
 import { conditionLabel } from "@/lib/utils";
-import type { ValuationAiOutput, ValuationInput, ValuationResult } from "@/lib/valuation/types";
+import type { ValuationAiCorrection, ValuationAiOutput, ValuationInput, ValuationResult } from "@/lib/valuation/types";
 
 const fmtPrice = (v: number | null | undefined) =>
   v == null ? "—" : `${Math.round(v).toLocaleString("cs-CZ")} Kč`;
@@ -44,11 +44,12 @@ const CONFIDENCE_STYLE: Record<string, { badge: string; text: string }> = {
 interface Props {
   result: ValuationResult;
   ai: ValuationAiOutput | null;
+  aiCorrection?: ValuationAiCorrection | null;
   fields: ValuationInput;
   onPrintReport: () => void;
 }
 
-export default function ValuationResultView({ result, ai, fields, onPrintReport }: Props) {
+export default function ValuationResultView({ result, ai, aiCorrection, fields, onPrintReport }: Props) {
   const [copied, setCopied] = useState(false);
   const conf = CONFIDENCE_STYLE[result.confidenceLabel] ?? CONFIDENCE_STYLE.Nízká;
 
@@ -287,6 +288,73 @@ export default function ValuationResultView({ result, ai, fields, onPrintReport 
           </CardContent>
         </Card>
       </div>
+
+      {/* AI korekce mikro-polohy */}
+      {aiCorrection && (
+        <Card className="border-accent/30 bg-accent/[0.04]">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkle size={16} weight="fill" className="text-accent" />
+                  AI korekce — mikro-poloha
+                </h3>
+                <p className="text-xs text-muted mt-1">
+                  Úprava statistického odhadu podle konkrétní adresy/ulice/čtvrti (±15 % strop).
+                </p>
+              </div>
+              {aiCorrection.adjustmentPct !== 0 && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${
+                    aiCorrection.direction === "up"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : aiCorrection.direction === "down"
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                        : "border-border/50 bg-card-hover text-muted"
+                  }`}
+                >
+                  {aiCorrection.direction === "up" ? <ArrowUpRight size={14} /> : aiCorrection.direction === "down" ? <ArrowDownRight size={14} /> : null}
+                  {aiCorrection.adjustmentPct > 0 ? "+" : ""}
+                  {aiCorrection.adjustmentPct.toLocaleString("cs-CZ")} %
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-4 mt-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-border/50 bg-card-hover/50 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted">Statistický odhad</p>
+                <p className="text-lg font-bold tabular-nums mt-0.5">{fmtCompact(result.estimate)}</p>
+                <p className="text-[10px] text-muted tabular-nums">{Math.round(result.pricePerSqm).toLocaleString("cs-CZ")} Kč/m²</p>
+              </div>
+              <div className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider text-accent">Po AI korekci</p>
+                <p className="text-lg font-bold tabular-nums mt-0.5">{fmtCompact(aiCorrection.adjustedEstimate)}</p>
+                <p className="text-[10px] text-muted tabular-nums">{aiCorrection.adjustedPricePerSqm.toLocaleString("cs-CZ")} Kč/m²</p>
+              </div>
+              <div className="rounded-xl border border-border/50 bg-card-hover/50 px-4 py-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted">Jistota korekce</p>
+                <p className="text-lg font-bold mt-0.5">{aiCorrection.confidence}</p>
+                <p className="text-[10px] text-muted">modelové posouzení mikro-polohy</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-foreground/90 leading-relaxed mt-4">{aiCorrection.reasoning}</p>
+            {aiCorrection.factors.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {aiCorrection.factors.map((f, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card-hover px-2.5 py-1 text-xs text-muted">
+                    <CheckCircle size={12} className="text-accent" />
+                    {f}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-muted/60 mt-3">
+              AI korekce je doporučení modelu (Gemini) na základě adresy a srovnatelných — nikoli statistický výpočet.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI */}
       {ai && (
