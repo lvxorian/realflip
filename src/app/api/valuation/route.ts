@@ -143,8 +143,12 @@ export async function POST(req: Request) {
         lng = g.lng;
       }
     }
-    let wardHints: string[] | null = null;
-    if (lat != null && lng != null) {
+    // Explicitní hinty z výběru adresy (autocomplete — Nominatim address.quarter + suburb)
+    // jsou vázané přímo na vybranou adresu → mají přednost před reverse geokódem,
+    // který je jen záchrana při jejich absenci (přepis by vrátil jinou čtvrť, než uživatel zvolil).
+    let wardHints: string[] | null =
+      input.wardHints && input.wardHints.length > 0 ? input.wardHints : null;
+    if (!wardHints && lat != null && lng != null) {
       const rg = await reverseGeocode(lat, lng).catch(() => null);
       if (rg) {
         wardHints = [];

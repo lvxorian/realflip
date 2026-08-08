@@ -3,9 +3,11 @@
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MagnifyingGlass, PencilLine } from "@phosphor-icons/react";
+import { MagnifyingGlass, PencilLine, MapPin } from "@phosphor-icons/react";
 import { MARKET_DATA } from "@/lib/analysis/market-data";
 import { cityKeyToName } from "@/lib/geocode";
+import type { AddressSuggestion } from "@/lib/geocode";
+import AddressAutocomplete from "@/components/valuation/address-autocomplete";
 import type { ValuationInput } from "@/lib/valuation/types";
 
 const CONDITION_OPTIONS = [
@@ -83,6 +85,34 @@ export default function ValuationInput({
   }, [cityOptions]);
 
   const set = <K extends keyof ValuationInput>(k: K, v: ValuationInput[K]) => setFields({ ...fields, [k]: v });
+
+  // Ruční editace adresy zneplatní GPS a hinty z dřívějšího výběru nabídky
+  // (souřadnice by už neodpovídaly novému textu → čtvrť by se určila špatně).
+  const setAddressManual = (addr: string) => {
+    setFields({
+      ...fields,
+      address: addr || null,
+      lat: null,
+      lng: null,
+      wardHints: null,
+    });
+  };
+
+  // Výběr návrhu z autocomplete — uložíme přesnou adresu, GPS a hinty na čtvrť
+  // (address.quarter + suburb z Nominatim → ward v cenové mapě se namatchuje přesně).
+  const handleAddressSelect = (s: AddressSuggestion) => {
+    const cityKeyFor = s.city ? cityLookup[s.city.toLowerCase()] : "";
+    setFields({
+      ...fields,
+      address: s.address,
+      lat: s.lat,
+      lng: s.lng,
+      wardHints: s.wardHints.length > 0 ? s.wardHints : null,
+      cityKey: cityKeyFor || fields.cityKey,
+    });
+  };
+
+  const addressHasGps = fields.lat != null && fields.lng != null;
 
   const canEstimate = Boolean(fields.cityKey && fields.area && fields.area > 0 && fields.address?.trim());
   const missingCity = !fields.cityKey;
@@ -297,14 +327,29 @@ export default function ValuationInput({
               <label className={labelCls}>
                 Adresa <span className="text-danger">*</span>
               </label>
-              <input
-                value={fields.address ?? ""}
-                onChange={(e) => set("address", e.target.value || null)}
-                placeholder="Ulice, číslo popisné… (např. K Lučinám 1218/5, Praha 3-Žižkov)"
-                className={`${inputCls} ${missingAddress ? "border-amber-500/50" : ""}`}
-              />
+              <div className={`relative ${missingAddress ? "[&_input]:border-amber-500/50" : ""}`}>
+                <AddressAutocomplete
+                  value={fields.address ?? ""}
+                  cityKey={fields.cityKey}
+                  onChange={setAddressManual}
+                  onSelect={handleAddressSelect}
+                  hasGps={addressHasGps}
+                  placeholder="Vyberte adresu z nabídky… (např. K Lučinám 1218/5)"
+                />
+              </div>
+              {addressHasGps ? (
+                <p className="flex items-center gap-1 text-[10px] text-emerald-400 mt-1">
+                  <MapPin size={11} weight="bold" />
+                  Přesné GPS určeno — čtvrť (ward) se najde v cenové mapě přesně.
+                </p>
+              ) : fields.address ? (
+                <p className="flex items-center gap-1 text-[10px] text-amber-400/90 mt-1">
+                  <MapPin size={11} weight="bold" />
+                  Adresa bez GPS — vyberte ji z nabídky, jinak se čtvrť nemusí určit přesně.
+                </p>
+              ) : null}
               <p className="text-[10px] text-muted mt-1">
-                Přesná adresa určuje čtvrť — realizované ceny z cenové mapy (např. Žižkov vs. zbytek Prahy) a
+                Přesná adresa určuje čtvrť — realizované ceny z cenové mapy (např. Kyje vs. zbytek Prahy) a
                 srovnatelné nabídky v okolí. Bez adresy je odhad jen na krajské úrovni.
               </p>
               {missingAddress && <p className="text-[10px] text-amber-400 mt-1">Adresa je nutná pro přesný odhad</p>}

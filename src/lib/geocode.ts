@@ -1,4 +1,5 @@
 import { cityNamesFor } from "@/lib/analysis/location";
+import { RateLimiter } from "@/lib/scraping/rate-limiter";
 
 export interface GeocodeResult {
   lat: number | null;
@@ -15,15 +16,41 @@ export interface ReverseGeocodeResult {
   quarter: string | null;
 }
 
+/** Návrh adresy z autocomplete (Nominatim search). */
+export interface AddressSuggestion {
+  /** Krátký popisek pro dropdown (ulice + město). */
+  label: string;
+  /** Vyčištěná adresa pro fields.address (obsahuje čtvrť — ward matching). */
+  address: string;
+  lat: number;
+  lng: number;
+  city: string | null;
+  quarter: string | null;
+  suburb: string | null;
+  /** Názvy čtvrtí pro ward drill-down (address.quarter + suburb). */
+  wardHints: string[];
+}
+
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+
+const NOMINATIM_HEADERS = {
+  "User-Agent": "RealFlip/1.0 (real estate investment analysis; contact: info@realflip.cz)",
+  Accept: "application/json",
+};
+
+// Autocomplete cache — opakované/stejné dotazy nemusí jít na Nominatim (rate limit 1/s)
+const suggestCache = new Map<string, { data: AddressSuggestion[]; at: number }>();
+const SUGGEST_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+/** Vyčistí autocomplete cache (testy / force refresh). */
+export function clearSuggestCache(): void {
+  suggestCache.clear();
+}
 
 async function nominatimSearch(query: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
   const url = `${NOMINATIM_URL}?format=json&limit=1&accept-language=cs&q=${encodeURIComponent(query)}`;
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "RealFlip/1.0 (real estate investment analysis; contact: info@realflip.cz)",
-      Accept: "application/json",
-    },
+    headers: NOMINATIM_HEADERS,
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
@@ -92,6 +119,95 @@ export async function geocodeAddress(
   }
 
   return { lat: null, lng: null, displayName: null, source: null };
+}
+
+interface NominatimSearchItem {
+  lat?: string;
+  lon?: string;
+  display_name?: string;
+  address?: {
+    road?: string;
+    house_number?: string;
+    suburb?: string;
+    quarter?: string;
+    neighbourhood?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+  };
+}
+
+/** Vyčistí adresu z Nominatim address detailů — ulice + č.p., čtvrť, město. */
+function cleanAddressFrom(a: NominatimSearchItem["address"]): string {
+  if (!a) return "";
+  const street = [a.road, a.house_number].filter(Boolean).join(" ");
+  const area = a.suburb ?? a.quarter ?? a.neighbourhood ?? "";
+  const city = a.city ?? a.town ?? a.village ?? "";
+  return [street, area, city].filter(Boolean).join(", ");
+}
+
+/**
+ * Autocomplete adres (jako Valuo) — Nominatim search s address details.
+ * Vrací normalizované návrhy včetně GPS a hintů na čtvrť (quarter/suburb),
+ * aby se ward v cenové mapě vždy namatchoval přesně. Cache 6 h + žádný
+ * návrat pod 3 znaky. Selhání → prázdný seznam (ruční zadání stále funguje).
+ */
+export async function suggestAddresses(
+  query: string,
+  cityKey?: string | null
+): Promise<AddressSuggestion[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  const cityName = cityKeyToName(cityKey);
+  const cacheKey = `${cityName ?? ""}|${q.toLowerCase()}`;
+  const cached = suggestCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < SUGGEST_CACHE_TTL_MS) return cached.data;
+
+  // Město z formuláře se přidá k dotazu — návrhy se tím vyfiltrují na vybranou lokalitu
+  const fullQuery = cityName ? `${q}, ${cityName}` : q;
+  const url = `${NOMINATIM_URL}?format=jsonv2&addressdetails=1&countrycodes=cz&limit=6&accept-language=cs&dedupe=1&q=${encodeURIComponent(fullQuery)}`;
+
+  // Nominatim: max ~1 dotaz/s — cache hit se limiteru vyhne, throttling až při reálném fecthu
+  const rateLimiter = RateLimiter.getInstance();
+  await rateLimiter.wait("nominatim", 1000);
+
+  try {
+    const res = await fetch(url, { headers: NOMINATIM_HEADERS, signal: AbortSignal.timeout(12000) });
+    if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
+    const items = (await res.json()) as NominatimSearchItem[];
+
+    const suggestions: AddressSuggestion[] = items
+      .map((it) => {
+        const lat = parseFloat(it.lat ?? "");
+        const lng = parseFloat(it.lon ?? "");
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        const a = it.address ?? {};
+        const city = a.city ?? a.town ?? a.village ?? "";
+        // label = plná vyčištěná adresa (obsahuje čtvrť → ward matching); fallback město/čtvrť
+        const label = cleanAddressFrom(a) || (it.display_name ?? "");
+        if (!label) return null;
+        const quarter = a.quarter ?? null;
+        const suburb = a.suburb ?? null;
+        return {
+          label,
+          address: label,
+          lat,
+          lng,
+          city: city || null,
+          quarter,
+          suburb,
+          wardHints: [...new Set([quarter, suburb, a.neighbourhood].filter((x): x is string => Boolean(x)))],
+        };
+      })
+      .filter((s): s is AddressSuggestion => s != null)
+      // přesné adresy (ulice/č.p.) před čtvrtěmi/městy — Nominatim řadí sám, tohle je pojistka
+      .sort((x, y) => Number(y.label.includes(",")) - Number(x.label.includes(",")));
+
+    suggestCache.set(cacheKey, { data: suggestions, at: Date.now() });
+    return suggestions;
+  } catch {
+    return [];
+  }
 }
 
 /**
