@@ -200,6 +200,12 @@ export async function estimateProperty(
   const rawMult = baseMult * (realized?.entityType === "ward" ? 1 : categoryMultiplier(category ?? null));
   const multClamped = rawMult < 0.5 || rawMult > 1.6;
   const mult = Math.min(1.6, Math.max(0.5, rawMult));
+  // market-price-service aplikuje categoryMultiplier na medián nabídek POUZE při
+  // segmentu „any" (chybí condition nebo buildingType) — de-aplikace patří jen do
+  // offers blendu (BUG 1), aby oba zdroje mluvily stejnou řečí. BUG 9 cap porovnává
+  // range.median PŘÍMO: nabídky i ward průměr už premium/rizikovou lokalitu obsahují.
+  const segAny = !condition || !buildingType;
+  const catMult = categoryMultiplier(category ?? null);
 
   // ---------- 2) Složky ----------
   const sources: SourceInfo[] = [];
@@ -247,9 +253,36 @@ export async function estimateProperty(
         : null;
     let realizedRef = indexedWard;
     let realizedCapped = false;
+    let offeredCapped = false;
     if (askingCap != null && indexedWard > askingCap) {
       realizedRef = askingCap;
       realizedCapped = true;
+    }
+    // BUG 9 — druhá pojistka proti novostavbami nafouknutému průměru čtvrti.
+    // Cap na cenovku má strážní hranici asking ≥ 0,75×ward (chrání před extrémně
+    // nízkou cenovkou — podíl, urgentní prodej). Ta ale NEPOKRYJE případ, kdy je
+    // cenovka těsně pod ní a ward průměr je přesto zkreslený novostavbami
+    // (Žižkov: ward 168 823 vs. cenovka 124 986 = 0,74× → cap se nespustí, ačkoli
+    // nabídky segmentu 126 746 ukazují realitu ~129k, jak potvrzuje Valuo).
+    // Když existují REÁLNÉ nabídkové kompy (db/sreality) a čtvrť je o víc než 20 %
+    // nad jejich mediánem, omezíme referenci na 1,2× nabídkový medián — byt nemůže
+    // stát výrazně víc, než za co se podobné byty segmentu reálně nabízejí.
+    // (Prémiové čtvrti bez novostavbové inflace: ward ≤ 1,2×nabídky → nedotčeno.)
+    // Stejná de-aplikace category jako v offers bloku (segment „any").
+    if (
+      realized.entityType === "ward" &&
+      askingPerSqmBlock != null &&
+      askingPerSqmBlock < 0.9 * indexedWard &&
+      range &&
+      (range.source === "db" || range.source === "sreality") &&
+      range.median > 0 &&
+      indexedWard > 1.2 * range.median
+    ) {
+      const offersCap = 1.2 * range.median;
+      if (offersCap < realizedRef) {
+        realizedRef = offersCap;
+        offeredCapped = true;
+      }
     }
 
     // Čtvrťové/obecní průměry bývají zkreslené novostavbami (developerské prodeje),
@@ -293,9 +326,10 @@ export async function estimateProperty(
     // je hodnota jiná než surová v tabulce srovnatelných (Kyje: 100k zdroj vs. 145k raw).
     const labelSuffix = [
       realizedCapped ? "omezeno cenovkou" : null,
+      offeredCapped ? "omezeno nabídkami" : null,
       shrinkToRegion ? "korigováno" : null,
       mixSkew ? "běžný stav" : null,
-      timeIndexed && !realizedCapped ? "indexováno na dnešek" : null,
+      timeIndexed && !realizedCapped && !offeredCapped ? "indexováno na dnešek" : null,
     ].filter(Boolean);
     if (labelSuffix.length > 0) levelLabel += ` (${labelSuffix.join(" · ")})`;
     const levelNote =
@@ -312,7 +346,7 @@ export async function estimateProperty(
       pricePerSqm: Math.round(realizedAdj),
       sampleSize: realized.numTransactions,
       weight: VALUATION_WEIGHTS.realized,
-      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 105 % nabídkové ceny." : ""}${timeIndexed && !realizedCapped ? ` Indexováno na dnešek dle trendu cenové mapy (×${timeFactor.toFixed(3)}).` : ""}`,
+      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 105 % nabídkové ceny." : ""}${offeredCapped ? " Referenční hladina čtvrti byla o více než 20 % nad nabídkovým mediánem segmentu (novostavby) — omezena na 1,2× nabídkový medián." : ""}${timeIndexed && !realizedCapped && !offeredCapped ? ` Indexováno na dnešek dle trendu cenové mapy (×${timeFactor.toFixed(3)}).` : ""}`,
     });
     weightedSum += realizedAdj * VALUATION_WEIGHTS.realized;
     weightTotal += VALUATION_WEIGHTS.realized;
@@ -323,8 +357,6 @@ export async function estimateProperty(
     // segmentu „any" (chybí condition nebo buildingType). Na úrovni čtvrti je category
     // už obsažená v cenách čtvrti (BUG 1) — proto ji z nabídek ODEČTEME, ať oba zdroje
     // mluví stejnou řečí. Na obecní/okresní/krajské úrovni category zůstává.
-    const segAny = !condition || !buildingType;
-    const catMult = categoryMultiplier(category ?? null);
     let offerMedian = range.median;
     if (realized?.entityType === "ward" && segAny && catMult !== 1) {
       offerMedian = range.median / catMult;

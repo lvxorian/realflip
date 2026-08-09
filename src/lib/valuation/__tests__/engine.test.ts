@@ -921,6 +921,88 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
     expect(realized.pricePerSqm).toBe(127313);
     expect(realized.note).toContain("omezena na 105 %");
   });
+
+  it("BUG 9: čtvrť nad 1,2× nabídkový medián se omezí na 1,2× nabídky (Žižkov/K Lučinám)", async () => {
+    // Žižkov: ward průměr nafouknutý novostavbami (168 823 indexovaně) vs. cenovka
+    // inzerátu 124 986 = 0,74×ward → strážní hranice asking ≥ 0,75×ward se nespustí,
+    // ale nabídky segmentu (126 746) ukazují realitu (~129k, jak potvrzuje Valuo).
+    // Druhá pojistka: ward > 1,2×nabídky → reference omezena na 1,2× nabídky.
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 168823, // živý run: 164 720 × indexace 1,0249
+      numTransactions: 386,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 149906,
+      regionTransactions: 12672,
+      wardName: "Žižkov",
+      wardAvgPricePerSqm: 168823,
+      wardTransactions: 386,
+      localityName: null,
+      districtName: null,
+      entityType: "ward",
+      period: "2026-02 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "K Lučinám 2469/21, Žižkov, Praha",
+        type: "flat",
+        area: 72,
+        condition: "renovated",
+        buildingType: "panel",
+        floor: 1,
+        askingPrice: 8_999_000, // 124 986 Kč/m² → 0,74×ward, cap na cenovku NELETÍ
+      },
+      deps
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    // offers cap: 126 746 × 1,2 = 152 095 × 0,89964 (1,08 renovated × 0,85 panel × 0,98 patro) = 136 831
+    expect(realized.pricePerSqm).toBe(136831);
+    expect(realized.label).toContain("omezeno nabídkami");
+    expect(realized.note).toContain("1,2× nabídkový medián");
+    // cap na cenovku se NEaplikoval (cenovka pod 0,75×ward) — label to neříká
+    expect(realized.label).not.toContain("omezeno cenovkou");
+    // blend: realized 136 830 × 0,45 + offers 126 746 × 0,35 + asking 124 986/0,9554 × 0,1
+    // ≈ 126 343/m² × 72 m² = 9 096 696 → 9 097 000 (Valuo: 9 315 720 = 129 385/m²)
+    expect(r.estimate).toBe(9097000);
+    // bez offers capu by realizedAdj byl 168 823 × 0,89964 = 151 861 → odhad ~10,2M
+    expect(r.estimate).toBeLessThan(9_400_000);
+  });
+
+  it("BUG 9: prémiová čtvrť bez novostavbové inflace zůstane nedotčená (ward ≤ 1,2×nabídky)", async () => {
+    // Dejvice: ward 190 000 vs. nabídky 160 000 → 190 000 < 1,2×160 000 = 192 000 → žádný cap
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 190000,
+      numTransactions: 900,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 149906,
+      regionTransactions: 12672,
+      wardName: "Dejvice",
+      wardAvgPricePerSqm: 190000,
+      wardTransactions: 900,
+      localityName: null,
+      districtName: null,
+      entityType: "ward",
+      period: "2026-02 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(160000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60, condition: "renovated" },
+      deps
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    expect(realized.label).not.toContain("omezeno nabídkami");
+    // 190 000 × 1,08 = 205 200 (bez capu)
+    expect(realized.pricePerSqm).toBe(205200);
+  });
 });
 
 describe("transportMultiplier (Vlak Index)", () => {
