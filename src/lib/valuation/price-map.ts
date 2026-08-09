@@ -21,7 +21,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { RateLimiter } from "@/lib/scraping/rate-limiter";
 import { CITY_TO_REGION } from "@/lib/locality/crime";
 import { cityNamesFor } from "@/lib/analysis/location";
-import type { PriceMapData, PriceMapRegion, RealizedLevel, RealizedLocality, RegionKey, TrendPoint } from "./types";
+import type { AddressTransaction, PriceMapData, PriceMapRegion, RealizedLevel, RealizedLocality, RegionKey, TrendPoint } from "./types";
 
 const PAGE_URL = "https://www.sreality.cz/cenova-mapa";
 const API_LIST = "https://www.sreality.cz/api/v1/price_map/list";
@@ -574,6 +574,7 @@ export async function getRealizedLocalityForCity(
     const ward = findWardByHints(lvl1, ctx);
     if (ward && ward.numTransactions > 0 && ward.avgPricePerSqm != null) {
       base.wardName = ward.name;
+      base.wardId = ward.entityId;
       base.wardAvgPricePerSqm = ward.avgPricePerSqm;
       base.wardTransactions = ward.numTransactions;
       base.avgPricePerSqm = ward.avgPricePerSqm;
@@ -624,6 +625,7 @@ export async function getRealizedLocalityForCity(
         const ward = wards ? findWardByHints(wards, ctx) : null;
         if (ward && ward.numTransactions > 0 && ward.avgPricePerSqm != null) {
           base.wardName = ward.name;
+          base.wardId = ward.entityId;
           base.wardAvgPricePerSqm = ward.avgPricePerSqm;
           base.wardTransactions = ward.numTransactions;
           base.avgPricePerSqm = ward.avgPricePerSqm;
@@ -635,6 +637,162 @@ export async function getRealizedLocalityForCity(
   }
 
   return base;
+}
+
+// ---------- Adresní transakce (estate_list) ----------
+
+/** Memory cache pro adresní transakce — klíč `ward:<id>|<okno>`. */
+const txMem = new Map<string, { items: AddressTransaction[]; fetchedAt: number }>();
+const TX_MEM_TTL_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Adresní transakce čtvrti z cenové mapy (estate_list).
+ * Jednotlivé realizované prodeje s přesným GPS, č.p., velikostní kategorií a datem.
+ * Cena per transakce NENÍ veřejně dostupná (ČÚZK anonymizuje) — proto se vrací
+ * jen jako komparace, ne jako cenový zdroj.
+ *
+ * Vrací [] když: čtvrť se nenalézá (bez adresy), ward nemá data, nebo API selže.
+ * Nevyhazuje — volající (engine) ji bere jako doplňkový kontext.
+ */
+export async function fetchWardTransactions(
+  cityKey: string,
+  ctx: RealizedContext = {}
+): Promise<AddressTransaction[]> {
+  // 1) najdi čtvrť (ward) — bez adresy/hintů Praha zůstává na kraji → žádné transakce
+  const locality = await getRealizedLocalityForCity(cityKey, ctx);
+  if (!locality || !locality.wardId) return [];
+
+  const months = ctx.lookbackMonths === 6 || ctx.lookbackMonths === 24 ? ctx.lookbackMonths : 12;
+  const window = priceMapWindow(months, ctx.asOfDate);
+  const url = `${API_LIST}?category_main_cb=1&date_from=${window.dateFrom}&date_to=${window.dateTo}&category=1&locality=ward,${locality.wardId}`;
+  const segKey = `price_map_ward_tx_${months}m${ctx.asOfDate ? "_" + ctx.asOfDate : ""}`;
+  const memKey = `${locality.wardId}|${segKey}`;
+
+  // memory cache
+  const mem = txMem.get(memKey);
+  if (mem && Date.now() - mem.fetchedAt < TX_MEM_TTL_MS) return mem.items;
+
+  // DB cache. Klíč `ward,<id>` je bezpečný, protože entity ID cenové mapy jsou
+  // globálně unikátní (společný registry — country 112, region 10, ward 14971…),
+  // takže `ward,13715` nemůže kolidovat s wardou jiné obce ani s drill cache
+  // (segment price_map_ward_tx_* se liší od price_map_district/municipality/ward_*).
+
+  // DB cache
+  try {
+    const row = await db
+      .select({ payload: marketCache.payload, fetchedAt: marketCache.fetchedAt })
+      .from(marketCache)
+      .where(and(eq(marketCache.city, `ward,${locality.wardId}`), eq(marketCache.segment, segKey)))
+      .orderBy(desc(marketCache.fetchedAt))
+      .limit(1)
+      .then((r) => r[0]);
+    if (row?.payload && Date.now() - Number(row.fetchedAt) < DB_TTL_MS) {
+      const items = JSON.parse(row.payload) as AddressTransaction[];
+      if (Array.isArray(items) && items.length > 0) {
+        txMem.set(memKey, { items, fetchedAt: Date.now() });
+        return items;
+      }
+    }
+  } catch {
+    // fall through
+  }
+
+  // live fetch (jeden retry)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await rateLimiter.wait("sreality", 3000);
+    try {
+      const res = await globalThis.fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(20000) });
+      if (!res.ok) {
+        if (attempt === 0) continue;
+        return [];
+      }
+      const json = (await res.json()) as {
+        result?: { estate_list?: EstateApiItem[] };
+      };
+      const items = parseEstateList(json.result?.estate_list ?? []);
+      // prázdný list se NECACHEUJE — čtvrť bez adresních dat se zkusí znovu příště
+      // (krátkodobý prázdný marker by riskoval, že nové transakce čtvrť nedostanou)
+      if (items.length === 0) return [];
+
+      txMem.set(memKey, { items, fetchedAt: Date.now() });
+      try {
+        await db
+          .insert(marketCache)
+          .values({
+            city: `ward,${locality.wardId}`,
+            segment: segKey,
+            low: 0,
+            high: 0,
+            median: 0,
+            sampleSize: items.length,
+            source: "price_map",
+            fetchedAt: Date.now(),
+            payload: JSON.stringify(items),
+          })
+          .onConflictDoUpdate({
+            target: [marketCache.city, marketCache.segment],
+            set: { sampleSize: items.length, source: "price_map", fetchedAt: Date.now(), payload: JSON.stringify(items) },
+          });
+      } catch {
+        // best-effort
+      }
+      return items;
+    } catch (e) {
+      if (attempt === 0) continue;
+      console.error("Price map ward transactions failed:", e);
+      return [];
+    }
+  }
+  return [];
+}
+
+/** Surová položka estate_list z API (snake_case). */
+interface EstateApiItem {
+  transaction_id?: number | null;
+  currency?: string | null;
+  title?: string | null;
+  validation_date?: string | null;
+  locality?: {
+    address_id?: number | null;
+    gps_lat?: number | null;
+    gps_lon?: number | null;
+    housenumber?: string | null;
+    municipality?: string | null;
+    ward?: string | null;
+    ward_id?: number | null;
+  } | null;
+}
+
+/** Převod surových estate položek na naše AddressTransaction + plausibility filtr. */
+export function parseEstateList(raw: EstateApiItem[]): AddressTransaction[] {
+  const out: AddressTransaction[] = [];
+  for (const e of raw) {
+    // transakce bez ID neexistují — 0 by kolidovalo v dedup/identifikaci komparací
+    if (!e.transaction_id) continue;
+    const loc = e.locality ?? {};
+    const lat = typeof loc.gps_lat === "number" ? loc.gps_lat : null;
+    const lng = typeof loc.gps_lon === "number" ? loc.gps_lon : null;
+    // plausibilita GPS (ČR: 48.5–51.1 N, 12–19 E) — chrání před korupcí
+    if (lat != null && lng != null && (lat < 48.4 || lat > 51.2 || lng < 12 || lng > 19)) continue;
+    out.push({
+      transactionId: e.transaction_id,
+      addressId: loc.address_id ?? null,
+      housenumber: loc.housenumber ?? null,
+      lat,
+      lng,
+      municipality: loc.municipality ?? null,
+      ward: loc.ward ?? null,
+      wardId: loc.ward_id ?? null,
+      areaCategory: e.title ?? null,
+      validationDate: e.validation_date ?? null,
+    });
+  }
+  return out;
+}
+
+/** Vyčistí memory cache adresních transakcí (testy / force refresh). */
+export function clearWardTxCache(): void {
+  txMem.clear();
 }
 
 /** Regionální realizovaný průměr pro město (jen kraj — fallback, historická kompatibilita). */

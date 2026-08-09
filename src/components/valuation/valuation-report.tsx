@@ -215,7 +215,10 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {v.comparables.slice(0, 12).map((c, i) => {
-                  const ratio = v.pricePerSqm > 0 ? Math.round((c.pricePerSqm / v.pricePerSqm) * 100) : null;
+                  const ratio =
+                    c.pricePerSqm != null && v.pricePerSqm > 0
+                      ? Math.round((c.pricePerSqm / v.pricePerSqm) * 100)
+                      : null;
                   const outlier = ratio != null && (ratio < 75 || ratio > 130);
                   return (
                     <tr key={i} className={c.source === "realized" ? "bg-emerald-50/60" : outlier ? "bg-amber-50" : undefined}>
@@ -230,7 +233,9 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
                         {c.source === "realized"
                           ? c.soldAt
                             ? `prodej ${new Date(c.soldAt).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
-                            : "realizované prodeje"
+                            : c.addressTx
+                              ? "adresní transakce"
+                              : "realizované prodeje"
                           : "nabídka"}
                       </td>
                     </tr>

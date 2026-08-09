@@ -33,14 +33,24 @@ import {
   cellarMultiplier,
 } from "@/lib/analysis/market-data";
 import { cityNamesFor } from "@/lib/analysis/location";
-import { getRealizedLocalityForCity, type RealizedContext } from "./price-map";
+import { getRealizedLocalityForCity, fetchWardTransactions, type RealizedContext } from "./price-map";
 import { CSUZ_INDEX } from "./czso-trend";
-import type { ComparableRow, ConfidenceLabel, RealizedLocality, SourceInfo, ValuationInput, ValuationResult } from "./types";
+import type {
+  AddressTransaction,
+  ComparableRow,
+  ConfidenceLabel,
+  RealizedLocality,
+  SourceInfo,
+  ValuationInput,
+  ValuationResult,
+} from "./types";
 
 interface EngineDeps {
   getRealized?: (cityKey: string, ctx?: RealizedContext) => Promise<RealizedLocality | null>;
   getRange?: (ctx: Parameters<typeof getPropertyMarketRange>[0]) => Promise<MarketRangeResult | null>;
   getComps?: (ctx: Parameters<typeof fetchComparableSamples>[0]) => Promise<CompSample[]>;
+  /** Adresní transakce čtvrti z cenové mapy (estate_list) — komparace s GPS + č.p. */
+  getWardTx?: (cityKey: string, ctx?: RealizedContext) => Promise<AddressTransaction[]>;
   now?: number;
 }
 
@@ -87,6 +97,20 @@ export function yearBuiltMultiplier(year: number | null | undefined): number {
 }
 
 /**
+ * Parsování velikostní kategorie z titulu adresní transakce cenové mapy
+ * („Byt, 66–70 m²", „Byt 2+kk, 46–50 m²") → rozsah m². Čistá funkce (testovatelná).
+ */
+export function parseAreaCategory(category: string | null | undefined): { min: number; max: number } | null {
+  if (!category) return null;
+  const m = category.match(/(\d+)\s*[–-]\s*(\d+)\s*m²/i) ?? category.match(/(\d+)\s*m²/i);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = m[2] ? Number(m[2]) : a;
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a <= 0 || b < a) return null;
+  return { min: a, max: b };
+}
+
+/**
  * Dopravní faktor (Vlak Index) — skóre dopravní dostupnosti 0–100 → násobitel.
  * Skóre 50 = průměr (×1,00), 100 = výborná doprava (×1,06), 0 = bez dopravy (×0,94).
  * Lineární křivka jako Valuo Vlak Index; doprava nikdy nesmí měnit odhad o víc než ±6 %.
@@ -122,6 +146,7 @@ export async function estimateProperty(
     getRealized = getRealizedLocalityForCity,
     getRange = (ctx) => getPropertyMarketRange(ctx),
     getComps = fetchComparableSamples,
+    getWardTx = fetchWardTransactions,
     now = Date.now(),
   } = deps;
 
@@ -141,17 +166,20 @@ export async function estimateProperty(
   const transportMult = transportMultiplier(input.transport?.score);
 
   // ---------- 1) Sběr zdrojů (paralelně) ----------
-  // realizované prodeje dostávají adresu/GPS/hinty → drill-down až na městskou čtvrť (ward)
-  const [realized, range] = await Promise.all([
-    getRealized(cityKey, {
-      address: input.address,
-      lat: input.lat,
-      lng: input.lng,
-      wardHints: input.wardHints,
-      lookbackMonths: input.lookbackMonths,
-      asOfDate: input.asOfDate,
-    }).catch(() => null),
+  // realizované prodeje dostávají adresu/GPS/hinty → drill-down až na městskou čtvrť (ward);
+  // adresní transakce (estate_list) přinášejí konkrétní realizované prodeje s GPS + č.p.
+  const realizedCtx: RealizedContext = {
+    address: input.address,
+    lat: input.lat,
+    lng: input.lng,
+    wardHints: input.wardHints,
+    lookbackMonths: input.lookbackMonths,
+    asOfDate: input.asOfDate,
+  };
+  const [realized, range, wardTx] = await Promise.all([
+    getRealized(cityKey, realizedCtx).catch(() => null),
     getRange({ cityKey, lat, lng, condition, buildingType, area, category }).catch(() => null),
+    getWardTx(cityKey, realizedCtx).catch(() => []),
   ]);
 
   // ---------- 2) Složky ----------
@@ -405,6 +433,54 @@ export async function estimateProperty(
       comparables.push({ label: row.label, pricePerSqm: row.price, source: "realized" });
     }
   }
+
+  // Adresní transakce z cenové mapy (estate_list) — konkrétní realizované prodeje
+  // s přesným GPS a č.p. („Kyje 334 · prodej 07/2026"). Nemají veřejnou cenu
+  // (ČÚZK anonymizuje jednotlivé prodeje) → pricePerSqm null, ale ukazují, kde
+  // a kdy se v okolí reálně prodávalo — cennější než anonymní průměr čtvrti.
+  // Cap 5: UI řeže tabulku na 12 řádků a transakce nemají cenu — víc by ukouslo
+  // místo nabídkovým kompům s cenou (smysluplný „Odhad" sloupec).
+  let addressTxShown = 0;
+  if (wardTx.length > 0) {
+    const targetHasGps = lat != null && lng != null;
+    const minAreaTx = areaSafe ? areaSafe * 0.7 : null;
+    const maxAreaTx = areaSafe ? areaSafe * 1.3 : null;
+    const txRows: ComparableRow[] = wardTx
+      .filter((t) => {
+        // jen transakce s GPS (bez nich neumíme vzdálenost ani polohu)
+        if (t.lat == null || t.lng == null) return false;
+        // okruh 10 km od oceňované nemovitosti (stejný jako nabídkové kompy)
+        if (targetHasGps && haversineKm(lat!, lng!, t.lat, t.lng) > 10) return false;
+        // velikostní kategorie („Byt, 66–70 m²") — přeskoč nesedící plochy
+        if (minAreaTx != null && t.areaCategory) {
+          const range = parseAreaCategory(t.areaCategory);
+          if (range && (range.max < minAreaTx || range.min > maxAreaTx!)) return false;
+        }
+        return true;
+      })
+      .map((t) => {
+        const range = parseAreaCategory(t.areaCategory);
+        const soldAt = t.validationDate ? Date.parse(t.validationDate) : null;
+        return {
+          // „Kyje 334" (čtvrť + č.p.) — UI ukáže „prodej · 07/2026"
+          label: [t.ward, t.housenumber].filter(Boolean).join(" ") || "Adresní transakce",
+          area: range ? Math.round((range.min + range.max) / 2) : null,
+          pricePerSqm: null as number | null,
+          distanceKm:
+            targetHasGps && t.lat != null && t.lng != null ? haversineKm(lat!, lng!, t.lat, t.lng) : null,
+          source: "realized" as const,
+          soldAt: soldAt && !Number.isNaN(soldAt) ? soldAt : null,
+          addressTx: true,
+        };
+      })
+      .sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))
+      .slice(0, 5);
+    for (const row of txRows) {
+      if (comparables.length >= 15) break;
+      comparables.push(row);
+      addressTxShown++;
+    }
+  }
   try {
     const samples = await getComps({ cityKey, lat, lng, condition, buildingType, area, category });
     const cityNames = cityNamesFor(cityKey);
@@ -473,6 +549,11 @@ export async function estimateProperty(
   if (range) {
     methodology.push(
       `Nabídkové ceny: medián ${range.median.toLocaleString("cs-CZ")} Kč/m² (rozmezí ${range.low.toLocaleString("cs-CZ")}–${range.high.toLocaleString("cs-CZ")}, zdroj ${range.source}${range.sampleSize ? `, ${range.sampleSize} vzorků` : ""}).`
+    );
+  }
+  if (addressTxShown > 0) {
+    methodology.push(
+      `Adresní transakce: ${addressTxShown} realizovaných prodejů z cenové mapy na úrovni čísla popisného (GPS + velikost + datum) zobrazených jako komparace. Cena per transakce není veřejná (ČÚZK anonymizuje) — ukazují, kde a kdy se v okolí prodávalo.`
     );
   }
   const multParts: string[] = [];

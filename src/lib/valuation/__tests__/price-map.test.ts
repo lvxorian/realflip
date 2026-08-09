@@ -11,7 +11,15 @@ vi.mock("@/lib/scraping/rate-limiter", () => ({
   RateLimiter: { getInstance: () => ({ wait: async () => {} }) },
 }));
 
-import { getRealizedLocalityForCity, priceMapWindow, regionKeyForCity, clearPriceMapCache } from "../price-map";
+import {
+  getRealizedLocalityForCity,
+  priceMapWindow,
+  regionKeyForCity,
+  clearPriceMapCache,
+  fetchWardTransactions,
+  clearWardTxCache,
+  parseEstateList,
+} from "../price-map";
 
 const ok = (data: unknown) => ({ ok: true, status: 200, json: async () => data, text: async () => "" } as Response);
 
@@ -232,5 +240,162 @@ describe("getRealizedLocalityForCity — ward úroveň (Praha)", () => {
     expect(r!.entityType).toBe("region");
     expect(r!.avgPricePerSqm).toBe(112430);
     expect(r!.wardName).toBeNull();
+  });
+});
+
+describe("fetchWardTransactions — adresní transakce (estate_list)", () => {
+  const PRAGUE_SSR_HTML = `
+    <script id="__NEXT_DATA__" type="application/json">
+      {"props":{"pageProps":{"dehydratedState":{"queries":[
+        {"state":{"data":{"aggregatedList":[
+          {"avgPricePerSqm":112430,"locality":{"entityId":10,"entityType":"region","name":"Hlavní město Praha","seoName":"hlavni-mesto-praha"},"numTransactions":12672}
+        ]}},"queryKey":["PriceMapList",{"category":1,"dateFrom":"2025-08","dateTo":"2026-07"}]}
+      ]}}}
+    </script>
+  `;
+
+  // ward Žižkov entity_id 14971
+  const ESTATES = [
+    {
+      transaction_id: 108431536010,
+      currency: "CZK",
+      title: "Byt, 66–70 m²",
+      validation_date: "2026-07-29",
+      locality: {
+        address_id: 11017264,
+        gps_lat: 50.08348611218893,
+        gps_lon: 14.555073443874065,
+        housenumber: "1291",
+        municipality: "Praha",
+        ward: "Žižkov",
+        ward_id: 14971,
+      },
+    },
+    {
+      transaction_id: 108417111010,
+      currency: "CZK",
+      title: "Byt, 26–30 m²",
+      validation_date: "2026-07-28",
+      locality: {
+        address_id: 9000974,
+        gps_lat: 50.10235711277325,
+        gps_lon: 14.551393549616362,
+        housenumber: "334",
+        municipality: "Praha",
+        ward: "Žižkov",
+        ward_id: 14971,
+      },
+    },
+    {
+      transaction_id: 108417999010,
+      currency: "CZK",
+      title: "Byt, 66–70 m²",
+      validation_date: "2026-07-10",
+      locality: {
+        address_id: 111111,
+        gps_lat: 99.9, // nesmyslná GPS — má být odfiltrována
+        gps_lon: 99.9,
+        housenumber: "999",
+        municipality: "Praha",
+        ward: "Žižkov",
+        ward_id: 14971,
+      },
+    },
+  ];
+
+  beforeEach(() => {
+    clearPriceMapCache();
+    clearWardTxCache();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-15T12:00:00Z"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        const u = String(url);
+        if (u === "https://www.sreality.cz/cenova-mapa")
+          return Promise.resolve({ ok: true, status: 200, text: async () => PRAGUE_SSR_HTML } as Response);
+        if (u.includes("locality=region,10"))
+          return Promise.resolve(
+            ok({
+              result: {
+                aggregated_list: [
+                  { locality: { entity_id: 14971, entity_type: "ward", name: "Žižkov", seo_name: "zizkov" }, avg_price_per_sqm: 160324, num_transactions: 743 },
+                ],
+              },
+            })
+          );
+        if (u.includes("locality=ward,14971"))
+          return Promise.resolve(ok({ result: { estate_list: ESTATES } }));
+        return Promise.resolve({ ok: false, status: 404, json: async () => ({}), text: async () => "" } as Response);
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("vrací adresní transakce s GPS, č.p., velikostí a datem", async () => {
+    const tx = await fetchWardTransactions("praha", {
+      address: "K Lučinám, Praha - Žižkov, Praha",
+      wardHints: ["Žižkov"],
+    });
+    expect(tx.length).toBe(2); // 3. položka s nesmyslnou GPS odfiltrována
+    expect(tx[0].housenumber).toBe("1291");
+    expect(tx[0].lat).toBeCloseTo(50.0834861);
+    expect(tx[0].lng).toBeCloseTo(14.5550734);
+    expect(tx[0].areaCategory).toBe("Byt, 66–70 m²");
+    expect(tx[0].validationDate).toBe("2026-07-29");
+    expect(tx[0].wardId).toBe(14971);
+    expect(tx[0].transactionId).toBe(108431536010);
+  });
+
+  it("bez adresy (region úroveň) → prázdné pole", async () => {
+    const tx = await fetchWardTransactions("praha");
+    expect(tx).toEqual([]);
+  });
+
+  it("neznámé město → prázdné pole", async () => {
+    const tx = await fetchWardTransactions("neexistujici_mesto");
+    expect(tx).toEqual([]);
+  });
+});
+
+describe("parseEstateList — pure funkce", () => {
+  it("odfiltruje transakci bez transaction_id (0/null)", () => {
+    const items = parseEstateList([
+      {
+        transaction_id: null,
+        title: "Byt, 66–70 m²",
+        validation_date: "2026-07-01",
+        locality: { gps_lat: 50.08, gps_lon: 14.55, housenumber: "1" },
+      },
+      {
+        transaction_id: 123,
+        title: "Byt, 46–50 m²",
+        validation_date: "2026-07-02",
+        locality: { gps_lat: 50.09, gps_lon: 14.56, housenumber: "2" },
+      },
+    ]);
+    expect(items.length).toBe(1);
+    expect(items[0].transactionId).toBe(123);
+  });
+
+  it("odfiltruje GPS mimo ČR (korupce dat)", () => {
+    const items = parseEstateList([
+      {
+        transaction_id: 1,
+        title: "Byt",
+        locality: { gps_lat: 99.9, gps_lon: 99.9, housenumber: "1" },
+      },
+      {
+        transaction_id: 2,
+        title: "Byt",
+        locality: { gps_lat: 50.08, gps_lon: 14.55, housenumber: "2" },
+      },
+    ]);
+    expect(items.length).toBe(1);
+    expect(items[0].housenumber).toBe("2");
   });
 });

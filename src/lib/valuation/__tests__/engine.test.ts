@@ -5,6 +5,7 @@ import {
   areaSizeFactor,
   transportMultiplier,
   scaleToDate,
+  parseAreaCategory,
 } from "../engine";
 import {
   ownershipMultiplier,
@@ -20,6 +21,7 @@ const state = vi.hoisted(() => ({
   realized: vi.fn(),
   range: vi.fn(),
   comps: vi.fn(),
+  wardTx: vi.fn(),
 }));
 
 vi.mock("@/db", () => ({ db: {}, schema: {} }));
@@ -29,6 +31,7 @@ vi.mock("@/lib/scraping/rate-limiter", () => ({
 vi.mock("@/lib/valuation/price-map", () => ({
   getRealizedRegionForCity: state.realized,
   getRealizedLocalityForCity: state.realized,
+  fetchWardTransactions: state.wardTx,
 }));
 vi.mock("@/lib/scraping/market-price-service", async (orig) => {
   const actual = (await orig()) as Record<string, unknown>;
@@ -42,6 +45,7 @@ vi.mock("@/lib/scraping/market-price-service", async (orig) => {
 const mockedRealized = vi.mocked(state.realized);
 const mockedRange = vi.mocked(state.range);
 const mockedComps = vi.mocked(state.comps);
+const mockedWardTx = vi.mocked(state.wardTx);
 
 function rangeResult(median: number, low = median * 0.85, high = median * 1.15): MarketRangeResult {
   return { low, high, median, source: "db", sampleSize: 24 };
@@ -65,6 +69,9 @@ beforeEach(() => {
   mockedRealized.mockReset();
   mockedRange.mockReset();
   mockedComps.mockReset();
+  mockedWardTx.mockReset();
+  // adresní transakce jsou doplněk — default prázdné (stávající testy beze změny)
+  mockedWardTx.mockResolvedValue([]);
 });
 
 describe("areaSizeFactor", () => {
@@ -433,6 +440,208 @@ describe("estimateProperty — lokalita komparací", () => {
 
     const offers = r.comparables.filter((c) => c.source === "offer");
     expect(offers.map((c) => c.label)).toEqual(["Cheb, Lomená"]);
+  });
+});
+
+describe("parseAreaCategory", () => {
+  it("rozsah (Byt, 66–70 m²) → { min: 66, max: 70 }", () => {
+    expect(parseAreaCategory("Byt, 66–70 m²")).toEqual({ min: 66, max: 70 });
+  });
+  it("s dispozicí (Byt 2+kk, 46–50 m²) → { min: 46, max: 50 }", () => {
+    expect(parseAreaCategory("Byt 2+kk, 46–50 m²")).toEqual({ min: 46, max: 50 });
+  });
+  it("jednotlivé číslo / null / nevalidní → null", () => {
+    expect(parseAreaCategory("Byt, 66 m²")).toEqual({ min: 66, max: 66 });
+    expect(parseAreaCategory(null)).toBeNull();
+    expect(parseAreaCategory("Pozemek")).toBeNull();
+    expect(parseAreaCategory("Byt, 0–5 m²")).toBeNull();
+  });
+});
+
+describe("estimateProperty — adresní transakce (estate_list)", () => {
+  const realizedWard = {
+    avgPricePerSqm: 160324,
+    numTransactions: 743,
+    regionName: "Hlavní město Praha",
+    regionAvgPricePerSqm: 112430,
+    regionTransactions: 12672,
+    wardName: "Žižkov",
+    wardAvgPricePerSqm: 160324,
+    wardTransactions: 743,
+    localityName: null,
+    districtName: null,
+    entityType: "ward" as const,
+    period: "2025-08 – 2026-07",
+    totalTransactions: 50469,
+  };
+
+  it("přidá adresní transakce jako komparace (label čtvrť + č.p., pricePerSqm null)", async () => {
+    mockedRealized.mockResolvedValue(realizedWard);
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+    mockedWardTx.mockResolvedValue([
+      {
+        transactionId: 108431536010,
+        addressId: 11017264,
+        housenumber: "1291",
+        lat: 50.09026,
+        lng: 14.47424,
+        municipality: "Praha",
+        ward: "Žižkov",
+        wardId: 14971,
+        areaCategory: "Byt, 66–70 m²",
+        validationDate: "2026-07-29",
+      },
+      {
+        transactionId: 108417111010,
+        addressId: 9000974,
+        housenumber: "334",
+        lat: 50.10236,
+        lng: 14.55139,
+        municipality: "Praha",
+        ward: "Žižkov",
+        wardId: 14971,
+        areaCategory: "Byt, 76–80 m²",
+        validationDate: "2026-07-28",
+      },
+    ]);
+
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "K Lučinám, Praha 3-Žižkov",
+        type: "flat",
+        area: 73,
+        condition: "good",
+        wardHints: ["Žižkov"],
+        lat: 50.087,
+        lng: 14.449,
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, getWardTx: mockedWardTx, now: 1_000 }
+    );
+
+    const tx = r.comparables.filter((c) => c.addressTx);
+    expect(tx).toHaveLength(2);
+    expect(tx[0].label).toBe("Žižkov 1291");
+    expect(tx[0].pricePerSqm).toBeNull();
+    expect(tx[0].soldAt).toBe(Date.parse("2026-07-29"));
+    expect(tx[0].area).toBe(68); // střed rozsahu 66–70
+    expect(tx[0].distanceKm).toBeLessThan(2);
+    // engine předává ctx (adresa/GPS/hinty) do fetchWardTransactions
+    expect(mockedWardTx).toHaveBeenCalledWith("praha", expect.objectContaining({ address: "K Lučinám, Praha 3-Žižkov" }));
+    // metodika zmiňuje adresní transakce
+    expect(r.methodology.join(" ")).toContain("Adresní transakce");
+  });
+
+  it("transakce bez GPS nebo mimo okruh 10 km se vyřadí", async () => {
+    mockedRealized.mockResolvedValue(realizedWard);
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+    mockedWardTx.mockResolvedValue([
+      {
+        transactionId: 1,
+        addressId: 1,
+        housenumber: "10",
+        lat: 50.087,
+        lng: 14.449,
+        municipality: "Praha",
+        ward: "Žižkov",
+        wardId: 14971,
+        areaCategory: "Byt, 66–70 m²",
+        validationDate: "2026-07-01",
+      },
+      // bez GPS
+      {
+        transactionId: 2,
+        addressId: 2,
+        housenumber: "20",
+        lat: null,
+        lng: null,
+        municipality: "Praha",
+        ward: "Žižkov",
+        wardId: 14971,
+        areaCategory: "Byt, 66–70 m²",
+        validationDate: "2026-07-01",
+      },
+      // daleko (Brno)
+      {
+        transactionId: 3,
+        addressId: 3,
+        housenumber: "30",
+        lat: 49.195,
+        lng: 16.607,
+        municipality: "Brno",
+        ward: "Brno-střed",
+        wardId: 1,
+        areaCategory: "Byt, 66–70 m²",
+        validationDate: "2026-07-01",
+      },
+    ]);
+
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "K Lučinám, Praha 3-Žižkov",
+        type: "flat",
+        area: 73,
+        lat: 50.087,
+        lng: 14.449,
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, getWardTx: mockedWardTx, now: 1_000 }
+    );
+
+    const tx = r.comparables.filter((c) => c.addressTx);
+    expect(tx).toHaveLength(1);
+    expect(tx[0].label).toBe("Žižkov 10");
+  });
+
+  it("transakce s nesedící velikostí (mimo ±30 % plochy) se vyřadí", async () => {
+    mockedRealized.mockResolvedValue(realizedWard);
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+    mockedWardTx.mockResolvedValue([
+      {
+        transactionId: 1,
+        addressId: 1,
+        housenumber: "10",
+        lat: 50.087,
+        lng: 14.449,
+        municipality: "Praha",
+        ward: "Žižkov",
+        wardId: 14971,
+        areaCategory: "Byt, 66–70 m²",
+        validationDate: "2026-07-01",
+      },
+      // garsonka 26–30 m² vs. oceňovaných 73 m² (±30 % = 51–95) → vyřazena
+      {
+        transactionId: 2,
+        addressId: 2,
+        housenumber: "20",
+        lat: 50.087,
+        lng: 14.449,
+        municipality: "Praha",
+        ward: "Žižkov",
+        wardId: 14971,
+        areaCategory: "Byt, 26–30 m²",
+        validationDate: "2026-07-01",
+      },
+    ]);
+
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "K Lučinám, Praha 3-Žižkov",
+        type: "flat",
+        area: 73,
+        lat: 50.087,
+        lng: 14.449,
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, getWardTx: mockedWardTx, now: 1_000 }
+    );
+
+    const tx = r.comparables.filter((c) => c.addressTx);
+    expect(tx).toHaveLength(1);
+    expect(tx[0].label).toBe("Žižkov 10");
   });
 });
 

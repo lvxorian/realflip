@@ -61,12 +61,18 @@ export interface ComparableRow {
   label: string;
   area?: number | null;
   price?: number | null;
-  pricePerSqm: number;
+  /**
+   * Kč/m² — null pro adresní transakce z cenové mapy (estate_list): ČÚZK/Seznam
+   * anonymizuje ceny jednotlivých prodejů, známe jen GPS + č.p. + velikost + datum.
+   */
+  pricePerSqm: number | null;
   distanceKm?: number | null;
   source: "realized" | "offer";
   condition?: string | null;
-  /** Datum prodeje (vlastní historie — párování zmizelých inzerátů). */
+  /** Datum prodeje (vlastní historie — párování zmizelých inzerátů, nebo adresní transakce cenové mapy). */
   soldAt?: number | null;
+  /** Adresní transakce z cenové mapy (estate_list) — bez veřejné ceny, s GPS + č.p. */
+  addressTx?: boolean;
 }
 
 export interface TrendPoint {
@@ -169,6 +175,8 @@ export interface RealizedLocality {
   localityTransactions?: number | null;
   /** městská čtvrť (ward), pokud byla nalezena podle adresy */
   wardName?: string | null;
+  /** entity_id čtvrti — pro drill na adresní transakce (estate_list) */
+  wardId?: number | null;
   wardAvgPricePerSqm?: number | null;
   wardTransactions?: number | null;
   entityType?: RealizedLevel;
@@ -183,4 +191,32 @@ export interface PriceMapData {
   dateTo: string;
   fetchedAt: number;
   totalTransactions: number;
+}
+
+/**
+ * Adresní transakce z cenové mapy (estate_list) — jednotlivé realizované prodeje
+ * na úrovni čísla popisného. Cena per transakce NENÍ veřejně dostupná
+ * (ČÚZK/Seznam anonymizuje), ale máme přesné GPS, č.p., velikostní kategorii
+ * a datum — ideální pro komparace s konkrétními adresami (na rozdíl od agregátu čtvrti).
+ */
+export interface AddressTransaction {
+  /** Unikátní ID transakce z cenové mapy. */
+  transactionId: number;
+  /** ID adresy (č.p. v RÚIAN) — null, pokud není dostupné. */
+  addressId: number | null;
+  /** Číslo popisné / evidenční („1291", „334"). */
+  housenumber: string | null;
+  /** Přesné GPS transakce. */
+  lat: number | null;
+  lng: number | null;
+  /** Obec („Praha", „Cheb"). */
+  municipality: string | null;
+  /** Čtvrť („Kyje", „Žižkov"). */
+  ward: string | null;
+  /** entity_id čtvrti. */
+  wardId: number | null;
+  /** Velikostní kategorie z titulu („Byt, 66–70 m²") — parsovatelná na rozsah m². */
+  areaCategory: string | null;
+  /** Datum transakce (YYYY-MM-DD). */
+  validationDate: string | null;
 }

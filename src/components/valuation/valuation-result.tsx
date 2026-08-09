@@ -267,7 +267,9 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                   <tbody className="divide-y divide-border/40">
                     {result.comparables.slice(0, 12).map((c, i) => {
                       const ratio =
-                        result.pricePerSqm > 0 ? Math.round((c.pricePerSqm / result.pricePerSqm) * 100) : null;
+                        c.pricePerSqm != null && result.pricePerSqm > 0
+                          ? Math.round((c.pricePerSqm / result.pricePerSqm) * 100)
+                          : null;
                       const outlier = ratio != null && (ratio < 75 || ratio > 130);
                       const rowCls = outlier ? "bg-amber-500/[0.06]" : "";
                       return (
@@ -278,7 +280,9 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                               {c.source === "realized"
                                 ? c.soldAt
                                   ? `prodej · ${new Date(c.soldAt).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
-                                  : "realizované prodeje"
+                                  : c.addressTx
+                                    ? "adresní transakce"
+                                    : "realizované prodeje"
                                 : "nabídka"}
                               {c.distanceKm != null ? ` · ${c.distanceKm.toFixed(1)} km` : ""}
                             </p>
@@ -286,7 +290,7 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                           <td className="py-2 pr-3 text-right text-muted tabular-nums">{c.area ? c.area : "—"}</td>
                           <td className="py-2 pr-3 text-right text-muted tabular-nums">{c.price ? fmtCompact(c.price) : "—"}</td>
                           <td className="py-2 pr-3 text-right font-medium tabular-nums">
-                            {Math.round(c.pricePerSqm).toLocaleString("cs-CZ")}
+                            {c.pricePerSqm != null ? Math.round(c.pricePerSqm).toLocaleString("cs-CZ") : "—"}
                           </td>
                           <td className="py-2 text-right tabular-nums">
                             {ratio != null ? (

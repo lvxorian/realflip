@@ -148,9 +148,11 @@ export async function correctValuation(
     source: c.source,
     area: c.area ?? null,
     price: c.price ?? null,
-    pricePerSqm: Math.round(c.pricePerSqm),
+    // adresní transakce cenové mapy nemají veřejnou cenu → null (model to ví z JSONu)
+    pricePerSqm: c.pricePerSqm != null ? Math.round(c.pricePerSqm) : null,
     distanceKm: c.distanceKm != null ? Math.round(c.distanceKm * 10) / 10 : null,
     condition: c.condition ?? null,
+    addressTx: c.addressTx ?? false,
   }));
 
   const prompt = `Jsi seniorní odhadce nemovitostí. NÍŽE je statistický odhad ceny bytu a seznam srovnatelných nemovitostí (realizované prodeje + nabídky s odstupem od oceňované nemovitosti).
