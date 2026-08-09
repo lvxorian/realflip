@@ -214,24 +214,40 @@ export async function estimateProperty(
       : null;
 
   if (realized && realized.avgPricePerSqm > 0) {
+    // BUG 5 — indexace realizovaných na dnešek (Valuo indexuje historické prodeje).
+    // Průměr okna odpovídá ~středu okna (period „2026-02 – 2026-07"); trend cenové
+    // mapy (ČR) ho dotáhne na dnešek. Při zpětném odhadu (asOfDate) indexaci
+    // vynecháváme — o čas se postará scaleToDate (zdvojení by zkreslilo).
+    // DŮLEŽITÉ: indexace běží na SUROVÉM průměru PŘED capem — cenovka inzerátu je
+    // cena „dnes", takže se musí porovnávat s indexovaným průměrem (střed okna → dnes).
+    // Pořadí cap→indexace by cenovkou-anchorovanou (už dnešní) hodnotu nafouklo
+    // PODRUHÉ (Kyje: cap 1,1×cenovka 127 429 × indexace 1,025 = 130 632 vs. správně
+    // indexovat raw 145 068 → 148 678, pak capnout na 1,05×cenovka = 121 636 → odhad
+    // +7,9 % vs. Valuo místo ≈ +1 %).
+    const timeFactor = input.asOfDate ? 1 : timeIndexFactor(realized.period, realized.trend ?? []);
+    // label/poznámka jen když je indexace materiální (jinak by „indexováno na dnešek"
+    // bylo na každém odhadu — faktor ≠ 1 je prakticky vždy); u cenovkou capnuté
+    // reference se neukazuje — hodnota je ukotvená k dnešní cenovce, ne indexovaná
+    const timeIndexed = Math.abs(timeFactor - 1) > 0.005;
+    const indexedWard = realized.avgPricePerSqm * timeFactor;
+    const indexedRegion = realized.regionAvgPricePerSqm * timeFactor;
+
     // Kotva na cenovku inzerátu: průměr čtvrti/obce/kraje (ČÚZK) nesmí implikovat
     // hodnotu výrazně nad tím, co majitel dnes žádá — asking ≥ realized je tržní norma.
     // Pokud je čtvrťový průměr vysoko nad cenovkou, je zkreslený novostavbami a/nebo
     // malým vzorkem (Kyje: 145 068 Kč/m² z 29 tx vs. cenovka paneláku 115 844 Kč/m²).
-    // Referenční hladinu pak omezíme na 110 % cenovky. Cenovka mimo rozumný rozsah
-    // (překlep, jiný typ) cap nespouští; 0,5× hranice chrání před extrémně nízkou
-    // cenovkou (podíl, nezvyklý typ).
-    // Cap se spouští jen u věrohodné cenovky (≥ 75 % průměru čtvrti) — cenovka výrazně
-    // pod trhem (urgentní prodej, podíl, překlep) je NESPOLEHLIVÝ signál a nesmí stáhnout
-    // realizovanou hladinu dolů. Až od 110 % cenovky — běžné inzeráty žádají 5–15 % nad
-    // trhem, strop 105 % byl přísnější než realita a přeceňoval jednu cenovku.
+    // Referenční hladinu pak omezíme na 105 % cenovky. Cenovka mimo rozumný rozsah
+    // (překlep, jiný typ) cap nespouští; 0,75× hranice chrání před extrémně nízkou
+    // cenovkou (podíl, urgentní prodej, nezvyklý typ).
+    // 110 % (Fáze A) bylo kalibrováno BEZ indexace — s indexací-first je 105 % správná
+    // úroveň (Kyje: ≈ +1 % vs. Valuo, kalibrace Phase 43–45 byla +0,7 % s capem 1,05).
     const askingCap =
-      askingPerSqmBlock != null && askingPerSqmBlock >= realized.avgPricePerSqm * 0.75
-        ? askingPerSqmBlock * 1.1
+      askingPerSqmBlock != null && askingPerSqmBlock >= indexedWard * 0.75
+        ? askingPerSqmBlock * 1.05
         : null;
-    let realizedRef = realized.avgPricePerSqm;
+    let realizedRef = indexedWard;
     let realizedCapped = false;
-    if (askingCap != null && realized.avgPricePerSqm > askingCap) {
+    if (askingCap != null && indexedWard > askingCap) {
       realizedRef = askingCap;
       realizedCapped = true;
     }
@@ -239,8 +255,8 @@ export async function estimateProperty(
     // Čtvrťové/obecní průměry bývají zkreslené novostavbami (developerské prodeje),
     // hlavně v prémiových lokalitách (Žižkov 160k vs. kraj Praha 112k). Pokud je čtvrť
     // výrazně nad regionem, stáhneme ji k regionu (partial pooling) — konzervativnější
-    // a blíž realitě běžného bytového fondu.
-    const regionRatio = realized.avgPricePerSqm / Math.max(1, realized.regionAvgPricePerSqm);
+    // a blíž realitě běžného bytového fondu. (Indexované hladiny — srovnáváme „dnes".)
+    const regionRatio = indexedWard / Math.max(1, indexedRegion);
     const shrinkToRegion =
       (realized.entityType === "ward" || realized.entityType === "municipality") && regionRatio > 1.35;
     realizedAdj = realizedRef * mult;
@@ -248,7 +264,7 @@ export async function estimateProperty(
       // Obě korekce jsou konzervativní — vezmeme nižší referenci, takže cap na cenovku
       // platí i ve chvíli, kdy se čtvrť táhne ke kraji (jinak by shrink surový průměr
       // čtvrti cap obešel).
-      const shrinkRef = 0.75 * realized.avgPricePerSqm + 0.25 * realized.regionAvgPricePerSqm;
+      const shrinkRef = 0.75 * indexedWard + 0.25 * indexedRegion;
       realizedAdj = Math.min(realizedRef, shrinkRef) * mult;
     }
     // Skladba fondu: průměr čtvrti/města zahrnuje novostavby (×1,15) a renovované
@@ -263,15 +279,7 @@ export async function estimateProperty(
     if (mixSkew) {
       realizedAdj *= 0.97;
     }
-    // BUG 5 — indexace realizovaných na dnešek (Valuo indexuje historické prodeje).
-    // Průměr okna odpovídá ~středu okna (period „2026-02 – 2026-07"); trend cenové
-    // mapy (ČR) ho dotáhne na dnešek. Při zpětném odhadu (asOfDate) indexaci
-    // vynecháváme — o čas se postará scaleToDate (zdvojení by zkreslilo).
-    const timeFactor = input.asOfDate ? 1 : timeIndexFactor(realized.period, realized.trend ?? []);
-    realizedAdj *= timeFactor;
-    // label/poznámka jen když je indexace materiální (jinak by „indexováno na dnešek"
-    // bylo na každém odhadu — faktor ≠ 1 je prakticky vždy)
-    const timeIndexed = Math.abs(timeFactor - 1) > 0.005;
+    // (indexace už je obsažená v indexedWard — dál se nenásobí)
     // nejpřesnější dostupná úroveň: čtvrť > obec > okres > kraj
     let levelLabel =
       realized.entityType === "ward"
@@ -287,7 +295,7 @@ export async function estimateProperty(
       realizedCapped ? "omezeno cenovkou" : null,
       shrinkToRegion ? "korigováno" : null,
       mixSkew ? "běžný stav" : null,
-      timeIndexed ? "indexováno na dnešek" : null,
+      timeIndexed && !realizedCapped ? "indexováno na dnešek" : null,
     ].filter(Boolean);
     if (labelSuffix.length > 0) levelLabel += ` (${labelSuffix.join(" · ")})`;
     const levelNote =
@@ -304,7 +312,7 @@ export async function estimateProperty(
       pricePerSqm: Math.round(realizedAdj),
       sampleSize: realized.numTransactions,
       weight: VALUATION_WEIGHTS.realized,
-      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 110 % nabídkové ceny." : ""}${timeIndexed ? ` Indexováno na dnešek dle trendu cenové mapy (×${timeFactor.toFixed(3)}).` : ""}`,
+      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 105 % nabídkové ceny." : ""}${timeIndexed && !realizedCapped ? ` Indexováno na dnešek dle trendu cenové mapy (×${timeFactor.toFixed(3)}).` : ""}`,
     });
     weightedSum += realizedAdj * VALUATION_WEIGHTS.realized;
     weightTotal += VALUATION_WEIGHTS.realized;

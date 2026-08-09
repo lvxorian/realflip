@@ -719,7 +719,7 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
     expect(withAsking.methodology.join(" ")).toContain("Cenovka inzerátu (kotva");
   });
 
-  it("cap: čtvrť nad cenovkou se stáhne na cenovku ×1,10 (Travná/Kyje)", async () => {
+  it("cap: čtvrť nad cenovkou se stáhne na cenovku ×1,05 (Travná/Kyje)", async () => {
     mockedRealized.mockResolvedValue({
       avgPricePerSqm: 145068,
       numTransactions: 29,
@@ -753,10 +753,10 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
     );
 
     const realized = r.sources.find((s) => s.key === "realized")!;
-    // cenovka 115 844 ≥ 0,75×145 068 (věrohodná) → cap 115 844 × 1,10 = 127 428;
-    // × 0,918 (1,08 renovated × 0,85 panel) = 116 979
-    expect(realized.pricePerSqm).toBe(116979);
-    expect(realized.note).toContain("omezena na 110 %");
+    // cenovka 115 844 ≥ 0,75×145 068 (věrohodná) → cap 115 844 × 1,05 = 121 636;
+    // × 0,918 (1,08 renovated × 0,85 panel) = 111 662 (bez trendu = indexace 1)
+    expect(realized.pricePerSqm).toBe(111662);
+    expect(realized.note).toContain("omezena na 105 %");
     // label transparentně říká, že raw průměr (145 068) byl omezen cenovkou
     expect(realized.label).toContain("čtvrť Kyje");
     expect(realized.label).toContain("omezeno cenovkou");
@@ -891,7 +891,7 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
 
   it("cap platí i při shrinkToRegion (interakce shrink × cenovka)", async () => {
     // Žižkov: čtvrť 160 324 > 1,35× kraj 112 430 (shrink by se aktivoval)
-    // cenovka 7 500 000 / 60 m² = 125 000 ≥ 0,75×160 324 (věrohodná) → cap 137 500
+    // cenovka 7 500 000 / 60 m² = 125 000 ≥ 0,75×160 324 (věrohodná) → cap 131 250
     // → nižší než shrink 148 350, takže cap vyhrává i při aktivním shrinku
     mockedRealized.mockResolvedValue({
       avgPricePerSqm: 160324,
@@ -917,9 +917,9 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
     );
 
     const realized = r.sources.find((s) => s.key === "realized")!;
-    // cap: 125 000 × 1,10 = 137 500 × 0,97 (mixSkew) = 133 375 → vyhrává nad shrinkem 148 350
-    expect(realized.pricePerSqm).toBe(133375);
-    expect(realized.note).toContain("omezena na 110 %");
+    // cap: 125 000 × 1,05 = 131 250 × 0,97 (mixSkew) = 127 313 → vyhrává nad shrinkem 148 350
+    expect(realized.pricePerSqm).toBe(127313);
+    expect(realized.note).toContain("omezena na 105 %");
   });
 });
 
@@ -1445,6 +1445,55 @@ describe("estimateProperty — BUG 5: indexace realizovaných na dnešek", () =>
 
     const realized = r.sources.find((s) => s.key === "realized")!;
     expect(realized.pricePerSqm).toBe(100000);
+    expect(realized.label).not.toContain("indexováno");
+  });
+
+  it("indexace NEzdvojuje capnutou hodnotu (index-first pořadí)", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 145068,
+      numTransactions: 29,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 149906,
+      regionTransactions: 12672,
+      wardName: "Kyje",
+      wardAvgPricePerSqm: 145068,
+      wardTransactions: 29,
+      localityName: null,
+      districtName: null,
+      entityType: "ward",
+      period: "2026-02 – 2026-07",
+      totalTransactions: 50469,
+      trend: [
+        { monthYear: "2026/02", price: 100000 },
+        { monthYear: "2026/03", price: 101000 },
+        { monthYear: "2026/05", price: 103000 },
+        { monthYear: "2026/07", price: 105000 },
+      ],
+    });
+    mockedRange.mockResolvedValue(rangeResult(126746));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      {
+        cityKey: "praha",
+        address: "Travná, Praha - Kyje",
+        type: "flat",
+        area: 77,
+        condition: "renovated",
+        buildingType: "panel",
+        askingPrice: 8_920_000,
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    // mocked trend (02:100k, 03:101k, 05:103k, 07:105k) → timeIndexFactor = 1.02925;
+    // indexovaná čtvrť 145 068 × 1,02925 = 149 311 → cap 115 844 × 1,05 = 121 636;
+    // × 0,918 = 111 662. Kdyby indexace jela ZA capem (bug), bylo by
+    // 121 636 × 0,918 × 1,02925 = 114 928 — čtvrť by se nafoukla podruhé.
+    expect(realized.pricePerSqm).toBe(111662);
+    expect(realized.label).toContain("omezeno cenovkou");
+    // capnutá hodnota je ukotvená k dnešní cenovce → žádné „indexováno"
     expect(realized.label).not.toContain("indexováno");
   });
 
