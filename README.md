@@ -8,7 +8,7 @@ Inteligentní SaaS platforma pro realitní investory (flipaře). Automatický sc
 - **Backend:** Next.js API Routes + Server Actions
 - **Database:** PostgreSQL (Neon) + Drizzle ORM
 - **Auth:** NextAuth v5 (credentials + Google OAuth)
-- **AI:** Google Gemini (`gemini-flash-latest` via `GEMINI_API_KEY`) — analýza inzerátů, extrakce z posudků, AI dohled nad lokalitními daty
+- **AI:** Google Gemini (`gemini-flash-latest` via `GEMINI_API_KEY`) — analýza inzerátů, extrakce z posudků, AI dohled nad lokalitními daty, AI korekce Odhadu
 - **Maps:** Leaflet + OpenStreetMap
 - **UI:** Custom design system (dark theme, emerald accent, glassmorphism)
 
@@ -27,7 +27,7 @@ src/
 ├── db/                     # Databázová vrstva
 │   └── schema/             # Drizzle ORM schema
 ├── lib/
-│   ├── ai/                 # OpenAI integrace
+│   ├── ai/                 # Gemini integrace
 │   ├── scraping/           # Scraping engine + adaptéry
 │   ├── analysis/           # Flip kalkulátor, AVM
 │   ├── queue/              # BullMQ queue
@@ -45,7 +45,7 @@ npm install
 
 # 2. Nastavte env proměnné (zkopírujte .env.example)
 cp .env.example .env.local
-# Upravte DATABASE_URL, AUTH_SECRET, OPENAI_API_KEY
+# Upravte DATABASE_URL, AUTH_SECRET, GEMINI_API_KEY
 
 # 3. Vygenerujte DB migraci a push
 npm run db:generate
@@ -73,7 +73,7 @@ npm run dev
   - `DATABASE_URL`
   - `AUTH_SECRET` (vygenerujte: `openssl rand -base64 32`)
   - `AUTH_URL` (URL vaší Vercel domény)
-  - `OPENAI_API_KEY` (volitelné – pro AI analýzu)
+  - `GEMINI_API_KEY` (volitelné – pro AI analýzu a Odhad)
   - `NEXT_PUBLIC_APP_URL`
 
 ### 3. Cron job (volitelný scraping)
@@ -98,6 +98,7 @@ V `vercel.json` je definován cron job každých 6 hodin. Pro aktivaci:
 | `/call-mode` | Fullscreen call mód |
 | `/contacts` | CRM kontakty |
 | `/portfolio` | Aktivní projekty |
+| `/odhad` | Odhad tržní hodnoty bytu (jako Valuo) — realizované prodeje, nabídky, komparace, PDF |
 | `/market` | Tržní analýzy |
 | `/alerts` | Alerty a notifikace |
 | `/settings` | Nastavení |
@@ -116,6 +117,8 @@ V `vercel.json` je definován cron job každých 6 hodin. Pro aktivaci:
 | `/api/locality/[cityKey]` | GET | Lokalitní skóre + socio-ekonomická data |
 | `/api/locality/refresh` | POST | Obnova lokalitních dat (ČSÚ, PČR, sreality) |
 | `/api/market/price-index` | GET | Cenový index RealFlip |
+| `/api/valuation` | POST | Odhad tržní hodnoty bytu (URL → pole → ocenění) |
+| `/api/geocode/suggest` | GET | Autocomplete adresy s GPS (Nominatim) |
 | `/api/geocode` | POST | Geokódování adresy (OSM Nominatim) + uložení GPS |
 
 ## Lokalitní inteligence
