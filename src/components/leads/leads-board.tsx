@@ -17,8 +17,8 @@ import {
   type DragOverEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { WarningCircle, Kanban, TrendUp, Clock } from "@phosphor-icons/react";
-import { LEAD_STAGES, LEAD_STAGE_KEYS, resolveDropTarget, leadExpectedValue, leadExpectedProfit, timeInStageDays } from "@/lib/leads";
+import { WarningCircle, Kanban, Clock } from "@phosphor-icons/react";
+import { LEAD_STAGES, LEAD_STAGE_KEYS, resolveDropTarget, timeInStageDays } from "@/lib/leads";
 import { moveLeadToStage, reorderLeadInStage } from "@/lib/pipeline-board";
 import { formatCompactPrice, cn } from "@/lib/utils";
 import { currentTime } from "@/lib/clock";
@@ -210,17 +210,6 @@ export function LeadsBoard() {
   }, [filtered]);
 
   const maxCount = Math.max(...LEAD_STAGES.map((s) => byStage.get(s.key)?.length ?? 0), 1);
-
-  const totals = useMemo(() => {
-    if (!leads) return { count: 0, expectedValue: 0, expectedProfit: 0 };
-    let expectedValue = 0;
-    let expectedProfit = 0;
-    for (const l of leads) {
-      expectedValue += leadExpectedValue(l);
-      expectedProfit += leadExpectedProfit(l);
-    }
-    return { count: leads.length, expectedValue, expectedProfit };
-  }, [leads]);
 
   const onLeadUpdated = useCallback((updated: LeadItem) => {
     setLeads((prev) => (prev ? prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)) : prev));
@@ -486,7 +475,6 @@ export function LeadsBoard() {
           {LEAD_STAGES.map((stage) => {
             const items = byStage.get(stage.key) ?? [];
             const sum = items.reduce((acc, l) => acc + (l.propertyPrice ?? 0), 0);
-            const expected = items.reduce((acc, l) => acc + leadExpectedValue(l), 0);
             const pct = items.length > 0 ? Math.round((items.length / maxCount) * 100) : 0;
 
             const now = currentTime();
@@ -517,20 +505,8 @@ export function LeadsBoard() {
                 <div className="h-1 rounded-full bg-border/15 mb-3 overflow-hidden">
                   <div className={`h-full rounded-full ${stage.dot} transition-all duration-300`} style={{ width: `${pct}%` }} />
                 </div>
-                <div className="mb-2 px-1 text-[10px] font-mono text-muted/60 @max-[240px]:hidden flex items-center justify-between gap-1">
-                  {sum > 0 ? (
-                    <span>{formatCompactPrice(sum)} celkem</span>
-                  ) : (
-                    <span>{"\u00A0"}</span>
-                  )}
-                  {expected > 0 && (
-                    <span
-                      className="text-emerald-400/80"
-                      title={`Očekávaná hodnota (${Math.round(stage.probability * 100)} % pravděpodobnost fáze)`}
-                    >
-                      ≈{formatCompactPrice(expected)}
-                    </span>
-                  )}
+                <div className="mb-2 px-1 text-[10px] font-mono text-muted/60 @max-[240px]:hidden">
+                  {sum > 0 && <span>{formatCompactPrice(sum)} celkem</span>}
                 </div>
                 {(avgDays != null || overdueCount > 0) && (
                   <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 @max-[240px]:hidden">
@@ -589,23 +565,6 @@ export function LeadsBoard() {
           )}
         </DragOverlay>
       </DndContext>
-
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-2xl border border-border/50 bg-card px-4 py-2.5 text-[11px] text-muted">
-        <span className="flex items-center gap-1.5 font-medium text-foreground">
-          <TrendUp size={13} className="text-accent" />
-          Weighted forecast
-        </span>
-        <span>
-          {totals.count} leadů · očekávaná hodnota{" "}
-          <span className="font-mono text-emerald-400">{formatCompactPrice(totals.expectedValue)}</span>
-        </span>
-        <span>
-          očekávaný zisk <span className="font-mono text-accent">{formatCompactPrice(totals.expectedProfit)}</span>
-        </span>
-        <span className="text-muted/50">
-          cena × pravděpodobnost fáze ({LEAD_STAGES.map((s) => `${s.label} ${Math.round(s.probability * 100)} %`).join(" · ")})
-        </span>
-      </div>
 
       <LeadDrawer
         lead={selectedLead}

@@ -2,12 +2,12 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Star, MapPin, Phone, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle } from "@phosphor-icons/react";
+import { Star, MapPin, Phone, Envelope, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
-import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel } from "@/lib/utils";
+import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel, buildingTypeLabel } from "@/lib/utils";
 import { timeInStageDays } from "@/lib/leads";
 import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,7 @@ export function LeadCardView({
       )}
 
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <h3 className="text-xs font-medium leading-snug line-clamp-2 @max-[240px]:line-clamp-1 text-foreground group-hover:text-accent transition-colors">
+        <h3 className="text-xs font-medium leading-snug break-words text-foreground group-hover:text-accent transition-colors">
           {lead.propertyTitle ?? "Neznámá nemovitost"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
@@ -128,7 +128,8 @@ export function LeadCardView({
       </div>
 
       {(lead.stage === "meeting" && lead.stageData?.meeting?.date) ||
-      (lead.stage === "offer" && lead.stageData?.offer?.amount) ? (
+      (lead.stage === "offer" && lead.stageData?.offer?.amount) ||
+      (lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount) ? (
         <div className="flex flex-wrap items-center gap-1 mb-1.5 @max-[240px]:hidden">
           {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
             <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
@@ -140,6 +141,11 @@ export function LeadCardView({
           {lead.stage === "offer" && lead.stageData?.offer?.amount != null && (
             <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono text-amber-400">
               💰 {formatPrice(lead.stageData.offer.amount)}
+            </span>
+          )}
+          {lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount != null && (
+            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono text-emerald-400">
+              🤝 {formatPrice(lead.stageData.negotiation.currentAmount)}
             </span>
           )}
         </div>
@@ -164,11 +170,22 @@ export function LeadCardView({
           </span>
         )}
         {lead.nextStep && !compact && (
-          <span className="inline-flex items-center gap-1 rounded bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent max-w-[160px]">
+          <span className="inline-flex items-center gap-1 rounded bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent max-w-[200px]">
             <span className="truncate" title={lead.nextStep}>→ {lead.nextStep}</span>
+            {lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && (
+              <span className="shrink-0 text-accent/70">
+                (do {new Date(lead.nextStepDueAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" })})
+              </span>
+            )}
           </span>
         )}
       </div>
+
+      {!compact && lead.notes && (
+        <p className="mb-1.5 text-[10px] leading-relaxed text-muted/70 italic line-clamp-2 @max-[240px]:hidden" title={lead.notes}>
+          {lead.notes}
+        </p>
+      )}
 
       {lead.propertyRemoved && !compact && (
         <RemovedListingBadge
@@ -186,6 +203,27 @@ export function LeadCardView({
         )}
       </div>
 
+      {!compact && (lead.analysisTargetPurchasePrice != null || lead.analysisArv != null) && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-2 @max-[240px]:hidden">
+          {lead.analysisTargetPurchasePrice != null && lead.analysisTargetPurchasePrice > 0 && (
+            <span
+              className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted"
+              title="Cílová nákupní cena z analýzy"
+            >
+              Cíl: {formatCompactPrice(lead.analysisTargetPurchasePrice)}
+            </span>
+          )}
+          {lead.analysisArv != null && lead.analysisArv > 0 && (
+            <span
+              className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted"
+              title="Odhadnutá hodnota po rekonstrukci (ARV)"
+            >
+              ARV: {formatCompactPrice(lead.analysisArv)}
+            </span>
+          )}
+        </div>
+      )}
+
       {!compact && (
         <div className="flex flex-wrap items-center gap-1 mb-2 @max-[240px]:hidden">
           {lead.propertyArea != null && (
@@ -196,6 +234,11 @@ export function LeadCardView({
           )}
           {lead.propertyCondition && (
             <Badge variant="outline" size="sm">{conditionLabel(lead.propertyCondition)}</Badge>
+          )}
+          {lead.propertyBuildingType && (
+            <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">
+              {buildingTypeLabel(lead.propertyBuildingType)}
+            </span>
           )}
         </div>
       )}
@@ -214,6 +257,16 @@ export function LeadCardView({
               className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
             >
               <Phone size={12} weight="bold" />
+            </a>
+          )}
+          {lead.contactEmail && (
+            <a
+              href={`mailto:${lead.contactEmail}`}
+              onClick={(e) => e.stopPropagation()}
+              title={lead.contactEmail}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
+            >
+              <Envelope size={12} weight="bold" />
             </a>
           )}
         </div>
