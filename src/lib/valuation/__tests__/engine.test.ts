@@ -6,6 +6,7 @@ import {
   transportMultiplier,
   scaleToDate,
   parseAreaCategory,
+  timeIndexFactor,
 } from "../engine";
 import {
   ownershipMultiplier,
@@ -1357,3 +1358,189 @@ describe("estimateProperty — nebytové typy (Fáze A)", () => {
   });
 });
 
+describe("timeIndexFactor (BUG 5)", () => {
+  const trend = [
+    { monthYear: "2026/02", price: 100000 },
+    { monthYear: "2026/03", price: 101000 },
+    { monthYear: "2026/05", price: 103000 },
+    { monthYear: "2026/07", price: 105000 },
+  ];
+
+  it("faktor = nejnovější bod / bod ve středu okna (interpolace dle skutečných dnů)", () => {
+    // okno 2026-02 – 2026-07 → střed 2026-04 → interpolace 101k↔103k mezi 1.3. a 1.5.
+    // (poměr 31/61 dne) = 102 016.39; nejnovější = 2026/07 = 105 000 → 1.0292463
+    expect(timeIndexFactor("2026-02 – 2026-07", trend)).toBeCloseTo(105000 / 102016.39344262295, 4);
+  });
+
+  it("bez trendu / nevalidní okno / kratší trend → 1", () => {
+    expect(timeIndexFactor(null, trend)).toBe(1);
+    expect(timeIndexFactor(undefined, trend)).toBe(1);
+    expect(timeIndexFactor("2026-02 – 2026-07", [])).toBe(1);
+    expect(timeIndexFactor("2026-02 – 2026-07", trend.slice(0, 1))).toBe(1);
+    expect(timeIndexFactor("špatně zapsané okno", trend)).toBe(1);
+    expect(timeIndexFactor("2026-13 – 2026-07", trend)).toBe(1);
+  });
+
+  it("faktor mimo ±10 % → 1 (národní trend nesmí otočit cenu čtvrti o víc)", () => {
+    const jump = [
+      { monthYear: "2026/02", price: 100000 },
+      { monthYear: "2026/07", price: 130000 },
+    ];
+    // střed 2026-04 → interpolace 100k↔130k = 112 000; 130000/112000 = 1.16 > 1.1 → 1
+    expect(timeIndexFactor("2026-02 – 2026-07", jump)).toBe(1);
+  });
+});
+
+describe("estimateProperty — BUG 5: indexace realizovaných na dnešek", () => {
+  const realizedMunicipality = {
+    avgPricePerSqm: 100000,
+    numTransactions: 3000,
+    regionName: "Jihomoravský kraj",
+    regionAvgPricePerSqm: 95000,
+    regionTransactions: 12000,
+    districtName: "Brno-město",
+    districtAvgPricePerSqm: 98000,
+    districtTransactions: 5000,
+    localityName: "Brno",
+    localityAvgPricePerSqm: 100000,
+    localityTransactions: 3000,
+    entityType: "municipality",
+    period: "2026-02 – 2026-07",
+    totalTransactions: 50469,
+    trend: [
+      { monthYear: "2026/02", price: 100000 },
+      { monthYear: "2026/03", price: 101000 },
+      { monthYear: "2026/05", price: 103000 },
+      { monthYear: "2026/07", price: 105000 },
+    ],
+  };
+
+  it("realizované se vynásobí faktorem trendu a label řekne 'indexováno'", async () => {
+    mockedRealized.mockResolvedValue(realizedMunicipality);
+    mockedRange.mockResolvedValue(rangeResult(105000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "brno", address: "Běhounská, Brno", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    // 100 000 × 1.0292463 = 102 925 (bez indexace by bylo 100 000)
+    expect(realized.pricePerSqm).toBe(102925);
+    expect(realized.label).toContain("indexováno na dnešek");
+    expect(realized.note).toContain("Indexováno na dnešek");
+  });
+
+  it("bez trendu v realized → beze změny (faktor 1)", async () => {
+    const { trend: _drop, ...noTrend } = realizedMunicipality;
+    mockedRealized.mockResolvedValue(noTrend);
+    mockedRange.mockResolvedValue(rangeResult(105000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "brno", address: "Běhounská, Brno", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    expect(realized.pricePerSqm).toBe(100000);
+    expect(realized.label).not.toContain("indexováno");
+  });
+
+  it("zpětný odhad (asOfDate): indexace se vynechá — o čas se stará scaleToDate", async () => {
+    mockedRealized.mockResolvedValue(realizedMunicipality);
+    mockedRange.mockResolvedValue(rangeResult(105000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "brno", address: "Běhounská, Brno", type: "flat", area: 60, asOfDate: "2026-05" },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    expect(realized.pricePerSqm).toBe(100000);
+    expect(realized.label).not.toContain("indexováno");
+  });
+});
+
+describe("estimateProperty — BUG 7: clamp multiplikátorů", () => {
+  it("luxury × novostavba × balkón × zahrada × sklep × premium se clampne na 1.6×", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 100000,
+      numTransactions: 3000,
+      regionName: "Jihomoravský kraj",
+      regionAvgPricePerSqm: 95000,
+      regionTransactions: 12000,
+      districtName: "Brno-město",
+      districtAvgPricePerSqm: 98000,
+      districtTransactions: 5000,
+      localityName: "Brno",
+      localityAvgPricePerSqm: 100000,
+      localityTransactions: 3000,
+      entityType: "municipality",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(105000));
+    mockedComps.mockResolvedValue([]);
+
+    // baseMult: luxury 1.25 × rok 2020 (1.08) × balkón 30 m² (1.1) × zahrada 40 m² (1.2)
+    // × sklep (1.01) ≈ 1.80; s premium (1.2) = ~2.16 → clamp na 1.6
+    const r = await estimateProperty(
+      {
+        cityKey: "brno",
+        address: "Veveří, Brno",
+        type: "flat",
+        area: 60,
+        condition: "luxury",
+        buildingType: "brick",
+        yearBuilt: 2020,
+        balconyArea: 30,
+        gardenArea: 40,
+        cellarArea: 5,
+        category: "premium",
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    expect(realized.pricePerSqm).toBe(160000); // 100 000 × 1.6
+    expect(r.methodology.join(" ")).toContain("celkem 1.60×");
+  });
+
+  it("kombinace pod 0.5× (panel × neobyvatelný × družstevní × přízemí × starý rok) se clampne na 0.5×", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 100000,
+      numTransactions: 3000,
+      regionName: "Jihomoravský kraj",
+      regionAvgPricePerSqm: 95000,
+      regionTransactions: 12000,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    mockedRange.mockResolvedValue(rangeResult(105000));
+    mockedComps.mockResolvedValue([]);
+
+    // panel 0.85 × neobyvatelný 0.7 × družstevní 0.86 × přízemí 0.93 × rok 1930 (0.96)
+    // = 0.4569 → clamp na 0.5
+    const r = await estimateProperty(
+      {
+        cityKey: "brno",
+        type: "flat",
+        area: 60,
+        condition: "dilapidated",
+        buildingType: "panel",
+        ownership: "cooperative",
+        floor: 0,
+        yearBuilt: 1930,
+      },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const realized = r.sources.find((s) => s.key === "realized")!;
+    expect(realized.pricePerSqm).toBe(50000); // 100 000 × 0.5 (clamp)
+    expect(r.methodology.join(" ")).toContain("celkem 0.50×");
+  });
+});

@@ -193,7 +193,13 @@ export async function estimateProperty(
   // Finální mult: category započítaná jen když realized NENÍ na úrovni čtvrti
   // (ward průměr už lokalitu obsahuje — dvojí započtení by nafouklo prémiové
   // a podcenilo rizikové čtvrti oproti Valuo).
-  const mult = baseMult * (realized?.entityType === "ward" ? 1 : categoryMultiplier(category ?? null));
+  // BUG 7 — kombinované multiplikátory se clampnou na [0.5, 1.6]: luxury (1.25) ×
+  // novostavba (1.08) × balkón (1.1) × zahrada (1.2) × sklep (1.03) = ~1.84 a s
+  // prémiovou lokalitou až 2.2× — hedonic model Valuo je aditivní v log prostoru
+  // a takové násobky nevyrábí.
+  const rawMult = baseMult * (realized?.entityType === "ward" ? 1 : categoryMultiplier(category ?? null));
+  const multClamped = rawMult < 0.5 || rawMult > 1.6;
+  const mult = Math.min(1.6, Math.max(0.5, rawMult));
 
   // ---------- 2) Složky ----------
   const sources: SourceInfo[] = [];
@@ -257,6 +263,15 @@ export async function estimateProperty(
     if (mixSkew) {
       realizedAdj *= 0.97;
     }
+    // BUG 5 — indexace realizovaných na dnešek (Valuo indexuje historické prodeje).
+    // Průměr okna odpovídá ~středu okna (period „2026-02 – 2026-07"); trend cenové
+    // mapy (ČR) ho dotáhne na dnešek. Při zpětném odhadu (asOfDate) indexaci
+    // vynecháváme — o čas se postará scaleToDate (zdvojení by zkreslilo).
+    const timeFactor = input.asOfDate ? 1 : timeIndexFactor(realized.period, realized.trend ?? []);
+    realizedAdj *= timeFactor;
+    // label/poznámka jen když je indexace materiální (jinak by „indexováno na dnešek"
+    // bylo na každém odhadu — faktor ≠ 1 je prakticky vždy)
+    const timeIndexed = Math.abs(timeFactor - 1) > 0.005;
     // nejpřesnější dostupná úroveň: čtvrť > obec > okres > kraj
     let levelLabel =
       realized.entityType === "ward"
@@ -272,6 +287,7 @@ export async function estimateProperty(
       realizedCapped ? "omezeno cenovkou" : null,
       shrinkToRegion ? "korigováno" : null,
       mixSkew ? "běžný stav" : null,
+      timeIndexed ? "indexováno na dnešek" : null,
     ].filter(Boolean);
     if (labelSuffix.length > 0) levelLabel += ` (${labelSuffix.join(" · ")})`;
     const levelNote =
@@ -288,7 +304,7 @@ export async function estimateProperty(
       pricePerSqm: Math.round(realizedAdj),
       sampleSize: realized.numTransactions,
       weight: VALUATION_WEIGHTS.realized,
-      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 110 % nabídkové ceny." : ""}`,
+      note: `${levelNote} Upraveno multiplikátory stav/typ.${shrinkToRegion ? " Čtvrťový průměr je nad krajským o více než 35 % — korigováno směrem ke krajské hladině (novostavby)." : ""}${mixSkew ? " Srážka za běžný stav — průměr čtvrti/města tlačí nahoru novostavby a renovované." : ""}${realizedCapped ? " Referenční hladina byla nad cenovkou inzerátu (zkreslení novostavbami/malým vzorkem) — omezena na 110 % nabídkové ceny." : ""}${timeIndexed ? ` Indexováno na dnešek dle trendu cenové mapy (×${timeFactor.toFixed(3)}).` : ""}`,
     });
     weightedSum += realizedAdj * VALUATION_WEIGHTS.realized;
     weightTotal += VALUATION_WEIGHTS.realized;
@@ -596,7 +612,7 @@ export async function estimateProperty(
   if (input.gardenArea && input.gardenArea > 0) multParts.push(`zahrada ${gardenMultiplier(input.gardenArea).toFixed(2)}×`);
   if (input.cellarArea && input.cellarArea > 0) multParts.push(`sklep ${cellarMultiplier(input.cellarArea).toFixed(2)}×`);
   methodology.push(
-    `Úprava plochy ${areaFactor.toFixed(2)}× (menší jednotky = vyšší Kč/m²); multiplikátory: ${multParts.length ? multParts.join(", ") : "žádné"} (celkem ${mult.toFixed(2)}×).`
+    `Úprava plochy ${areaFactor.toFixed(2)}× (menší jednotky = vyšší Kč/m²); multiplikátory: ${multParts.length ? multParts.join(", ") : "žádné"} (celkem ${mult.toFixed(2)}×${multClamped ? " · omezeno clampem 0,5–1,6" : ""}).`
   );
   if (askingPerSqmBlock != null) {
     methodology.push(
@@ -696,7 +712,51 @@ function trendPriceAt(trend: { monthYear: string; price: number }[], asOf: strin
   return null;
 }
 
-
+/**
+ * Indexační faktor realizovaných cen na dnešek (BUG 5).
+ * Průměr za okno (period „2026-02 – 2026-07") odpovídá ~středu okna; trend cenové
+ * mapy (ČR, měsíční body) vrátí poměr nejnovější bod / bod ve středu okna.
+ * Strop ±10 % (národní trend nesmí otočit cenu čtvrti o víc); bez trendu,
+ * nevalidního okna nebo interpolace mimo rozsah = 1 (beze změny).
+ */
+export function timeIndexFactor(
+  period: string | null | undefined,
+  trend: { monthYear: string; price: number }[]
+): number {
+  if (!period || !Array.isArray(trend) || trend.length < 2) return 1;
+  const m = period.match(/^(\d{4})-(\d{2})\s*–\s*(\d{4})-(\d{2})$/);
+  if (!m) return 1;
+  const y1 = Number(m[1]);
+  const mo1 = Number(m[2]);
+  const y2 = Number(m[3]);
+  const mo2 = Number(m[4]);
+  if (y1 <= 0 || mo1 < 1 || mo1 > 12 || y2 < y1 || mo2 < 1 || mo2 > 12) return 1;
+  // střed okna v měsících (floor — mírně konzervativnější než round)
+  const start = y1 * 12 + (mo1 - 1);
+  const end = y2 * 12 + (mo2 - 1);
+  if (end < start) return 1;
+  const mid = Math.floor((start + end) / 2);
+  const midKey = `${Math.floor(mid / 12)}-${String((mid % 12) + 1).padStart(2, "0")}`;
+  const atMid = trendPriceAt(trend, midKey);
+  // „dnes" = nejnovější bod trendu (nezávisle na pořadí pole)
+  let latest: number | null = null;
+  let latestTs = -1;
+  for (const t of trend) {
+    const tm = t.monthYear.match(/^(\d{4})\/(\d{2})$|^(\d{2})\/(\d{4})$/);
+    if (!tm || typeof t.price !== "number" || t.price <= 0) continue;
+    const ty = tm[1] ? Number(tm[1]) : Number(tm[4]);
+    const tmo = tm[2] ? Number(tm[2]) : Number(tm[3]);
+    const ts = Date.UTC(ty, tmo - 1, 1);
+    if (ts > latestTs) {
+      latestTs = ts;
+      latest = t.price;
+    }
+  }
+  if (atMid == null || latest == null || latest <= 0 || atMid <= 0) return 1;
+  const f = latest / atMid;
+  if (f <= 0.9 || f >= 1.1) return 1;
+  return f;
+}
 
 /**
  * Zpětný odhad „k datu" — přepočte odhad na cenu v minulém měsíci podle trendu

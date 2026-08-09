@@ -182,6 +182,8 @@ export interface RealizedLocality {
   entityType?: RealizedLevel;
   period: string;
   totalTransactions: number;
+  /** Měsíční trend cen (ČR, cenová mapa) — pro indexaci realizovaných na dnešek (BUG 5). */
+  trend?: TrendPoint[];
 }
 
 export interface PriceMapData {

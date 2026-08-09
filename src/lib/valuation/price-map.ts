@@ -558,6 +558,8 @@ export async function getRealizedLocalityForCity(
     entityType: "region",
     period,
     totalTransactions: data.totalTransactions,
+    // měsíční trend (ČR) — engine ho použije pro indexaci realizovaných na dnešek
+    trend: data.trend,
   };
 
   if (!region.entityId) return base;
