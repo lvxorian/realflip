@@ -3,7 +3,7 @@ export { userPreferences, subscriptions } from "./profiles";
 export { properties, priceHistory, realizedSales } from "./properties";
 export { favorites } from "./favorites";
 export { propertyAnalysis } from "./analysis";
-export { leads, contacts, callQueue, callLogs } from "./leads";
+export { leads, contacts, callQueue, callLogs, leadEvents } from "./leads";
 export { deals, dealExpenses } from "./deals";
 export { investors } from "./investors";
 export { investorOfferEmails } from "./investor-offer-emails";

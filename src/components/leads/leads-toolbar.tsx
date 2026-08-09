@@ -1,12 +1,13 @@
 "use client";
 
-import { MagnifyingGlass, FadersHorizontal, X, ArrowUp, ArrowDown } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
+import { MagnifyingGlass, X, ArrowUp, ArrowDown } from "@phosphor-icons/react";
+import { cn, CONDITION_LABELS } from "@/lib/utils";
 import { LEAD_STAGES } from "@/lib/leads";
 import type { LeadItem } from "./types";
 
 export interface LeadFilterState {
   query: string;
+  stage: string;
   portal: string;
   condition: string;
   priority: string;
@@ -15,6 +16,7 @@ export interface LeadFilterState {
 
 export const INITIAL_LEAD_FILTERS: LeadFilterState = {
   query: "",
+  stage: "",
   portal: "",
   condition: "",
   priority: "",
@@ -27,8 +29,6 @@ const SORT_OPTIONS = [
   { key: "price-asc", label: "Cena vzestupně" },
   { key: "score-desc", label: "Skóre sestupně" },
 ];
-
-const CONDITION_OPTIONS = ["good", "very_good", "renovated", "before_renovation", "new", "project"];
 
 function Select({
   value,
@@ -69,7 +69,13 @@ export function LeadsToolbar({
   onChange: (filters: LeadFilterState) => void;
 }) {
   const portals = Array.from(new Set(leads.map((l) => l.propertyPortalName).filter(Boolean))).sort() as string[];
-  const hasActive = filters.query !== "" || filters.portal !== "" || filters.condition !== "" || filters.priority !== "" || filters.sort !== "activity";
+  const hasActive =
+    filters.query !== "" ||
+    filters.stage !== "" ||
+    filters.portal !== "" ||
+    filters.condition !== "" ||
+    filters.priority !== "" ||
+    filters.sort !== "activity";
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-3 flex flex-col gap-2.5">
@@ -92,6 +98,13 @@ export function LeadsToolbar({
           )}
         </div>
 
+        <Select value={filters.stage} onChange={(v) => onChange({ ...filters, stage: v })}>
+          <option value="">Fáze: vše</option>
+          {LEAD_STAGES.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </Select>
+
         <Select value={filters.portal} onChange={(v) => onChange({ ...filters, portal: v })}>
           <option value="">Všechny portály</option>
           {portals.map((p) => (
@@ -101,8 +114,8 @@ export function LeadsToolbar({
 
         <Select value={filters.condition} onChange={(v) => onChange({ ...filters, condition: v })}>
           <option value="">Stav: vše</option>
-          {CONDITION_OPTIONS.map((c) => (
-            <option key={c} value={c}>{c}</option>
+          {Object.entries(CONDITION_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
           ))}
         </Select>
 
@@ -126,7 +139,6 @@ export function LeadsToolbar({
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-[10px] text-muted/60">
-          <FadersHorizontal size={11} className="text-muted/40" />
           <span>
             {LEAD_STAGES.length} fází · {leads.length} leadů
           </span>

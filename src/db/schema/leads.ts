@@ -20,8 +20,23 @@ export const leads = sqliteTable("leads", {
   portalVisible: integer("portal_visible").default(1),
   portalStatus: text("portal_status").default("available"),
   portalReservedInvestorId: text("portal_reserved_investor_id").references(() => investors.id, { onDelete: "set null" }),
+  position: integer("position").default(0),
+  stageEnteredAt: integer("stage_entered_at"),
+  lostReason: text("lost_reason"),
+  nextStep: text("next_step"),
+  nextStepDueAt: integer("next_step_due_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
+});
+
+export const leadEvents = sqliteTable("lead_events", {
+  id: text("id").primaryKey(),
+  leadId: text("lead_id")
+    .notNull()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  payload: text("payload").default("{}"),
+  createdAt: integer("created_at").notNull(),
 });
 
 export const contacts = sqliteTable("contacts", {

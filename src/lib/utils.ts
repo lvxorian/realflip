@@ -124,7 +124,7 @@ export function recommendationColor(score: number): string {
   return "text-red-400";
 }
 
-const CONDITION_LABELS: Record<string, string> = {
+export const CONDITION_LABELS: Record<string, string> = {
   new: "Novostavba",
   renovated: "Po rekonstrukci",
   good: "Průměrný",

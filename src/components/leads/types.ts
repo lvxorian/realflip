@@ -17,11 +17,17 @@ export interface StageData {
 
 export interface LeadItem {
   id: string;
+  dealId: string | null;
   stage: string;
   priority: number | null;
   notes: string | null;
   assignedTo: string | null;
   stageData: StageData | null;
+  position: number | null;
+  stageEnteredAt: number | null;
+  lostReason: string | null;
+  nextStep: string | null;
+  nextStepDueAt: number | null;
   createdAt: number | null;
   updatedAt: number | null;
   propertyId: string | null;

@@ -20,8 +20,23 @@ export const leads = pgTable("leads", {
   portalVisible: integer("portal_visible").default(1),
   portalStatus: text("portal_status").default("available"),
   portalReservedInvestorId: text("portal_reserved_investor_id").references(() => investors.id, { onDelete: "set null" }),
+  position: integer("position").default(0),
+  stageEnteredAt: bigint("stage_entered_at", { mode: "number" }),
+  lostReason: text("lost_reason"),
+  nextStep: text("next_step"),
+  nextStepDueAt: bigint("next_step_due_at", { mode: "number" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+});
+
+export const leadEvents = pgTable("lead_events", {
+  id: text("id").primaryKey(),
+  leadId: text("lead_id")
+    .notNull()
+    .references(() => leads.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  payload: jsonb("payload").default({}),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
 });
 
 export const contacts = pgTable("contacts", {

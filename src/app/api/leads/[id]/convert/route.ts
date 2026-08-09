@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { leads, deals } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
+import { logLeadEvent } from "@/lib/lead-events";
 
 export async function POST(
   req: Request,
@@ -59,6 +60,10 @@ export async function POST(
       createdAt: now,
       updatedAt: now,
     });
+
+    await logLeadEvent(leadId, "converted", { dealId, purchasePrice: body.purchasePrice ?? 0 }).catch((err) =>
+      console.error("[lead-events] converted selhal:", err)
+    );
 
     return NextResponse.json({ dealId });
   } catch {

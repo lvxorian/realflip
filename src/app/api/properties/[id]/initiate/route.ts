@@ -94,6 +94,7 @@ export async function POST(
       contactId,
       stage: "new",
       priority: 0,
+      stageEnteredAt: now,
       createdAt: now,
       updatedAt: now,
     });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { leads, contacts, properties, propertyAnalysis } from "@/db/schema";
+import { leads, contacts, properties, propertyAnalysis, deals } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { safeJsonParse } from "@/lib/utils";
@@ -20,6 +20,11 @@ export async function GET() {
         notes: leads.notes,
         assignedTo: leads.assignedTo,
         stageData: leads.stageData,
+        position: leads.position,
+        stageEnteredAt: leads.stageEnteredAt,
+        lostReason: leads.lostReason,
+        nextStep: leads.nextStep,
+        nextStepDueAt: leads.nextStepDueAt,
         createdAt: leads.createdAt,
         updatedAt: leads.updatedAt,
         propertyId: properties.id,
@@ -47,12 +52,14 @@ export async function GET() {
         analysisScore: propertyAnalysis.investmentScore,
         analysisArv: propertyAnalysis.arv,
         analysisTargetPurchasePrice: propertyAnalysis.targetPurchasePrice,
+        dealId: deals.id,
       })
       .from(leads)
       .where(eq(leads.userId, session.user.id))
       .leftJoin(properties, eq(leads.propertyId, properties.id))
       .leftJoin(contacts, eq(leads.contactId, contacts.id))
       .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
+      .leftJoin(deals, eq(deals.propertyId, properties.id))
       .orderBy(desc(leads.updatedAt));
 
     const normalized = rows.map((row) => {
@@ -79,6 +86,8 @@ export async function GET() {
         propertyImageUrl: safeJsonParse<string[]>(row.propertyImageUrls, [])[0] ?? null,
         createdAt: row.createdAt != null ? Number(row.createdAt) : null,
         updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,
+        stageEnteredAt: row.stageEnteredAt != null ? Number(row.stageEnteredAt) : null,
+        nextStepDueAt: row.nextStepDueAt != null ? Number(row.nextStepDueAt) : null,
       };
     });
 

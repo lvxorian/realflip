@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { X, Phone, Envelope, ArrowSquareOut, Check, Plus } from "@phosphor-icons/react";
+import {
+  X, Phone, Envelope, ArrowSquareOut, Check, Plus,
+  ArrowsLeftRight, CurrencyCircleDollar, CalendarBlank, NotePencil,
+  ListChecks, CheckCircle, WarningCircle, Handshake,
+} from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,8 +15,9 @@ import { Input } from "@/components/ui/input";
 import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel } from "@/lib/utils";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
-import { LEAD_STAGES } from "@/lib/leads";
+import { LEAD_STAGES, LOST_REASONS } from "@/lib/leads";
 import { toast } from "sonner";
+import type { LeadEvent } from "@/lib/lead-events";
 import type { LeadItem, StageData } from "./types";
 
 const PRIORITY_OPTIONS = [
@@ -110,6 +115,10 @@ function LeadDrawerContent({
   const [priority, setPriority] = useState(lead.priority ?? 0);
   const [notes, setNotes] = useState(lead.notes ?? "");
   const [stageData, setStageData] = useState<StageData>(() => lead.stageData ?? {});
+  const [nextStep, setNextStep] = useState(lead.nextStep ?? "");
+  const [nextStepDueAt, setNextStepDueAt] = useState(lead.nextStepDueAt);
+  const [lostReason, setLostReason] = useState(lead.lostReason ?? "");
+  const [events, setEvents] = useState<LeadEvent[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
   const [convertPrice, setConvertPrice] = useState(lead.propertyPrice?.toString() ?? "");
@@ -125,6 +134,21 @@ function LeadDrawerContent({
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/leads/${lead.id}/events`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: LeadEvent[]) => {
+        if (!cancelled) setEvents(d);
+      })
+      .catch(() => {
+        if (!cancelled) setEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lead.id]);
 
   const stageMeta = LEAD_STAGES.find((s) => s.key === stage);
 
@@ -150,12 +174,24 @@ function LeadDrawerContent({
   }
 
   async function saveChanges() {
+    if (stage === "lost" && !lostReason) {
+      toast.error("Vyberte důvod, proč je lead ztracený");
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage, priority, notes, stageData }),
+        body: JSON.stringify({
+          stage,
+          priority,
+          notes,
+          stageData,
+          nextStep: nextStep.trim() || null,
+          nextStepDueAt: nextStepDueAt ?? null,
+          lostReason: lostReason || null,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -163,7 +199,19 @@ function LeadDrawerContent({
         return;
       }
       const updated = await res.json();
-      onLeadUpdated({ ...lead, stage, priority, notes, stageData, ...(updated.lead ?? {}) });
+      onLeadUpdated({
+        ...lead,
+        stage,
+        priority,
+        notes,
+        stageData,
+        nextStep: nextStep.trim() || null,
+        nextStepDueAt: nextStepDueAt ?? null,
+        lostReason: lostReason || null,
+        stageEnteredAt: stage !== lead.stage ? Date.now() : lead.stageEnteredAt,
+        updatedAt: Date.now(),
+        ...(updated.lead ?? {}),
+      });
       toast.success("Změny uloženy");
     } catch {
       toast.error("Uložení se nezdařilo — zkontrolujte připojení");
@@ -363,6 +411,24 @@ function LeadDrawerContent({
               className="w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-accent/50 transition-colors resize-none"
             />
           </div>
+          <div>
+            <label className="text-xs text-muted block mb-1">Další krok</label>
+            <input
+              value={nextStep}
+              onChange={(e) => setNextStep(e.target.value)}
+              placeholder="např. zavolat prodejci, poslat nabídku..."
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted block mb-1">Termín dalšího kroku</label>
+            <input
+              type="date"
+              value={nextStepDueAt ? new Date(nextStepDueAt).toISOString().slice(0, 10) : ""}
+              onChange={(e) => setNextStepDueAt(e.target.value ? new Date(e.target.value + "T12:00:00").getTime() : null)}
+              className={inputClass}
+            />
+          </div>
         </div>
 
         {/* ===== Fáze Schůzka ===== */}
@@ -486,6 +552,26 @@ function LeadDrawerContent({
           </SectionCard>
         )}
 
+        {/* ===== Ztraceno ===== */}
+        {stage === "lost" && (
+          <SectionCard title="🤷 Ztraceno — proč?">
+            <select
+              value={lostReason}
+              onChange={(e) => setLostReason(e.target.value)}
+              className={inputClass + " cursor-pointer"}
+            >
+              <option value="">Vyberte důvod...</option>
+              {LOST_REASONS.map((r) => (
+                <option key={r.key} value={r.key}>{r.label}</option>
+              ))}
+            </select>
+            <p className="flex items-center gap-1.5 text-[10px] text-muted">
+              <WarningCircle size={11} className="text-amber-400/80 shrink-0" />
+              Důvod se uloží společně se změnami a ukáže se v historii.
+            </p>
+          </SectionCard>
+        )}
+
         {/* ===== Uložit ===== */}
         <Button onClick={saveChanges} disabled={saving} className="w-full text-sm">
           {saving ? "Ukládám..." : "Uložit změny"}
@@ -534,7 +620,76 @@ function LeadDrawerContent({
           <span>{lead.createdAt != null ? `Vytvořeno: ${formatDate(lead.createdAt)}` : ""}</span>
           <span>{lead.updatedAt != null ? `Aktualizováno: ${formatDate(lead.updatedAt)}` : ""}</span>
         </div>
+
+        {/* ===== Aktivita (timeline) ===== */}
+        <section className="pb-4">
+          <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Aktivita</h3>
+          {events === null ? (
+            <p className="text-xs text-muted/50">Načítám historii...</p>
+          ) : events.length === 0 ? (
+            <p className="text-xs text-muted/50">Zatím žádné události.</p>
+          ) : (
+            <ol className="relative space-y-3 before:absolute before:left-[7px] before:top-1 before:bottom-1 before:w-px before:bg-border/40">
+              {events.map((ev) => (
+                <EventRow key={ev.id} event={ev} />
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
     </div>
+  );
+}
+
+const EVENT_META: Record<string, { icon: React.ReactNode; color: string }> = {
+  stage_changed: { icon: <ArrowsLeftRight size={13} weight="bold" />, color: "text-accent bg-accent/10" },
+  offer: { icon: <CurrencyCircleDollar size={13} weight="bold" />, color: "text-amber-400 bg-amber-500/10" },
+  negotiation: { icon: <Handshake size={13} weight="bold" />, color: "text-emerald-400 bg-emerald-500/10" },
+  meeting: { icon: <CalendarBlank size={13} weight="bold" />, color: "text-blue-400 bg-blue-500/10" },
+  notes: { icon: <NotePencil size={13} weight="bold" />, color: "text-muted bg-border/20" },
+  next_step: { icon: <ListChecks size={13} weight="bold" />, color: "text-accent bg-accent/10" },
+  converted: { icon: <CheckCircle size={13} weight="bold" />, color: "text-emerald-400 bg-emerald-500/10" },
+};
+
+function EventRow({ event }: { event: LeadEvent }) {
+  const meta = EVENT_META[event.type] ?? { icon: <NotePencil size={13} weight="bold" />, color: "text-muted bg-border/20" };
+  const p = event.payload;
+
+  let title = "Událost";
+  if (event.type === "stage_changed") {
+    title = `Změna fáze: ${p.fromLabel ?? p.from ?? "?"} → ${p.toLabel ?? p.to ?? "?"}`;
+  } else if (event.type === "offer") {
+    title = `Nabídka: ${typeof p.amount === "number" ? formatPrice(p.amount) : "?"}`;
+  } else if (event.type === "negotiation") {
+    title = `Vyjednávání: ${typeof p.amount === "number" ? formatPrice(p.amount) : "?"}`;
+  } else if (event.type === "meeting") {
+    const date = typeof p.date === "string" ? p.date : "";
+    title = date ? `Schůzka: ${new Date(date).toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" })}` : "Schůzka naplánována";
+  } else if (event.type === "notes") {
+    title = "Poznámka přidána";
+  } else if (event.type === "next_step") {
+    title = `Další krok: ${p.text ?? "nastaven"}`;
+  } else if (event.type === "converted") {
+    title = `Převedeno na deal${typeof p.purchasePrice === "number" ? ` (${formatPrice(p.purchasePrice)})` : ""}`;
+  }
+
+  const lostReasonLabel =
+    event.type === "stage_changed" && typeof p.lostReason === "string"
+      ? LOST_REASONS.find((r) => r.key === p.lostReason)?.label
+      : null;
+
+  return (
+    <li className="relative flex items-start gap-2.5 pl-0">
+      <span className={`relative z-10 mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full ${meta.color}`}>
+        {meta.icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs text-foreground leading-snug break-words">{title}</p>
+        <p className="text-[10px] text-muted/50 mt-0.5">
+          {event.createdAt ? new Date(event.createdAt).toLocaleString("cs-CZ", { dateStyle: "medium", timeStyle: "short" }) : ""}
+          {lostReasonLabel && <span className="text-red-400/80"> · {lostReasonLabel}</span>}
+        </p>
+      </div>
+    </li>
   );
 }

@@ -2,12 +2,14 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Star, MapPin, CalendarBlank } from "@phosphor-icons/react";
+import { Star, MapPin, Phone, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
 import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel } from "@/lib/utils";
+import { timeInStageDays } from "@/lib/leads";
+import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import type { LeadItem } from "./types";
 
@@ -19,25 +21,59 @@ function initials(name: string | null): string {
   return (first + last).toUpperCase();
 }
 
-export function LeadCard({
+function AgingBadge({ lead }: { lead: LeadItem }) {
+  if (lead.stage === "closed" || lead.stage === "lost") return null;
+  const days = timeInStageDays(lead.stageEnteredAt, currentTime());
+  if (days < 3) return null;
+  const danger = days >= 7;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-mono",
+        danger
+          ? "bg-red-500/10 border border-red-500/20 text-red-400"
+          : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
+      )}
+      title={`Ve fázi ${days} dní${danger ? " — bez pokroku hrozí chladnutí leadu" : ""}`}
+    >
+      <Clock size={10} weight="fill" />
+      {days} dní
+    </span>
+  );
+}
+
+export function LeadCardView({
   lead,
   onOpen,
+  onTogglePriority,
+  onAdvance,
+  onMarkLost,
   compact = false,
+  isDragging = false,
+  style,
+  setNodeRef,
+  attributes,
+  listeners,
 }: {
   lead: LeadItem;
   onOpen: (lead: LeadItem) => void;
+  onTogglePriority?: (lead: LeadItem) => void;
+  onAdvance?: (lead: LeadItem) => void;
+  onMarkLost?: (lead: LeadItem) => void;
   compact?: boolean;
+  isDragging?: boolean;
+  style?: React.CSSProperties;
+  setNodeRef?: (el: HTMLElement | null) => void;
+  attributes?: React.HTMLAttributes<HTMLElement>;
+  listeners?: Record<string, unknown>;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: lead.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   const price = lead.propertyPrice ?? 0;
+  const priority = lead.priority ?? 0;
+  const isTerminal = lead.stage === "closed" || lead.stage === "lost";
+  const isDeal = lead.stage === "closed" && !!lead.dealId;
+  const now = currentTime();
+  const overdue =
+    !isTerminal && lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && lead.nextStepDueAt < now;
 
   return (
     <div
@@ -47,7 +83,8 @@ export function LeadCard({
       {...listeners}
       onClick={() => onOpen(lead)}
       className={cn(
-        "group rounded-xl border border-border/50 bg-card p-3 cursor-grab active:cursor-grabbing transition-all",
+        "group rounded-xl border bg-card p-3 cursor-grab active:cursor-grabbing transition-all",
+        overdue ? "border-red-500/40" : "border-border/50",
         "hover:bg-card-hover hover:border-accent/20 hover:shadow-lg hover:shadow-black/20",
         "@max-[240px]:p-2.5",
         isDragging && "opacity-40"
@@ -72,9 +109,20 @@ export function LeadCard({
           {lead.propertyTitle ?? "Neznámá nemovitost"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
-          {lead.priority != null && lead.priority > 0 && (
-            <Star size={13} weight="fill" className="text-amber-400" />
-          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePriority?.(lead);
+            }}
+            title={`Priorita: ${priority === 0 ? "žádná" : priority === 1 ? "nízká" : priority === 2 ? "střední" : "vysoká"} (klik pro změnu)`}
+            className={cn(
+              "rounded-md p-0.5 transition-colors",
+              priority > 0 ? "text-amber-400" : "text-muted/30 opacity-0 group-hover:opacity-100 hover:text-amber-400"
+            )}
+          >
+            <Star size={13} weight={priority > 0 ? "fill" : "regular"} />
+          </button>
           <ScoreGauge score={lead.analysisScore ?? 0} size={26} strokeWidth={2.5} showLabel={false} />
         </div>
       </div>
@@ -97,9 +145,34 @@ export function LeadCard({
         </div>
       ) : null}
 
+      <div className="flex flex-wrap items-center gap-1 mb-1.5">
+        <AgingBadge lead={lead} />
+        {isDeal && (
+          <span
+            className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 text-[10px] font-mono text-emerald-400"
+            title="Lead byl převeden na deal"
+          >
+            <CheckCircle size={10} weight="fill" /> Deal
+          </span>
+        )}
+        {overdue && (
+          <span
+            className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/25 px-1.5 py-0.5 text-[10px] font-mono text-red-400"
+            title={`Další krok propadl: ${lead.nextStep ?? "bez popisu"}`}
+          >
+            <Clock size={10} weight="fill" /> Krok propadl
+          </span>
+        )}
+        {lead.nextStep && !compact && (
+          <span className="inline-flex items-center gap-1 rounded bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent max-w-[160px]">
+            <span className="truncate" title={lead.nextStep}>→ {lead.nextStep}</span>
+          </span>
+        )}
+      </div>
+
       {lead.propertyRemoved && !compact && (
         <RemovedListingBadge
-          neutral={lead.stage === "closed" || lead.stage === "lost"}
+          neutral={isTerminal}
           className="mb-1.5 @max-[240px]:hidden"
         />
       )}
@@ -108,7 +181,8 @@ export function LeadCard({
         <span className="text-sm font-semibold font-mono text-amber-400 @max-[240px]:text-xs">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
-        {lead.propertyPricePerSqm != null && (          <span className="text-[10px] text-muted font-mono @max-[240px]:hidden">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
+        {lead.propertyPricePerSqm != null && (
+          <span className="text-[10px] text-muted font-mono @max-[240px]:hidden">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
         )}
       </div>
 
@@ -133,7 +207,14 @@ export function LeadCard({
           </span>
           <span className="text-[11px] text-muted truncate">{lead.contactName ?? "Bez jména"}</span>
           {lead.contactPhone && (
-            <span className="text-[10px] text-muted/60 font-mono truncate">{lead.contactPhone}</span>
+            <a
+              href={`tel:${lead.contactPhone}`}
+              onClick={(e) => e.stopPropagation()}
+              title={`Zavolat ${lead.contactPhone}`}
+              className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
+            >
+              <Phone size={12} weight="bold" />
+            </a>
           )}
         </div>
       )}
@@ -149,8 +230,54 @@ export function LeadCard({
             <span>{portalLabel(lead.propertyPortalName)}</span>
           )}
         </span>
-        {lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>}
+        <span className="flex items-center gap-1 shrink-0">
+          {!isTerminal && onAdvance && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdvance(lead);
+              }}
+              title="Posunout do další fáze"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
+            >
+              <ArrowRight size={12} weight="bold" />
+            </button>
+          )}
+          {!isTerminal && onMarkLost && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkLost(lead);
+              }}
+              title="Označit jako ztraceno"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              <XCircle size={12} weight="bold" />
+            </button>
+          )}
+          {lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>}
+        </span>
       </div>
     </div>
+  );
+}
+
+export function LeadCard(props: Omit<Parameters<typeof LeadCardView>[0], "style" | "setNodeRef" | "attributes" | "listeners" | "isDragging">) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.lead.id,
+    data: { stage: props.lead.stage },
+  });
+
+  return (
+    <LeadCardView
+      {...props}
+      setNodeRef={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      attributes={attributes}
+      listeners={listeners}
+      isDragging={isDragging}
+    />
   );
 }
