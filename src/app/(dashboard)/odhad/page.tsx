@@ -140,10 +140,10 @@ function OdhadPageContent() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Odhad ceny nemovitosti</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Odhad ceny bytu</h1>
         <p className="text-sm text-muted mt-1">
-          Kombinuje realizované prodeje (Seznam cenová mapa / ČÚZK), ČSÚ statistiky a nabídkové ceny z vlastní databáze.
-          Výsledkem je rozmezí se spolehlivostí — ne magické číslo.
+          Odhad je určen pro bytové jednotky. Kombinuje realizované prodeje (Seznam cenová mapa / ČÚZK), ČSÚ statistiky
+          a nabídkové ceny z vlastní databáze. Výsledkem je rozmezí se spolehlivostí — ne magické číslo.
         </p>
       </div>
 

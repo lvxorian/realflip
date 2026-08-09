@@ -33,12 +33,6 @@ const OWNERSHIP_OPTIONS = [
   { key: "other", label: "Jiné" },
 ];
 
-const TYPE_OPTIONS = [
-  { key: "flat", label: "Byt" },
-  { key: "house", label: "Dům" },
-  { key: "land", label: "Pozemek" },
-];
-
 const inputCls =
   "w-full rounded-xl border border-border/50 bg-card px-3 py-2 text-sm placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 transition-shadow";
 const labelCls = "block text-xs font-medium text-muted mb-1.5";
@@ -187,13 +181,10 @@ export default function ValuationInput({
 
             <div>
               <label className={labelCls}>Typ nemovitosti</label>
-              <select value={fields.type ?? "flat"} onChange={(e) => set("type", e.target.value as ValuationInput["type"])} className={inputCls}>
-                {TYPE_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-card px-3 py-2 text-sm text-muted">
+                <span className="font-medium text-foreground">Byt</span>
+                <span className="text-[10px]">Odhad je určen pouze pro bytové jednotky</span>
+              </div>
             </div>
 
             <div>

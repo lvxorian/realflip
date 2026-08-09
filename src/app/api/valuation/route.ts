@@ -36,6 +36,9 @@ const LIQUID_CITIES = new Set([
 
 function inferType(rooms: string | null, buildingType: string | null, title: string | null): "flat" | "house" | "land" {
   const text = `${rooms ?? ""} ${buildingType ?? ""} ${title ?? ""}`.toLowerCase();
+  // Odhad je bytový — bytové signály mají PŘEDNOST: „bytový dům"/„panelový dům"
+  // v titulu platného inzerátu bytu nesmí odhodit (falešný „dům").
+  if (/byt|garsonk|1\+kk|2\+kk/i.test(text)) return "flat";
   if (/pozemk|parcela|land/i.test(text)) return "land";
   if (/d[uú]m|villa|chalupa|chata|house/i.test(text)) return "house";
   return "flat";
@@ -70,13 +73,27 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: "Nepodařilo se načíst cenu inzerátu" }, { status: 400 });
         }
         const location = classifyLocation(listing.address, listing.title);
+        // Odhad je zatím určen POUZE pro bytové jednotky (cenová mapa i adresní
+        // transakce jsou jen byty — category_main_cb=1). Domy/pozemky rovnou
+        // odmítneme s jasnou zprávou, místo tichého odhadu na bytových datech.
+        const inferredType = inferType(listing.rooms, listing.buildingType, listing.title);
+        if (inferredType !== "flat") {
+          return NextResponse.json(
+            {
+              error: `Odhad je zatím dostupný pouze pro bytové jednotky — tento inzerát vypadá jako ${
+                inferredType === "house" ? "rodinný dům" : "pozemek"
+              }.`,
+            },
+            { status: 400 }
+          );
+        }
         listingFields = {
           address: listing.address,
           cityKey: location.city !== "Neznámá" ? location.city : undefined,
           cityName: location.city !== "Neznámá" ? cityKeyToName(location.city) : listing.address?.split(",")[0] ?? null,
           lat: listing.lat ?? null,
           lng: listing.lng ?? null,
-          type: inferType(listing.rooms, listing.buildingType, listing.title),
+          type: "flat",
           disposition: listing.rooms,
           area: listing.area ?? undefined,
           condition: listing.condition ?? undefined,
@@ -124,6 +141,12 @@ export async function POST(req: Request) {
     }
     if (!input.area || input.area <= 0) {
       return NextResponse.json({ error: "Chybí plocha (m²)" }, { status: 400 });
+    }
+    if (input.type !== "flat") {
+      return NextResponse.json(
+        { error: "Odhad je zatím dostupný pouze pro bytové jednotky." },
+        { status: 400 }
+      );
     }
     if (!input.address?.trim()) {
       return NextResponse.json(
