@@ -8,6 +8,7 @@ import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, 
 import { toRealizedSale } from "./sold-pairing";
 import { eq, and, ne, notInArray, inArray, lte, gt } from "drizzle-orm";
 import { listingMatches, PROPERTY_STATUS, REMOVAL_GRACE_MS, type RelistCandidate } from "./relisting";
+import { matchStrengthCrossPortal, isAutoMergeMatch, parseAltPortals, appendAltPortal, hasAltUrl, toDbAltPortals } from "./property-match";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
@@ -94,6 +95,9 @@ export class ScrapingOrchestrator {
               ),
             );
         }
+        // Sloucené záznamy (stejná nemovitost z jiného portálu) se neodstraňují:
+        // viditelná alt URL opět aktivuje kanonický řádek.
+        await this.rescueDeactivatedByAltUrl(portal, foundUrls);
       } catch (err) {
         errors.push(`Crawl error (${portal}): ${err}`);
       }
@@ -203,13 +207,18 @@ export class ScrapingOrchestrator {
     if (allErrors.length === 0 && allFoundUrls.size > 0) {
       try {
         const linked = await db
-          .select({ id: properties.id, url: properties.url })
+          .select({ id: properties.id, url: properties.url, altPortals: properties.altPortals })
           .from(searchProperties)
           .innerJoin(properties, eq(searchProperties.propertyId, properties.id))
           .where(eq(searchProperties.searchId, searchId));
 
         const staleIds = linked
-          .filter((l) => !allFoundUrls.has(l.url))
+          .filter(
+            (l) =>
+              !allFoundUrls.has(l.url) &&
+              // Sloucené záznamy žijou dál, pokud byla viděna jejich alt URL.
+              !parseAltPortals(l.altPortals).some((a) => allFoundUrls.has(a.url))
+          )
           .map((l) => l.id);
 
         if (staleIds.length > 0) {
@@ -483,6 +492,12 @@ export class ScrapingOrchestrator {
         return this.saveListing(listing, searchId);
       }
 
+      // Stejná nemovitost už je v databázi z jiného portálu → sloučíme místo nového řádku.
+      const merged = await this.findCrossPortalProperty(listing);
+      if (merged) {
+        return this.mergeExistingWithCrossPortal(merged, listing, searchId);
+      }
+
       // Insert new property
       const id = generateId();
       await db.insert(properties).values({
@@ -626,6 +641,142 @@ export class ScrapingOrchestrator {
 
       return id;
     }
+  }
+
+  // Cross-portal shoda: stejná nemovitost inzerovaná na jiném portálu (jiná URL)
+  // se nesmí stát novým řádkem — vrací kanonický záznam, pokud se obsahově shoduje.
+  private async findCrossPortalProperty(listing: RawListing): Promise<typeof properties.$inferSelect | null> {
+    const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
+    const rows = await db
+      .select()
+      .from(properties)
+      .where(gt(properties.lastSeen, cutoff))
+      .limit(2000);
+
+    let best: typeof properties.$inferSelect | null = null;
+    for (const row of rows) {
+      if (row.url === listing.url) continue;
+      if (hasAltUrl(row.altPortals, listing.url)) continue;
+      const match = matchStrengthCrossPortal(
+        {
+          portalName: listing.portalName,
+          title: listing.title,
+          address: listing.address ?? null,
+          rooms: listing.rooms ?? null,
+          area: listing.area ?? null,
+          price: listing.price,
+        },
+        {
+          id: row.id,
+          portalName: row.portalName,
+          title: row.title,
+          address: row.address,
+          rooms: row.rooms,
+          area: row.area,
+          price: row.price,
+          lastSeen: row.lastSeen,
+          isActive: row.isActive,
+        }
+      );
+      if (!isAutoMergeMatch(match)) continue;
+      if (!best) {
+        best = row;
+        continue;
+      }
+      const aScore = (best.isActive === 1 ? 1 : 0) * 1e9 + (best.lastSeen ?? 0);
+      const bScore = (row.isActive === 1 ? 1 : 0) * 1e9 + (row.lastSeen ?? 0);
+      if (bScore > aScore) best = row;
+    }
+    return best;
+  }
+
+  // Sloučí inzerát z jiného portálu do kanonického záznamu: sekundární URL
+  // do alt_portals, oživení, doplnění chybějících údajů + navázání na hledání.
+  private async mergeExistingWithCrossPortal(
+    existing: typeof properties.$inferSelect,
+    listing: RawListing,
+    searchId?: string
+  ): Promise<string> {
+    const alts = appendAltPortal(parseAltPortals(existing.altPortals), listing.portalName, listing.url);
+
+    const oldImgs: string[] = existing.imageUrls ? safeJsonParse<string[]>(existing.imageUrls, []) : [];
+    const newImgs = filterImages(listing.imageUrls ?? [], listing.portalName);
+    const imgs = newImgs.length > oldImgs.length ? newImgs : oldImgs;
+
+    await db
+      .update(properties)
+      .set({
+        altPortals: toDbAltPortals(alts),
+        isActive: 1,
+        status: PROPERTY_STATUS.ACTIVE,
+        removedAt: null,
+        lastSeen: ts(),
+        // Doplníme jen chybějící údaje — cena/plocha zůstávají kanonické.
+        rooms: existing.rooms ?? listing.rooms ?? null,
+        floor: existing.floor ?? listing.floor ?? null,
+        condition: existing.condition ?? listing.condition ?? null,
+        buildingType: existing.buildingType ?? listing.buildingType ?? null,
+        yearBuilt: existing.yearBuilt ?? listing.yearBuilt ?? null,
+        address: existing.address ?? listing.address ?? null,
+        lat: existing.lat ?? listing.lat ?? null,
+        lng: existing.lng ?? listing.lng ?? null,
+        contactPhone: existing.contactPhone ?? listing.contactPhone ?? null,
+        contactName: existing.contactName ?? listing.contactName ?? null,
+        contactEmail: existing.contactEmail ?? listing.contactEmail ?? null,
+        description: existing.description ?? listing.description ?? null,
+        imageUrls: JSON.stringify(imgs),
+      })
+      .where(eq(properties.id, existing.id));
+
+    // Zruš párování na prodej, pokud byl záznam označen jako odstraněný.
+    if (existing.status === PROPERTY_STATUS.REMOVED || existing.removedAt != null) {
+      await db.delete(realizedSales).where(eq(realizedSales.propertyId, existing.id));
+    }
+
+    await db.insert(activityLog).values({
+      id: generateId(),
+      type: "scraping",
+      message: `Inzerat sloucen z dalsiho portalu - ${listing.title}`,
+      propertyId: existing.id,
+      createdAt: ts(),
+    });
+
+    if (searchId) {
+      const alreadyLinked = await db
+        .select()
+        .from(searchProperties)
+        .where(and(eq(searchProperties.searchId, searchId), eq(searchProperties.propertyId, existing.id)))
+        .limit(1)
+        .then((r) => r[0]);
+      if (!alreadyLinked) {
+        await db.insert(searchProperties).values({
+          searchId,
+          propertyId: existing.id,
+          firstSeen: ts(),
+          lastSeen: ts(),
+        });
+      }
+    }
+
+    return existing.id;
+  }
+
+  // Znovu aktivuje deaktivované řádky, jejichž alt URL byla v tomto běhu viděna.
+  private async rescueDeactivatedByAltUrl(portal: string, foundUrls: Set<string>): Promise<void> {
+    if (foundUrls.size === 0) return;
+    const rows = await db
+      .select({ id: properties.id, altPortals: properties.altPortals })
+      .from(properties)
+      .where(and(eq(properties.portalName, portal), eq(properties.isActive, 0)))
+      .limit(2000);
+
+    const toRescue = rows.filter((r) => parseAltPortals(r.altPortals).some((a) => foundUrls.has(a.url)));
+    if (toRescue.length === 0) return;
+
+    await db
+      .update(properties)
+      .set({ isActive: 1, status: PROPERTY_STATUS.ACTIVE, removedAt: null, lastSeen: ts() })
+      .where(inArray(properties.id, toRescue.map((r) => r.id)));
   }
 
   // Re-listace: hledá neaktivní záznam stejného portálu, který by mohl být

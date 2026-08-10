@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Buildings, Prohibit } from "@phosphor-icons/react";
-import { ScoreGauge } from "./score-gauge";
+import { House, Prohibit } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface PropertyImageProps {
@@ -11,22 +10,19 @@ interface PropertyImageProps {
   score?: number | null;
   className?: string;
   containerClassName?: string;
-  showScore?: boolean;
   removed?: boolean;
 }
 
 /**
  * Obrázek nemovitosti s jednotným fallbackem při chybě načtení.
- * Místo prázdného boxu (onError → display:none) zobrazí ikonu budovy.
+ * Místo prázdného boxu (onError → display:none) zobrazí logo — domeček.
  * Přes `removed` zobrazí stav "INZERÁT ODSTRANĚN" (žádný obrázek se nenačítá).
  */
 export function PropertyImage({
   src,
   alt,
-  score,
   className,
   containerClassName,
-  showScore = true,
   removed = false,
 }: PropertyImageProps) {
   const [failed, setFailed] = useState(false);
@@ -54,11 +50,7 @@ export function PropertyImage({
         </div>
       ) : (
         <div className="h-full w-full property-image-shimmer flex items-center justify-center">
-          {showScore && score != null ? (
-            <ScoreGauge score={score} size={32} strokeWidth={2.5} />
-          ) : (
-            <Buildings size={20} weight="duotone" className="text-muted/30" />
-          )}
+          <House size={32} weight="fill" className="text-accent" />
         </div>
       )}
     </div>

@@ -351,7 +351,6 @@ export default function CallModePage() {
                   score={call.analysisScore}
                   removed={call.propertyRemoved}
                   containerClassName="h-full w-full"
-                  showScore={false}
                 />
                 <div className="absolute top-3 left-3 z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">
                   <ScoreGauge score={call.analysisScore ?? 0} size={36} strokeWidth={3} />

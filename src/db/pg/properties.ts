@@ -1,4 +1,4 @@
-﻿import { pgTable, text, integer, real, bigint } from "drizzle-orm/pg-core";
+﻿import { pgTable, text, integer, real, bigint, jsonb } from "drizzle-orm/pg-core";
 
 export const properties = pgTable("properties", {
   id: text("id").primaryKey(),
@@ -33,6 +33,8 @@ export const properties = pgTable("properties", {
   accessoryArea: real("accessory_area"),
   areaFlag: text("area_flag"),
   auctionDataJson: text("auction_data_json"),
+  /** Sekundární portály, kde je tatáž nemovitost inzerovaná: [{ portalName, url }]. */
+  altPortals: jsonb("alt_portals").default([]).notNull(),
 });
 
 export const priceHistory = pgTable("price_history", {

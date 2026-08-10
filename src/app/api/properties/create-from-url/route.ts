@@ -10,6 +10,7 @@ import { isSaleListing } from "@/lib/scraping/filters";
 import { applyAreaResolution } from "@/lib/scraping/area-resolver";
 import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
+import { findCrossPortalTarget, mergeCrossPortal } from "@/lib/scraping/property-merge";
 
 export async function POST(req: Request) {
   try {
@@ -41,6 +42,39 @@ export async function POST(req: Request) {
 
     if (existing) {
       return NextResponse.json({ propertyId: existing.id, existed: true });
+    }
+
+    // Stejná nemovitost z jiného portálu → sloučíme místo nového řádku.
+    const crossTarget = await findCrossPortalTarget({
+      portalName: portalName ?? null,
+      url,
+      title,
+      price: price ?? null,
+      address: address ?? null,
+      rooms: rooms ?? null,
+      area: area ?? null,
+      description: description ?? null,
+      imageUrls: imageUrls ?? [],
+      contactPhone: contactPhone ?? null,
+      contactName: contactName ?? null,
+      contactEmail: contactEmail ?? null,
+    });
+    if (crossTarget) {
+      const propertyId = await mergeCrossPortal(crossTarget, {
+        portalName: portalName ?? null,
+        url,
+        title,
+        price: price ?? null,
+        address: address ?? null,
+        rooms: rooms ?? null,
+        area: area ?? null,
+        description: description ?? null,
+        imageUrls: imageUrls ?? [],
+        contactPhone: contactPhone ?? null,
+        contactName: contactName ?? null,
+        contactEmail: contactEmail ?? null,
+      });
+      return NextResponse.json({ propertyId, existed: true, merged: true });
     }
 
     const now = ts();

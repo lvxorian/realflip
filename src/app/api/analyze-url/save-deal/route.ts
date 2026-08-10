@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { properties, deals } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
+import { findCrossPortalTarget, mergeCrossPortal } from "@/lib/scraping/property-merge";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -74,7 +75,32 @@ export async function POST(req: Request) {
         })
         .where(eq(properties.id, propertyId));
     } else {
-      propertyId = generateId();
+      // Stejná nemovitost z jiného portálu → sloučíme místo nového řádku.
+      const crossTarget = await findCrossPortalTarget({
+        portalName: portalName ?? null,
+        url,
+        title,
+        price: price ?? null,
+        address: address ?? null,
+        rooms: rooms ?? null,
+        area: area ?? null,
+        description: description ?? null,
+        imageUrls: imageUrls ?? [],
+      });
+      if (crossTarget) {
+        propertyId = await mergeCrossPortal(crossTarget, {
+          portalName: portalName ?? null,
+          url,
+          title,
+          price: price ?? null,
+          address: address ?? null,
+          rooms: rooms ?? null,
+          area: area ?? null,
+          description: description ?? null,
+          imageUrls: imageUrls ?? [],
+        });
+      } else {
+        propertyId = generateId();
       const portalId = `${portalName ?? "manual"}_${generateId().slice(0, 8)}`;
       await db.insert(properties).values({
         id: propertyId,
@@ -100,6 +126,7 @@ export async function POST(req: Request) {
         lastSeen: now,
         isActive: 1,
       });
+      }
     }
 
     const existingDeal = await db

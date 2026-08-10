@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis, favorites, leads } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { safeJsonParse, formatPhone, formatPrice } from "@/lib/utils";
+import { parseAltPortals } from "@/lib/scraping/property-match";
 import { LEAD_STAGES } from "@/lib/leads";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
@@ -143,6 +144,7 @@ export default async function PropertyDetailPage({
 
   const imageUrls: string[] = safeJsonParse<string[]>(property.imageUrls, []);
   const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
+  const altPortals = parseAltPortals(property.altPortals);
   const hasRealUrl = property.url && property.url.startsWith("http");
 
   const auctionData = property.auctionDataJson
@@ -323,6 +325,22 @@ export default async function PropertyDetailPage({
                 <ArrowUpRight size={14} weight="bold" />
                 Zobrazit na {portalLabel}
               </a>
+              {altPortals.length > 0 && (
+                <div className="mt-1 flex flex-col gap-1">
+                  {altPortals.map((alt) => (
+                    <a
+                      key={alt.url}
+                      href={alt.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-accent hover:underline"
+                    >
+                      <ArrowUpRight size={14} weight="bold" />
+                      Také na {PORTAL_LABELS[alt.portalName] || alt.portalName}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

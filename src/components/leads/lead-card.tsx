@@ -97,7 +97,6 @@ export function LeadCardView({
             src={lead.propertyImageUrl}
             alt={lead.propertyTitle ?? "Nemovitost"}
             score={lead.analysisScore}
-            showScore={false}
             removed={lead.propertyRemoved}
             containerClassName={cn("w-full", compact ? "h-16" : "h-20 @max-[240px]:h-12")}
           />

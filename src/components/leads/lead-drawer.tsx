@@ -288,7 +288,6 @@ function LeadDrawerContent({
               src={lead.propertyImageUrl}
               alt={lead.propertyTitle ?? "Nemovitost"}
               score={lead.analysisScore}
-              showScore={false}
               removed={lead.propertyRemoved}
               containerClassName="h-40 w-full"
             />

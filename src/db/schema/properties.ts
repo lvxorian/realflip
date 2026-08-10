@@ -33,6 +33,8 @@ export const properties = sqliteTable("properties", {
   accessoryArea: real("accessory_area"),
   areaFlag: text("area_flag"),
   auctionDataJson: text("auction_data_json"),
+  /** Sekundární portály, kde je tatáž nemovitost inzerovaná: JSON [{ portalName, url }]. */
+  altPortals: text("alt_portals").default("[]"),
 });
 
 export const priceHistory = sqliteTable("price_history", {

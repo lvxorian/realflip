@@ -1,6 +1,7 @@
 import { db, schema } from "@/db";
 import { eq, desc, inArray } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
+import { parseAltPortals } from "@/lib/scraping/property-match";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { PropertiesExplorer, type PropertyListItem } from "@/components/ui/properties-explorer";
@@ -65,6 +66,7 @@ export default async function PropertiesPage({
       imageUrls: properties.imageUrls,
       firstSeen: properties.firstSeen,
       portalName: properties.portalName,
+      altPortals: properties.altPortals,
       condition: properties.condition,
       score: propertyAnalysis.investmentScore,
       recommendation: propertyAnalysis.recommendation,
@@ -113,6 +115,7 @@ export default async function PropertiesPage({
     rooms: r.rooms,
     address: r.address,
     portalName: r.portalName,
+    altCount: parseAltPortals(r.altPortals).length,
     condition: r.condition,
     locationCity: r.locationCity,
     verdictLevel: r.verdictLevel,

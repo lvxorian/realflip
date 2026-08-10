@@ -642,7 +642,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                 src={l.imageUrls[0]}
                 alt={l.title}
                 score={a.investmentScore}
-                showScore={false}
                 containerClassName="h-48 w-full"
               />
             </div>
