@@ -7,7 +7,7 @@ import { PriceTag } from "./price-tag";
 import { Badge } from "./badge";
 import { FavoriteButton } from "./favorite-button";
 import { PropertyImage } from "./property-image";
-import { MapPin } from "@phosphor-icons/react";
+import { MapPin, Images } from "@phosphor-icons/react";
 
 interface PropertyCardProps {
   id: string;
@@ -23,6 +23,7 @@ interface PropertyCardProps {
   days?: number;
   index?: number;
   imageUrl?: string;
+  photoCount?: number;
   undervaluationPct?: number;
   isAuction?: boolean;
   portalCount?: number;
@@ -43,6 +44,7 @@ export function PropertyCard({
   days,
   index = 0,
   imageUrl,
+  photoCount = 0,
   undervaluationPct,
   isAuction = false,
   portalCount,
@@ -92,6 +94,12 @@ export function PropertyCard({
               <Badge variant="success" size="sm">Podhodnoceno {Math.round(undervaluationPct!)}%</Badge>
             )}
           </div>
+          {photoCount > 0 && !removed && (
+            <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-black/55 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-medium text-white">
+              <Images size={11} weight="fill" />
+              {photoCount}
+            </div>
+          )}
         </div>
 
         <div className="p-4 flex-1 flex flex-col">
@@ -103,10 +111,17 @@ export function PropertyCard({
             <span className="truncate">{address}</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted mb-3">
-            {area && <span>{area}</span>}
-            {rooms && <><span className="w-0.5 h-0.5 rounded-full bg-border" /><span>{rooms}</span></>}
-            {days !== undefined && <><span className="w-0.5 h-0.5 rounded-full bg-border" /><span>{days} dní</span></>}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-x-1.5 text-xs font-semibold text-foreground/90">
+              {area && <span>{area}</span>}
+              {rooms && (
+                <>
+                  <span className="w-0.5 h-0.5 rounded-full bg-border" />
+                  <span>{rooms}</span>
+                </>
+              )}
+            </div>
+            {days !== undefined && <span className="text-[10px] text-muted">{days} dní</span>}
           </div>
 
           <div className="mt-auto">

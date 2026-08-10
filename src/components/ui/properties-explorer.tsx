@@ -49,7 +49,16 @@ export interface PropertyListItem {
   isAuction?: boolean;
 }
 
-type SortMode = "newest" | "highestScore" | "mostUndervalued";
+type SortMode =
+  | "newest"
+  | "priceAsc"
+  | "priceDesc"
+  | "pricePerSqmAsc"
+  | "pricePerSqmDesc"
+  | "areaAsc"
+  | "areaDesc"
+  | "highestScore"
+  | "mostUndervalued";
 
 interface FilterState {
   city: string;
@@ -92,6 +101,45 @@ const INITIAL_FILTERS: FilterState = {
   areaMin: "",
   areaMax: "",
 };
+
+const VERDICT_LABELS: Record<string, string> = {
+  strongBuy: "Silně doporučit",
+  buy: "Doporučit",
+  consider: "Zvážit",
+  dontBuy: "Nedoporučit",
+  reject: "Zamítnout",
+};
+
+const CONDITION_LABELS: Record<string, string> = {
+  original: "Původní",
+  good: "Dobrý",
+  renovated: "Po rekonstrukci",
+  dilapidated: "Zchátralý",
+  new: "Novostavba",
+};
+
+const fmtPrice = (v: number) =>
+  new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(v);
+
+const compactKc = (v: number) => {
+  if (v >= 1_000_000) {
+    const m = v / 1_000_000;
+    return `${m >= 10 ? Math.round(m) : Number(m.toFixed(1)).toLocaleString("cs-CZ")} mil. Kč`;
+  }
+  return `${Math.round(v / 1_000)} tis. Kč`;
+};
+
+/** Seřadí podle hodnoty, záznamy s chybějící hodnotou vždy na konec. */
+function sortBy(
+  list: PropertyListItem[],
+  pick: (p: PropertyListItem) => number | null,
+  dir: 1 | -1
+): PropertyListItem[] {
+  return list
+    .filter((p) => pick(p) != null)
+    .sort((a, b) => dir * ((pick(a) as number) - (pick(b) as number)))
+    .concat(list.filter((p) => pick(p) == null));
+}
 
 export function PropertiesExplorer({ items, favoritedIds = [] }: { items: PropertyListItem[]; favoritedIds?: string[] }) {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -142,13 +190,63 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
     });
 
     if (sort === "mostUndervalued") {
-      result = result.sort((a, b) => (b.undervaluationPct ?? 0) - (a.undervaluationPct ?? 0));
+      result = sortBy(result, (p) => p.undervaluationPct ?? null, -1);
     } else if (sort === "highestScore") {
-      result = result.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      result = sortBy(result, (p) => p.score ?? null, -1);
+    } else if (sort === "priceAsc") {
+      result = sortBy(result, (p) => p.price, 1);
+    } else if (sort === "priceDesc") {
+      result = sortBy(result, (p) => p.price, -1);
+    } else if (sort === "pricePerSqmAsc") {
+      result = sortBy(result, (p) => p.pricePerSqm, 1);
+    } else if (sort === "pricePerSqmDesc") {
+      result = sortBy(result, (p) => p.pricePerSqm, -1);
+    } else if (sort === "areaAsc") {
+      result = sortBy(result, (p) => p.area, 1);
+    } else if (sort === "areaDesc") {
+      result = sortBy(result, (p) => p.area, -1);
     }
 
     return result;
   }, [items, search, filters, sort, undervaluedOnly, favoritesOnly, favoritedIds]);
+
+  const clearFilter = (key: keyof FilterState) => {
+    setFilter(key, "");
+  };
+
+  const clearRange = (minKey: keyof FilterState, maxKey: keyof FilterState) => {
+    setFilters((prev) => ({ ...prev, [minKey]: "", [maxKey]: "" }));
+    setPage(0);
+  };
+
+  const activeChips: { key: string; label: string; onClear: () => void }[] = [];
+  if (filters.city) activeChips.push({ key: "city", label: `Město: ${filters.city}`, onClear: () => clearFilter("city") });
+  if (filters.portal) activeChips.push({ key: "portal", label: `Portál: ${PORTAL_LABELS[filters.portal] || filters.portal}`, onClear: () => clearFilter("portal") });
+  if (filters.verdict) activeChips.push({ key: "verdict", label: VERDICT_LABELS[filters.verdict] ?? filters.verdict, onClear: () => clearFilter("verdict") });
+  if (filters.condition) activeChips.push({ key: "condition", label: CONDITION_LABELS[filters.condition] ?? filters.condition, onClear: () => clearFilter("condition") });
+  if (filters.scoreMin || filters.scoreMax) {
+    activeChips.push({
+      key: "score",
+      label: `Skóre ${filters.scoreMin || "0"}–${filters.scoreMax || "100"}`,
+      onClear: () => clearRange("scoreMin", "scoreMax"),
+    });
+  }
+  if (filters.priceMin || filters.priceMax) {
+    activeChips.push({
+      key: "price",
+      label: `Cena ${compactKc(Number(filters.priceMin) || 0)}–${compactKc(Number(filters.priceMax) || 0)}`,
+      onClear: () => clearRange("priceMin", "priceMax"),
+    });
+  }
+  if (filters.areaMin || filters.areaMax) {
+    activeChips.push({
+      key: "area",
+      label: `Plocha ${filters.areaMin || "0"}–${filters.areaMax || "∞"} m²`,
+      onClear: () => clearRange("areaMin", "areaMax"),
+    });
+  }
+  if (undervaluedOnly) activeChips.push({ key: "undervalued", label: "Podhodnocené", onClear: () => { setUndervaluedOnly(false); setPage(0); } });
+  if (favoritesOnly) activeChips.push({ key: "favorites", label: "Oblíbené", onClear: () => { setFavoritesOnly(false); setPage(0); } });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -194,6 +292,12 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
             className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 cursor-pointer"
           >
             <option value="newest">Nejnovější</option>
+            <option value="priceDesc">Nejdražší</option>
+            <option value="priceAsc">Nejlevnější</option>
+            <option value="pricePerSqmDesc">Nejvyšší cena za m²</option>
+            <option value="pricePerSqmAsc">Nejnižší cena za m²</option>
+            <option value="areaDesc">Největší plocha</option>
+            <option value="areaAsc">Nejmenší plocha</option>
             <option value="highestScore">Nejvyšší skóre</option>
             <option value="mostUndervalued">Nejpodhodnocenější</option>
           </select>
@@ -391,6 +495,22 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
         )}
       </AnimatePresence>
 
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 -mt-2">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.key}
+              onClick={chip.onClear}
+              title="Odebrat filtr"
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[11px] font-medium text-accent hover:bg-accent/20 transition-colors"
+            >
+              {chip.label}
+              <X size={10} weight="bold" />
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Pagination top */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-muted">
@@ -462,6 +582,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     days={p.daysOnMarket}
                     index={i}
                     imageUrl={p.imageUrls?.[0]}
+                    photoCount={p.imageUrls?.length ?? 0}
                     undervaluationPct={p.undervaluationPct ?? undefined}
                     isAuction={p.portalName === "portaldrazeb"}
                     removed={p.removed}
@@ -526,12 +647,14 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
                         <p className="text-sm font-semibold font-mono text-price">
-                          {new Intl.NumberFormat("cs-CZ", {
-                            style: "decimal",
-                            maximumFractionDigits: 0,
-                          }).format(p.price)}{" "}
+                          {fmtPrice(p.price)}{" "}
                           Kč
                         </p>
+                        {p.pricePerSqm != null && p.pricePerSqm > 0 && (
+                          <p className="text-right text-[10px] text-muted font-mono mt-0.5">
+                            {fmtPrice(p.pricePerSqm)} Kč/m²
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 justify-end text-[11px] mt-0.5">
                           {p.roi != null && (
                             <span className={`font-mono font-semibold ${p.roi >= 15 ? "text-emerald-400" : p.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>
@@ -539,7 +662,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                             </span>
                           )}
                           {p.arv != null && p.arv > 0 && (
-                            <span className="font-mono text-muted">ARV {new Intl.NumberFormat("cs-CZ", { style: "decimal", maximumFractionDigits: 0 }).format(p.arv)} Kč</span>
+                            <span className="font-mono text-muted">ARV {fmtPrice(p.arv)} Kč</span>
                           )}
                         </div>
                       </div>
