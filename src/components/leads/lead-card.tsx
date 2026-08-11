@@ -7,7 +7,7 @@ import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
-import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel, buildingTypeLabel } from "@/lib/utils";
+import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel, buildingTypeLabel, splitAddress } from "@/lib/utils";
 import { timeInStageDays } from "@/lib/leads";
 import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,6 @@ export function LeadCardView({
   onTogglePriority,
   onAdvance,
   onMarkLost,
-  compact = false,
   isDragging = false,
   style,
   setNodeRef,
@@ -66,7 +65,6 @@ export function LeadCardView({
   onTogglePriority?: (lead: LeadItem) => void;
   onAdvance?: (lead: LeadItem) => void;
   onMarkLost?: (lead: LeadItem) => void;
-  compact?: boolean;
   isDragging?: boolean;
   style?: React.CSSProperties;
   setNodeRef?: (el: HTMLElement | null) => void;
@@ -80,6 +78,7 @@ export function LeadCardView({
   const now = currentTime();
   const overdue =
     !isTerminal && lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && lead.nextStepDueAt < now;
+  const { street, city } = splitAddress(lead.propertyAddress);
 
   return (
     <div
@@ -92,19 +91,18 @@ export function LeadCardView({
         "group rounded-xl border bg-card p-3 cursor-grab active:cursor-grabbing transition-all",
         overdue ? "border-red-500/40" : "border-border/50",
         "hover:bg-card-hover hover:border-accent/20 hover:shadow-lg hover:shadow-black/20",
-        "@max-[240px]:p-2.5",
         isDragging && "opacity-40"
       )}
       title={lead.propertyTitle ?? undefined}
     >
       {(lead.propertyImageUrl || lead.propertyRemoved) && (
-        <div className="mb-2 overflow-hidden rounded-lg @max-[240px]:mb-1.5">
+        <div className="mb-2 overflow-hidden rounded-lg">
           <PropertyImage
             src={lead.propertyImageUrl}
             alt={lead.propertyTitle ?? "Nemovitost"}
             score={lead.analysisScore}
             removed={lead.propertyRemoved}
-            containerClassName={cn("w-full", compact ? "h-16" : "h-20 @max-[240px]:h-12")}
+            containerClassName="w-full h-20"
           />
         </div>
       )}
@@ -132,10 +130,34 @@ export function LeadCardView({
         </div>
       </div>
 
+      {(street || city || lead.propertyPortalName) && (
+        <div className="mb-1.5 min-w-0">
+          <div className="flex items-center gap-1 min-w-0">
+            {(street || city) && (
+              <MapPin size={10} weight="fill" className="shrink-0 text-accent/70" />
+            )}
+            <span
+              className="truncate text-[11px] font-medium leading-snug text-foreground/90"
+              title={street || lead.propertyAddress || undefined}
+            >
+              {street || portalLabel(lead.propertyPortalName)}
+            </span>
+          </div>
+          {city && (
+            <div
+              className="pl-[15px] text-[10px] leading-snug text-muted"
+              title={lead.propertyAddress ?? undefined}
+            >
+              {city}
+            </div>
+          )}
+        </div>
+      )}
+
       {(lead.stage === "meeting" && lead.stageData?.meeting?.date) ||
       (lead.stage === "offer" && lead.stageData?.offer?.amount) ||
-      (lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount) ? (
-        <div className="flex flex-wrap items-center gap-1 mb-1.5 @max-[240px]:hidden">
+      (lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount      ) ? (
+        <div className="flex flex-wrap items-center gap-1 mb-1.5">
           {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
             <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
               <CalendarBlank size={10} weight="bold" />
@@ -174,7 +196,7 @@ export function LeadCardView({
             <Clock size={10} weight="fill" /> Krok propadl
           </span>
         )}
-        {lead.nextStep && !compact && (
+        {lead.nextStep && (
           <span className="inline-flex items-center gap-1 rounded bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent max-w-[200px]">
             <span className="truncate" title={lead.nextStep}>→ {lead.nextStep}</span>
             {lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && (
@@ -186,21 +208,21 @@ export function LeadCardView({
         )}
       </div>
 
-      {!compact && lead.notes && (
-        <p className="mb-1.5 text-[10px] leading-relaxed text-muted/70 italic line-clamp-2 @max-[240px]:hidden" title={lead.notes}>
+      {lead.notes && (
+        <p className="mb-1.5 text-[10px] leading-relaxed text-muted/70 italic line-clamp-2" title={lead.notes}>
           {lead.notes}
         </p>
       )}
 
-      {lead.propertyRemoved && !compact && (
+      {lead.propertyRemoved && (
         <RemovedListingBadge
           neutral={isTerminal}
-          className="mb-1.5 @max-[240px]:hidden"
+          className="mb-1.5"
         />
       )}
 
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 mb-1.5">
-        <span className="text-sm font-semibold font-mono text-amber-400 @max-[240px]:text-xs">
+        <span className="text-sm font-semibold font-mono text-amber-400">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
         {lead.propertyPricePerSqm != null && (
@@ -208,8 +230,8 @@ export function LeadCardView({
         )}
       </div>
 
-      {!compact && (lead.analysisTargetPurchasePrice != null || lead.analysisArv != null) && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-2 @max-[240px]:hidden">
+      {(lead.analysisTargetPurchasePrice != null || lead.analysisArv != null) && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
           {lead.analysisTargetPurchasePrice != null && lead.analysisTargetPurchasePrice > 0 && (
             <span
               className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted"
@@ -229,8 +251,7 @@ export function LeadCardView({
         </div>
       )}
 
-      {!compact && (
-        <div className="flex flex-wrap items-center gap-1 mb-2 @max-[240px]:hidden">
+      <div className="flex flex-wrap items-center gap-1 mb-2">
           {lead.propertyArea != null && (
             <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">{lead.propertyArea} m²</span>
           )}
@@ -246,10 +267,9 @@ export function LeadCardView({
             </span>
           )}
         </div>
-      )}
 
-      {!compact && (lead.contactName || lead.contactPhone) && (
-        <div className="flex items-center gap-1.5 mb-1.5 @max-[240px]:hidden">
+      {(lead.contactName || lead.contactPhone) && (
+        <div className="flex items-center gap-1.5 mb-1.5">
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-accent text-[10px] font-bold">
             {initials(lead.contactName)}
           </span>
@@ -277,15 +297,14 @@ export function LeadCardView({
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[10px] text-muted/50">
-        <span className="flex items-center gap-1 min-w-0">
-          {lead.propertyAddress ? (
-            <>
-              <MapPin size={10} weight="fill" className="shrink-0" />
-              <span className="truncate">{lead.propertyAddress}</span>
-            </>
-          ) : (
-            <span>{portalLabel(lead.propertyPortalName)}</span>
+      <div className="flex items-center justify-between gap-2 text-[10px] text-muted/50">
+        <span className="min-w-0 truncate">
+          {lead.propertyFirstSeen != null && lead.propertyFirstSeen > 0 && (
+            <span
+              title={`Na trhu od ${new Date(lead.propertyFirstSeen).toLocaleDateString("cs-CZ")}`}
+            >
+              {marketDaysLabel(lead.propertyFirstSeen, now)} na trhu
+            </span>
           )}
         </span>
         <span className="flex items-center gap-1 shrink-0">
@@ -315,16 +334,7 @@ export function LeadCardView({
               <XCircle size={12} weight="bold" />
             </button>
           )}
-          {lead.propertyFirstSeen != null && lead.propertyFirstSeen > 0 ? (
-            <span
-              className="shrink-0"
-              title={`Na trhu od ${new Date(lead.propertyFirstSeen).toLocaleDateString("cs-CZ")}`}
-            >
-              {marketDaysLabel(lead.propertyFirstSeen, now)} na trhu
-            </span>
-          ) : (
-            lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>
-          )}
+          {lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>}
         </span>
       </div>
     </div>

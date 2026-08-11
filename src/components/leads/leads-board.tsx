@@ -73,7 +73,7 @@ function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-w-[170px] max-w-[360px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
+        "flex min-w-[220px] max-w-[360px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
         (isOver || highlighted) && "bg-accent/5 ring-1 ring-accent/30"
       )}
     >
@@ -86,7 +86,7 @@ function BoardSkeleton() {
   return (
     <div className="flex gap-2.5 overflow-x-auto pb-4 snap-x">
       {LEAD_STAGES.map((s) => (
-        <div key={s.key} className="flex min-w-[170px] flex-1 basis-0 flex-col gap-2 snap-start">
+        <div key={s.key} className="flex min-w-[220px] flex-1 basis-0 flex-col gap-2 snap-start">
           <div className="h-6 w-24 rounded-lg bg-border/20 animate-pulse" />
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-32 rounded-xl bg-border/10 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
@@ -505,11 +505,11 @@ export function LeadsBoard() {
                 <div className="h-1 rounded-full bg-border/15 mb-3 overflow-hidden">
                   <div className={`h-full rounded-full ${stage.dot} transition-all duration-300`} style={{ width: `${pct}%` }} />
                 </div>
-                <div className="mb-2 px-1 text-[10px] font-mono text-muted/60 @max-[240px]:hidden">
+                <div className="mb-2 px-1 text-[10px] font-mono text-muted/60">
                   {sum > 0 && <span>{formatCompactPrice(sum)} celkem</span>}
                 </div>
                 {(avgDays != null || overdueCount > 0) && (
-                  <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1 @max-[240px]:hidden">
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1">
                     {avgDays != null && (
                       <span
                         className="inline-flex items-center gap-1 rounded bg-border/15 px-1.5 py-0.5 text-[10px] font-mono text-muted"
@@ -560,7 +560,7 @@ export function LeadsBoard() {
         <DragOverlay>
           {activeLead && (
             <div className="w-[280px] rotate-2 shadow-2xl shadow-black/40">
-              <LeadCardView lead={activeLead} compact onOpen={() => {}} />
+              <LeadCardView lead={activeLead} onOpen={() => {}} />
             </div>
           )}
         </DragOverlay>

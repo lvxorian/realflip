@@ -7,6 +7,7 @@ import {
   formatRelative,
   daysAgo,
   slugify,
+  splitAddress,
   truncate,
   getInitials,
   generateId,
@@ -87,6 +88,44 @@ describe("formatDate", () => {
   it("formats timestamp", () => {
     const result = formatDate(1700000000000);
     expect(typeof result).toBe("string");
+  });
+});
+
+describe("splitAddress", () => {
+  it("rozdělí ulici a město", () => {
+    expect(splitAddress("Gagarinova, Lomena 55, Cheb")).toEqual({ street: "Gagarinova", city: "Lomena 55, Cheb" });
+  });
+
+  it("ulice s číslem popisným", () => {
+    expect(splitAddress("Poděbradova 2842/1, Jižní Předměstí")).toEqual({
+      street: "Poděbradova 2842/1",
+      city: "Jižní Předměstí",
+    });
+  });
+
+  it("město - čtvrť zůstane celé", () => {
+    expect(splitAddress("Lazaretní, Brno - Zábrdovice")).toEqual({ street: "Lazaretní", city: "Brno - Zábrdovice" });
+  });
+
+  it("adresa bez čárky je celá ulice", () => {
+    expect(splitAddress("Vašátkova 16 Praha")).toEqual({ street: "Vašátkova 16 Praha", city: "" });
+  });
+
+  it("město až na konci s čtvrtí uprostřed", () => {
+    expect(splitAddress("Sekaninova, Brno-sever, Brno")).toEqual({ street: "Sekaninova", city: "Brno-sever, Brno" });
+  });
+
+  it("jen město s PSČ → město bez ulice", () => {
+    expect(splitAddress("Brno, 614 00")).toEqual({ street: "Brno", city: "" });
+  });
+
+  it("null/empty → prázdné", () => {
+    expect(splitAddress(null)).toEqual({ street: "", city: "" });
+    expect(splitAddress("")).toEqual({ street: "", city: "" });
+  });
+
+  it("očistí bílé znaky", () => {
+    expect(splitAddress("  Cejl ,  Brno  ")).toEqual({ street: "Cejl", city: "Brno" });
   });
 });
 

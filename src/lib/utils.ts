@@ -192,6 +192,26 @@ export function portalLabel(name: string | null): string {
   return name ? PORTAL_LABELS[name] ?? name.charAt(0).toUpperCase() + name.slice(1) : "—";
 }
 
+/**
+ * Rozdělí adresu na ulici (první segment před čárkou) a město (zbytek).
+ * Zvládá i „Vašátkova 16 Praha" (bez čárky → celé jako ulice) a
+ * „Sekaninova, Brno-sever, Brno" (město = vše za první čárkou).
+ */
+export function splitAddress(address: string | null | undefined): { street: string; city: string } {
+  if (!address) return { street: "", city: "" };
+  const parts = address
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return { street: "", city: "" };
+  if (parts.length === 1) return { street: parts[0], city: "" };
+  // „Brno, 614 00" — druhá část je jen PSČ, město je celé v první části
+  if (parts.length === 2 && /^\d{3}\s?\d{2}$/.test(parts[1])) {
+    return { street: parts[0], city: "" };
+  }
+  return { street: parts[0], city: parts.slice(1).join(", ") };
+}
+
 export function formatPhone(phone: string | null): string {
   if (!phone) return "";
   const cleaned = phone.replace(/\s+/g, "");

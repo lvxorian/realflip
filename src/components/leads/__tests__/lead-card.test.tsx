@@ -66,10 +66,11 @@ function makeLead(overrides: Partial<LeadItem> = {}): LeadItem {
 }
 
 describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém sloupci)", () => {
-  it("zobrazí adresu s městem", () => {
+  it("zobrazí ulici i město na samostatných řádcích", () => {
     render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
 
-    expect(screen.getByText("Poděbradova 2842/1, Jižní Předměstí")).toBeTruthy();
+    expect(screen.getByText("Poděbradova 2842/1")).toBeTruthy();
+    expect(screen.getByText("Jižní Předměstí")).toBeTruthy();
   });
 
   it("zobrazí cenu za m² vedle ceny", () => {
@@ -87,7 +88,7 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(screen.getByText("10 dní na trhu")).toBeTruthy();
   });
 
-  it("bez first_seen spadne na relativní čas poslední aktivity", () => {
+  it("bez first_seen zůstává relativní čas poslední aktivity", () => {
     const lead = makeLead({ propertyFirstSeen: null });
     render(<LeadCardView lead={lead} onOpen={() => {}} />);
 
@@ -95,10 +96,24 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(screen.getByText(expected)).toBeTruthy();
   });
 
-  it("drag preview (compact) ukazuje stejné klíčové údaje", () => {
-    render(<LeadCardView lead={makeLead()} compact onOpen={() => {}} />);
+  it("adresa bez čárky se zobrazí celá jako ulice", () => {
+    render(<LeadCardView lead={makeLead({ propertyAddress: "Vašátkova 16 Praha" })} onOpen={() => {}} />);
 
-    expect(screen.getByText("Poděbradova 2842/1, Jižní Předměstí")).toBeTruthy();
+    expect(screen.getByText("Vašátkova 16 Praha")).toBeTruthy();
+  });
+
+  it("adresa jen s městem a PSČ nemá prázdný řádek města", () => {
+    render(<LeadCardView lead={makeLead({ propertyAddress: "Brno, 614 00" })} onOpen={() => {}} />);
+
+    expect(screen.getByText("Brno")).toBeTruthy();
+    expect(screen.queryByText("614 00")).toBeNull();
+  });
+
+  it("drag preview ukazuje stejné klíčové údaje jako karta", () => {
+    render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
+
+    expect(screen.getByText("Poděbradova 2842/1")).toBeTruthy();
+    expect(screen.getByText("Jižní Předměstí")).toBeTruthy();
     expect(screen.getByText("51 tis. Kč/m²")).toBeTruthy();
     expect(screen.getByText("10 dní na trhu")).toBeTruthy();
   });
