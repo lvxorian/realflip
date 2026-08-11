@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { RawListing, PortalName, filterImages, isValidPrice, toFullSizeImageUrl } from "./types";
+import { RawListing, PortalName, filterImages, isValidPrice, toFullSizeImageUrl, cleanHtmlToText } from "./types";
 import { RateLimiter } from "./rate-limiter";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import { parseRealityMatDetail } from "./realitymat-parser";
@@ -268,7 +268,8 @@ async function scrapeSreality(url: string): Promise<RawListing> {
     contactPhone: r.user?.user_phones?.[0]?.phone ?? null,
     contactName: r.user?.user_name ?? null,
     contactEmail: r.user?.user_email ?? null,
-    description: r.advert_description ?? null,
+    // Sreality API vrací popis jako HTML (<br />, <p>…) — převedeme na čistý text.
+    description: cleanHtmlToText(r.advert_description),
     imageUrls: images,
     publishedAt: r.since ? new Date(r.since).getTime() : Date.now(),
     updatedAt: r.edited ? new Date(r.edited).getTime() : Date.now(),

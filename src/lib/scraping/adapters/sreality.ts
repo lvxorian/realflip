@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
+import { RawListing, SearchFilters, filterImages, isValidPrice, cleanHtmlToText } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import { getSrealitySitemapIds, pickSrealitySampleIds } from "../sreality-sitemap";
 import { cityNamesFor, addressMatchesCity, findCityKey } from "@/lib/analysis/location";
@@ -251,7 +251,8 @@ export class SrealityAdapter extends PortalAdapter {
 
   private applyEnrichedData(listing: RawListing, r: any, hashId: string): void {
     if (r.advert_name) listing.title = r.advert_name;
-    if (r.advert_description) listing.description = r.advert_description;
+    // Sreality API vrací popis jako HTML (<br />, <p>…) — převedeme na čistý text.
+    if (r.advert_description) listing.description = cleanHtmlToText(r.advert_description);
 
     const roomsLabel = r.category_sub_cb?.name ?? "";
     listing.rooms = roomsLabel ? roomsLabel.replace(/^(\d+\+\w+).*$/, "$1") : null;

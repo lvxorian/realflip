@@ -207,6 +207,33 @@ export function toFullSizeImageUrl(url: string, portalName?: string): string {
   return clean.replace(/_\d+\.(jpe?g|png|webp)$/i, ".$1");
 }
 
+/**
+ * Sreality API vrací popis inzerátu jako HTML (`<br />`, `<p>`, entity…).
+ * Tato funkce ho převede na čistý text: `<br>`/odstavce → nové řádky (detail je
+ * renderuje přes `whitespace-pre-wrap`), ostatní tagy a HTML entity pryč.
+ * Pro portály, které už vracejí text (cheerio .text()), je idempotentní.
+ */
+export function cleanHtmlToText(html: string | null | undefined): string | null {
+  if (!html) return null;
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|ul|ol|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    // Windows CRLF (sreality API vrací \r\n) sjednotíme na \n
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/ +/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim() || null;
+}
+
 export function filterImages(urls: string[], portalName?: string): string[] {
   const seen = new Set<string>();
   return urls

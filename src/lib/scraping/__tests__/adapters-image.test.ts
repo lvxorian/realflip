@@ -1,5 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { filterImages, toFullSizeImageUrl } from "../types";
+import { filterImages, toFullSizeImageUrl, cleanHtmlToText } from "../types";
+
+describe("cleanHtmlToText", () => {
+  it("převede <br /> a CRLF na jeden nový řádek, odstraní ostatní tagy", () => {
+    const out = cleanHtmlToText("První věta.<br />\r\nDruhá věta. <p>Odstavec</p>");
+    expect(out).toBe("První věta.\nDruhá věta. Odstavec");
+    expect(out).not.toContain("<");
+  });
+
+  it("dekóduje HTML entity a sbalí mezery", () => {
+    const out = cleanHtmlToText("A &amp; B &lt; 10 &nbsp;min&quot;");
+    expect(out).toBe("A & B < 10 min\"");
+  });
+
+  it("je idempotentní pro čistý text (bez tagů)", () => {
+    const text = "Obyčejný popis bez HTML.";
+    expect(cleanHtmlToText(text)).toBe(text);
+  });
+
+  it("null/undefined → null, prázdný → null", () => {
+    expect(cleanHtmlToText(null)).toBeNull();
+    expect(cleanHtmlToText(undefined)).toBeNull();
+    expect(cleanHtmlToText("<br />")).toBeNull();
+  });
+});
 
 describe("filterImages", () => {
   it("pustí validní HTTPS URL", () => {
