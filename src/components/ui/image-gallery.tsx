@@ -116,7 +116,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
               aria-label="Predchozi fotka"
               className="group absolute inset-y-0 left-0 w-1/3 sm:w-1/4 z-10 flex items-center justify-start cursor-pointer"
             >
-              <span className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black/35 to-transparent backdrop-blur-[2px] transition-all group-hover:from-black/55 group-hover:backdrop-blur-sm" />
+              <span className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black/35 to-transparent transition-all group-hover:from-black/55" />
               <span className="pointer-events-none ml-3 flex h-9 w-9 items-center justify-center rounded-full glass opacity-90 transition-all group-hover:scale-110 group-hover:bg-card-hover">
                 <CaretLeft size={16} weight="bold" />
               </span>
@@ -126,7 +126,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
               aria-label="Dalsi fotka"
               className="group absolute inset-y-0 right-0 w-1/3 sm:w-1/4 z-10 flex items-center justify-end cursor-pointer"
             >
-              <span className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black/35 to-transparent backdrop-blur-[2px] transition-all group-hover:from-black/55 group-hover:backdrop-blur-sm" />
+              <span className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black/35 to-transparent transition-all group-hover:from-black/55" />
               <span className="pointer-events-none mr-3 flex h-9 w-9 items-center justify-center rounded-full glass opacity-90 transition-all group-hover:scale-110 group-hover:bg-card-hover">
                 <CaretRight size={16} weight="bold" />
               </span>
