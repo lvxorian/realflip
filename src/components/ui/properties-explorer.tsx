@@ -582,6 +582,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     days={p.daysOnMarket}
                     index={i}
                     imageUrl={p.imageUrls?.[0]}
+                    imageUrls={p.imageUrls ?? []}
                     photoCount={p.imageUrls?.length ?? 0}
                     undervaluationPct={p.undervaluationPct ?? undefined}
                     isAuction={p.portalName === "portaldrazeb"}
