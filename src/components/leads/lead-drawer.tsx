@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel } from "@/lib/utils";
 import { PropertyImage } from "@/components/ui/property-image";
+import { ImageGallery } from "@/components/ui/image-gallery";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
 import { LEAD_STAGES, LOST_REASONS } from "@/lib/leads";
 import { toast } from "sonner";
@@ -282,15 +283,29 @@ function LeadDrawerContent({
       </div>
 
       <div className="px-5 py-4 space-y-5">
-        {(lead.propertyImageUrl || lead.propertyRemoved) && (
+        {((lead.propertyImageUrls?.length ?? 0) > 0 || lead.propertyRemoved) && (
           <div className="overflow-hidden rounded-xl">
-            <PropertyImage
-              src={lead.propertyImageUrl}
-              alt={lead.propertyTitle ?? "Nemovitost"}
-              score={lead.analysisScore}
-              removed={lead.propertyRemoved}
-              containerClassName="h-40 w-full"
-            />
+            {lead.propertyRemoved ? (
+              <PropertyImage
+                src={lead.propertyImageUrl}
+                alt={lead.propertyTitle ?? "Nemovitost"}
+                score={lead.analysisScore}
+                removed
+                containerClassName="h-40 w-full"
+              />
+            ) : (
+              <ImageGallery
+                images={
+                  lead.propertyImageUrls?.length
+                    ? lead.propertyImageUrls
+                    : lead.propertyImageUrl
+                      ? [lead.propertyImageUrl]
+                      : []
+                }
+                alt={lead.propertyTitle ?? "Nemovitost"}
+                score={lead.analysisScore ?? undefined}
+              />
+            )}
           </div>
         )}
 

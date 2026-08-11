@@ -2,24 +2,15 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Star, MapPin, Phone, Envelope, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle } from "@phosphor-icons/react";
+import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
-import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
-import { formatPrice, formatCompactPrice, formatRelative, conditionLabel, portalLabel, buildingTypeLabel, splitAddress } from "@/lib/utils";
+import { formatPrice, formatCompactPrice, portalLabel, splitAddress } from "@/lib/utils";
 import { timeInStageDays } from "@/lib/leads";
 import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import type { LeadItem } from "./types";
-
-function initials(name: string | null): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
-  return (first + last).toUpperCase();
-}
 
 function marketDaysLabel(firstSeen: number | null | undefined, now: number): string | null {
   if (firstSeen == null || firstSeen <= 0) return null;
@@ -209,7 +200,7 @@ export function LeadCardView({
       </div>
 
       {lead.notes && (
-        <p className="mb-1.5 text-[10px] leading-relaxed text-muted/70 italic line-clamp-2" title={lead.notes}>
+        <p className="mb-1.5 text-[10px] leading-relaxed text-muted/70 italic break-words whitespace-pre-wrap">
           {lead.notes}
         </p>
       )}
@@ -230,27 +221,6 @@ export function LeadCardView({
         )}
       </div>
 
-      {(lead.analysisTargetPurchasePrice != null || lead.analysisArv != null) && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-2">
-          {lead.analysisTargetPurchasePrice != null && lead.analysisTargetPurchasePrice > 0 && (
-            <span
-              className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted"
-              title="Cílová nákupní cena z analýzy"
-            >
-              Cíl: {formatCompactPrice(lead.analysisTargetPurchasePrice)}
-            </span>
-          )}
-          {lead.analysisArv != null && lead.analysisArv > 0 && (
-            <span
-              className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted"
-              title="Odhadnutá hodnota po rekonstrukci (ARV)"
-            >
-              ARV: {formatCompactPrice(lead.analysisArv)}
-            </span>
-          )}
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center gap-1 mb-2">
           {lead.propertyArea != null && (
             <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">{lead.propertyArea} m²</span>
@@ -258,44 +228,7 @@ export function LeadCardView({
           {lead.propertyRooms && (
             <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">{lead.propertyRooms}</span>
           )}
-          {lead.propertyCondition && (
-            <Badge variant="outline" size="sm">{conditionLabel(lead.propertyCondition)}</Badge>
-          )}
-          {lead.propertyBuildingType && (
-            <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">
-              {buildingTypeLabel(lead.propertyBuildingType)}
-            </span>
-          )}
         </div>
-
-      {(lead.contactName || lead.contactPhone) && (
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/15 text-accent text-[10px] font-bold">
-            {initials(lead.contactName)}
-          </span>
-          <span className="text-[11px] text-muted truncate">{lead.contactName ?? "Bez jména"}</span>
-          {lead.contactPhone && (
-            <a
-              href={`tel:${lead.contactPhone}`}
-              onClick={(e) => e.stopPropagation()}
-              title={`Zavolat ${lead.contactPhone}`}
-              className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
-            >
-              <Phone size={12} weight="bold" />
-            </a>
-          )}
-          {lead.contactEmail && (
-            <a
-              href={`mailto:${lead.contactEmail}`}
-              onClick={(e) => e.stopPropagation()}
-              title={lead.contactEmail}
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
-            >
-              <Envelope size={12} weight="bold" />
-            </a>
-          )}
-        </div>
-      )}
 
       <div className="flex items-center justify-between gap-2 text-[10px] text-muted/50">
         <span className="min-w-0 truncate">
@@ -334,7 +267,6 @@ export function LeadCardView({
               <XCircle size={12} weight="bold" />
             </button>
           )}
-          {lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>}
         </span>
       </div>
     </div>

@@ -85,6 +85,7 @@ export async function GET() {
         contactPhone: row.propertyContactPhone ?? row.contactPhone,
         contactEmail: row.propertyContactEmail ?? row.contactEmail,
         propertyImageUrl: safeJsonParse<string[]>(row.propertyImageUrls, [])[0] ?? null,
+        propertyImageUrls: safeJsonParse<string[]>(row.propertyImageUrls, []),
         propertyFirstSeen: row.propertyFirstSeen != null ? Number(row.propertyFirstSeen) : null,
         createdAt: row.createdAt != null ? Number(row.createdAt) : null,
         updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,

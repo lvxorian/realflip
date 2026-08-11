@@ -51,6 +51,7 @@ function makeLead(overrides: Partial<LeadItem> = {}): LeadItem {
     propertyPortalName: "sreality",
     propertyUrl: null,
     propertyImageUrl: null,
+    propertyImageUrls: [],
     propertyRemoved: false,
     propertyIsActive: true,
     propertyRemovedAt: null,
@@ -88,12 +89,32 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(screen.getByText("10 dní na trhu")).toBeTruthy();
   });
 
-  it("bez first_seen zůstává relativní čas poslední aktivity", () => {
+  it("nezobrazuje CÍL, ARV, kontakt, stav ani typ budovy, ani relativní čas aktivity", () => {
+    const lead = makeLead({
+      analysisTargetPurchasePrice: 2_000_000,
+      analysisArv: 3_500_000,
+      propertyCondition: "before_renovation",
+      propertyBuildingType: "panel",
+      contactName: "Michaela Tripalova",
+      contactPhone: "+420 777 123 456",
+      contactEmail: "m@example.com",
+    });
+    render(<LeadCardView lead={lead} onOpen={() => {}} />);
+
+    expect(screen.queryByText(/Cíl:/)).toBeNull();
+    expect(screen.queryByText(/ARV:/)).toBeNull();
+    expect(screen.queryByText("Michaela Tripalova")).toBeNull();
+    expect(screen.queryByText(/Před rekonstrukcí/i)).toBeNull();
+    expect(screen.queryByText(/Panelový/i)).toBeNull();
+    expect(screen.queryByText(formatRelative(lead.updatedAt!))).toBeNull();
+  });
+
+  it("bez first_seen se doba na trhu vůbec nezobrazí (žádný fallback na relativní čas)", () => {
     const lead = makeLead({ propertyFirstSeen: null });
     render(<LeadCardView lead={lead} onOpen={() => {}} />);
 
-    const expected = formatRelative(lead.updatedAt!);
-    expect(screen.getByText(expected)).toBeTruthy();
+    expect(screen.queryByText(/na trhu/)).toBeNull();
+    expect(screen.queryByText(formatRelative(lead.updatedAt!))).toBeNull();
   });
 
   it("adresa bez čárky se zobrazí celá jako ulice", () => {
@@ -107,6 +128,17 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
 
     expect(screen.getByText("Brno")).toBeTruthy();
     expect(screen.queryByText("614 00")).toBeNull();
+  });
+
+  it("poznámka se zobrazí celá, bez ořezu (žádný line-clamp)", () => {
+    const longNote =
+      "Dlouhá poznámka, která by se dřív ořezala na dva řádky a skončila třemi tečkami. " +
+      "Majitel je ochotný slevit, ale chce vidět vážnou nabídku do konce týdne. " +
+      "Ideálně se domluvit na prohlídce v sobotu dopoledne, klíče má u sousedky.";
+    render(<LeadCardView lead={makeLead({ notes: longNote })} onOpen={() => {}} />);
+
+    const note = screen.getByText(longNote);
+    expect(note.className).not.toContain("line-clamp");
   });
 
   it("drag preview ukazuje stejné klíčové údaje jako karta", () => {

@@ -17,10 +17,10 @@ import {
   type DragOverEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { WarningCircle, Kanban, Clock } from "@phosphor-icons/react";
-import { LEAD_STAGES, LEAD_STAGE_KEYS, resolveDropTarget, timeInStageDays } from "@/lib/leads";
+import { WarningCircle, Kanban } from "@phosphor-icons/react";
+import { LEAD_STAGES, LEAD_STAGE_KEYS, resolveDropTarget } from "@/lib/leads";
 import { moveLeadToStage, reorderLeadInStage } from "@/lib/pipeline-board";
-import { formatCompactPrice, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { currentTime } from "@/lib/clock";
 import { toast } from "sonner";
 import { LeadCard, LeadCardView } from "./lead-card";
@@ -474,17 +474,16 @@ export function LeadsBoard() {
         <div className="flex gap-2.5 overflow-x-auto pb-4 snap-x">
           {LEAD_STAGES.map((stage) => {
             const items = byStage.get(stage.key) ?? [];
-            const sum = items.reduce((acc, l) => acc + (l.propertyPrice ?? 0), 0);
             const pct = items.length > 0 ? Math.round((items.length / maxCount) * 100) : 0;
 
             const now = currentTime();
-            const active = items.filter((l) => l.stage !== "closed" && l.stage !== "lost");
-            const avgDays =
-              active.length > 0
-                ? Math.round(active.reduce((acc, l) => acc + timeInStageDays(l.stageEnteredAt, now), 0) / active.length)
-                : null;
-            const overdueCount = active.filter(
-              (l) => l.nextStepDueAt != null && l.nextStepDueAt > 0 && l.nextStepDueAt < now
+            const overdueCount = items.filter(
+              (l) =>
+                l.stage !== "closed" &&
+                l.stage !== "lost" &&
+                l.nextStepDueAt != null &&
+                l.nextStepDueAt > 0 &&
+                l.nextStepDueAt < now
             ).length;
 
             const highlighted = latestOver
@@ -505,27 +504,14 @@ export function LeadsBoard() {
                 <div className="h-1 rounded-full bg-border/15 mb-3 overflow-hidden">
                   <div className={`h-full rounded-full ${stage.dot} transition-all duration-300`} style={{ width: `${pct}%` }} />
                 </div>
-                <div className="mb-2 px-1 text-[10px] font-mono text-muted/60">
-                  {sum > 0 && <span>{formatCompactPrice(sum)} celkem</span>}
-                </div>
-                {(avgDays != null || overdueCount > 0) && (
-                  <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1">
-                    {avgDays != null && (
-                      <span
-                        className="inline-flex items-center gap-1 rounded bg-border/15 px-1.5 py-0.5 text-[10px] font-mono text-muted"
-                        title="Průměrný čas leadů ve fázi"
-                      >
-                        <Clock size={9} weight="fill" /> Ø {avgDays} dní
-                      </span>
-                    )}
-                    {overdueCount > 0 && (
-                      <span
-                        className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 text-[10px] font-mono text-red-400"
-                        title="Leadů s propadlým dalším krokem"
-                      >
-                        {overdueCount} overdue
-                      </span>
-                    )}
+                {overdueCount > 0 && (
+                  <div className="mb-2 px-1">
+                    <span
+                      className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 text-[10px] font-mono text-red-400"
+                      title="Leadů s propadlým dalším krokem"
+                    >
+                      {overdueCount} overdue
+                    </span>
                   </div>
                 )}
                 <SortableContext items={items.map((l) => l.id)} strategy={verticalListSortingStrategy}>
