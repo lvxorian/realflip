@@ -73,7 +73,7 @@ function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-w-[220px] max-w-[360px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
+        "flex min-w-[160px] lg:min-w-0 max-w-[360px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
         (isOver || highlighted) && "bg-accent/5 ring-1 ring-accent/30"
       )}
     >
@@ -86,7 +86,7 @@ function BoardSkeleton() {
   return (
     <div className="flex gap-2.5 overflow-x-auto pb-4 snap-x">
       {LEAD_STAGES.map((s) => (
-        <div key={s.key} className="flex min-w-[220px] flex-1 basis-0 flex-col gap-2 snap-start">
+        <div key={s.key} className="flex min-w-[160px] lg:min-w-0 flex-1 basis-0 flex-col gap-2 snap-start">
           <div className="h-6 w-24 rounded-lg bg-border/20 animate-pulse" />
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-32 rounded-xl bg-border/10 animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
