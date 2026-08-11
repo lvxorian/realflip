@@ -100,9 +100,9 @@ export function PropertyCard({
             containerClassName="h-full w-full"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />
-          <div className="absolute top-3 right-3 flex flex-col items-center gap-1">
-            <ScoreGauge score={score} size={36} strokeWidth={2.5} />
+          <div className="absolute top-3 right-3 flex items-center gap-1.5">
             <FavoriteButton propertyId={id} initialFavorited={isFavorited} size={14} className="h-6 w-6 bg-card/50 backdrop-blur-sm rounded-full" />
+            <ScoreGauge score={score} size={36} strokeWidth={2.5} />
           </div>
           <div className="absolute top-3 left-3 flex flex-col gap-1">
             {isAuction && (
