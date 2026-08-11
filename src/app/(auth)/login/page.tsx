@@ -10,8 +10,11 @@ import { Input } from "@/components/ui/input";
 import { LoginSplash } from "@/components/auth/login-splash";
 import { House, Eye, EyeSlash, ArrowRight } from "@phosphor-icons/react";
 
-// Minimální doba, po kterou se animace zobrazí (i když login proběhne rychle).
+// Video animace (10 s) se nechá dohrát celé, pak se přesměruje. Pojistky:
+// MIN — aspoň tak dlouho se splash zobrazí, i kdyby video bylo kratší,
+// MAX — kdyby video z nějakého důvodu nehrálo (autoplay blok atd.), nečekáme věčně.
 const MIN_SPLASH_MS = 2500;
+const MAX_SPLASH_MS = 12000;
 
 function LoginForm() {
   const router = useRouter();
@@ -25,14 +28,30 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [splash, setSplash] = useState(false);
   const submitStarted = useRef(0);
-  const splashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoEnded = useRef(false);
+  const signInOk = useRef(false);
+  const navigateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Uklidí čekající timeout, kdyby uživatel během splashe stránku opustil.
   useEffect(() => {
     return () => {
-      if (splashTimer.current) clearTimeout(splashTimer.current);
+      if (navigateTimer.current) clearTimeout(navigateTimer.current);
     };
   }, []);
+
+  // Přesměruje, až video dohraje (nebo pojistkový MAX vyprší) A login proběhl úspěšně.
+  function maybeNavigate() {
+    if (!videoEnded.current || !signInOk.current) return;
+    // Zruší čekající pojistný MAX timer, aby po přirozeném konci videa
+    // nezůstal viset a nevyvolal navigaci podruhé (na odmontované komponentě).
+    if (navigateTimer.current) clearTimeout(navigateTimer.current);
+    // Animace necháme doběhnout aspoň MIN_SPLASH_MS, ať je vidět, pak přesměrujeme.
+    const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - submitStarted.current));
+    navigateTimer.current = setTimeout(() => {
+      setSplash(false);
+      router.push(callbackUrl);
+    }, remaining);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +59,8 @@ function LoginForm() {
     setError("");
     setLoading(true);
     submitStarted.current = Date.now();
+    videoEnded.current = false;
+    signInOk.current = false;
     setSplash(true);
 
     const result = await signIn("credentials", {
@@ -53,12 +74,14 @@ function LoginForm() {
       setLoading(false);
       setError("Neplatný email nebo heslo");
     } else {
-      // Animace necháme doběhnout aspoň MIN_SPLASH_MS, ať je vidět, pak přesměrujeme.
-      const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - submitStarted.current));
-      splashTimer.current = setTimeout(() => {
-        setSplash(false);
-        router.push(callbackUrl);
-      }, remaining);
+      signInOk.current = true;
+      // Když video už dohrálo (pomalý login), jdeme hned; jinak počkáme na onEnded.
+      maybeNavigate();
+      // Pojistka: kdyby video nehrálo (blokovaný autoplay, chyba), nečekáme věčně.
+      navigateTimer.current = setTimeout(() => {
+        videoEnded.current = true;
+        maybeNavigate();
+      }, MAX_SPLASH_MS);
     }
   }
 
@@ -174,7 +197,13 @@ function LoginForm() {
         </motion.div>
       </div>
 
-      <LoginSplash show={splash} />
+      <LoginSplash
+        show={splash}
+        onPlayedOnce={() => {
+          videoEnded.current = true;
+          maybeNavigate();
+        }}
+      />
     </div>
   );
 }
