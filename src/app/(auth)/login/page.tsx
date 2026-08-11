@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LoginSplash } from "@/components/auth/login-splash";
 import { House, Eye, EyeSlash, ArrowRight } from "@phosphor-icons/react";
+
+// Minimální doba, po kterou se animace zobrazí (i když login proběhne rychle).
+const MIN_SPLASH_MS = 2500;
 
 function LoginForm() {
   const router = useRouter();
@@ -19,11 +23,24 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [splash, setSplash] = useState(false);
+  const submitStarted = useRef(0);
+  const splashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Uklidí čekající timeout, kdyby uživatel během splashe stránku opustil.
+  useEffect(() => {
+    return () => {
+      if (splashTimer.current) clearTimeout(splashTimer.current);
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading || splash) return; // pojistka proti dvojitému odeslání
     setError("");
     setLoading(true);
+    submitStarted.current = Date.now();
+    setSplash(true);
 
     const result = await signIn("credentials", {
       email,
@@ -32,10 +49,16 @@ function LoginForm() {
     });
 
     if (result?.error) {
-      setError("Neplatný email nebo heslo");
+      setSplash(false);
       setLoading(false);
+      setError("Neplatný email nebo heslo");
     } else {
-      router.push(callbackUrl);
+      // Animace necháme doběhnout aspoň MIN_SPLASH_MS, ať je vidět, pak přesměrujeme.
+      const remaining = Math.max(0, MIN_SPLASH_MS - (Date.now() - submitStarted.current));
+      splashTimer.current = setTimeout(() => {
+        setSplash(false);
+        router.push(callbackUrl);
+      }, remaining);
     }
   }
 
@@ -150,6 +173,8 @@ function LoginForm() {
           </div>
         </motion.div>
       </div>
+
+      <LoginSplash show={splash} />
     </div>
   );
 }
