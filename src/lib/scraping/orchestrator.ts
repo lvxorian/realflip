@@ -17,6 +17,23 @@ import { checkPriceDropAlert, checkScoreThresholdAlert } from "@/lib/alert-match
 import { classifyLocation, findCityKey } from "@/lib/analysis/location";
 import { getAnalysisRanges, refreshAllMarketData } from "@/lib/scraping/market-price-service";
 
+/**
+ * Vybere plnější titulek. bazos.cz ořezává titulky na 60 znaků (jeho limit —
+ * plný text na jeho stránkách neexistuje), proto při sloučení se stejným
+ * inzerátem z jiného portálu preferujeme nezkrácený titulek a nikdy
+ * nedegradujeme plný titulek na ořezaný.
+ */
+function pickBetterTitle(
+  current: string | null | undefined,
+  incoming: string | null | undefined
+): string | undefined {
+  if (!incoming) return current ?? undefined;
+  if (!current) return incoming;
+  // Preferujeme delší (plnější) titulek — bazos.cz ořezává na 60 znaků,
+  // plný text se objeví až při sloučení se stejným inzerátem z jiného portálu.
+  return incoming.length > current.length ? incoming : current;
+}
+
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
   private deduplicator: Deduplicator = new Deduplicator();
@@ -357,6 +374,7 @@ export class ScrapingOrchestrator {
       await db
         .update(properties)
         .set({
+          title: pickBetterTitle(existing.title, listing.title),
           price: listing.price,
           pricePerSqm: effectivePricePerSqm,
           area: effectiveArea,
@@ -707,6 +725,8 @@ export class ScrapingOrchestrator {
       .update(properties)
       .set({
         altPortals: toDbAltPortals(alts),
+        // Preferujeme plnější titulek (bazos ořezává na 60 znaků).
+        title: pickBetterTitle(existing.title, listing.title),
         isActive: 1,
         status: PROPERTY_STATUS.ACTIVE,
         removedAt: null,

@@ -67,4 +67,16 @@ describe("PropertyCard — mini carousel fotek", () => {
     expect(screen.queryByLabelText("Předchozí foto")).toBeNull();
     expect(screen.getByText("Inzerát odstraněn")).toBeTruthy();
   });
+
+  it("zobrazí dispozici PŘED plochou jako výrazné chipy", () => {
+    render(<PropertyCard {...base} area="49.2 m²" rooms="2+kk" />);
+
+    const rooms = screen.getByText("2+kk");
+    const area = screen.getByText("49.2 m²");
+    // oba jsou chipy s pozadím
+    expect(rooms.className).toContain("bg-card-hover");
+    expect(area.className).toContain("bg-card-hover");
+    // dispozice je v DOM pořadí PŘED plochou
+    expect(rooms.compareDocumentPosition(area) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

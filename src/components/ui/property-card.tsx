@@ -147,7 +147,11 @@ export function PropertyCard({
         </div>
 
         <div className="p-4 flex-1 flex flex-col">
-          <h3 className="font-semibold tracking-tight text-sm mb-1 group-hover:text-accent transition-colors line-clamp-2" title={title}>
+          {/* Nadpis: pevná výška 2 řádků, ať se spodní řádky (adresa, dispozice) nepohybují */}
+          <h3
+            className="font-semibold tracking-tight text-sm leading-5 min-h-10 mb-1 group-hover:text-accent transition-colors line-clamp-2"
+            title={title}
+          >
             {title}
           </h3>
           <div className="flex items-center gap-1 text-[10px] text-muted mb-3 line-clamp-1" title={address}>
@@ -155,17 +159,21 @@ export function PropertyCard({
             <span className="truncate">{address}</span>
           </div>
 
+          {/* Dispozice + plocha jako výrazné chipy (vždy na stejné pozici) */}
           <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-x-1.5 text-xs font-semibold text-foreground/90">
-              {area && <span>{area}</span>}
+            <div className="flex items-center gap-1.5 min-w-0">
               {rooms && (
-                <>
-                  <span className="w-0.5 h-0.5 rounded-full bg-border" />
-                  <span>{rooms}</span>
-                </>
+                <span className="inline-flex items-center rounded-md border border-border/60 bg-card-hover px-1.5 py-0.5 text-[11px] font-semibold text-foreground/90">
+                  {rooms}
+                </span>
+              )}
+              {area && (
+                <span className="inline-flex items-center rounded-md border border-border/60 bg-card-hover px-1.5 py-0.5 text-[11px] font-semibold text-foreground/90">
+                  {area}
+                </span>
               )}
             </div>
-            {days !== undefined && <span className="text-[10px] text-muted">{days} dní</span>}
+            {days !== undefined && <span className="shrink-0 text-[10px] text-muted">{days} dní</span>}
           </div>
 
           <div className="mt-auto">

@@ -56,7 +56,7 @@ export function pricesConsistent(a: number | null | undefined, b: number | null 
  */
 // Generické místopisné tokeny (bez diakritiky, po normalizeText) — samotné
 // nikdy nesmí potvrdit shodu, jinak by se sloučily různé byty ve stejném městě.
-const GENERIC_PLACE_TOKENS = new Set([
+export const GENERIC_PLACE_TOKENS = new Set([
   // města
   "praha", "brno", "ostrava", "plzen", "olomouc", "liberec", "zlin", "hradec",
   "kralove", "pardubice", "usti", "jihlava", "opava", "kladno", "karlovy",
@@ -81,7 +81,7 @@ function isGenericPlace(token: string): boolean {
 
 // Názvy obcí/krajů — slouží k ověření, že shoda je ve STEJNÉM městě
 // (ulice jako „Edvarda Beneše" existují v mnoha městech → křížová falešná shoda).
-const CITY_TOKENS = new Set([
+export const CITY_TOKENS = new Set([
   "praha", "brno", "ostrava", "plzen", "olomouc", "liberec", "zlin", "hradec",
   "kralove", "pardubice", "usti", "jihlava", "opava", "kladno", "karlovy",
   "vary", "pisek", "tabor", "mlada", "boleslav", "cheb", "sokolov", "most",
