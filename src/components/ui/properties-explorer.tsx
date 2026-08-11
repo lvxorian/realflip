@@ -614,7 +614,6 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                           alt={p.title}
                           score={p.score}
                           removed={p.removed}
-                          fit="cover"
                           containerClassName="h-full w-full"
                         />
                         <div className="absolute top-0.5 right-0.5">

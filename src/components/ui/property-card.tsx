@@ -89,8 +89,8 @@ export function PropertyCard({
         transition={{ delay: index * 0.04, type: "spring" as const, stiffness: 100, damping: 20 }}
         className="group rounded-2xl border border-border/50 bg-card overflow-hidden hover:bg-card-hover hover:border-accent/20 transition-all duration-300 cursor-pointer h-full flex flex-col"
       >
-        {/* Image */}
-        <div className="relative h-40 overflow-hidden">
+        {/* Image — poměr 8:5 odpovídá většině fotek portálů (16:9 a 3:2) */}
+        <div className="relative aspect-[8/5] overflow-hidden">
           <PropertyImage
             key={currentSrc ?? "no-photo"}
             src={currentSrc}

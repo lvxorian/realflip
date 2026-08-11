@@ -19,7 +19,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
   if (!images || images.length === 0 || errored.size >= images.length) {
     return (
-      <div className="relative h-80 property-image-shimmer flex items-center justify-center">
+      <div className="relative aspect-[8/5] property-image-shimmer flex items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
         {score !== undefined && (
           <div className="relative flex flex-col items-center gap-2">
@@ -38,37 +38,22 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
   return (
     <div className="relative">
-      <div className="relative h-80 bg-card overflow-hidden">
+      <div className="relative aspect-[8/5] bg-card overflow-hidden">
         {errored.has(activeIndex) ? (
           <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
             <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
           </div>
         ) : (
-          <>
-            {/* Rozmazané pozadí — vyplní celý kontejner bez ořezu (skryté před čtečkami) */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={images[activeIndex]}
-              alt=""
-              aria-hidden
-              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              decoding="async"
-              onError={() => handleImgError(activeIndex)}
-            />
-            {/* Celá fotka — vždy viditelná bez ořezání, jako v originálním inzerátu */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={images[activeIndex]}
-              alt={`${alt} - foto ${activeIndex + 1}`}
-              className="absolute inset-0 h-full w-full object-contain"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              decoding="async"
-              onError={() => handleImgError(activeIndex)}
-            />
-          </>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={images[activeIndex]}
+            alt={`${alt} - foto ${activeIndex + 1}`}
+            className="absolute inset-0 h-full w-full object-cover"
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            decoding="async"
+            onError={() => handleImgError(activeIndex)}
+          />
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
