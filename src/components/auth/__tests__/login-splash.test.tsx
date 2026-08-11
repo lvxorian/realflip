@@ -3,15 +3,18 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { LoginSplash } from "../login-splash";
 
 describe("LoginSplash", () => {
-  it("zobrazí video přes celou obrazovku a text Přihlašuji se, když je show=true", () => {
-    render(<LoginSplash show />);
+  it("zobrazí video vycentrované v poloviční velikosti a text Přihlašuji se", () => {
+    const { container } = render(<LoginSplash show />);
 
     const video = document.querySelector("video");
     expect(video).toBeTruthy();
     expect(video?.getAttribute("src")).toBe("/realflip-animation.mp4");
     expect(video?.getAttribute("poster")).toBe("/realflip-animation-poster.jpg");
-    // video pokrývá celé okno (object-cover) a loopuje se (nezamrzne při pomalém loginu)
-    expect(video?.className).toContain("object-cover");
+    // video je v poloviční velikosti okna, vycentrované, bez ořezu (object-contain)
+    const box = container.querySelector(".h-\\[50vh\\]");
+    expect(box).toBeTruthy();
+    expect(box?.className).toContain("w-[50vw]");
+    expect(video?.className).toContain("object-contain");
     expect(video?.loop).toBe(true);
     expect(video?.muted).toBe(true);
     expect(video?.getAttribute("autoplay")).not.toBeNull();

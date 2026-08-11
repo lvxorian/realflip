@@ -10,11 +10,12 @@ interface LoginSplashProps {
 }
 
 /**
- * Celostránková splash obrazovka — přehrává brandovou animaci RealFlipu
- * (public/realflip-animation.mp4) po dobu přihlašování. Video pokrývá celé
- * okno (object-cover) a loopuje se, takže ani při pomalém loginu nezamrzne
- * na posledním snímku. Přes `onPlayedOnce` hlásí rodiči, že video proběhlo
- * celé jednou, aby se mohlo pokračovat dál (ne dřív).
+ * Splash obrazovka při přihlašování — přehrává brandovou animaci RealFlipu
+ * (public/realflip-animation.mp4). Video je vycentrované uprostřed černé
+ * obrazovky v poloviční velikosti okna (50vw × 50vh, object-contain) a
+ * loopuje se, takže ani při pomalém loginu nezamrzne na posledním snímku.
+ * Přes `onPlayedOnce` hlásí rodiči, že video proběhlo celé jednou,
+ * aby se mohlo pokračovat dál (ne dřív).
  */
 export function LoginSplash({ show, onPlayedOnce }: LoginSplashProps) {
   const reported = useRef(false);
@@ -39,26 +40,25 @@ export function LoginSplash({ show, onPlayedOnce }: LoginSplashProps) {
           transition={{ duration: 0.25 }}
           role="status"
           aria-label="Přihlašuji se"
-          className="fixed inset-0 z-50 overflow-hidden bg-black"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black"
         >
-          {/* Video přes celý displej */}
-          <video
-            src="/realflip-animation.mp4"
-            poster="/realflip-animation-poster.jpg"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className="h-full w-full object-cover"
-            onTimeUpdate={handleTimeUpdate}
-            onError={onPlayedOnce}
-          />
+          {/* Video vycentrované, poloviční velikost okna */}
+          <div className="relative h-[50vh] w-[50vw] max-w-full">
+            <video
+              src="/realflip-animation.mp4"
+              poster="/realflip-animation-poster.jpg"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              className="h-full w-full object-contain"
+              onTimeUpdate={handleTimeUpdate}
+              onError={onPlayedOnce}
+            />
+          </div>
 
-          {/* Jemný overlay pro čitelnost textu */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
-
-          {/* Text přes video */}
+          {/* Text — plovoucí kapsle dole uprostřed */}
           <div className="absolute inset-x-0 bottom-10 flex justify-center">
             <div className="flex items-center gap-2.5 rounded-full bg-black/55 backdrop-blur-sm px-5 py-2.5 text-sm font-medium text-white">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">

@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { LoginSplash } from "@/components/auth/login-splash";
 import { House, Eye, EyeSlash, ArrowRight } from "@phosphor-icons/react";
 
-// Video animace (10 s) se nechá dohrát celé, pak se přesměruje. Pojistky:
+// Video animace (~5 s) se nechá dohrát celé, pak se přesměruje. Pojistky:
 // MIN — aspoň tak dlouho se splash zobrazí, i kdyby video bylo kratší,
 // MAX — kdyby video z nějakého důvodu nehrálo (autoplay blok atd.), nečekáme věčně.
 const MIN_SPLASH_MS = 2500;
-const MAX_SPLASH_MS = 12000;
+const MAX_SPLASH_MS = 9000;
 
 function LoginForm() {
   const router = useRouter();
