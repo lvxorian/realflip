@@ -59,7 +59,9 @@ export class AnnonceAdapter extends PortalAdapter {
       $el.find("table.attrs tr").each((_j, tr) => {
         const $tr = $(tr);
         const label = $tr.find("th").text().trim().toLowerCase();
-        const value = $tr.find("td:first-child").text().trim();
+        // Aktuální annonce.cz HTML má <th> PŘED <td> — `td:first-child` by
+        // nikdy nematchl (td je 2. dítě tr) → hodnota prázdná → area/floor null.
+        const value = $tr.find("td").first().text().trim();
 
         if (label.includes("dispozice")) {
           rooms = $tr.find("td a").first().text().trim() || null;
@@ -69,6 +71,11 @@ export class AnnonceAdapter extends PortalAdapter {
           floor = parseInt(value) || null;
         }
       });
+
+      // Fallback: plocha často bývá i v titulku ("45 m²", "užit. pl. 62,99 m2").
+      if (area == null) {
+        area = this.extractArea(title);
+      }
 
       $el.find("table.attrs td.right a").each((_j, a) => {
         const txt = $(a).text().trim();

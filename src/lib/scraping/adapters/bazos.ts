@@ -49,13 +49,15 @@ export class BazosAdapter extends PortalAdapter {
 
         const dateText = $el.find("span.velikost10").text();
 
+        const area = this.extractArea(title);
+
         all.push({
           portalName: "bazos",
           url: fullUrl,
           title,
           price,
-          pricePerSqm: null,
-          area: this.extractArea(title),
+          pricePerSqm: price > 0 && area && area > 0 ? Math.round(price / area) : null,
+          area,
           rooms: this.extractRooms(title),
           floor: null,
           condition: null,
