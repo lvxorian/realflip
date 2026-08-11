@@ -21,6 +21,12 @@ function initials(name: string | null): string {
   return (first + last).toUpperCase();
 }
 
+function marketDaysLabel(firstSeen: number | null | undefined, now: number): string | null {
+  if (firstSeen == null || firstSeen <= 0) return null;
+  const days = Math.max(0, Math.floor((now - firstSeen) / 86_400_000));
+  return days === 0 ? "dnes" : `${days} dní`;
+}
+
 function AgingBadge({ lead }: { lead: LeadItem }) {
   if (lead.stage === "closed" || lead.stage === "lost") return null;
   const days = timeInStageDays(lead.stageEnteredAt, currentTime());
@@ -193,12 +199,12 @@ export function LeadCardView({
         />
       )}
 
-      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 mb-1.5">
         <span className="text-sm font-semibold font-mono text-amber-400 @max-[240px]:text-xs">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
         {lead.propertyPricePerSqm != null && (
-          <span className="text-[10px] text-muted font-mono @max-[240px]:hidden">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
+          <span className="text-[10px] text-muted font-mono">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
         )}
       </div>
 
@@ -271,7 +277,7 @@ export function LeadCardView({
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[10px] text-muted/50 @max-[240px]:hidden">
+      <div className="flex items-center justify-between text-[10px] text-muted/50">
         <span className="flex items-center gap-1 min-w-0">
           {lead.propertyAddress ? (
             <>
@@ -309,7 +315,16 @@ export function LeadCardView({
               <XCircle size={12} weight="bold" />
             </button>
           )}
-          {lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>}
+          {lead.propertyFirstSeen != null && lead.propertyFirstSeen > 0 ? (
+            <span
+              className="shrink-0"
+              title={`Na trhu od ${new Date(lead.propertyFirstSeen).toLocaleDateString("cs-CZ")}`}
+            >
+              {marketDaysLabel(lead.propertyFirstSeen, now)} na trhu
+            </span>
+          ) : (
+            lead.updatedAt != null && <span className="shrink-0">{formatRelative(lead.updatedAt)}</span>
+          )}
         </span>
       </div>
     </div>

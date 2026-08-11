@@ -34,6 +34,7 @@ export interface LeadItem {
   propertyTitle: string | null;
   propertyPrice: number | null;
   propertyPricePerSqm: number | null;
+  propertyFirstSeen: number | null;
   propertyArea: number | null;
   propertyRooms: string | null;
   propertyAddress: string | null;
