@@ -12,9 +12,22 @@ interface ImageGalleryProps {
 export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [errored, setErrored] = useState<Set<number>>(new Set());
+  // Přirozený poměr stran aktuální fotky — kontejner se mu přizpůsobí,
+  // takže fotka se zobrazí celá (bez ořezu) jako na originálním inzerátu.
+  const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
 
   const handleImgError = (i: number) => {
     setErrored((prev) => new Set(prev).add(i));
+  };
+
+  const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      // Rozumné meze: čtverec až panoráma — extrémní poměry se zkrotí,
+      // běžné realitní fotky (4:3, 3:2, 16:9) se zobrazí bez ořezu.
+      const ratio = img.naturalWidth / img.naturalHeight;
+      setNaturalRatio(Math.min(2.1, Math.max(0.8, ratio)));
+    }
   };
 
   if (!images || images.length === 0 || errored.size >= images.length) {
@@ -38,7 +51,10 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
   return (
     <div className="relative">
-      <div className="relative aspect-[8/5] bg-card overflow-hidden">
+      <div
+        className="relative w-full bg-card overflow-hidden"
+        style={naturalRatio ? { aspectRatio: `${naturalRatio}` } : { aspectRatio: "8 / 5" }}
+      >
         {errored.has(activeIndex) ? (
           <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
             <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
@@ -46,12 +62,17 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            key={activeIndex}
             src={images[activeIndex]}
             alt={`${alt} - foto ${activeIndex + 1}`}
+            // object-cover: když kontejner kopíruje přirozený poměr fotky, nedojde
+            // k žádnému ořezu ani pruhům; u extrémních poměrů (mimo clamp 0.8–2.1)
+            // se jen lehce ořízne, ale nikdy nevzniknou pruhy.
             className="absolute inset-0 h-full w-full object-cover"
             referrerPolicy="no-referrer"
             loading="lazy"
             decoding="async"
+            onLoad={handleImgLoad}
             onError={() => handleImgError(activeIndex)}
           />
         )}
@@ -63,19 +84,19 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
             <button
               onClick={goPrev}
               aria-label="Predchozi fotka"
-              className="absolute left-3 top-1/2 -translate-y-1/2 glass h-9 w-9 rounded-full flex items-center justify-center hover:bg-card-hover transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 glass h-9 w-9 rounded-full flex items-center justify-center hover:bg-card-hover transition-colors z-10"
             >
               <CaretLeft size={16} weight="bold" />
             </button>
             <button
               onClick={goNext}
               aria-label="Dalsi fotka"
-              className="absolute right-3 top-1/2 -translate-y-1/2 glass h-9 w-9 rounded-full flex items-center justify-center hover:bg-card-hover transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 glass h-9 w-9 rounded-full flex items-center justify-center hover:bg-card-hover transition-colors z-10"
             >
               <CaretRight size={16} weight="bold" />
             </button>
 
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 glass px-2.5 py-1 rounded-full text-[11px] font-mono">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 glass px-2.5 py-1 rounded-full text-[11px] font-mono z-10">
               {activeIndex + 1} / {images.length}
             </div>
           </>

@@ -52,7 +52,7 @@ describe("PropertyImage — fotka vyplní celý kontejner", () => {
   });
 });
 
-describe("ImageGallery — fotka vyplní celý kontejner 8:5", () => {
+describe("ImageGallery — adaptivní poměr, fotka bez ořezu", () => {
   it("hlavní fotka má object-cover a žádné rozmazané pozadí", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
 
@@ -60,6 +60,34 @@ describe("ImageGallery — fotka vyplní celý kontejner 8:5", () => {
     expect(main.getAttribute("src")).toBe("/a.jpg");
     expect(main.className).toContain("object-cover");
     expect(document.querySelectorAll('img[aria-hidden="true"]').length).toBe(0);
+  });
+
+  it("po načtení fotky nastaví kontejner na přirozený poměr stran", () => {
+    render(<ImageGallery images={["/a.jpg"]} alt="Byt" />);
+
+    const main = screen.getByAltText("Byt - foto 1");
+    // výchozí (před načtením) — 8:5
+    const container = main.closest("div");
+    expect(container?.getAttribute("style")).toContain("8 / 5");
+
+    // simuluj načtení 16:9 fotky (1600x900)
+    Object.defineProperty(main, "naturalWidth", { value: 1600 });
+    Object.defineProperty(main, "naturalHeight", { value: 900 });
+    fireEvent.load(main);
+
+    expect(container?.getAttribute("style")).toContain("1.7777777777777777");
+  });
+
+  it("extrémní poměr se zkrotí (max 2.1)", () => {
+    render(<ImageGallery images={["/panorama.jpg"]} alt="Byt" />);
+
+    const main = screen.getByAltText("Byt - foto 1");
+    Object.defineProperty(main, "naturalWidth", { value: 4000 });
+    Object.defineProperty(main, "naturalHeight", { value: 1000 });
+    fireEvent.load(main);
+
+    const container = main.closest("div");
+    expect(container?.getAttribute("style")).toContain("2.1");
   });
 
   it("šipky listují mezi fotkami", () => {

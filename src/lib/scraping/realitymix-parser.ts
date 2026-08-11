@@ -135,6 +135,38 @@ function parseContact($: cheerio.CheerioAPI): {
   return { name, phone: phone || null, email };
 }
 
+/**
+ * Vytáhne všechny fotky galerie ze stránky realitymix.cz.
+ *
+ * Skutečná galerie má tři části:
+ * - `.gallery__main-img` — hlavní (velká) fotka,
+ * - `.gallery__small-img .gallery__item a` — viditelné náhledy (plná verze v `data-src`),
+ * - `.gallery__hidden-items a.gallery__item` — zbývající fotky (plná verze v `href`).
+ *
+ * Původně se hledalo `.gallery__items`, který na stránce neexistuje — proto měly
+ * všechny realitymix inzeráty jen ~3 fotky. Bereme `href` přednostně (plná verze),
+ * jinak `data-src`; `_nahled` (malé náhledy) a `_detail` (menší verze) filtrujeme
+ * a http:// st.realitymix.cz převádíme na https (stejný obrázek, bez mixed contentu).
+ */
+export function extractRealityMixImages($: cheerio.CheerioAPI): string[] {
+  const images: string[] = [];
+  $(".gallery__main-img a[data-gallery], .gallery__small-img a[data-gallery], .gallery__hidden-items a.gallery__item").each((_, el) => {
+    const href = $(el).attr("href");
+    const dataSrc = $(el).attr("data-src");
+    const src = href ?? dataSrc;
+    if (src) {
+      // Plná verze bez thumbnailu/detailu; ostatní portály řeší vlastní logikou.
+      images.push(
+        src
+          .replace(/^http:/, "https:")
+          .replace(/_detail\.(jpe?g|png|webp)$/i, ".$1")
+          .replace(/_nahled\.(jpe?g|png|webp)$/i, ".$1")
+      );
+    }
+  });
+  return filterImages(images, "realitymix");
+}
+
 export function parseRealityMixDetail(html: string, url: string): RawListing {
   const $ = cheerio.load(html);
 
@@ -155,16 +187,7 @@ export function parseRealityMixDetail(html: string, url: string): RawListing {
   if (descEl.length) description = descEl.text().replace(/\s+/g, " ").trim();
   if (!description) description = cleanText($('meta[property="og:description"]').attr("content"));
 
-  const images: string[] = [];
-  $(".gallery__main-img a[data-src]").each((_, el) => {
-    const src = $(el).attr("data-src");
-    if (src) images.push(src);
-  });
-  $(".gallery__items a[data-src]").each((_, el) => {
-    const src = $(el).attr("data-src");
-    if (src) images.push(src);
-  });
-  const imageUrls = filterImages(images, "realitymix");
+  const imageUrls = extractRealityMixImages($);
 
   const latAttr = $("#print-map").attr("data-gps-lat");
   const lngAttr = $("#print-map").attr("data-gps-lon");

@@ -16,6 +16,21 @@ interface RemaxCard {
   imageUrl: string | null;
 }
 
+/**
+ * Vytáhne plné verze fotek galerie z detailní stránky remax.cz.
+ * Hlavní fotka (#mainImage) i galerie (a[data-fancybox="images"]) mají plnou
+ * verzi v `href` — thumbnaily `_th350` (v src/data-thumb) vynecháváme.
+ */
+export function extractRemaxGalleryImages(html: string): string[] {
+  const $ = cheerio.load(html);
+  const images: string[] = [];
+  $("#mainImage, a[data-fancybox=\"images\"]").each((_, el) => {
+    const href = $(el).attr("href") || $(el).attr("data-src");
+    if (href && href.includes("mlsf.remax-czech.cz")) images.push(href);
+  });
+  return filterImages(images, "remax");
+}
+
 function cleanNum(text: string): number | null {
   const m = text.match(/(\d[\d\s\u00a0]*)/);
   if (!m) return null;
@@ -61,7 +76,40 @@ export class RemaxAdapter extends PortalAdapter {
       for (const card of cards) results.push(this.toListing(card));
     }
 
-    return results;
+    // Detailní stránka obsahuje plnou galerii (a[data-fancybox="images"] → href)
+    // a také popis, patro, stav a GPS — kartička má jen náhled. Zobohacení je
+    // pomalé (rate limit 3 s), proto s malou konkurencí jako ostatní adaptéry.
+    const enriched: RawListing[] = [];
+    const concurrency = 3;
+    for (let i = 0; i < results.length; i += concurrency) {
+      const batch = results.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map((l) => this.enrichListing(l).catch(() => l))
+      );
+      enriched.push(...batchResults);
+    }
+
+    return enriched;
+  }
+
+  /**
+   * Načte detailní stránku inzerátu a doplní údaje, které kartička nemá:
+   * všechny fotky galerie, popis, GPS a patro.
+   */
+  async enrichListing(raw: RawListing): Promise<RawListing> {
+    const html = await this.fetch(raw.url);
+    const $ = cheerio.load(html);
+
+    const imageUrls = extractRemaxGalleryImages(html);
+    if (imageUrls.length > 0) raw.imageUrls = imageUrls;
+
+    const description = this.cleanText($("div.text-justify").first().text());
+    if (description && description.length > 20) raw.description = description;
+
+    const address = this.cleanText($(".detail__headline .breadcrumb").last().text());
+    if (address && !raw.address) raw.address = address;
+
+    return raw;
   }
 
   private parseCards($: cheerio.CheerioAPI): RemaxCard[] {

@@ -122,6 +122,44 @@ describe("parseRealityMixDetail", () => {
     expect(listing.contactEmail).toBe("realityspolu@bcas.cz");
     expect(listing.contactPhone).toBe("800100164");
   });
+
+  it("galerie — vytáhne VŠECHNY fotky (small-img + hidden-items, plné verze bez _nahled/_detail)", () => {
+    const html = detailHtml();
+    // Skutečná galerie realitymix: main-img + small-img (data-src) + hidden-items (href).
+    const gallery = `
+      <div class="gallery__main-img"><a class="gallery__main-img-inner" data-gallery data-src="http://st.realitymix.cz/i/111/222/nab_100.jpg"></a></div>
+      <div class="gallery__small-img">
+        <div class="gallery__item gallery__item--image"><a data-thumb="http://st.realitymix.cz/i/111/222/nab_101_nahled.jpg" data-gallery data-src="http://st.realitymix.cz/i/111/222/nab_101.jpg"></a></div>
+        <div class="gallery__item gallery__item--image"><a data-thumb="http://st.realitymix.cz/i/111/222/nab_102_nahled.jpg" data-gallery data-src="http://st.realitymix.cz/i/111/222/nab_102.jpg"></a></div>
+      </div>
+      <div class="gallery__hidden-items">
+        <a class="gallery__item" data-thumb="http://st.realitymix.cz/i/111/222/nab_103_nahled.jpg" data-gallery href="http://st.realitymix.cz/i/111/222/nab_103.jpg"></a>
+        <a class="gallery__item" data-thumb="http://st.realitymix.cz/i/111/222/nab_104_nahled.jpg" data-gallery href="http://st.realitymix.cz/i/111/222/nab_104_detail.jpg"></a>
+      </div>`;
+    const listing = parseRealityMixDetail(
+      html.replace(/<div class="gallery__main-img">[\s\S]*?<\/div>/, gallery),
+      "https://realitymix.cz/detail/blansko/x-165.html"
+    );
+
+    expect(listing.imageUrls).toEqual([
+      "https://st.realitymix.cz/i/111/222/nab_100.jpg",
+      "https://st.realitymix.cz/i/111/222/nab_101.jpg",
+      "https://st.realitymix.cz/i/111/222/nab_102.jpg",
+      "https://st.realitymix.cz/i/111/222/nab_103.jpg",
+      "https://st.realitymix.cz/i/111/222/nab_104.jpg",
+    ]);
+  });
+
+  it("galerie — http se převede na https a thumbnail se vynechá", () => {
+    const html = detailHtml();
+    const gallery = `<div class="gallery__main-img"><a class="gallery__main-img-inner" data-gallery data-src="http://st.realitymix.cz/i/111/222/nab_100.jpg"></a></div>`;
+    const listing = parseRealityMixDetail(
+      html.replace(/<div class="gallery__main-img">[\s\S]*?<\/div>/, gallery),
+      "https://realitymix.cz/detail/blansko/x-166.html"
+    );
+
+    expect(listing.imageUrls[0]).toBe("https://st.realitymix.cz/i/111/222/nab_100.jpg");
+  });
 });
 
 describe("RealityMixAdapter", () => {

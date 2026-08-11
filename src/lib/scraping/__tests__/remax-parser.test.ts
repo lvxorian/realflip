@@ -80,4 +80,56 @@ describe("RemaxAdapter", () => {
     const listings = await adapter.crawlListings();
     expect(listings).toHaveLength(0);
   });
+
+  it("enrichListing — detailní stránka doplní celou galerii (href plné verze, bez _th350)", async () => {
+    const galleryHtml = `<html><body>
+      <div class="gallery">
+        <a id="mainImage" data-fancybox="images" href="https://mlsf.remax-czech.cz/data//zs/445375/3387970.png">
+          <img src="https://mlsf.remax-czech.cz/data//zs/445375/3387970_th350.png" />
+        </a>
+        <div class="gallery__small-img">
+          <div class="gallery__item">
+            <a data-fancybox="images" data-thumb="https://mlsf.remax-czech.cz/data//zs/445375/3387971_th350.jpg" href="https://mlsf.remax-czech.cz/data//zs/445375/3387971.jpg"></a>
+          </div>
+          <div class="gallery__item">
+            <a data-fancybox="images" data-thumb="https://mlsf.remax-czech.cz/data//zs/445375/3387972_th350.jpg" href="https://mlsf.remax-czech.cz/data//zs/445375/3387972.jpg"></a>
+          </div>
+        </div>
+        <div class="gallery__hidden-items">
+          <a class="gallery__item" data-fancybox="images" href="https://mlsf.remax-czech.cz/data//zs/445375/3387973.jpg"></a>
+        </div>
+      </div>
+      <div class="text-justify">Pěkný byt s velkou terasou, 3+kk, cihla.</div>
+    </body></html>`;
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
+      const u = String(input);
+      if (u.includes("/detail/")) {
+        return {
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(galleryHtml),
+        } as unknown as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(html),
+      } as unknown as Response;
+    });
+
+    const adapter = new RemaxAdapter(1);
+    const listings = await adapter.crawlListings();
+
+    expect(listings).toHaveLength(1);
+    expect(listings[0].imageUrls).toContain(
+      "https://mlsf.remax-czech.cz/data//zs/445375/3387970.png"
+    );
+    expect(listings[0].imageUrls).toContain(
+      "https://mlsf.remax-czech.cz/data//zs/445375/3387973.jpg"
+    );
+    // žádné thumbnaily _th350
+    expect(listings[0].imageUrls.some((u) => u.includes("_th350"))).toBe(false);
+    expect(listings[0].description).toContain("Pěkný byt");
+  });
 });
