@@ -637,7 +637,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                             </>
                           )}
                         </div>
-                        {p.altCount && p.altCount > 0 && (
+                        {p.altCount != null && p.altCount > 0 && (
                           <span className="text-[10px] text-muted/80 mt-0.5">
                             {p.altCount} portály
                           </span>

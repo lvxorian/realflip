@@ -87,7 +87,7 @@ export function PropertyCard({
             {status && (
               <Badge variant={statusVariant} size="sm">{status}</Badge>
             )}
-            {portalCount && portalCount > 0 && (
+            {portalCount != null && portalCount > 0 && (
               <Badge variant="outline" size="sm">{portalCount} portály</Badge>
             )}
             {isUndervalued && (

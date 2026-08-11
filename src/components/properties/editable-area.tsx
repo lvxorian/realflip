@@ -111,7 +111,7 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
       >
         <PencilSimple size={13} weight="bold" />
       </button>
-      {accessoryArea && accessoryArea > 0 && (
+      {accessoryArea != null && accessoryArea > 0 && (
         <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent font-medium" title="Odhad plochy příslušenství (terasa/balkon/lodžie/sklep) z rozdílu podlahové a užitné plochy">
           +{accessoryArea} m² příslušenství
         </span>
