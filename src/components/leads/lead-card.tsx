@@ -12,12 +12,6 @@ import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import type { LeadItem } from "./types";
 
-function marketDaysLabel(firstSeen: number | null | undefined, now: number): string | null {
-  if (firstSeen == null || firstSeen <= 0) return null;
-  const days = Math.max(0, Math.floor((now - firstSeen) / 86_400_000));
-  return days === 0 ? "dnes" : `${days} dní`;
-}
-
 function AgingBadge({ lead }: { lead: LeadItem }) {
   if (lead.stage === "closed" || lead.stage === "lost") return null;
   const days = timeInStageDays(lead.stageEnteredAt, currentTime());
@@ -79,7 +73,7 @@ export function LeadCardView({
       {...listeners}
       onClick={() => onOpen(lead)}
       className={cn(
-        "group rounded-xl border bg-card p-3 cursor-grab active:cursor-grabbing transition-all",
+        "group rounded-xl border bg-card p-2.5 cursor-grab active:cursor-grabbing transition-all",
         overdue ? "border-red-500/40" : "border-border/50",
         "hover:bg-card-hover hover:border-accent/20 hover:shadow-lg hover:shadow-black/20",
         isDragging && "opacity-40"
@@ -87,18 +81,18 @@ export function LeadCardView({
       title={lead.propertyTitle ?? undefined}
     >
       {(lead.propertyImageUrl || lead.propertyRemoved) && (
-        <div className="mb-2 overflow-hidden rounded-lg">
+        <div className="mb-1.5 overflow-hidden rounded-lg">
           <PropertyImage
             src={lead.propertyImageUrl}
             alt={lead.propertyTitle ?? "Nemovitost"}
             score={lead.analysisScore}
             removed={lead.propertyRemoved}
-            containerClassName="w-full h-20"
+            containerClassName="w-full h-14"
           />
         </div>
       )}
 
-      <div className="flex items-start justify-between gap-2 mb-1.5">
+      <div className="flex items-start justify-between gap-2 mb-1">
         <h3 className="text-xs font-medium leading-snug break-words text-foreground group-hover:text-accent transition-colors">
           {lead.propertyTitle ?? "Neznámá nemovitost"}
         </h3>
@@ -122,7 +116,7 @@ export function LeadCardView({
       </div>
 
       {(street || city || lead.propertyPortalName) && (
-        <div className="mb-1.5 min-w-0">
+        <div className="mb-1 min-w-0">
           <div className="flex items-center gap-1 min-w-0">
             {(street || city) && (
               <MapPin size={10} weight="fill" className="shrink-0 text-accent/70" />
@@ -148,7 +142,7 @@ export function LeadCardView({
       {(lead.stage === "meeting" && lead.stageData?.meeting?.date) ||
       (lead.stage === "offer" && lead.stageData?.offer?.amount) ||
       (lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount      ) ? (
-        <div className="flex flex-wrap items-center gap-1 mb-1.5">
+        <div className="flex flex-wrap items-center gap-1 mb-1">
           {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
             <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
               <CalendarBlank size={10} weight="bold" />
@@ -169,7 +163,7 @@ export function LeadCardView({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-1 mb-1.5">
+      <div className="flex flex-wrap items-center gap-1 mb-1">
         <AgingBadge lead={lead} />
         {isDeal && (
           <span
@@ -200,7 +194,7 @@ export function LeadCardView({
       </div>
 
       {lead.notes && (
-        <p className="mb-1.5 text-[10px] leading-relaxed text-muted/70 italic break-words whitespace-pre-wrap">
+        <p className="mb-1 text-[10px] leading-relaxed text-muted/70 italic break-words whitespace-pre-wrap">
           {lead.notes}
         </p>
       )}
@@ -208,64 +202,47 @@ export function LeadCardView({
       {lead.propertyRemoved && (
         <RemovedListingBadge
           neutral={isTerminal}
-          className="mb-1.5"
+          className="mb-1"
         />
       )}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 mb-1.5">
-        <span className="text-sm font-semibold font-mono text-amber-400">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold font-mono text-amber-400 truncate min-w-0">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
-        {lead.propertyPricePerSqm != null && (
-          <span className="text-[10px] text-muted font-mono">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1 mb-2">
-          {lead.propertyArea != null && (
-            <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">{lead.propertyArea} m²</span>
+        <span className="flex items-center gap-1.5 shrink-0">
+          {lead.propertyPricePerSqm != null && (
+            <span className="text-[10px] text-muted font-mono">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
           )}
-          {lead.propertyRooms && (
-            <span className="rounded bg-border/20 px-1.5 py-0.5 text-[10px] text-muted font-mono">{lead.propertyRooms}</span>
-          )}
-        </div>
-
-      <div className="flex items-center justify-between gap-2 text-[10px] text-muted/50">
-        <span className="min-w-0 truncate">
-          {lead.propertyFirstSeen != null && lead.propertyFirstSeen > 0 && (
-            <span
-              title={`Na trhu od ${new Date(lead.propertyFirstSeen).toLocaleDateString("cs-CZ")}`}
-            >
-              {marketDaysLabel(lead.propertyFirstSeen, now)} na trhu
+          {!isTerminal && (onAdvance || onMarkLost) && (
+            <span className="flex items-center gap-1.5 w-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:w-auto group-hover:opacity-100">
+              {onAdvance && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAdvance(lead);
+                  }}
+                  title="Posunout do další fáze"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-accent hover:bg-accent/10 transition-all"
+                >
+                  <ArrowRight size={12} weight="bold" />
+                </button>
+              )}
+              {onMarkLost && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMarkLost(lead);
+                  }}
+                  title="Označit jako ztraceno"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                >
+                  <XCircle size={12} weight="bold" />
+                </button>
+              )}
             </span>
-          )}
-        </span>
-        <span className="flex items-center gap-1 shrink-0">
-          {!isTerminal && onAdvance && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAdvance(lead);
-              }}
-              title="Posunout do další fáze"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-accent hover:bg-accent/10 transition-all"
-            >
-              <ArrowRight size={12} weight="bold" />
-            </button>
-          )}
-          {!isTerminal && onMarkLost && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkLost(lead);
-              }}
-              title="Označit jako ztraceno"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted/40 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-all"
-            >
-              <XCircle size={12} weight="bold" />
-            </button>
           )}
         </span>
       </div>

@@ -83,12 +83,6 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(sqm.className).not.toContain("@max-[240px]:hidden");
   });
 
-  it("zobrazí dobu na trhu z first_seen", () => {
-    render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
-
-    expect(screen.getByText("10 dní na trhu")).toBeTruthy();
-  });
-
   it("nezobrazuje CÍL, ARV, kontakt, stav ani typ budovy, ani relativní čas aktivity", () => {
     const lead = makeLead({
       analysisTargetPurchasePrice: 2_000_000,
@@ -109,12 +103,13 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(screen.queryByText(formatRelative(lead.updatedAt!))).toBeNull();
   });
 
-  it("bez first_seen se doba na trhu vůbec nezobrazí (žádný fallback na relativní čas)", () => {
-    const lead = makeLead({ propertyFirstSeen: null });
-    render(<LeadCardView lead={lead} onOpen={() => {}} />);
+  it("nezobrazuje dobu na trhu ani badge m²/dispozice (jsou v nadpisu)", () => {
+    render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
 
-    expect(screen.queryByText(/na trhu/)).toBeNull();
-    expect(screen.queryByText(formatRelative(lead.updatedAt!))).toBeNull();
+    expect(screen.queryByText(/na trhu/i)).toBeNull();
+    expect(screen.queryByText("49 m²")).toBeNull();
+    // „2+kk“ nesmí být samostatný badge (v nadpisu je, ale to je jiný element)
+    expect(screen.queryAllByText("2+kk").length).toBe(0);
   });
 
   it("adresa bez čárky se zobrazí celá jako ulice", () => {
@@ -147,6 +142,5 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(screen.getByText("Poděbradova 2842/1")).toBeTruthy();
     expect(screen.getByText("Jižní Předměstí")).toBeTruthy();
     expect(screen.getByText("51 tis. Kč/m²")).toBeTruthy();
-    expect(screen.getByText("10 dní na trhu")).toBeTruthy();
   });
 });
