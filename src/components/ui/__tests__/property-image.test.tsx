@@ -99,6 +99,23 @@ describe("ImageGallery — adaptivní poměr, fotka bez ořezu", () => {
     expect(screen.getByText("2 / 2")).toBeTruthy();
   });
 
+  it("boční zóny šipek pokrývají celou výšku (klik neuteče při změně velikosti)", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+
+    const prev = screen.getByLabelText("Predchozi fotka");
+    const next = screen.getByLabelText("Dalsi fotka");
+    // tlačítko zabírá celou výšku kontejneru (inset-y-0), ne jen střed
+    expect(prev.className).toContain("inset-y-0");
+    expect(prev.className).toContain("left-0");
+    expect(next.className).toContain("inset-y-0");
+    expect(next.className).toContain("right-0");
+    // kliknutí kamkoli do zóny listuje
+    fireEvent.click(prev);
+    expect(screen.getByAltText("Byt - foto 2").getAttribute("src")).toBe("/b.jpg");
+    fireEvent.click(next);
+    expect(screen.getByAltText("Byt - foto 1").getAttribute("src")).toBe("/a.jpg");
+  });
+
   it("klávesové šipky → listují mezi fotkami včetně cyklení", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg", "/c.jpg"]} alt="Byt" />);
 

@@ -108,22 +108,31 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
         {images.length > 1 && (
           <>
+            {/* Klikaci zona pres CELOU vysku boku fotky: i kdyz se kontejner
+                zvetsi/zmensi (fotky maji ruzne pomery stran), okraj je vzdy
+                klikatelny odshora dolu — mys na okraji nikdy nespadne vedle. */}
             <button
               onClick={goPrev}
               aria-label="Predchozi fotka"
-              className="absolute left-3 top-1/2 -translate-y-1/2 glass h-9 w-9 rounded-full flex items-center justify-center hover:bg-card-hover transition-colors z-10"
+              className="group absolute inset-y-0 left-0 w-1/3 sm:w-1/4 z-10 flex items-center justify-start cursor-pointer"
             >
-              <CaretLeft size={16} weight="bold" />
+              <span className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black/35 to-transparent backdrop-blur-[2px] transition-all group-hover:from-black/55 group-hover:backdrop-blur-sm" />
+              <span className="pointer-events-none ml-3 flex h-9 w-9 items-center justify-center rounded-full glass opacity-90 transition-all group-hover:scale-110 group-hover:bg-card-hover">
+                <CaretLeft size={16} weight="bold" />
+              </span>
             </button>
             <button
               onClick={goNext}
               aria-label="Dalsi fotka"
-              className="absolute right-3 top-1/2 -translate-y-1/2 glass h-9 w-9 rounded-full flex items-center justify-center hover:bg-card-hover transition-colors z-10"
+              className="group absolute inset-y-0 right-0 w-1/3 sm:w-1/4 z-10 flex items-center justify-end cursor-pointer"
             >
-              <CaretRight size={16} weight="bold" />
+              <span className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-black/35 to-transparent backdrop-blur-[2px] transition-all group-hover:from-black/55 group-hover:backdrop-blur-sm" />
+              <span className="pointer-events-none mr-3 flex h-9 w-9 items-center justify-center rounded-full glass opacity-90 transition-all group-hover:scale-110 group-hover:bg-card-hover">
+                <CaretRight size={16} weight="bold" />
+              </span>
             </button>
 
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 glass px-2.5 py-1 rounded-full text-[11px] font-mono z-10">
+            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 glass px-2.5 py-1 rounded-full text-[11px] font-mono z-10">
               {activeIndex + 1} / {images.length}
             </div>
           </>
