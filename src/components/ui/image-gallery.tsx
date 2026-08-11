@@ -39,21 +39,36 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   return (
     <div className="relative">
       <div className="relative h-80 bg-card overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={images[activeIndex]}
-          alt={`${alt} - foto ${activeIndex + 1}`}
-          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          decoding="async"
-          onError={() => handleImgError(activeIndex)}
-        />
-
-        {errored.has(activeIndex) && (
+        {errored.has(activeIndex) ? (
           <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
             <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
           </div>
+        ) : (
+          <>
+            {/* Rozmazané pozadí — vyplní celý kontejner bez ořezu (skryté před čtečkami) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[activeIndex]}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
+              onError={() => handleImgError(activeIndex)}
+            />
+            {/* Celá fotka — vždy viditelná bez ořezání, jako v originálním inzerátu */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={images[activeIndex]}
+              alt={`${alt} - foto ${activeIndex + 1}`}
+              className="absolute inset-0 h-full w-full object-contain"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
+              onError={() => handleImgError(activeIndex)}
+            />
+          </>
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
