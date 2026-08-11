@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 interface ImageGalleryProps {
@@ -15,6 +15,33 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   // Přirozený poměr stran aktuální fotky — kontejner se mu přizpůsobí,
   // takže fotka se zobrazí celá (bez ořezu) jako na originálním inzerátu.
   const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
+
+  // Šipky ← → na klávesnici listují mezi fotkami (používá se na detailu
+  // nemovitosti). Při psaní do polí (editace rozměrů, kalkulačka…) se nezasahuje.
+  useEffect(() => {
+    if (!images || images.length <= 1) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [images]);
 
   const handleImgError = (i: number) => {
     setErrored((prev) => new Set(prev).add(i));

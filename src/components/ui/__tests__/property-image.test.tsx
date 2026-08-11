@@ -99,6 +99,46 @@ describe("ImageGallery — adaptivní poměr, fotka bez ořezu", () => {
     expect(screen.getByText("2 / 2")).toBeTruthy();
   });
 
+  it("klávesové šipky → listují mezi fotkami včetně cyklení", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg", "/c.jpg"]} alt="Byt" />);
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByAltText("Byt - foto 2").getAttribute("src")).toBe("/b.jpg");
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByAltText("Byt - foto 3").getAttribute("src")).toBe("/c.jpg");
+
+    // konec → zpět na první
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByAltText("Byt - foto 1").getAttribute("src")).toBe("/a.jpg");
+
+    // ← z první → na poslední
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByAltText("Byt - foto 3").getAttribute("src")).toBe("/c.jpg");
+  });
+
+  it("při psaní do inputu šipky nelistují", () => {
+    render(
+      <>
+        <ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />
+        <input aria-label="test input" />
+      </>
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("test input"), { key: "ArrowRight" });
+
+    expect(screen.getByAltText("Byt - foto 1").getAttribute("src")).toBe("/a.jpg");
+  });
+
+  it("u jediné fotky se šipkami nic neděje", () => {
+    render(<ImageGallery images={["/a.jpg"]} alt="Byt" />);
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+
+    expect(screen.getByAltText("Byt - foto 1").getAttribute("src")).toBe("/a.jpg");
+  });
+
   it("bez fotek zobrazí placeholder bez fotky", () => {
     render(<ImageGallery images={[]} alt="Byt" />);
 
