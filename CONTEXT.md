@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (487 tests, 35 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (593 tests, 43 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -181,6 +181,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - hyperreality (doména = GitLab login), century21 (429 bot protection) — bez adapteru, `enabled: false`.
 - Remax detail (kontakt/plocha) je Vue-renderovaný — data se berou ze search stránky (data-* atributy); případně doplnit kontakt přes API.
 - AI guard: při 503 (Gemini high demand) tichý fallback na null (bez badge) — chování zachováno, retry neuvedeno.
+- `realflip animace 2.mov` (13,6 MB zdroj splash videa) je untracked — finální `public/realflip-animation.mp4` (1,8 MB) je v repu; zdroj případně přidat do `.gitignore`.
 
 ### Phase 28 — Investoři (Done)
 - **Sekce INVESTORI** (`/investors` + `/investors/[id]`), menu položka mezi Kontakty a Portfolio.
@@ -243,6 +244,15 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **DB kompy bez novostaveb** (`market-price-service.ts`): Tier 1 nyní vylučuje `condition === "new"` a u segmentu „any" aplikuje multiplikátory stavu/typu/kategorie (konzistence s Tier sreality) — medián Prahy klesl z 181k na 163k Kč/m². (Pozn.: ovlivňuje i flip kalkulačku — sdílená kaskáda, záměrně.)
 - **AI** (`ai.ts`): do promptu přidána adresa. Živě ověřeno (skript `valuation-check.ts`): Žižkov ward 160 324 Kč/m² (743 tx), byt K Lučinám 73 m² „průměrný" → odhad **11,17 mil. Kč** (153 025 Kč/m², rozmezí 10,0–12,34, ±11 %, confidence 91). Čistý testovací scénář (shrink + srážka) sedí na 9,58 mil. — blízko Valuo 9,375 mil.; zbývající odchylka živých dat = agregátní úroveň čtvrti/města vs. adresní hedonic model Valuo (mikro-poloha K Lučinám u Malešic je levnější než jádro Žižkova).
 - **Testy**: price-map (ward drill Praha s adresou/hinty, bez adresy → kraj), engine (ward label/shrink/mix-skew, 4 kontextové řádky, předání ctx) — celkem **410 testů / 33 souborů**.
+
+### Phase 36 — Odhad: stabilita výsledků (Done)
+- **Problém**: stejný byt (K Lučinám) dával napříč runy 8,3M / 11,2M / 12,1M — uživatel dostal regionální hladinu 112 430, ač stránka už vrací 149 906 (zastaralá 7denní DB cache v produkci).
+- **Opravy** (`price-map.ts`): TTL region cache 7 dní → **1 den**; `readCache`/drill čtení s `orderBy(fetchedAt desc)`; **plausibilita region listu** (prázdný/korupovaný/bez entityId → čerstvý fetch); **retry (2×)** na SSR fetch i drill API; drill cache vyžaduje neprázdný list.
+- **GPS bucket v offers cache** (`market-price-service.ts`): cache klíč rozšířen o hrubé souřadnice (0,5°) — okruhové výsledky (5–10 km) nesdílí klíč s celoměstskými (nestabilita pořadí volání).
+- **Engine**: používá `floor` a `yearBuilt` multiplikátory; **realističtější křivka velikosti** (exponent 0,25, clamp 0,7–1,3 — 1+kk ≈ +15 %, 4+kk ≈ −12 %); clamp nabídek zpřísněn na **±25 %** kolem realizovaných (prémiové Žižkov nabídky 203k vs. realizované 150k); **confidence cap 95** (nikdy 100 %).
+- **Živě ověřeno (determinismus)**: 3× spuštění stejného bytu → identický výsledek **11,62 mil. Kč** (159 189 Kč/m², čtvrť Žižkov 150 705 po korekcích, rozmezí 10,17–13,07, ±12 %, confidence 91). Cheb regrese OK (46 768 Kč/m²).
+- **Testy**: +1 (křivka velikosti) — celkem **411 testů / 33 souborů**.
+
 
 ### Phase 37 — Odhad: AI korekce mikro-polohy (Done)
 - **`correctValuation`** (`src/lib/valuation/ai.ts`): Gemini prompt s adresou, čtvrtí (z `enriched` — lat/lng/wardHints), srovnatelnými (realizované + nabídky s odstupem km) → úprava statistického odhadu v %.
@@ -326,6 +336,21 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **BUG 7 — clamp kombinovaných multiplikátorů na [0.5, 1.6]**: luxury × novostavba × balkón × zahrada × sklep × premium = ~2,2× → 1,6× (hedonic model Valuo je aditivní v log prostoru); na druhé straně panel × neobyvatelný × družstevní × přízemí × starý rok = 0,46 → 0,5×. Metodika ukáže „omezeno clampem 0,5–1,6" když clamp zasáhne.
 - **Živě ověřeno** (rozšířený `scripts/valuation-verify-tx.ts`): Kyje realized 112 439/m² „omezeno cenovkou · indexováno na dnešek", Vinohrady 188 918/m² „běžný stav · indexováno na dnešek" (bez „lokalita"), Černý Most 110 290/m². Testy: engine 50 → 58 (+3 timeIndexFactor, +3 BUG 5 — indexováno/bez trendu/asOfDate skip, +2 BUG 7 clamp 1.6/0.5). Celkem **484 testů / 35 souborů**, typecheck čistý. Code review: práh labelu indexace, reziduum „dostupnost metra/MHD" v promptu, poznámka o clampu v metodice — zapracováno.
 
+### Phase 48 — Odhad: čistě bytové jednotky (Done)
+- **Rozhodnutí**: Odhad se používá POUZE na bytové jednotky (žádné domy/pozemky) — cenová mapa i adresní transakce jsou jen byty (category_main_cb=1).
+- **Formulář** (`valuation-input.tsx`): odebrán výběr „Typ nemovitosti" (TYPE_OPTIONS flat/house/land) → statický badge „Byt" s popiskem „Odhad je určen pouze pro bytové jednotky".
+- **Route** (`api/valuation/route.ts`): při URL parse `inferType` dům/pozemek → **400 s jasnou zprávou** („…tento inzerát vypadá jako rodinný dům/pozemek"); `listingFields.type` je natvrdo `flat`; estimate flow rejectuje `input.type !== "flat"`. **Flat-precendence v `inferType`** (code review nález): `/byt|garsonk|1\+kk|2\+kk/` má přednost před „dům" — „bytový dům"/„panelový dům" v titulu platného inzerátu bytu nesmí rejectnout.
+- **Texty**: page /odhad — „Odhad ceny bytu" + popisek zmíní bytové jednotky.
+- **Engine**: defenzivní `isFlat` gate zůstává (z UI/routy už nedosažitelný, ale chrání před přímým voláním).
+- **Validace**: 484 testů zelených, typecheck čistý. Code review: flat-precendence inferType — zapracováno.
+
+### Phase 49 — Odhad: pořadí cap × indexace (Kyje +7,9 % → +1,4 % vs. Valuo) (Done)
+- **Problém**: uživatel znovu porovnal Travná/Kyje (77 m², po rekonstrukci, 3/5 bez výtahu, cenovka 8,92M) — odhad 8,46–8,50M (110–112k/m²) vs. Valuo 7,883M (102 381/m²) = **+7,4–7,9 % nad Valuo**. Před Fází A/B byl stejný byt na +0,7 %.
+- **Root cause (BUG 8) — pořadí cap × indexace**: kód dělal `cap → mult → ×timeFactor`. Cap porovnával **surový** čtvrťový průměr (145 068 = střed okna ~duben) s **cenovkou „dnes"** (115 844) — nesrovnatelné; a indexace (×1,025) běžící ZA capem **podruhé nafoukla** už dnešní cenovkou-anchorovanou hodnotu. Plus Fáze A uvolnila cap 1,05→1,10 (kalibrováno bez indexace). Dohromady přesně ten drift +0,7 % → +7,9 %.
+- **Fix (index-first)**: `timeFactor` se počítá NEJDŘÍV, indexace surového průměru `indexedWard = raw × timeFactor` (i `indexedRegion`), cap (guard i hladina) porovnává **dnes vs. dnes**, cap zpět na **1,05×cenovky** (110 % bylo bez indexace), `realizedAdj = realizedRef × mult` (dál se nenásobí). shrink ratio/shrinkRef na indexovaných hladinách. Label „indexováno na dnešek" jen `timeIndexed && !realizedCapped` (capnutá hodnota je ukotvená k dnešní cenovce, ne indexovaná). Necapnuté případy beze změny (násobení je komutativní — ověřeno i pro shrink).
+- **Živě ověřeno** (`scripts/valuation-debug.ts` — nový diagnostický skript, replika engine krok po kroku): Kyje realized 100 496/m² (bylo 107 904), odhad 7 995 245 Kč (103 834/m²) = **+1,4 % vs. Valuo** (bylo +7,9 %). Vinohrady/Černý Most bez cenovky → beze změny.
+- **Testy**: engine 58 → 59 (+1 „indexace NEzdvojuje capnutou hodnotu" — s mocked trendem 1.02925 by cap→index dalo 114 928, správně 111 662 + label bez „indexováno"), 2 pinned cap testy aktualizovány (111662/127313, „omezena na 105 %"). Celkem **485 testů / 35 souborů**, typecheck čistý. Code review: komentáře 1.0249→1.02925, +0,9 %→+1,4 %, hlavička debug skriptu — zapracováno.
+
 ### Phase 50 — Odhad: offers cap na novostavbami nafouknutou čtvrť (Žižkov +8,3 % → +0,8 % vs. Valuo) (Done)
 - **Problém**: uživatel porovnal K Lučinám 2469/21, Žižkov (72 m², po rekonstrukci, panel, 1. patro, cenovka 8,999M) — odhad 10,18M (139 397/m²) vs. Valuo 9,316M (129 385/m²) = **+7,7–8,3 % nad Valuo**.
 - **Root cause (BUG 9)**: Žižkov ward průměr 164 720 (indexovaně 168 823) je nafouknutý developerskými novostavbami (stejně jako Kyje). Cap na cenovku má strážní hranici `asking ≥ 0,75×ward` (chrání před extrémně nízkou cenovkou — podíl/urgent) — ta se ale nespustila: asking 124 986 = **0,74×ward** (o 1,6 % pod hranicí). Nafouknutý ward prošel celý do blendu na 45 % váhy → realizedAdj 152 488.
@@ -335,28 +360,43 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Testy**: engine 59 → 61 (+2: Žižkov offers cap 136 831 + label/estimate 9 097 000; Dejvice prémiová čtvrť nedotčená 205 200). Celkem **487 testů / 35 souborů**, typecheck čistý. Code review: de-aplikace category v capu → range.median přímo; 0,9× cenovka nutná proti capování prémiových čtvrtí; prag 1,2× empiricky nejbližší Valuo (1,15× → −1,5 %, 1,25× → +3,5 %).
 - **Známé omezení**: manuální vstup bez cenovky (formulář bez URL) zůstává bez offers capu — bez listing price nelze odlišit starý fond od prémiové čtvrti.
 
-### Phase 49 — Odhad: pořadí cap × indexace (Kyje +7,9 % → +1,4 % vs. Valuo) (Done)
-- **Problém**: uživatel znovu porovnal Travná/Kyje (77 m², po rekonstrukci, 3/5 bez výtahu, cenovka 8,92M) — odhad 8,46–8,50M (110–112k/m²) vs. Valuo 7,883M (102 381/m²) = **+7,4–7,9 % nad Valuo**. Před Fází A/B byl stejný byt na +0,7 %.
-- **Root cause (BUG 8) — pořadí cap × indexace**: kód dělal `cap → mult → ×timeFactor`. Cap porovnával **surový** čtvrťový průměr (145 068 = střed okna ~duben) s **cenovkou „dnes"** (115 844) — nesrovnatelné; a indexace (×1,025) běžící ZA capem **podruhé nafoukla** už dnešní cenovkou-anchorovanou hodnotu. Plus Fáze A uvolnila cap 1,05→1,10 (kalibrováno bez indexace). Dohromady přesně ten drift +0,7 % → +7,9 %.
-- **Fix (index-first)**: `timeFactor` se počítá NEJDŘÍV, indexace surového průměru `indexedWard = raw × timeFactor` (i `indexedRegion`), cap (guard i hladina) porovnává **dnes vs. dnes**, cap zpět na **1,05×cenovky** (110 % bylo bez indexace), `realizedAdj = realizedRef × mult` (dál se nenásobí). shrink ratio/shrinkRef na indexovaných hladinách. Label „indexováno na dnešek" jen `timeIndexed && !realizedCapped` (capnutá hodnota je ukotvená k dnešní cenovce, ne indexovaná). Necapnuté případy beze změny (násobení je komutativní — ověřeno i pro shrink).
-- **Živě ověřeno** (`scripts/valuation-debug.ts` — nový diagnostický skript, replika engine krok po kroku): Kyje realized 100 496/m² (bylo 107 904), odhad 7 995 245 Kč (103 834/m²) = **+1,4 % vs. Valuo** (bylo +7,9 %). Vinohrady/Černý Most bez cenovky → beze změny.
-- **Testy**: engine 58 → 59 (+1 „indexace NEzdvojuje capnutou hodnotu" — s mocked trendem 1.02925 by cap→index dalo 114 928, správně 111 662 + label bez „indexováno"), 2 pinned cap testy aktualizovány (111662/127313, „omezena na 105 %"). Celkem **485 testů / 35 souborů**, typecheck čistý. Code review: komentáře 1.0249→1.02925, +0,9 %→+1,4 %, hlavička debug skriptu — zapracováno.
+### Phase 51 — Nemovitosti: deduplikace napříč portály + řazení/filtry (Done)
+- **Dedup napříč portály** (`alt_portals`): duplicitní inzerát z jiného portálu se už **neuloží jako nový záznam** — jen se přidá do `alt_portals` původního (helpers v `src/lib/scraping/property-match.ts`: `parseAltPortals`, `appendAltPortal`, `hasAltUrl`, `toDbAltPortals`). SQLite text / PG jsonb.
+- Orchestrator: deaktivace „ztracených" respektuje alt URL (`allFoundUrls` přes `altPortals`), **oživení z alt URL** (`toRescue`), `saveListing` přeskočí listing, který už je alt URL (`hasAltUrl`) — místo duplicity doplní chybějící údaje; `property-merge.ts` respektuje alt portály. Logo fallback pro karty bez fotek.
+- **Řazení 9 režimů** (`properties-explorer.tsx`): newest, priceAsc/Desc, pricePerSqmAsc/Desc, areaAsc/Desc, highestScore, mostUndervalued. **Odnímatelné filtry** — aktivní chipy s křížkem (město, portál, verdikt, stav, skóre, cena, plocha, Podhodnocené, Oblíbené). Fotonázev + meta řádek na kartách.
+- **Fix osamocená bílá 0** mezi badge na kartách (React falsy render `{0 && ...}` → explicitní podmínky).
+- **Fix chybějící Kč/m²** u bazos.cz a annonce.cz (`pricePerSqm` dopočítáváno v `saveListing`).
+- **Fix ořezané bazos titulky** („…, Jižní Předmě" — chybějící konec názvu v DB).
 
-### Phase 48 — Odhad: čistě bytové jednotky (Done)
-- **Rozhodnutí**: Odhad se používá POUZE na bytové jednotky (žádné domy/pozemky) — cenová mapa i adresní transakce jsou jen byty (category_main_cb=1).
-- **Formulář** (`valuation-input.tsx`): odebrán výběr „Typ nemovitosti" (TYPE_OPTIONS flat/house/land) → statický badge „Byt" s popiskem „Odhad je určen pouze pro bytové jednotky".
-- **Route** (`api/valuation/route.ts`): při URL parse `inferType` dům/pozemek → **400 s jasnou zprávou** („…tento inzerát vypadá jako rodinný dům/pozemek"); `listingFields.type` je natvrdo `flat`; estimate flow rejectuje `input.type !== "flat"`. **Flat-precendence v `inferType`** (code review nález): `/byt|garsonk|1\+kk|2\+kk/` má přednost před „dům" — „bytový dům"/„panelový dům" v titulu platného inzerátu bytu nesmí rejectnout.
-- **Texty**: page /odhad — „Odhad ceny bytu" + popisek zmíní bytové jednotky.
-- **Engine**: defenzivní `isFlat` gate zůstává (z UI/routy už nedosažitelný, ale chrání před přímým voláním).
-- **Validace**: 484 testů zelených, typecheck čistý. Code review: flat-precendence inferType — zapracováno.
+### Phase 52 — Karty nemovitostí: mini-carousel + fotky bez ořezu (Done)
+- **Mini-carousel fotek na kartách** (`property-card.tsx`): šipky ←/→ listují fotkami i bez otevření detailu (dřív jen statická první fotka).
+- **Hvězdička favorites** na kartě přesunuta vedle SCORE (ne pod ním — nekoliduje s carousel šipkami).
+- **Fotky se ořezávaly shora/zdola** (`object-cover`) → oprava zobrazení: boxy **8:5 podle reálných poměrů fotek** (`property-image.tsx` `aspect-[8/5]`), bez pruhů po stranách.
+- **Pořadí dispozice/m² na kartách** (dispozice před m²), chipy, **stabilní nadpis** (meta řádek na stejné pozici i při 2řádkovém titulku).
 
-### Phase 36 — Odhad: stabilita výsledků (Done)
-- **Problém**: stejný byt (K Lučinám) dával napříč runy 8,3M / 11,2M / 12,1M — uživatel dostal regionální hladinu 112 430, ač stránka už vrací 149 906 (zastaralá 7denní DB cache v produkci).
-- **Opravy** (`price-map.ts`): TTL region cache 7 dní → **1 den**; `readCache`/drill čtení s `orderBy(fetchedAt desc)`; **plausibilita region listu** (prázdný/korupovaný/bez entityId → čerstvý fetch); **retry (2×)** na SSR fetch i drill API; drill cache vyžaduje neprázdný list.
-- **GPS bucket v offers cache** (`market-price-service.ts`): cache klíč rozšířen o hrubé souřadnice (0,5°) — okruhové výsledky (5–10 km) nesdílí klíč s celoměstskými (nestabilita pořadí volání).
-- **Engine**: používá `floor` a `yearBuilt` multiplikátory; **realističtější křivka velikosti** (exponent 0,25, clamp 0,7–1,3 — 1+kk ≈ +15 %, 4+kk ≈ −12 %); clamp nabídek zpřísněn na **±25 %** kolem realizovaných (prémiové Žižkov nabídky 203k vs. realizované 150k); **confidence cap 95** (nikdy 100 %).
-- **Živě ověřeno (determinismus)**: 3× spuštění stejného bytu → identický výsledek **11,62 mil. Kč** (159 189 Kč/m², čtvrť Žižkov 150 705 po korekcích, rozmezí 10,17–13,07, ±12 %, confidence 91). Cheb regrese OK (46 768 Kč/m²).
-- **Testy**: +1 (křivka velikosti) — celkem **411 testů / 33 souborů**.
+### Phase 53 — Auth: splash animace při přihlášení (Done)
+- `LoginSplash` (`src/components/auth/login-splash.tsx`): brandové video `public/realflip-animation.mp4` (1,8 MB, převedeno ffmpeg ze zdrojového `realflip animace 2.mov` 13,6 MB) + poster.
+- Video vycentrované v **poloviční velikosti okna** (50vw × 50vh, `object-contain`, loop, muted), dole plovoucí kapsle „Přihlašuji se…" se spinnerem.
+- `onPlayedOnce` (timeupdate ≥ duration − 0,25 s) → navigace na dashboard **až po prvním celém průchodu** (dřív se login dokončil dřív, než video dohrálo). Fade in/out přes AnimatePresence.
+- Iterace: 1. verze přes celý displej → 2. finální 50 % vycentrovaná. Test `src/components/auth/__tests__/login-splash.test.tsx`.
+
+### Phase 54 — Scraping: kompletní fotky realitymix/remax + čistý popis (Done)
+- **`extractRealityMixImages($)`** (`realitymix-parser.ts`): galerie realitymix (main + small `data-src` + hidden-items), http→https, strip suffixů `_detail`/`_nahled`, dedup přes `filterImages` — dřív končilo jen s pár fotkami.
+- **Remax**: `crawlListings` obohacuje každý listing fotonázev/fotkami z detailu (přes `enrichListing`).
+- **Popis bez HTML tagů**: `cleanHtmlToText()` v `types.ts` — `<br>`/`<p>`/`<li>` → nové řádky, odstranění ostatních tagů + entit. Sreality API vracelo popis jako HTML (`<br />`, `<p>`); aplikováno v url-scraperu, sreality a hyperinzerce adapterech.
+- **Unit testy realitymat-parser** s ukázkami reálného HTML (dřív měl testy jen realitymix).
+
+### Phase 55 — Detail galerie: klávesové šipky + velké klikací zóny (Done)
+- **Listování fotkami na klávesnici** (←/→) v `image-gallery.tsx` (guard na input/textarea/select).
+- **Velké klikací zóny po stranách galerie** — celé boky fotek fungují jako prev/next (fotka mění poměr stran → šipky „ujížděly" pod kurzorem). Blur okrajů zkoušen a odstraněn (`663edf1`).
+
+### Phase 56 — Pipeline v2: karty, sloupce a detaily (Done)
+- **Pipeline v2** (`36246bc`): spolehlivý drag & drop — `boardCollision` (pointerWithin na kartách → sloupcích → closestCorners), `useDroppable` sloupce, insert lines, DragOverlay; **terminální fáze** (closed/lost) s potvrzovacím modalem + **konverze na deal**; undo toast; board KPI (počet, progress bar, N overdue). Bez weighted forecastu (`617fe91`).
+- **Klíčové údaje karty vždy vidět** (`2fee6bd`): adresa, cena/m², doba na trhu.
+- **Přebudování karet** (`43a58c4`): nový `splitAddress()` v `utils.ts` (ulice = první segment, město = zbytek — zvládá i `Brno, 614 00` / `Vašátkova 16 Praha`); **dvouřádková poloha nad cenou** (ulice + město celé, nikdy se neřeže); sloupce 170 → 220 px; jednotný obsah v každé šířce (pryč `@max-[240px]:hidden`); **drag preview = věrná kopie karty** (compact režim zrušen).
+- **Čistší hlavičky sloupců** (`b6a25e7`): KPI „X celkem" / „Ø dní" pod nadpisem pryč (zůstává počet + progress bar + N overdue); **poznámka na kartě celá** (line-clamp pryč, `whitespace-pre-wrap`); **listování fotkami v detailu** — LeadDrawer používá `ImageGallery` (šipky, klávesnice, náhledy), API `/api/leads` + `LeadItem` vystavují `propertyImageUrls` (celé pole, dřív jen první fotka).
+- **Sloupce se vejdou na obrazovku** (`b112c24`): min-w 220 → pružné `flex-1 basis-0` + `min-w-[160px] lg:min-w-0` (desktop všech 7 bez scrollu, mobil scroll).
+- **Kompaktní karty** (`c945ccb`): pryč „X dní na trhu", badge m²/dispozice (jsou v nadpisu), CÍL/ARV/stav/typ budovy/kontakt/relativní čas; fotka h-20→h-14, padding p-3→p-2.5, akce (posunout/ztraceno) do cenového řádku — na hover se plynule rozbalí (w-0→w-auto).
 
 ## Key Files
 
@@ -420,7 +460,21 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/components/leads/leads-board.tsx`, `lead-card.tsx`, `lead-drawer.tsx`, `leads-toolbar.tsx`, `types.ts`
 - `src/lib/leads.ts` — LEAD_STAGES
 - `src/app/api/leads/route.ts`, `src/app/api/leads/[id]/route.ts`, `src/app/api/leads/[id]/convert/route.ts`
-- `lead-drawer.tsx` — rozdělen na `LeadDrawer` (overlay) + `LeadDrawerContent` (keyed per lead), stage-specific formuláře (meeting/offer/negotiation) ve `stageData`
+- `lead-drawer.tsx` — rozdělen na `LeadDrawer` (overlay) + `LeadDrawerContent` (keyed per lead), stage-specific formuláře (meeting/offer/negotiation) ve `stageData`; detail ukazuje `ImageGallery` s listováním fotek (`propertyImageUrls`)
+
+### Auth / Splash
+- `src/components/auth/login-splash.tsx` — splash animace při přihlášení (video `public/realflip-animation.mp4`, 50 % vycentrované, navigace po prvním průchodu)
+- `public/realflip-animation.mp4` + `realflip-animation-poster.jpg` (zdroj: `realflip animace 2.mov` — untracked)
+
+### Nemovitosti (UI)
+- `src/components/ui/properties-explorer.tsx` — řazení (9 režimů), odnímatelné filtry (chips)
+- `src/components/ui/property-card.tsx` — mini-carousel fotek, meta řádek, hvězdička vedle skóre
+- `src/components/ui/property-image.tsx` — fotky v boxech 8:5 bez ořezu
+- `src/components/ui/image-gallery.tsx` — galerie s klávesovými šipkami + velkými klikacími zónami
+
+### Dedup / Matching
+- `src/lib/scraping/property-match.ts` — `parseAltPortals`, `appendAltPortal`, `hasAltUrl`, `toDbAltPortals` (alt_portals dedup)
+- `src/lib/scraping/property-merge.ts` — merge duplicit respektující alt portály
 
 ### Investoři
 - `src/app/(dashboard)/investors/page.tsx` + `[id]/page.tsx` — seznam karet + detail (projekty investora)

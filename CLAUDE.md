@@ -4,6 +4,7 @@
 
 ## Auth
 `cakmak@tuta.com` / `realflip2026` — NextAuth v5, JWT, credentials + Google OAuth.
+Splash animace při přihlašování: `LoginSplash` (`src/components/auth/login-splash.tsx`) — video `public/realflip-animation.mp4` (1,8 MB, z `realflip animace 2.mov`), vycentrované v poloviční velikosti okna (50vw×50vh, object-contain, loop), `onPlayedOnce` → navigace až po prvním celém průchodu videa.
 
 ## DB
 Neon PostgreSQL (prod) + SQLite `data.db` (local). Drizzle ORM.
@@ -22,7 +23,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **487 tests across 35 files**.
+Vitest v4 + jsdom + @testing-library/react. **593 tests across 43 files**.
 `npm test` or `npx vitest run`.
 
 ## Portals (10 adapters, 6 url-scrapers)
@@ -37,6 +38,10 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `PORTAL_BASE_URLS` — root-relative → absolute for 7 portals.
 - Sreality CDN images require `?fl=res,1200,1200,1|wrm,/watermark/sreality.png,10|shr,,20|webp,80` appended.
 - Orchestrator saves with portalName (fix: was missing, root-rel URLs dropped).
+- **Zobrazení bez ořezu**: `PropertyImage`/`ImageGallery` boxy **8:5** (`aspect-[8/5]`, galerie respektuje přirozený poměr foto) — žádné ořezávání shora/zdola ani pruhy po stranách.
+- **Popis bez HTML**: `cleanHtmlToText()` in `types.ts` — `<br>`/`<p>`/`<li>` → nové řádky, ostatní tagy + entity pryč (sreality API vrací popis jako HTML).
+- **Realitymix**: `extractRealityMixImages($)` — celá galerie (main + small `data-src` + hidden-items), http→https, strip `_detail`/`_nahled`, dedup.
+- **Dedup napříč portály**: `properties.alt_portals` (text/jsonb) — duplicita z jiného portálu se nepřidá jako nový záznam, jen do `alt_portals` (helpers `property-match.ts`: `parseAltPortals`, `appendAltPortal`, `hasAltUrl`, `toDbAltPortals`). Orchestrator: deaktivace i oživení (`toRescue`) respektují alt URL, `saveListing` jen doplní chybějící údaje.
 
 ## Dražby → Výkupy (Auctions Module)
 - Nav label "Výkupy" (Gavel), route `/vykupy`, `/vykupy/[id]`; stará `/off-market` redirectuje. API `/api/vykupy/*`, DB `vykupy_leads`, `vykupy_regions`.
@@ -107,6 +112,11 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `src/app/api/settings/profile/route.ts` — PATCH profil (jméno/email/heslo)
 - `src/app/api/settings/preferences/route.ts` — GET/PATCH kalkulačka defaults (jsonb/text parse)
 - `src/lib/alert-matcher.ts` — price_drop + score_threshold alerty (volané z orchestratoru)
+- `src/lib/scraping/property-match.ts` — alt_portals dedup (`parseAltPortals`, `appendAltPortal`, `hasAltUrl`, `toDbAltPortals`)
+- `src/components/auth/login-splash.tsx` — splash animace při přihlášení
+- `src/components/ui/properties-explorer.tsx` — řazení 9 režimů + odnímatelné filtry
+- `src/components/ui/property-card.tsx` — mini-carousel fotek na kartách
+- `src/components/ui/image-gallery.tsx` — galerie s klávesovými šipkami + velkými klikacími zónami (detail + lead drawer)
 
 ## Scraper Architecture
 - `crawlAll` runs all portals **in parallel** (Promise.allSettled).
@@ -127,11 +137,13 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 
 ## Pipeline (Leads CRM)
 - Route `/leads` (client `LeadsBoard`), 7 fází v `src/lib/leads.ts` (`LEAD_STAGES`, barevné tečky `dot`).
-- Komponenty `src/components/leads/`: `leads-board.tsx` (DndContext + SortableContext + DragOverlay + **StageColumn s useDroppable** — přetažení funguje i na prázdné stádium; `moveLead` zachovává leady cílového stádia; reorder z plného seznamu), `lead-card.tsx` (auto-zhuštění přes Tailwind v4 container queries `@max-[240px]:`; **thumbnail** `propertyImageUrl`), `lead-drawer.tsx` (**rozdělen na `LeadDrawer` + `LeadDrawerContent` keyed per lead.id** — jinak stale-state; slide-over, PATCH stage/priority/notes/stageData, převod na deal z `closed`), `leads-toolbar.tsx` (search/filter/sort), `types.ts` (`LeadItem` + `StageData`).
+- Komponenty `src/components/leads/`: `leads-board.tsx` (DndContext + SortableContext + DragOverlay + **StageColumn s useDroppable** — přetažení funguje i na prázdné stádium; `boardCollision` = pointerWithin karty → sloupce → closestCorners; insert lines; **drag preview = věrná kopie karty**), `lead-card.tsx`, `lead-drawer.tsx` (**rozdělen na `LeadDrawer` + `LeadDrawerContent` keyed per lead.id** — jinak stale-state; slide-over, PATCH stage/priority/notes/stageData, převod na deal z `closed`), `leads-toolbar.tsx` (search/filter/sort), `types.ts` (`LeadItem` + `StageData`).
+- **Karta (kompaktní, bez nepotřebných dat)**: nadpis + skóre + hvězdička priority; **poloha = `splitAddress()`** (utils.ts: ulice = první segment, město = zbytek — zvládá i `Brno, 614 00` / `Vašátkova 16 Praha`), ulice + město na dvou řádcích, **nikdy se neřeže**; cena + **cena/m²** v cenovém řádku; na hover se v cenovém řádku rozbalí akce **posunout/ztraceno** (w-0→w-auto animace, v úzkém sloupci nic nepřetéká); poznámka **celá** (bez line-clamp); stage chips (📅/💰/🤝), AgingBadge „X dní", „Krok propadl", „Deal". **Není na kartě**: CÍL, ARV, stav, typ budovy, kontakt, relativní čas, „na trhu", badge m²/dispozice (jsou v nadpisu).
+- **Hlavička sloupce**: tečka + název + počet + progress bar + červený chip „N overdue" (KPI „X celkem" / „Ø dní" byly odebrány).
+- **Sloupce**: `flex-1 basis-0 min-w-[160px] lg:min-w-0` — na desktopu se všech 7 vejde bez horizontálního scrollu, na mobilu scroll; @container na sloupci (žádné `@max-[240px]` skrývání obsahu karty).
 - **Stage-specific data** (`leads.stage_data`, SQLite text / Neon jsonb): fáze Schůzka (datum/lokalita), Nabídka (cena + historie, předvyplnění z `analysisTargetPurchasePrice`), Vyjednávání (částka + historie my/oni). Badge 📅/💰 na kartě. Call Mode panel "Nadcházející schůzky" (leady ve fázi meeting s datem).
-- `GET /api/leads` zobrazuje kontakt z properties (coalesce) + `propertyImageUrl` + `analysisTargetPurchasePrice`/`analysisArv`.
+- `GET /api/leads` zobrazuje kontakt z properties (coalesce) + `propertyImageUrl` + **`propertyImageUrls`** (celé pole fotek — detail v draweru používá `ImageGallery` s listováním) + `analysisTargetPurchasePrice`/`analysisArv`.
 - Initiate dedup kontaktů: **phone + name** (ne jen phone) v `src/app/api/properties/[id]/initiate/route.ts`.
-- Sloupce boardu `flex-1 basis-0 min-w-[170px]` — vejdou se do 1400px kontejneru bez scrollu.
 
 ## Investoři (Investor DB)
 - Route `/investors` (seznam karet) + `/investors/[id]` (detail: kontakt, budget, projekty). Menu položka "Investoři" (HandCoins) mezi Kontakty a Portfolio.
