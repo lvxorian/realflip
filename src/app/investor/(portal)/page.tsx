@@ -621,17 +621,17 @@ function ActionButton({
           </>
         )}
       </Button>
-      {countdown && <span className="text-[10px] text-muted tabular-nums">drží {countdown}</span>}
+      {countdown && <span className="text-[10px] text-muted tabular-nums">{countdown}</span>}
     </div>
   );
 }
 
 function reservationCountdown(expiresAt: number): string {
   const left = expiresAt - Date.now();
-  if (left <= 0) return "vypršela";
+  if (left <= 0) return "rezervace vypršela";
   const h = Math.floor(left / 3_600_000);
   const m = Math.floor((left % 3_600_000) / 60_000);
-  return `${h}h ${m}m`;
+  return `vyprší za ${h}h ${m}m`;
 }
 
 function Metric({

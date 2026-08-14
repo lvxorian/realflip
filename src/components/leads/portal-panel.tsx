@@ -22,7 +22,7 @@ function formatCountdown(expiresAt: number | null): string | null {
   if (left <= 0) return "rezervace vypršela";
   const h = Math.floor(left / 3_600_000);
   const m = Math.floor((left % 3_600_000) / 60_000);
-  return `${h}h ${m}m zbývá`;
+  return `vyprší za ${h}h ${m}m`;
 }
 
 interface InvestorOption {
