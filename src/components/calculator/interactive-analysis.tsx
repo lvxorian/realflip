@@ -40,7 +40,7 @@ const rentalVerdictColors: Record<string, "success" | "warning" | "danger"> = {
   rentalDontBuy: "danger",
 };
 
-function MarketSourceBadge({ analysis }: { analysis: { marketSource?: string | null; marketSampleSize?: number | null } }) {
+function marketSourceInfo(analysis: { marketSource?: string | null; marketSampleSize?: number | null }) {
   if (!analysis.marketSource) return null;
   const labels: Record<string, string> = {
     db: "Vlastní data",
@@ -49,19 +49,17 @@ function MarketSourceBadge({ analysis }: { analysis: { marketSource?: string | n
     fallback: "Fallback",
   };
   const colors: Record<string, string> = {
-    db: "border-emerald-400/40 text-emerald-300",
-    sreality: "border-emerald-400/40 text-emerald-300",
-    market_data: "border-amber-400/40 text-amber-300",
-    fallback: "border-red-400/40 text-red-300",
+    db: "text-emerald-400",
+    sreality: "text-emerald-400",
+    market_data: "text-amber-400",
+    fallback: "text-red-400",
   };
-  const label = analysis.marketSource === "market_data" ? "Fixní tabulka" : analysis.marketSource === "fallback" ? "Fallback" : "Živá data";
+  const label = labels[analysis.marketSource] ?? analysis.marketSource;
   const samples = analysis.marketSampleSize ? ` · ${analysis.marketSampleSize} vzorků` : "";
-  return (
-    <Badge variant="outline" className={`justify-center w-full whitespace-nowrap ${colors[analysis.marketSource] ?? ""}`}>
-      {labels[analysis.marketSource] ?? analysis.marketSource}
-      {analysis.marketSource === "sreality" || analysis.marketSource === "db" ? samples : ""}
-    </Badge>
-  );
+  return {
+    text: analysis.marketSource === "sreality" || analysis.marketSource === "db" ? label + samples : label,
+    className: colors[analysis.marketSource] ?? "",
+  };
 }
 
 interface AnalysisResult {
@@ -606,6 +604,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   };
 
   const verdictBadgeVariant = verdictColors[a.verdictLevel] ?? "secondary";
+  const sourceInfo = marketSourceInfo(a);
   const inputClass = "w-full rounded-lg border border-border/50 bg-card px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent/40 text-right";
 
   return (
@@ -652,8 +651,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
             <InfoBox label="Cena" value={formatPrice(l.price)} />
             <InfoBox label="ARV" value={formatPrice(arv)} highlight="text-price" />
             <InfoBox label="Cena za m²" value={formatPrice(a.pricePerSqm > 0 ? a.pricePerSqm : Math.round(l.price / area)) + "/m²"} />
-            <InfoBox label="Trh/m²" value={`${formatPrice(a.marketPricePerSqmLow)}–${formatPrice(a.marketPricePerSqmHigh)}`} />
-            <MarketSourceBadge analysis={a} />
+            <InfoBox label="Trh/m²" value={`${formatPrice(a.marketPricePerSqmLow)}–${formatPrice(a.marketPricePerSqmHigh)}`} subtext={sourceInfo?.text} subtextClass={sourceInfo?.className} />
             {mode === "rental"
               ? <InfoBox label="Čistý výnos" value={rentalResults.netYield.toFixed(1) + "%"} highlight={rentalResults.netYield >= rentalConfig.targetYield ? "text-emerald-400" : rentalResults.netYield >= rentalConfig.targetYield - 1 ? "text-amber-400" : "text-red-400"} />
               : <InfoBox label="ROI" value={flipResults.roi.toFixed(1) + "%"} highlight={flipResults.roi >= 15 ? "text-emerald-400" : flipResults.roi >= 10 ? "text-amber-400" : "text-red-400"} />}
@@ -1421,11 +1419,12 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   );
 }
 
-function InfoBox({ label, value, highlight }: { label: string; value: string; highlight?: string }) {
+function InfoBox({ label, value, highlight, subtext, subtextClass }: { label: string; value: string; highlight?: string; subtext?: string; subtextClass?: string }) {
   return (
     <div className="rounded-xl bg-card-hover border border-border/50 p-3 min-w-0">
       <p className="text-xs text-muted mb-1">{label}</p>
       <p className={`text-xs font-semibold font-mono leading-snug break-words ${highlight ?? "text-foreground"}`}>{value}</p>
+      {subtext && <p className={`text-[10px] mt-0.5 truncate ${subtextClass ?? "text-muted"}`}>{subtext}</p>}
     </div>
   );
 }
