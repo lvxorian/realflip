@@ -28,7 +28,6 @@ interface PropertyCardProps {
   photoCount?: number;
   undervaluationPct?: number;
   isAuction?: boolean;
-  portalCount?: number;
   removed?: boolean;
 }
 
@@ -50,7 +49,6 @@ export function PropertyCard({
   photoCount = 0,
   undervaluationPct,
   isAuction = false,
-  portalCount,
   removed = false,
 }: PropertyCardProps) {
   const statusVariant =
@@ -110,9 +108,6 @@ export function PropertyCard({
             )}
             {status && (
               <Badge variant={statusVariant} size="sm">{status}</Badge>
-            )}
-            {portalCount != null && portalCount > 0 && (
-              <Badge variant="outline" size="sm">{portalCount} portály</Badge>
             )}
             {isUndervalued && (
               <Badge variant="success" size="sm">Podhodnoceno {Math.round(undervaluationPct!)}%</Badge>

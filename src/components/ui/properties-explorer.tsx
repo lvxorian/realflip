@@ -33,7 +33,6 @@ export interface PropertyListItem {
   daysOnMarket: number;
   imageUrls: string[];
   portalName: string;
-  altCount?: number;
   locationCity: string | null;
   verdictLevel: string | null;
   condition: string | null;
@@ -587,7 +586,6 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     undervaluationPct={p.undervaluationPct ?? undefined}
                     isAuction={p.portalName === "portaldrazeb"}
                     removed={p.removed}
-                    portalCount={p.altCount}
                   />
                 ))}
               </motion.div>
@@ -638,11 +636,6 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                             </>
                           )}
                         </div>
-                        {p.altCount != null && p.altCount > 0 && (
-                          <span className="text-[10px] text-muted/80 mt-0.5">
-                            {p.altCount} portály
-                          </span>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
