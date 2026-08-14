@@ -80,6 +80,16 @@ export function parseCalcSnapshot(raw: string | null | undefined): CalcSnapshot 
   }
 }
 
+/** Iniciály jména pro anonymizované zobrazení ostatním investorům:
+ *  „Galja Sabrieva" → „G.S.", jednoslovné „Petr" → „P." */
+export function investorInitials(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return `${parts[0][0]}.`.toUpperCase();
+  return `${parts[0][0]}.${parts[parts.length - 1][0]}.`.toUpperCase();
+}
+
 export interface InvestorPortalItem {
   id: string;
   district: string | null;
@@ -230,7 +240,7 @@ export function toPortalView(
     snapshot: parseCalcSnapshot(row.calcSnapshot),
     status: reserved ? "reserved" : "available",
     reservedByMe,
-    reservedByName: reserved ? row.reservedByName : null,
+    reservedByName: reserved ? investorInitials(row.reservedByName) : null,
     reservedModel: reserved ? row.portalReservedModel : null,
     reservationExpiresAt: reservedByMe ? row.portalExpiresAt : null,
     waitlisted: !reservedByMe && waitlistedIds.has(row.leadId),

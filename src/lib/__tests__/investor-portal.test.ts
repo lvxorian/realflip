@@ -116,7 +116,17 @@ describe("toPortalView", () => {
     expect(mine.reservedByMe).toBe(true);
     expect(mine.status).toBe("reserved");
     expect(other.reservedByMe).toBe(false);
-    expect(other.reservedByName).toBe("Petr");
+    expect(other.reservedByName).toBe("P.");
+  });
+
+  it("anonymizes reserved-by name to initials for other investors", () => {
+    const ctx = { budget: null, unlimited: true };
+    const balc = toPortalView(row({ portalStatus: "reserved", reservedById: "inv-2", reservedByName: "Galja Sabrieva" }), "inv-9", ctx);
+    expect(balc.reservedByName).toBe("G.S.");
+    const multi = toPortalView(row({ portalStatus: "reserved", reservedById: "inv-2", reservedByName: "Jan Novák Kubík" }), "inv-9", ctx);
+    expect(multi.reservedByName).toBe("J.K.");
+    const noName = toPortalView(row({ portalStatus: "reserved", reservedById: "inv-2", reservedByName: null }), "inv-9", ctx);
+    expect(noName.reservedByName).toBeNull();
   });
 
   it("maps condition label for all values", () => {
