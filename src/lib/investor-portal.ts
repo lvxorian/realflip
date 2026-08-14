@@ -1,7 +1,8 @@
 import { db } from "@/db";
-import { leads, properties, propertyAnalysis, investors } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { leads, portalWaitlist, properties, propertyAnalysis, investors } from "@/db/schema";
+import { and, eq, inArray } from "drizzle-orm";
 import { toPortalView, type InvestorPortalItem } from "@/lib/investor-portal-view";
+import { expireStaleReservations } from "@/lib/portal-reservation";
 
 export {
   parseStageData,
@@ -42,12 +43,20 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
     unlimited: (investor?.budgetUnlimited ?? 0) === 1,
   };
 
+  try {
+    await expireStaleReservations();
+  } catch {
+    // Expirace nesmí rozbít načtení portálu
+  }
+
   const rows = await db
     .select({
       leadId: leads.id,
       portalStatus: leads.portalStatus,
       reservedById: leads.portalReservedInvestorId,
       reservedByName: investors.name,
+      portalExpiresAt: leads.portalExpiresAt,
+      portalReservedModel: leads.portalReservedModel,
       district: propertyAnalysis.locationDistrict,
       city: propertyAnalysis.locationCity,
       locationCategory: propertyAnalysis.locationCategory,
@@ -76,13 +85,23 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
     .where(and(eq(leads.stage, PORTAL_STAGE), eq(leads.portalVisible, 1), eq(properties.isActive, 1)))
     .orderBy(propertyAnalysis.netProfit);
 
+  const leadIds = rows.map((r) => r.leadId);
+  const waitlisted = new Set<string>();
+  if (leadIds.length > 0) {
+    const waitlistRows = await db
+      .select({ leadId: portalWaitlist.leadId })
+      .from(portalWaitlist)
+      .where(and(eq(portalWaitlist.investorId, investorId), inArray(portalWaitlist.leadId, leadIds)));
+    waitlistRows.forEach((w) => waitlisted.add(w.leadId));
+  }
+
   const score = (item: InvestorPortalItem) =>
     item.calcMode === "rental"
       ? item.deal.type === "rental" ? item.deal.netYield ?? -Infinity : -Infinity
       : item.deal.type === "flip" ? item.deal.netProfit ?? -Infinity : -Infinity;
 
   return rows
-    .map((row) => toPortalView(row, investorId, budget))
+    .map((row) => toPortalView(row, investorId, budget, waitlisted))
     .sort((a, b) => score(b) - score(a));
 }
 

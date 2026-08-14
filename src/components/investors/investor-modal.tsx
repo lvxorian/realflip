@@ -17,6 +17,7 @@ export interface InvestorFormValue {
   budget: number | null;
   budgetUnlimited: number | null;
   portalEnabled?: number | null;
+  preferredModel?: string | null;
   notes: string | null;
   lastActiveAt?: number | null;
   loginCount?: number | null;
@@ -64,6 +65,12 @@ export function InvestorModal({ open, investor, onClose, onSaved, onDeleted }: I
   );
 }
 
+const COOPERATION_MODELS = {
+  flip: "Flip a prodej",
+  rent: "Nákup a držení",
+  both: "Obojí — flip i držení",
+} as const;
+
 function InvestorModalForm({
   investor,
   onClose,
@@ -83,6 +90,7 @@ function InvestorModalForm({
   const [budget, setBudget] = useState(investor?.budget != null ? String(investor.budget) : "");
   const [budgetUnlimited, setBudgetUnlimited] = useState(!!investor?.budgetUnlimited);
   const [portalEnabled, setPortalEnabled] = useState(!!investor?.portalEnabled);
+  const [preferredModel, setPreferredModel] = useState(investor?.preferredModel ?? "");
   const [notes, setNotes] = useState(investor?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -112,6 +120,7 @@ function InvestorModalForm({
         budget: budgetUnlimited ? null : budget.trim() ? parseInt(budget.replace(/\s/g, ""), 10) : null,
         budgetUnlimited: budgetUnlimited ? 1 : 0,
         portalEnabled: portalEnabled ? 1 : 0,
+        preferredModel: preferredModel || null,
         notes: notes.trim() || null,
       };
       const res = await fetch(
@@ -137,6 +146,7 @@ function InvestorModalForm({
         budget: payload.budget,
         budgetUnlimited: payload.budgetUnlimited,
         portalEnabled: payload.portalEnabled,
+        preferredModel: payload.preferredModel,
         notes: payload.notes,
       };
       onSaved(saved);
@@ -234,6 +244,22 @@ function InvestorModalForm({
           {budgetUnlimited && (
             <p className="text-xs text-muted">Investor nemá horní limit — budget se nehlídá.</p>
           )}
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground/80">Model spolupráce (preference)</label>
+          <select
+            value={preferredModel}
+            onChange={(e) => setPreferredModel(e.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50 transition-colors"
+          >
+            <option value="">Flexibilní — bez omezení</option>
+            {Object.entries(COOPERATION_MODELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="rounded-xl border border-border/50 bg-card-hover/30 p-4 space-y-3">

@@ -5,6 +5,7 @@ import { investors, leads, investorOfferEmails } from "@/db/schema";
 import { desc, isNotNull, sql } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
+import { COOPERATION_MODELS } from "@/lib/portal-reservation";
 
 export async function GET() {
   try {
@@ -63,6 +64,8 @@ export async function POST(req: Request) {
     const budget = typeof body.budget === "number" && body.budget >= 0 ? Math.round(body.budget) : null;
     const budgetUnlimited = body.budgetUnlimited ? 1 : 0;
     const portalEnabled = body.portalEnabled ? 1 : 0;
+    const preferredModel =
+      body.preferredModel && body.preferredModel in COOPERATION_MODELS ? body.preferredModel : null;
     if (portalEnabled && !deriveInvestorCredentials(name).password) {
       return NextResponse.json({ error: "Pro přístup k portálu zadejte jméno i příjmení investora" }, { status: 400 });
     }
@@ -78,6 +81,7 @@ export async function POST(req: Request) {
       budget,
       budgetUnlimited,
       portalEnabled,
+      preferredModel,
       notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,
       createdAt: now,
       updatedAt: now,

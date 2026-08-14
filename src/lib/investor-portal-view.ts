@@ -98,6 +98,10 @@ export interface InvestorPortalItem {
   status: PortalStatus;
   reservedByMe: boolean;
   reservedByName: string | null;
+  reservedModel?: string | null;
+  /** Konec rezervační lhůty (unix ms) u položek rezervovaných mnou. */
+  reservationExpiresAt?: number | null;
+  waitlisted?: boolean;
   overBudget: boolean;
 }
 
@@ -106,6 +110,8 @@ export interface PortalRow {
   portalStatus: string | null;
   reservedById: string | null;
   reservedByName: string | null;
+  portalExpiresAt?: number | null;
+  portalReservedModel?: string | null;
   district: string | null;
   city: string | null;
   condition: string | null;
@@ -189,7 +195,8 @@ function dealFromColumns(row: PortalRow, calcMode: "flip" | "rental"): DealMetri
 export function toPortalView(
   row: PortalRow,
   investorId: string,
-  budget: { budget: number | null; unlimited: boolean }
+  budget: { budget: number | null; unlimited: boolean },
+  waitlistedIds: Set<string> = new Set()
 ): InvestorPortalItem {
   const stageData = parseStageData(row.stageData);
   const offerPrice = offerPriceOf(stageData) ?? row.originalPrice ?? null;
@@ -203,6 +210,8 @@ export function toPortalView(
       : false;
 
   const calcMode = resolveCalcMode(row.calcMode);
+  const reservedByMe = row.reservedById === investorId;
+  const reserved = row.portalStatus === "reserved";
 
   return {
     id: row.leadId,
@@ -219,9 +228,12 @@ export function toPortalView(
     deal: dealFromColumns(row, calcMode),
     renovationCost: row.renovationCost,
     snapshot: parseCalcSnapshot(row.calcSnapshot),
-    status: row.portalStatus === "reserved" ? "reserved" : "available",
-    reservedByMe: row.reservedById === investorId,
-    reservedByName: row.reservedById ? row.reservedByName : null,
+    status: reserved ? "reserved" : "available",
+    reservedByMe,
+    reservedByName: reserved ? row.reservedByName : null,
+    reservedModel: reserved ? row.portalReservedModel : null,
+    reservationExpiresAt: reservedByMe ? row.portalExpiresAt : null,
+    waitlisted: !reservedByMe && waitlistedIds.has(row.leadId),
     overBudget,
   };
 }

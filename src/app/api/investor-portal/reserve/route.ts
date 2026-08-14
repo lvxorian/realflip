@@ -4,6 +4,13 @@ import { investors, leads, notifications, properties } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
+import {
+  PORTAL_RESERVATION_MS,
+  addToWaitlist,
+  assignNextFromWaitlist,
+  hasWaitlist,
+  removeFromWaitlist,
+} from "@/lib/portal-reservation";
 import { touchInvestorActivity } from "@/lib/investor-activity-actions";
 import { generateId, ts } from "@/lib/utils";
 
@@ -14,7 +21,7 @@ export async function POST(req: NextRequest) {
   }
   await touchInvestorActivity(session.sub);
 
-  let body: { id?: string; action?: "reserve" | "cancel" };
+  let body: { id?: string; action?: "reserve" | "cancel" | "waitlist" | "unwaitlist" };
   try {
     body = await req.json();
   } catch {
@@ -22,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   const leadId = typeof body.id === "string" ? body.id : "";
-  const action = body.action === "cancel" ? "cancel" : "reserve";
+  const action = body.action ?? "reserve";
   if (!leadId) {
     return NextResponse.json({ error: "Chybí ID nemovitosti." }, { status: 400 });
   }
@@ -34,6 +41,7 @@ export async function POST(req: NextRequest) {
       portalVisible: leads.portalVisible,
       portalStatus: leads.portalStatus,
       reservedById: leads.portalReservedInvestorId,
+      preferredModel: investors.preferredModel,
       userId: leads.userId,
       propertyId: leads.propertyId,
       propertyTitle: properties.title,
@@ -41,6 +49,7 @@ export async function POST(req: NextRequest) {
     })
     .from(leads)
     .leftJoin(properties, eq(leads.propertyId, properties.id))
+    .leftJoin(investors, eq(investors.id, session.sub))
     .where(eq(leads.id, leadId))
     .limit(1);
 
@@ -48,13 +57,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nemovitost není v portálu k dispozici." }, { status: 404 });
   }
 
+  if (action === "waitlist" || action === "unwaitlist") {
+    const waitlisted = await hasWaitlist(session.sub, leadId);
+    if (action === "waitlist") {
+      await addToWaitlist(session.sub, leadId);
+    } else if (action === "unwaitlist" || waitlisted) {
+      await removeFromWaitlist(session.sub, leadId);
+    }
+    return NextResponse.json({ ok: true, waitlisted: action === "waitlist" });
+  }
+
   if (action === "reserve") {
     if (lead.portalStatus === "reserved" && lead.reservedById !== session.sub) {
-      return NextResponse.json({ error: "Nemovitost je rezervovaná jiným investorem." }, { status: 409 });
+      await addToWaitlist(session.sub, leadId);
+      return NextResponse.json({
+        ok: true,
+        status: "waitlisted",
+        message: "Nemovitost je rezervovaná jiným investorem. Byli jste zařazeni do pořadníku.",
+      });
     }
+    const now = Date.now();
     await db
       .update(leads)
-      .set({ portalStatus: "reserved", portalReservedInvestorId: session.sub, updatedAt: Date.now() })
+      .set({
+        portalStatus: "reserved",
+        portalReservedInvestorId: session.sub,
+        portalReservedModel: lead.preferredModel ?? null,
+        portalReservedAt: now,
+        portalExpiresAt: now + PORTAL_RESERVATION_MS,
+        updatedAt: now,
+      })
       .where(eq(leads.id, leadId));
 
     try {
@@ -82,5 +114,34 @@ export async function POST(req: NextRequest) {
     .update(leads)
     .set({ portalStatus: "available", portalReservedInvestorId: null, updatedAt: Date.now() })
     .where(and(eq(leads.id, leadId), eq(leads.portalReservedInvestorId, session.sub)));
-  return NextResponse.json({ ok: true, status: "available" });
+  await removeFromWaitlist(session.sub, leadId);
+
+  const nextInvestorId = await assignNextFromWaitlist(leadId, Date.now());
+  if (nextInvestorId) {
+    const [nextInvestor] = await db
+      .select({ name: investors.name })
+      .from(investors)
+      .where(eq(investors.id, nextInvestorId))
+      .limit(1);
+    try {
+      await db.insert(notifications).values({
+        id: generateId(),
+        userId: lead.userId,
+        title: "Předání rezervace v investor portálu",
+        message: `Investor ${session.name} uvolnil rezervaci — nabídka ${lead.propertyTitle ?? lead.propertyId} byla automaticky předána investorovi ${nextInvestor?.name ?? nextInvestorId}.`,
+        type: "portal_reservation",
+        read: false,
+        data: JSON.stringify({ propertyId: lead.propertyId, leadId: lead.id }),
+        createdAt: ts(),
+      });
+    } catch {
+      // Notifikace nesmí zablokovat uvolnění
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    status: "available",
+    takenOverById: nextInvestorId,
+  });
 }

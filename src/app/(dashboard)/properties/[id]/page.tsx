@@ -108,6 +108,8 @@ export default async function PropertyDetailPage({
     portalVisible: number | null;
     portalStatus: string | null;
     portalReservedInvestorId: string | null;
+    portalReservedModel: string | null;
+    portalExpiresAt: number | null;
   } | null = null;
   if (session?.user?.id) {
     const fav = await db
@@ -130,6 +132,8 @@ export default async function PropertyDetailPage({
         portalVisible: leads.portalVisible,
         portalStatus: leads.portalStatus,
         portalReservedInvestorId: leads.portalReservedInvestorId,
+        portalReservedModel: leads.portalReservedModel,
+        portalExpiresAt: leads.portalExpiresAt,
       })
       .from(leads)
       .where(
@@ -418,6 +422,8 @@ export default async function PropertyDetailPage({
               leadId={pipelineLead.id}
               initialVisible={(pipelineLead.portalVisible ?? 1) === 1}
               initialReservedInvestorId={pipelineLead.portalReservedInvestorId}
+              initialReservedModel={pipelineLead.portalReservedModel}
+              initialReservedExpiresAt={pipelineLead.portalExpiresAt}
               removed={isRemoved}
             />
           )}

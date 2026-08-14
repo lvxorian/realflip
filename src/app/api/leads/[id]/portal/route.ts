@@ -4,6 +4,11 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notifyInvestorsOfOffer } from "@/lib/email/notify-offers";
+import {
+  COOPERATION_MODELS,
+  PORTAL_RESERVATION_MS,
+  assignNextFromWaitlist,
+} from "@/lib/portal-reservation";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -31,6 +36,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       } else if (typeof body.portalReservedInvestorId === "string" && body.portalReservedInvestorId) {
         patch.portalReservedInvestorId = body.portalReservedInvestorId;
         patch.portalStatus = "reserved";
+        if (patch.portalReservedAt === undefined) {
+          const now = Date.now();
+          patch.portalReservedAt = now;
+          patch.portalExpiresAt = now + PORTAL_RESERVATION_MS;
+        }
+      }
+    }
+    if (body.portalReservedModel !== undefined) {
+      if (body.portalReservedModel !== null && !(body.portalReservedModel in COOPERATION_MODELS)) {
+        return NextResponse.json({ error: "Neplatný model spolupráce" }, { status: 400 });
+      }
+      patch.portalReservedModel = body.portalReservedModel;
+    }
+    if (body.portalExpiresAt !== undefined) {
+      if (typeof body.portalExpiresAt === "number" && body.portalExpiresAt > 0) {
+        patch.portalExpiresAt = body.portalExpiresAt;
+        if (patch.portalReservedAt === undefined) patch.portalReservedAt = Date.now();
       }
     }
 
@@ -42,7 +64,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
     }
 
-    return NextResponse.json({ ok: true });
+    let takenOverById: string | null = null;
+    const released = body.portalStatus === "available" || body.portalReservedInvestorId === null;
+    if (released) {
+      takenOverById = await assignNextFromWaitlist(id, Date.now());
+    }
+
+    return NextResponse.json({ ok: true, takenOverById });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

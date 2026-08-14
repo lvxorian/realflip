@@ -5,6 +5,7 @@ import { investors } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ts } from "@/lib/utils";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
+import { COOPERATION_MODELS } from "@/lib/portal-reservation";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -72,6 +73,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof body.budget === "number" && body.budget >= 0) patch.budget = Math.round(body.budget);
     if (body.budgetUnlimited !== undefined) patch.budgetUnlimited = body.budgetUnlimited ? 1 : 0;
     if (body.portalEnabled !== undefined) patch.portalEnabled = body.portalEnabled ? 1 : 0;
+    if (body.preferredModel !== undefined) {
+      if (body.preferredModel !== null && !(body.preferredModel in COOPERATION_MODELS)) {
+        return NextResponse.json({ error: "Neplatný model spolupráce" }, { status: 400 });
+      }
+      patch.preferredModel = body.preferredModel;
+    }
 
     await db.update(investors).set(patch).where(eq(investors.id, id));
 
