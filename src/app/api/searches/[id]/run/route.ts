@@ -5,6 +5,7 @@ import { searches } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { safeJsonParse } from "@/lib/utils";
 import type { SearchFilters } from "@/lib/scraping/types";
+import { createScrapingOrchestrator } from "@/lib/scraping/orchestrator-setup";
 
 export const maxDuration = 60;
 
@@ -29,32 +30,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     }
 
     const filters = safeJsonParse<SearchFilters>(search.filters, {});
-
-    const { ScrapingOrchestrator } = await import("@/lib/scraping/orchestrator");
-    const { BazosAdapter } = await import("@/lib/scraping/adapters/bazos");
-    const { MmrealityAdapter } = await import("@/lib/scraping/adapters/mmreality");
-    const { AnnonceAdapter } = await import("@/lib/scraping/adapters/annonce");
-    const { RealityCzAdapter } = await import("@/lib/scraping/adapters/reality-cz");
-    const { HyperinzerceAdapter } = await import("@/lib/scraping/adapters/hyperinzerce");
-    const { SrealityAdapter } = await import("@/lib/scraping/adapters/sreality");
-    const { IdnesRealityAdapter } = await import("@/lib/scraping/adapters/idnes-reality");
-    const { RealityMatAdapter } = await import("@/lib/scraping/adapters/realitymat");
-    const { RealityMixAdapter } = await import("@/lib/scraping/adapters/realitymix");
-    const { BezrealitkyAdapter } = await import("@/lib/scraping/adapters/bezrealitky");
-    const { RemaxAdapter } = await import("@/lib/scraping/adapters/remax");
-
-    const orchestrator = new ScrapingOrchestrator();
-    orchestrator.registerAdapter("bazos", new BazosAdapter());
-    orchestrator.registerAdapter("mmreality", new MmrealityAdapter());
-    orchestrator.registerAdapter("annonce", new AnnonceAdapter());
-    orchestrator.registerAdapter("reality-cz", new RealityCzAdapter());
-    orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
-    orchestrator.registerAdapter("sreality", new SrealityAdapter());
-    orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
-    orchestrator.registerAdapter("realitymat", new RealityMatAdapter());
-    orchestrator.registerAdapter("realitymix", new RealityMixAdapter());
-    orchestrator.registerAdapter("bezrealitky", new BezrealitkyAdapter());
-    orchestrator.registerAdapter("remax", new RemaxAdapter());
+    const orchestrator = await createScrapingOrchestrator();
 
     const result = await orchestrator.crawlSearch(id, filters);
 

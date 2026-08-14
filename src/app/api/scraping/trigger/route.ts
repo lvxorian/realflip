@@ -1,17 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { ScrapingOrchestrator } from "@/lib/scraping/orchestrator";
-import { BazosAdapter } from "@/lib/scraping/adapters/bazos";
-import { MmrealityAdapter } from "@/lib/scraping/adapters/mmreality";
-import { AnnonceAdapter } from "@/lib/scraping/adapters/annonce";
-import { RealityCzAdapter } from "@/lib/scraping/adapters/reality-cz";
-import { HyperinzerceAdapter } from "@/lib/scraping/adapters/hyperinzerce";
-import { SrealityAdapter } from "@/lib/scraping/adapters/sreality";
-import { IdnesRealityAdapter } from "@/lib/scraping/adapters/idnes-reality";
-import { RealityMatAdapter } from "@/lib/scraping/adapters/realitymat";
-import { RealityMixAdapter } from "@/lib/scraping/adapters/realitymix";
-import { BezrealitkyAdapter } from "@/lib/scraping/adapters/bezrealitky";
-import { RemaxAdapter } from "@/lib/scraping/adapters/remax";
+import { createScrapingOrchestrator } from "@/lib/scraping/orchestrator-setup";
 
 export async function POST(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -24,21 +13,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const orchestrator = new ScrapingOrchestrator((portal, found, errors) => {
+    const orchestrator = await createScrapingOrchestrator((portal, found, errors) => {
       console.log(`[scraping] ${portal}: ${found} listings, ${errors.length} errors`);
     });
-
-    orchestrator.registerAdapter("bazos", new BazosAdapter());
-    orchestrator.registerAdapter("mmreality", new MmrealityAdapter());
-    orchestrator.registerAdapter("annonce", new AnnonceAdapter());
-    orchestrator.registerAdapter("reality-cz", new RealityCzAdapter());
-    orchestrator.registerAdapter("hyperinzerce", new HyperinzerceAdapter());
-    orchestrator.registerAdapter("sreality", new SrealityAdapter());
-    orchestrator.registerAdapter("idnes-reality", new IdnesRealityAdapter());
-    orchestrator.registerAdapter("realitymat", new RealityMatAdapter());
-    orchestrator.registerAdapter("realitymix", new RealityMixAdapter());
-    orchestrator.registerAdapter("bezrealitky", new BezrealitkyAdapter());
-    orchestrator.registerAdapter("remax", new RemaxAdapter());
 
     await orchestrator.crawlAllScheduled();
 

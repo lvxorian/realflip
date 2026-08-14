@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
-import { MagnifyingGlass, Plus, Clock, Play, PencilSimple, Trash } from "@phosphor-icons/react";
+import { MagnifyingGlass, Plus, Clock, Play, PencilSimple, Trash, ArrowsClockwise } from "@phosphor-icons/react";
 import { SCHEDULE_LABELS } from "@/components/searches/search-form";
 
 interface SearchItem {
@@ -71,6 +71,7 @@ export default function SearchesPage() {
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
+  const [runningAll, setRunningAll] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,6 +99,31 @@ export default function SearchesPage() {
       toast.error("Skenování selhalo");
     } finally {
       setRunning(null);
+      const res = await fetch("/api/searches");
+      const data = await res.json();
+      setSearches(data);
+    }
+  };
+
+  const runAll = async () => {
+    setRunningAll(true);
+    try {
+      const res = await fetch("/api/searches/run-all", { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error || "Hromadné hledání selhalo");
+      } else {
+        const failed = data?.failed?.length ?? 0;
+        if (failed > 0) {
+          toast.warning(`Hromadné hledání dokončeno (${data?.total ?? 0} inzerátů, ${failed} selhalo)`);
+        } else {
+          toast.success(`Hromadné hledání dokončeno (${data?.total ?? 0} inzerátů)`);
+        }
+      }
+    } catch {
+      toast.error("Hromadné hledání selhalo");
+    } finally {
+      setRunningAll(false);
       const res = await fetch("/api/searches");
       const data = await res.json();
       setSearches(data);
@@ -146,12 +172,25 @@ export default function SearchesPage() {
             Vytvářejte cílená hledání nemovitostí
           </p>
         </div>
-        <Link href="/searches/new">
-          <Button>
-            <Plus weight="bold" />
-            Nové hledání
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          {searches.length > 0 && (
+            <Button
+              variant="secondary"
+              loading={runningAll}
+              disabled={running !== null || deleting !== null}
+              onClick={() => runAll()}
+            >
+              <ArrowsClockwise weight="bold" />
+              Spustit hromadné hledání
+            </Button>
+          )}
+          <Link href="/searches/new">
+            <Button>
+              <Plus weight="bold" />
+              Nové hledání
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {searches.length === 0 ? (
@@ -197,6 +236,7 @@ export default function SearchesPage() {
                           variant="secondary"
                           size="icon-sm"
                           loading={running === s.id}
+                          disabled={runningAll}
                           onClick={(e) => {
                             e.preventDefault();
                             runSearch(s.id);

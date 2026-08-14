@@ -308,6 +308,40 @@ export class ScrapingOrchestrator {
     await this.sweepRemovedListings().catch(() => {});
   }
 
+  async crawlAllForUser(userId: string): Promise<{ total: number; runCount: number; failed: string[] }> {
+    const userSearches = await db
+      .select()
+      .from(searches)
+      .where(eq(searches.userId, userId));
+
+    let total = 0;
+    let runCount = 0;
+    const failed: string[] = [];
+
+    for (const search of userSearches) {
+      let filters: SearchFilters = {};
+      try {
+        filters = JSON.parse(search.filters) as SearchFilters;
+      } catch {
+        failed.push(`Search ${search.id} (${search.name}): invalid filters`);
+        continue;
+      }
+
+      try {
+        const result = await this.crawlSearch(search.id, filters);
+        total += result.total;
+        runCount++;
+      } catch (err) {
+        failed.push(`Search ${search.id} (${search.name}) failed: ${err}`);
+      }
+    }
+
+    refreshAllMarketData().catch(() => {});
+    await this.sweepRemovedListings().catch(() => {});
+
+    return { total, runCount, failed };
+  }
+
   private async saveListing(listing: RawListing, searchId?: string): Promise<string | null> {
     if (!isSaleListing(listing)) {
       console.log(`Skipped non-sale listing (${listing.title}): ${listing.url}`);
