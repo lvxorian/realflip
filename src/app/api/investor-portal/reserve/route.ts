@@ -4,13 +4,7 @@ import { investors, leads, notifications, properties } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
-import {
-  PORTAL_RESERVATION_MS,
-  addToWaitlist,
-  assignNextFromWaitlist,
-  hasWaitlist,
-  removeFromWaitlist,
-} from "@/lib/portal-reservation";
+import { PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
 import { touchInvestorActivity } from "@/lib/investor-activity-actions";
 import { generateId, ts } from "@/lib/utils";
 
@@ -21,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
   await touchInvestorActivity(session.sub);
 
-  let body: { id?: string; action?: "reserve" | "cancel" | "waitlist" | "unwaitlist" };
+  let body: { id?: string; action?: "reserve" | "cancel" };
   try {
     body = await req.json();
   } catch {
@@ -29,7 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   const leadId = typeof body.id === "string" ? body.id : "";
-  const action = body.action ?? "reserve";
+  const action = body.action === "cancel" ? "cancel" : "reserve";
   if (!leadId) {
     return NextResponse.json({ error: "Chybí ID nemovitosti." }, { status: 400 });
   }
@@ -57,24 +51,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nemovitost není v portálu k dispozici." }, { status: 404 });
   }
 
-  if (action === "waitlist" || action === "unwaitlist") {
-    const waitlisted = await hasWaitlist(session.sub, leadId);
-    if (action === "waitlist") {
-      await addToWaitlist(session.sub, leadId);
-    } else if (action === "unwaitlist" || waitlisted) {
-      await removeFromWaitlist(session.sub, leadId);
-    }
-    return NextResponse.json({ ok: true, waitlisted: action === "waitlist" });
-  }
-
   if (action === "reserve") {
     if (lead.portalStatus === "reserved" && lead.reservedById !== session.sub) {
-      await addToWaitlist(session.sub, leadId);
-      return NextResponse.json({
-        ok: true,
-        status: "waitlisted",
-        message: "Nemovitost je rezervovaná jiným investorem. Byli jste zařazeni do pořadníku.",
-      });
+      return NextResponse.json({ error: "Nemovitost je rezervovaná jiným investorem." }, { status: 409 });
     }
     const now = Date.now();
     await db
@@ -114,34 +93,5 @@ export async function POST(req: NextRequest) {
     .update(leads)
     .set({ portalStatus: "available", portalReservedInvestorId: null, updatedAt: Date.now() })
     .where(and(eq(leads.id, leadId), eq(leads.portalReservedInvestorId, session.sub)));
-  await removeFromWaitlist(session.sub, leadId);
-
-  const nextInvestorId = await assignNextFromWaitlist(leadId, Date.now());
-  if (nextInvestorId) {
-    const [nextInvestor] = await db
-      .select({ name: investors.name })
-      .from(investors)
-      .where(eq(investors.id, nextInvestorId))
-      .limit(1);
-    try {
-      await db.insert(notifications).values({
-        id: generateId(),
-        userId: lead.userId,
-        title: "Předání rezervace v investor portálu",
-        message: `Investor ${session.name} uvolnil rezervaci — nabídka ${lead.propertyTitle ?? lead.propertyId} byla automaticky předána investorovi ${nextInvestor?.name ?? nextInvestorId}.`,
-        type: "portal_reservation",
-        read: false,
-        data: JSON.stringify({ propertyId: lead.propertyId, leadId: lead.id }),
-        createdAt: ts(),
-      });
-    } catch {
-      // Notifikace nesmí zablokovat uvolnění
-    }
-  }
-
-  return NextResponse.json({
-    ok: true,
-    status: "available",
-    takenOverById: nextInvestorId,
-  });
+  return NextResponse.json({ ok: true, status: "available" });
 }

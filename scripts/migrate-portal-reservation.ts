@@ -4,7 +4,8 @@ import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
 
-// Portal rezervace: leads.portal_reserved_* + investors.preferred_model + portal_waitlist
+// Portal rezervace: leads.portal_reserved_* + investors.preferred_model
+// (portal_waitlist byla zrušena — skript ji idempotentně dropuje)
 // DDL na Neonu přes direct (non-pooler) připojení — pooler v transaction mode DDL tiše neaplikuje.
 async function main() {
   if (process.env.DATABASE_URL) {
@@ -39,21 +40,9 @@ async function main() {
     const waitlistExists = await sql`
       SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'portal_waitlist'
     `;
-    if (waitlistExists.length === 0) {
-      await sql`
-        CREATE TABLE portal_waitlist (
-          id text PRIMARY KEY,
-          lead_id text NOT NULL REFERENCES leads(id) ON DELETE cascade,
-          investor_id text NOT NULL REFERENCES investors(id) ON DELETE cascade,
-          created_at bigint NOT NULL
-        )
-      `;
-      await sql`
-        CREATE UNIQUE INDEX portal_waitlist_unique ON portal_waitlist (lead_id, investor_id)
-      `;
-      console.log("[Neon] portal_waitlist vytvořena");
-    } else {
-      console.log("[Neon] portal_waitlist už existuje — přeskočeno");
+    if (waitlistExists.length > 0) {
+      await sql`DROP TABLE portal_waitlist`;
+      console.log("[Neon] portal_waitlist zrušena (pořadník byl odstraněn)");
     }
   } else {
     console.log("[Neon] DATABASE_URL nenalezen — Neon přeskočen");
@@ -85,20 +74,10 @@ async function main() {
         db.exec(`ALTER TABLE investors ADD COLUMN preferred_model text;`);
         console.log("[SQLite] investors.preferred_model přidán");
       }
-      const waitlistCols = (db.prepare(`PRAGMA table_info(portal_waitlist)`).all() as { name: string }[]).map((c) => c.name);
-      if (waitlistCols.length > 0) {
-        console.log("[SQLite] portal_waitlist už existuje — přeskočeno");
-      } else {
-        db.exec(`
-          CREATE TABLE portal_waitlist (
-            id text PRIMARY KEY,
-            lead_id text NOT NULL REFERENCES leads(id) ON DELETE cascade,
-            investor_id text NOT NULL REFERENCES investors(id) ON DELETE cascade,
-            created_at integer NOT NULL
-          );
-          CREATE UNIQUE INDEX portal_waitlist_unique ON portal_waitlist (lead_id, investor_id);
-        `);
-        console.log("[SQLite] portal_waitlist vytvořena");
+      const waitlistExists = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='portal_waitlist'`).all() as { name: string }[]);
+      if (waitlistExists.length > 0) {
+        db.exec(`DROP TABLE portal_waitlist;`);
+        console.log("[SQLite] portal_waitlist zrušena (pořadník byl odstraněn)");
       }
       db.close();
     }

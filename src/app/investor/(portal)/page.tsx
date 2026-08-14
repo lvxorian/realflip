@@ -18,7 +18,6 @@ import {
   ArrowCounterClockwise,
   WarningCircle,
   EnvelopeSimple,
-  Hourglass,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
@@ -102,26 +101,6 @@ export default function InvestorPortalPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, action }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setError(json.error ?? "Operace se nepodařila.");
-        return;
-      }
-      await refresh();
-    } finally {
-      setActionId(null);
-    }
-  }
-
-  async function toggleWaitlist(item: InvestorPortalItem) {
-    setActionId(item.id);
-    setError("");
-    try {
-      const res = await fetch("/api/investor-portal/reserve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, action: item.waitlisted ? "unwaitlist" : "waitlist" }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -328,7 +307,7 @@ export default function InvestorPortalPage() {
                               <StatusPill item={item} />
                             </td>
                             <td className="p-3 text-right">
-                              <ActionButton item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} onWaitlist={() => toggleWaitlist(item)} />
+                              <ActionButton item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
                             </td>
                           </motion.tr>
                           {expandedId === item.id && (
@@ -430,7 +409,7 @@ export default function InvestorPortalPage() {
                         {expandedId === item.id && <DealDetail item={item} />}
 
                         <div className="flex justify-end">
-                          <ActionButton size="sm" item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} onWaitlist={() => toggleWaitlist(item)} />
+                          <ActionButton size="sm" item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
                         </div>
                       </motion.div>
                     ))}
@@ -604,14 +583,6 @@ function StatusPill({ item }: { item: InvestorPortalItem }) {
       </Badge>
     );
   }
-  if (item.waitlisted) {
-    return (
-      <Badge variant="info" size="sm" className="gap-1">
-        <Hourglass size={11} weight="bold" />
-        Na pořadníku
-      </Badge>
-    );
-  }
   return <Badge variant="secondary" size="sm">Dostupná</Badge>;
 }
 
@@ -619,31 +590,19 @@ function ActionButton({
   item,
   busy,
   onClick,
-  onWaitlist,
   size = "md",
 }: {
   item: InvestorPortalItem;
   busy: boolean;
   onClick: () => void;
-  onWaitlist?: () => void;
   size?: "sm" | "md";
 }) {
   const isMine = item.status === "reserved" && item.reservedByMe;
   if (item.status === "reserved" && !item.reservedByMe) {
     return (
-      <div className="text-right">
-        <span className="text-xs text-muted block whitespace-nowrap">
-          {item.reservedByName ? `od ${item.reservedByName}` : "jiný investor"}
-        </span>
-        <button
-          type="button"
-          onClick={onWaitlist}
-          disabled={busy}
-          className="mt-1 text-[11px] font-medium text-accent hover:text-accent/80 hover:underline disabled:opacity-50 transition-colors"
-        >
-          {item.waitlisted ? "Odebrat z pořadníku" : "Přidat do pořadníku"}
-        </button>
-      </div>
+      <span className="text-xs text-muted text-right block whitespace-nowrap">
+        {item.reservedByName ? `od ${item.reservedByName}` : "jiný investor"}
+      </span>
     );
   }
   const countdown = isMine && item.reservationExpiresAt ? reservationCountdown(item.reservationExpiresAt) : null;

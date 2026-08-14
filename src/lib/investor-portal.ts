@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { leads, portalWaitlist, properties, propertyAnalysis, investors } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { leads, properties, propertyAnalysis, investors } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { toPortalView, type InvestorPortalItem } from "@/lib/investor-portal-view";
 import { expireStaleReservations } from "@/lib/portal-reservation";
 
@@ -85,23 +85,13 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
     .where(and(eq(leads.stage, PORTAL_STAGE), eq(leads.portalVisible, 1), eq(properties.isActive, 1)))
     .orderBy(propertyAnalysis.netProfit);
 
-  const leadIds = rows.map((r) => r.leadId);
-  const waitlisted = new Set<string>();
-  if (leadIds.length > 0) {
-    const waitlistRows = await db
-      .select({ leadId: portalWaitlist.leadId })
-      .from(portalWaitlist)
-      .where(and(eq(portalWaitlist.investorId, investorId), inArray(portalWaitlist.leadId, leadIds)));
-    waitlistRows.forEach((w) => waitlisted.add(w.leadId));
-  }
-
   const score = (item: InvestorPortalItem) =>
     item.calcMode === "rental"
       ? item.deal.type === "rental" ? item.deal.netYield ?? -Infinity : -Infinity
       : item.deal.type === "flip" ? item.deal.netProfit ?? -Infinity : -Infinity;
 
   return rows
-    .map((row) => toPortalView(row, investorId, budget, waitlisted))
+    .map((row) => toPortalView(row, investorId, budget))
     .sort((a, b) => score(b) - score(a));
 }
 

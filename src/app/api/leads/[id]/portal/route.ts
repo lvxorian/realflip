@@ -4,11 +4,7 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notifyInvestorsOfOffer } from "@/lib/email/notify-offers";
-import {
-  COOPERATION_MODELS,
-  PORTAL_RESERVATION_MS,
-  assignNextFromWaitlist,
-} from "@/lib/portal-reservation";
+import { COOPERATION_MODELS, PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -64,13 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
     }
 
-    let takenOverById: string | null = null;
-    const released = body.portalStatus === "available" || body.portalReservedInvestorId === null;
-    if (released) {
-      takenOverById = await assignNextFromWaitlist(id, Date.now());
-    }
-
-    return NextResponse.json({ ok: true, takenOverById });
+    return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

@@ -1,4 +1,6 @@
--- Portal rezervace: model spoluprace, casy drzeni + poradnik (SQLite)
+-- Portal rezervace: model spoluprace + casy drzeni (SQLite)
+-- portal_waitlist byla zrusena (07/2026) — tabulka se pri migraci dedupe dle toho, jestli uz existuje sloupec portal_reserved_model.
+
 ALTER TABLE leads
   ADD COLUMN portal_reserved_model text,
   ADD COLUMN portal_reserved_at integer,
@@ -7,11 +9,4 @@ ALTER TABLE leads
 ALTER TABLE investors
   ADD COLUMN preferred_model text;
 
-CREATE TABLE IF NOT EXISTS portal_waitlist (
-  id text PRIMARY KEY,
-  lead_id text NOT NULL REFERENCES leads(id) ON DELETE cascade,
-  investor_id text NOT NULL REFERENCES investors(id) ON DELETE cascade,
-  created_at integer NOT NULL
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS portal_waitlist_unique ON portal_waitlist (lead_id, investor_id);
+DROP TABLE IF EXISTS portal_waitlist;

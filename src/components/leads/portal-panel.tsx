@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { LockSimple, Eye, EyeSlash, Prohibit, UsersThree } from "@phosphor-icons/react";
+import { LockSimple, Eye, EyeSlash, Prohibit } from "@phosphor-icons/react";
 
 const COOPERATION_MODELS = {
   flip: "Flip a prodej",
@@ -30,16 +30,6 @@ interface InvestorOption {
   name: string | null;
 }
 
-interface WaitlistEntry {
-  investorId: string;
-  name: string | null;
-  city: string | null;
-  preferredModel: string | null;
-  createdAt: number;
-  position: number;
-  modelLabel: string | null;
-}
-
 interface PortalPanelProps {
   leadId: string;
   initialVisible: boolean;
@@ -60,24 +50,8 @@ export function PortalPanel({
   const [visible, setVisible] = useState(initialVisible);
   const [reservedInvestorId, setReservedInvestorId] = useState(initialReservedInvestorId);
   const [reservedModel, setReservedModel] = useState(initialReservedModel);
-  const [reservedExpiresAt, setReservedExpiresAt] = useState(initialReservedExpiresAt);
   const [investors, setInvestors] = useState<InvestorOption[]>([]);
-  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [saving, setSaving] = useState(false);
-
-  const refreshWaitlist = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/leads/${leadId}/waitlist`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setWaitlist(data.waitlist ?? []);
-      setReservedInvestorId(data.reservedInvestorId ?? null);
-      setReservedModel(data.reservedModel ?? null);
-      setReservedExpiresAt(data.reservedExpiresAt ?? null);
-    } catch {
-      // data se načtou při dalším renderu
-    }
-  }, [leadId]);
 
   useEffect(() => {
     fetch("/api/investors")
@@ -86,9 +60,7 @@ export function PortalPanel({
         if (Array.isArray(d)) setInvestors(d);
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshWaitlist();
-  }, [refreshWaitlist]);
+  }, []);
 
   async function save(patch: {
     portalVisible?: boolean;
@@ -103,17 +75,11 @@ export function PortalPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error("Uložení se nepodařilo");
         return;
       }
-      if (data.takenOverById) {
-        toast.success("Rezervace uvolněna — automaticky předána dalšímu z pořadníku");
-      } else {
-        toast.success("Portál uložen");
-      }
-      refreshWaitlist();
+      toast.success("Portál uložen");
     } catch {
       toast.error("Chyba sítě");
     } finally {
@@ -121,28 +87,7 @@ export function PortalPanel({
     }
   }
 
-  async function manageWaitlist(action: "assign" | "remove", investorId: string) {
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/leads/${leadId}/waitlist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, investorId }),
-      });
-      if (!res.ok) {
-        toast.error("Operace se nepodařila");
-        return;
-      }
-      toast.success(action === "assign" ? "Rezervace přiřazena" : "Ubrán z pořadníku");
-      refreshWaitlist();
-    } catch {
-      toast.error("Chyba sítě");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const countdown = reservedInvestorId ? formatCountdown(reservedExpiresAt) : null;
+  const countdown = reservedInvestorId ? formatCountdown(initialReservedExpiresAt) : null;
   const reservedName = investors.find((i) => i.id === reservedInvestorId)?.name ?? null;
 
   return (
@@ -259,53 +204,8 @@ export function PortalPanel({
               </p>
             )}
 
-            {/* Pořadník */}
-            <div className="rounded-xl border border-border/50 bg-card/50 p-3">
-              <div className="flex items-center gap-2 text-xs font-medium mb-2">
-                <UsersThree size={14} weight="duotone" className="text-accent" />
-                Pořadník zájemců
-                <Badge variant="secondary" size="sm" className="ml-auto">{waitlist.length}</Badge>
-              </div>
-              {waitlist.length === 0 ? (
-                <p className="text-xs text-muted leading-relaxed">
-                  Žádní investoři nečekají na uvolnění této nabídky. Při vypršení rezervace se první zájemce zařadí automaticky.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {waitlist.map((entry) => (
-                    <li key={entry.investorId} className="flex items-center gap-2 text-xs">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent font-semibold">
-                        {entry.position}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate">
-                        <span className="text-foreground/80">{entry.name ?? "Neznámý investor"}</span>
-                        {entry.city && <span className="text-muted"> · {entry.city}</span>}
-                        {entry.modelLabel && <span className="text-muted"> · {entry.modelLabel}</span>}
-                      </span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={saving}
-                        onClick={() => manageWaitlist("assign", entry.investorId)}
-                      >
-                        Přiřadit
-                      </Button>
-                      <button
-                        onClick={() => manageWaitlist("remove", entry.investorId)}
-                        disabled={saving}
-                        className="text-muted hover:text-destructive transition-colors disabled:opacity-40"
-                        aria-label="Odebrat z pořadníku"
-                      >
-                        <EyeSlash size={14} weight="bold" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
             <p className="text-xs text-muted">
-              Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží 72h.
+              Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží 72h a pak se automaticky uvolní.
             </p>
           </div>
         )}

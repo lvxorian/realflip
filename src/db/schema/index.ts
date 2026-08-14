@@ -6,7 +6,6 @@ export { propertyAnalysis } from "./analysis";
 export { leads, contacts, callQueue, callLogs, leadEvents } from "./leads";
 export { deals, dealExpenses } from "./deals";
 export { investors } from "./investors";
-export { portalWaitlist } from "./portal-waitlist";
 export { investorOfferEmails } from "./investor-offer-emails";
 export { alerts, notifications } from "./alerts";
 export { marketData, marketCache, scrapingJobs, localityMetrics, poiMetrics, rents } from "./market";

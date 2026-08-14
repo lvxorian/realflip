@@ -111,7 +111,6 @@ export interface InvestorPortalItem {
   reservedModel?: string | null;
   /** Konec rezervační lhůty (unix ms) u položek rezervovaných mnou. */
   reservationExpiresAt?: number | null;
-  waitlisted?: boolean;
   overBudget: boolean;
 }
 
@@ -205,8 +204,7 @@ function dealFromColumns(row: PortalRow, calcMode: "flip" | "rental"): DealMetri
 export function toPortalView(
   row: PortalRow,
   investorId: string,
-  budget: { budget: number | null; unlimited: boolean },
-  waitlistedIds: Set<string> = new Set()
+  budget: { budget: number | null; unlimited: boolean }
 ): InvestorPortalItem {
   const stageData = parseStageData(row.stageData);
   const offerPrice = offerPriceOf(stageData) ?? row.originalPrice ?? null;
@@ -243,7 +241,6 @@ export function toPortalView(
     reservedByName: reserved ? investorInitials(row.reservedByName) : null,
     reservedModel: reserved ? row.portalReservedModel : null,
     reservationExpiresAt: reservedByMe ? row.portalExpiresAt : null,
-    waitlisted: !reservedByMe && waitlistedIds.has(row.leadId),
     overBudget,
   };
 }
