@@ -183,7 +183,7 @@ function InteractiveCard({
   const [flipStrategy, setFlipStrategy] = useState<CooperationAvailability>("both");
 
   const [costConfig, setCostConfig] = useState({
-    sellCommission: true,
+    sellCommission: false,
     appraisal: false,
     sourcingEnabled: true,
     sourcingFee: 100000,
@@ -352,7 +352,13 @@ function InteractiveCard({
                 ? cfg.sourcingEnabled || (typeof cfg.sourcingFee === "number" && cfg.sourcingFee > 0)
                 : true,
           });
-          if (cfg.flipStrategy === "fifty-fifty" || cfg.flipStrategy === "sourcing-fee" || cfg.flipStrategy === "both") setFlipStrategy(cfg.flipStrategy);
+          if (cfg.flipStrategy === "fifty-fifty" || cfg.flipStrategy === "sourcing-fee" || cfg.flipStrategy === "both") {
+            setFlipStrategy(cfg.flipStrategy);
+            // Konzistence s pravidlem kalkulačky: u 50/50 investor neplatí fee za zprostředkování.
+            if (cfg.flipStrategy === "fifty-fifty") {
+              setCostConfig((prev) => ({ ...prev, sourcingEnabled: false }));
+            }
+          }
           if (cfg.rental) setRentalConfig({ ...RENTAL_DEFAULTS, ...cfg.rental });
           if (cfg.renovationMode) setRenovationMode(cfg.renovationMode);
           if (cfg.renovationLevel) setRenovationLevel(cfg.renovationLevel);
@@ -443,7 +449,7 @@ function InteractiveCard({
     setRentalRenovationLevel("medium");
     setRentalRenovationPerSqm(Math.round(a.scenarios?.conservative?.renovationCost / area) || 12500);
     setRentalRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
-    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: true, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
+    setCostConfig({ sellCommission: false, appraisal: false, sourcingEnabled: true, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
     setFlipStrategy("both");
   };
 
@@ -840,7 +846,11 @@ function InteractiveCard({
                   <button
                     key={s.value}
                     type="button"
-                    onClick={() => setFlipStrategy(s.value)}
+                    onClick={() => {
+                      setFlipStrategy(s.value);
+                      if (s.value === "fifty-fifty") setCostConfig((prev) => ({ ...prev, sourcingEnabled: false }));
+                      else if (s.value === "sourcing-fee") setCostConfig((prev) => ({ ...prev, sourcingEnabled: true }));
+                    }}
                     className={`rounded-lg border px-2 py-1.5 text-center transition-colors ${
                       flipStrategy === s.value
                         ? "border-accent/50 bg-accent/10 text-accent"
@@ -879,7 +889,7 @@ function InteractiveCard({
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={costConfig.sourcingEnabled} onChange={() => toggleConfig("sourcingEnabled")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Sourcing fee (RealFlip)</span>
+                  <span className="text-foreground/80 whitespace-nowrap">Sourcing fee</span>
                 </label>
               </div>
               {costConfig.sourcingEnabled && (
