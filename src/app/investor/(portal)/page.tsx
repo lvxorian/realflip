@@ -36,6 +36,37 @@ function fmtPrice(v: number | null): string {
   return v !== null ? formatCompactPrice(v) : "—";
 }
 
+function ModeBadge({ item }: { item: InvestorPortalItem }) {
+  return (
+    <span
+      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+        item.calcMode === "rental" ? "border-info/40 bg-info-soft text-info" : "border-accent/40 bg-accent-soft text-accent"
+      }`}
+    >
+      {item.calcMode === "rental" ? "Nájem" : "Flip"}
+    </span>
+  );
+}
+
+/** Hodnoty nemovitosti na jednom řádku oddělené tečkou: 3+1 · 73 m² · Průměrný */
+function PropertyMeta({ item }: { item: InvestorPortalItem }) {
+  const parts: React.ReactNode[] = [];
+  if (item.rooms) parts.push(<span key="rooms">{item.rooms}</span>);
+  if (item.area) parts.push(<span key="area" className="font-mono tabular-nums">{item.area} m²</span>);
+  if (item.condition) parts.push(<span key="condition" className="capitalize">{item.condition}</span>);
+  if (item.floor !== null && item.floor !== undefined) parts.push(<span key="floor">{item.floor}. podlaží</span>);
+  if (parts.length === 0) return null;
+  return (
+    <>
+      {parts.reduce<React.ReactNode[]>((acc, part, i) => {
+        if (i > 0) acc.push(<span key={`sep-${i}`} className="text-muted/40 select-none">·</span>);
+        acc.push(part);
+        return acc;
+      }, [])}
+    </>
+  );
+}
+
 /** Aktuální zvolená strategie itemu — default první dostupná. */
 function strategyFor(
   item: InvestorPortalItem,
@@ -288,26 +319,19 @@ export default function InvestorPortalPage() {
                             transition={{ delay: i * 0.03, duration: 0.25 }}
                             className="hover:bg-card-hover transition-colors"
                           >
-                            <td className="p-3 pr-4 min-w-[200px]">
+                            <td className="p-3 pr-4 min-w-[280px]">
                               <button
                                 type="button"
                                 onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                                 className="text-left w-full group"
                               >
-                                <div className="flex items-center gap-1.5">
-                                  <p className="font-semibold capitalize truncate group-hover:text-accent transition-colors">
+                                <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted">
+                                  <MapPin size={10} weight="bold" className="shrink-0 text-muted/70" />
+                                  <span className="font-semibold capitalize min-w-0 truncate group-hover:text-accent transition-colors">
                                     {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
-                                  </p>
-                                  <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${item.calcMode === "rental" ? "border-info/40 bg-info-soft text-info" : "border-accent/40 bg-accent-soft text-accent"}`}>
-                                    {item.calcMode === "rental" ? "Nájem" : "Flip"}
                                   </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-1 text-[11px] text-muted whitespace-nowrap">
-                                  <MapPin size={10} weight="bold" className="shrink-0" />
-                                  <span className="truncate">{item.condition}</span>
-                                  {item.area ? <span className="font-mono tabular-nums">{item.area} m²</span> : null}
-                                  {item.rooms ? <span>{item.rooms}</span> : null}
-                                  {item.floor !== null ? <span>{item.floor}. podlaží</span> : null}
+                                  <ModeBadge item={item} />
+                                  <PropertyMeta item={item} />
                                 </div>
                               </button>
                             </td>
@@ -395,13 +419,14 @@ export default function InvestorPortalPage() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="font-semibold leading-tight truncate">
-                              {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
+                            <p className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-semibold leading-tight min-w-0 truncate">
+                                {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
+                              </span>
+                              <ModeBadge item={item} />
                             </p>
                             <p className="text-xs text-muted mt-1 flex items-center gap-1.5 flex-wrap">
-                              <span className="capitalize">{item.condition}</span>
-                              {item.area && <span className="font-mono tabular-nums">{item.area} m²</span>}
-                              {item.rooms && <span>{item.rooms}</span>}
+                              <PropertyMeta item={item} />
                             </p>
                           </div>
                           <StatusPill item={item} />
