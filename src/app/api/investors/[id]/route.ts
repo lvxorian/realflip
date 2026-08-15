@@ -5,7 +5,7 @@ import { investors } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { ts } from "@/lib/utils";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
-import { COOPERATION_MODELS } from "@/lib/portal-reservation";
+import { COOPERATION_MODELS } from "@/lib/cooperation-models";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {

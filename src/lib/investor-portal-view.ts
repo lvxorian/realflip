@@ -1,5 +1,6 @@
 import { conditionLabel } from "@/lib/utils";
 import type { StageData } from "@/components/leads/types";
+import { strategiesFromAvailability, type CooperationStrategy } from "@/lib/cooperation-models";
 
 export type PortalStatus = "available" | "reserved";
 
@@ -22,6 +23,15 @@ export interface RentalDealView {
 }
 
 export type DealMetricsView = FlipDealView | RentalDealView;
+
+export interface CooperationView {
+  /** Strategie dostupné na tomto obchodu (před globální politikou portálu). */
+  availableStrategies: CooperationStrategy[];
+  netProfitTotal: number | null;
+  investorProfitFiftyFifty: number | null;
+  investorProfitSourcing: number | null;
+  sourcingFee: number | null;
+}
 
 export interface CalcSnapshotFlip {
   mode: "flip";
@@ -46,6 +56,20 @@ export interface CalcSnapshotFlip {
   mortgageCost: number | null;
   sourcingFee: number | null;
   incomeTax: number | null;
+  /** Způsob spolupráce (flip): čísla pro 50/50 i sourcing fee přímo z kalkulačky. */
+  cooperation?: FlipCooperationSnapshot | null;
+}
+
+export interface FlipCooperationSnapshot {
+  /** Jak je obchod nabízen: obojí / jen 50/50 / jen sourcing fee. */
+  availability: "both" | "fifty-fifty" | "sourcing-fee";
+  /** Čistý zisk celého obchodu (bez sourcing fee, před dělením 50/50). */
+  netProfitTotal: number | null;
+  /** Zisk investora při 50/50 (polovina zisk celého obchodu). */
+  investorProfitFiftyFifty: number | null;
+  /** Zisk investora při sourcing fee (po odečtení poplatku). */
+  investorProfitSourcing: number | null;
+  sourcingFee: number | null;
 }
 
 export interface CalcSnapshotRental {
@@ -80,6 +104,35 @@ export function parseCalcSnapshot(raw: string | null | undefined): CalcSnapshot 
   }
 }
 
+/** Čísla spolupráce (50/50 vs. sourcing fee) z flip snapshotu.
+ *  Nové snapshoty mají blok `cooperation`; staré se odvodí z netProfit a fee. */
+export function flipCooperationFromSnapshot(s: CalcSnapshotFlip | null): CooperationView | null {
+  if (!s) return null;
+  const coop = s.cooperation;
+  if (coop) {
+    return {
+      availableStrategies: strategiesFromAvailability(coop.availability),
+      netProfitTotal: coop.netProfitTotal ?? null,
+      investorProfitFiftyFifty:
+        coop.investorProfitFiftyFifty ??
+        (coop.netProfitTotal != null ? Math.round(coop.netProfitTotal / 2) : null),
+      investorProfitSourcing:
+        coop.investorProfitSourcing ??
+        (coop.netProfitTotal != null ? Math.round(coop.netProfitTotal - (coop.sourcingFee ?? 0)) : null),
+      sourcingFee: coop.sourcingFee ?? null,
+    };
+  }
+  const fee = s.sourcingFee ?? 0;
+  const netProfitTotal = s.netProfit != null ? s.netProfit + fee : null;
+  return {
+    availableStrategies: strategiesFromAvailability("both"),
+    netProfitTotal,
+    investorProfitFiftyFifty: netProfitTotal != null ? Math.round(netProfitTotal / 2) : null,
+    investorProfitSourcing: s.netProfit ?? null,
+    sourcingFee: s.sourcingFee ?? null,
+  };
+}
+
 /** Iniciály jména pro anonymizované zobrazení ostatním investorům:
  *  „Galja Sabrieva" → „G.S.", jednoslovné „Petr" → „P." */
 export function investorInitials(name: string | null | undefined): string | null {
@@ -105,6 +158,8 @@ export interface InvestorPortalItem {
   deal: DealMetricsView;
   renovationCost: number | null;
   snapshot: CalcSnapshot | null;
+  /** Způsob spolupráce u flipu (dostupné strategie + čísla). Rental = null. */
+  cooperation: CooperationView | null;
   status: PortalStatus;
   reservedByMe: boolean;
   reservedByName: string | null;
@@ -220,6 +275,7 @@ export function toPortalView(
   const calcMode = resolveCalcMode(row.calcMode);
   const reservedByMe = row.reservedById === investorId;
   const reserved = row.portalStatus === "reserved";
+  const snapshot = parseCalcSnapshot(row.calcSnapshot);
 
   return {
     id: row.leadId,
@@ -235,7 +291,8 @@ export function toPortalView(
     calcMode,
     deal: dealFromColumns(row, calcMode),
     renovationCost: row.renovationCost,
-    snapshot: parseCalcSnapshot(row.calcSnapshot),
+    snapshot,
+    cooperation: calcMode === "flip" ? flipCooperationFromSnapshot(snapshot && snapshot.mode === "flip" ? snapshot : null) : null,
     status: reserved ? "reserved" : "available",
     reservedByMe,
     reservedByName: reserved ? investorInitials(row.reservedByName) : null,

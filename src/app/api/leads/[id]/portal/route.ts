@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { leads } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { leads, propertyAnalysis, calculatorPresets } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { notifyInvestorsOfOffer } from "@/lib/email/notify-offers";
-import { COOPERATION_MODELS, PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
+import { PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
+import { parseCalcSnapshot } from "@/lib/investor-portal-view";
+import { COOPERATION_MODELS, COOPERATION_STRATEGIES, COOPERATION_AVAILABILITY, type CooperationAvailability } from "@/lib/cooperation-models";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -28,6 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.portalReservedInvestorId !== undefined) {
       if (body.portalReservedInvestorId === null) {
         patch.portalReservedInvestorId = null;
+        patch.portalReservedStrategy = null;
         patch.portalStatus = "available";
       } else if (typeof body.portalReservedInvestorId === "string" && body.portalReservedInvestorId) {
         patch.portalReservedInvestorId = body.portalReservedInvestorId;
@@ -39,11 +42,69 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
       }
     }
+    if (body.portalReservedStrategy !== undefined) {
+      if (body.portalReservedStrategy !== null && !(body.portalReservedStrategy in COOPERATION_STRATEGIES)) {
+        return NextResponse.json({ error: "Neplatný způsob spolupráce" }, { status: 400 });
+      }
+      patch.portalReservedStrategy = body.portalReservedStrategy;
+    }
     if (body.portalReservedModel !== undefined) {
       if (body.portalReservedModel !== null && !(body.portalReservedModel in COOPERATION_MODELS)) {
         return NextResponse.json({ error: "Neplatný model spolupráce" }, { status: 400 });
       }
       patch.portalReservedModel = body.portalReservedModel;
+    }
+    if (body.cooperationAvailability !== undefined) {
+      if (typeof body.cooperationAvailability !== "string" || !COOPERATION_AVAILABILITY.includes(body.cooperationAvailability as CooperationAvailability)) {
+        return NextResponse.json({ error: "Neplatná dostupnost spolupráce" }, { status: 400 });
+      }
+      const availability = body.cooperationAvailability as CooperationAvailability;
+      const lead = await db
+        .select({ propertyId: leads.propertyId })
+        .from(leads)
+        .where(eq(leads.id, id))
+        .limit(1)
+        .then((r) => r[0]);
+      if (lead?.propertyId) {
+        const analysisRow = await db
+          .select({ calcSnapshot: propertyAnalysis.calcSnapshot })
+          .from(propertyAnalysis)
+          .where(eq(propertyAnalysis.propertyId, lead.propertyId))
+          .limit(1)
+          .then((r) => r[0]);
+        const snap = parseCalcSnapshot(analysisRow?.calcSnapshot ?? null);
+        if (snap && snap.mode === "flip" && snap.cooperation) {
+          snap.cooperation.availability = availability;
+          await db
+            .update(propertyAnalysis)
+            .set({ calcSnapshot: JSON.stringify(snap), updatedAt: Date.now() })
+            .where(eq(propertyAnalysis.propertyId, lead.propertyId));
+          const preset = await db
+            .select({ config: calculatorPresets.config })
+            .from(calculatorPresets)
+            .where(and(
+              eq(calculatorPresets.propertyId, lead.propertyId),
+              eq(calculatorPresets.userId, session.user.id)
+            ))
+            .limit(1)
+            .then((r) => r[0]);
+          if (preset?.config) {
+            try {
+              const cfg = JSON.parse(preset.config) as Record<string, unknown>;
+              cfg.flipStrategy = availability;
+              await db
+                .update(calculatorPresets)
+                .set({ config: JSON.stringify(cfg), updatedAt: Date.now() })
+                .where(and(
+                  eq(calculatorPresets.propertyId, lead.propertyId),
+                  eq(calculatorPresets.userId, session.user.id)
+                ));
+            } catch {
+              void 0;
+            }
+          }
+        }
+      }
     }
     if (body.portalExpiresAt !== undefined) {
       if (typeof body.portalExpiresAt === "number" && body.portalExpiresAt > 0) {

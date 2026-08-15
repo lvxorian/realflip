@@ -3,6 +3,7 @@ import { leads, properties, propertyAnalysis, investors } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { toPortalView, type InvestorPortalItem } from "@/lib/investor-portal-view";
 import { expireStaleReservations } from "@/lib/portal-reservation";
+import { getPortalConfig } from "@/lib/portal-config";
 
 export {
   parseStageData,
@@ -90,9 +91,25 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
       ? item.deal.type === "rental" ? item.deal.netYield ?? -Infinity : -Infinity
       : item.deal.type === "flip" ? item.deal.netProfit ?? -Infinity : -Infinity;
 
-  return rows
-    .map((row) => toPortalView(row, investorId, budget))
-    .sort((a, b) => score(b) - score(a));
+  const items = rows
+    .map((row) => toPortalView(row, investorId, budget));
+
+  // Globální politika portálu: při pozastaveném 50/50 (řemeslnická parta
+  // vytížená) zůstane sourcing fee, 50/50 se odebere a „pouze 50/50" dealy
+  // z výpisu vypadnou, dokud se režim nevrátí.
+  const config = await getPortalConfig();
+  if (!config.fiftyFiftyEnabled) {
+    return items
+      .map((item) => {
+        if (item.calcMode !== "flip" || !item.cooperation) return item;
+        const availableStrategies = item.cooperation.availableStrategies.filter((s) => s !== "fifty-fifty");
+        return { ...item, cooperation: { ...item.cooperation, availableStrategies } };
+      })
+      .filter((item) => item.calcMode !== "flip" || !item.cooperation || item.cooperation.availableStrategies.length > 0)
+      .sort((a, b) => score(b) - score(a));
+  }
+
+  return items.sort((a, b) => score(b) - score(a));
 }
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();

@@ -21,6 +21,7 @@ export const leads = pgTable("leads", {
   portalStatus: text("portal_status").default("available"),
   portalReservedInvestorId: text("portal_reserved_investor_id").references(() => investors.id, { onDelete: "set null" }),
   portalReservedModel: text("portal_reserved_model"),
+  portalReservedStrategy: text("portal_reserved_strategy"),
   portalReservedAt: bigint("portal_reserved_at", { mode: "number" }),
   portalExpiresAt: bigint("portal_expires_at", { mode: "number" }),
   position: integer("position").default(0),

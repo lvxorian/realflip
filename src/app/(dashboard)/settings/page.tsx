@@ -17,6 +17,7 @@ import {
   Key,
   Bell,
   CreditCard,
+  Buildings,
 } from "@phosphor-icons/react";
 
 const tabs = [
@@ -25,6 +26,7 @@ const tabs = [
   { key: "calculator", label: "Kalkulátor", icon: Calculator },
   { key: "api", label: "API klíče", icon: Key },
   { key: "notifications", label: "Notifikace", icon: Bell },
+  { key: "portal", label: "Investorský portál", icon: Buildings },
   { key: "billing", label: "Předplatné", icon: CreditCard },
 ];
 
@@ -55,6 +57,11 @@ export default function SettingsPage() {
 
   const [prefs, setPrefs] = useState<CalcPrefs | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
+
+  const [portalFiftyFifty, setPortalFiftyFifty] = useState(true);
+  const [portalNotice, setPortalNotice] = useState("");
+  const [portalLoaded, setPortalLoaded] = useState(false);
+  const [savingPortal, setSavingPortal] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -127,6 +134,47 @@ export default function SettingsPage() {
       toast.error("Chyba sítě");
     } finally {
       setSavingPrefs(false);
+    }
+  }
+
+  useEffect(() => {
+    if (status !== "authenticated" || activeTab !== "portal") return;
+    let cancelled = false;
+    fetch("/api/settings/portal")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d && typeof d === "object" && !d.error) {
+          setPortalFiftyFifty(!!d.fiftyFiftyEnabled);
+          setPortalNotice(d.fiftyFiftyNotice ?? "");
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPortalLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, activeTab]);
+
+  async function savePortal() {
+    setSavingPortal(true);
+    try {
+      const res = await fetch("/api/settings/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fiftyFiftyEnabled: portalFiftyFifty, fiftyFiftyNotice: portalNotice }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Uložení se nezdařilo");
+        return;
+      }
+      toast.success("Nastavení portálu uloženo");
+    } catch {
+      toast.error("Chyba sítě");
+    } finally {
+      setSavingPortal(false);
     }
   }
 
@@ -331,6 +379,61 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 <p className="text-xs text-muted">Preference notifikací zatím nejsou ukládané — alerty se zobrazují v aplikaci.</p>
+              </>
+            )}
+
+            {activeTab === "portal" && (
+              <>
+                <h2 className="font-semibold tracking-tight">Investorský portál</h2>
+                <p className="text-xs text-muted -mt-4">
+                  Nastavení modelu spolupráce 50/50 napříč celým portálem pro investory.
+                </p>
+                {!portalLoaded ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-border/50 p-4">
+                      <div>
+                        <p className="text-sm font-medium">Model 50/50 je k dispozici</p>
+                        <p className="text-xs text-muted mt-1">
+                          Když je vypnuté, nabídky s 50/50 se v portálu skryjí a investorům se zobrazí
+                          hlášení. Sourcing fee běží dál.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPortalFiftyFifty((v) => !v)}
+                        aria-pressed={portalFiftyFifty}
+                        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                          portalFiftyFifty ? "bg-accent" : "bg-border"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                            portalFiftyFifty ? "left-6" : "left-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-foreground/80">Hlášení investorům při pozastavení 50/50</label>
+                      <textarea
+                        value={portalNotice}
+                        onChange={(e) => setPortalNotice(e.target.value)}
+                        rows={3}
+                        placeholder="Naše specializovaná řemeslnická parta aktuálně pracuje na jiném projektu — model 50/50 je dočasně pozastaven."
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50 transition-colors"
+                      />
+                      <p className="text-xs text-muted">Prázdné pole použije výchozí hlášení.</p>
+                    </div>
+                    <Button size="sm" onClick={savePortal} loading={savingPortal}>
+                      {savingPortal ? "Ukládám..." : "Uložit nastavení portálu"}
+                    </Button>
+                  </>
+                )}
               </>
             )}
 

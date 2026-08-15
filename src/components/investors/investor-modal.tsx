@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Trash, Infinity as InfinityIcon, LockSimple, User, Password } from "@phosphor-icons/react";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
+import { COOPERATION_MODELS } from "@/lib/cooperation-models";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -64,12 +65,6 @@ export function InvestorModal({ open, investor, onClose, onSaved, onDeleted }: I
     </AnimatePresence>
   );
 }
-
-const COOPERATION_MODELS = {
-  flip: "Flip a prodej",
-  rent: "Nákup a držení",
-  both: "Obojí — flip i držení",
-} as const;
 
 function InvestorModalForm({
   investor,

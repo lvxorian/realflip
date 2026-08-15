@@ -20,6 +20,7 @@ import { DeletePropertyButton } from "@/components/properties/delete-property-bu
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import { PortalPanel } from "@/components/leads/portal-panel";
+import { PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -100,6 +101,13 @@ export default async function PropertyDetailPage({
     .limit(1)
     .then((r) => r[0]);
 
+  const snapshot =
+    analysis?.calcSnapshot
+      ? safeJsonParse<{ mode?: string; cooperation?: { availability?: string } }>(analysis.calcSnapshot, {})
+      : null;
+  const calcMode = snapshot?.mode === "rental" || snapshot?.mode === "flip" ? snapshot.mode : null;
+  const cooperationAvailability = calcMode === "flip" ? (snapshot?.cooperation?.availability ?? null) : null;
+
   const session = await auth();
   let isFavorited = false;
   let pipelineLead: {
@@ -109,6 +117,7 @@ export default async function PropertyDetailPage({
     portalStatus: string | null;
     portalReservedInvestorId: string | null;
     portalReservedModel: string | null;
+    portalReservedStrategy: string | null;
     portalExpiresAt: number | null;
   } | null = null;
   if (session?.user?.id) {
@@ -133,6 +142,7 @@ export default async function PropertyDetailPage({
         portalStatus: leads.portalStatus,
         portalReservedInvestorId: leads.portalReservedInvestorId,
         portalReservedModel: leads.portalReservedModel,
+        portalReservedStrategy: leads.portalReservedStrategy,
         portalExpiresAt: leads.portalExpiresAt,
       })
       .from(leads)
@@ -423,7 +433,11 @@ export default async function PropertyDetailPage({
               initialVisible={(pipelineLead.portalVisible ?? 1) === 1}
               initialReservedInvestorId={pipelineLead.portalReservedInvestorId}
               initialReservedModel={pipelineLead.portalReservedModel}
+              initialReservedStrategy={pipelineLead.portalReservedStrategy}
               initialReservedExpiresAt={pipelineLead.portalExpiresAt}
+              reservationHours={Math.round(PORTAL_RESERVATION_MS / 3_600_000)}
+              calcMode={calcMode}
+              initialCooperationAvailability={cooperationAvailability}
               removed={isRemoved}
             />
           )}

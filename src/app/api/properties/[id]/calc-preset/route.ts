@@ -77,7 +77,7 @@ export async function POST(
           renovationCost: body.renovationCost ?? null,
           targetRoi: body.targetRoi ?? 15,
           mode: body.mode === "rental" ? "rental" : "flip",
-          config: JSON.stringify({ ...(body.costConfig || {}), rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
+          config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
           updatedAt: now,
         })
         .where(eq(calculatorPresets.id, existing.id));
@@ -90,7 +90,7 @@ export async function POST(
         renovationCost: body.renovationCost ?? null,
         targetRoi: body.targetRoi ?? 15,
         mode: body.mode === "rental" ? "rental" : "flip",
-        config: JSON.stringify({ ...(body.costConfig || {}), rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
+        config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
         createdAt: now,
         updatedAt: now,
       });
@@ -168,6 +168,14 @@ export async function POST(
         mortgageCost: typeof body.flipMortgageCost === "number" ? Math.round(body.flipMortgageCost) : null,
         sourcingFee: typeof body.flipSourcingFee === "number" ? Math.round(body.flipSourcingFee) : null,
         incomeTax: typeof body.flipIncomeTax === "number" ? Math.round(body.flipIncomeTax) : null,
+        cooperation: {
+          availability:
+            body.flipStrategy === "fifty-fifty" || body.flipStrategy === "sourcing-fee" ? body.flipStrategy : "both",
+          netProfitTotal: typeof body.flipProfitTotal === "number" ? Math.round(body.flipProfitTotal) : null,
+          investorProfitFiftyFifty: typeof body.flipProfitFiftyFifty === "number" ? Math.round(body.flipProfitFiftyFifty) : null,
+          investorProfitSourcing: typeof body.flipProfitSourcing === "number" ? Math.round(body.flipProfitSourcing) : null,
+          sourcingFee: typeof body.flipSourcingFee === "number" ? Math.round(body.flipSourcingFee) : null,
+        },
       };
       await db
         .update(propertyAnalysis)

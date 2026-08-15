@@ -21,6 +21,7 @@ export const leads = sqliteTable("leads", {
   portalStatus: text("portal_status").default("available"),
   portalReservedInvestorId: text("portal_reserved_investor_id").references(() => investors.id, { onDelete: "set null" }),
   portalReservedModel: text("portal_reserved_model"),
+  portalReservedStrategy: text("portal_reserved_strategy"),
   portalReservedAt: integer("portal_reserved_at"),
   portalExpiresAt: integer("portal_expires_at"),
   position: integer("position").default(0),

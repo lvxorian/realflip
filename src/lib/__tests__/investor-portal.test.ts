@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseStageData, offerPriceOf, toPortalView, type PortalRow } from "@/lib/investor-portal-view";
+import { parseStageData, offerPriceOf, toPortalView, flipCooperationFromSnapshot, type PortalRow, type CalcSnapshotFlip } from "@/lib/investor-portal-view";
 
 const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   leadId: "lead-1",
@@ -235,5 +235,83 @@ describe("toPortalView", () => {
     expect(view.deal.type).toBe("flip");
     if (view.deal.type !== "flip") return;
     expect(view.deal.netProfit).toBe(1_000_000);
+  });
+
+  it("cooperation is null for rental and for flip without snapshot", () => {
+    const ctx = { budget: null, unlimited: true };
+    expect(toPortalView(row({ calcMode: "rental" }), "inv", ctx).cooperation).toBeNull();
+    expect(toPortalView(row({ calcMode: "flip" }), "inv", ctx).cooperation).toBeNull();
+  });
+
+  it("cooperation reads 50/50 and sourcing numbers from snapshot block (verbatim)", () => {
+    const view = toPortalView(
+      row({
+        calcMode: "flip",
+        calcSnapshot: JSON.stringify({
+          mode: "flip",
+          netProfit: 850_000,
+          sourcingFee: 100_000,
+          cooperation: {
+            availability: "both",
+            netProfitTotal: 950_000,
+            investorProfitFiftyFifty: 475_000,
+            investorProfitSourcing: 850_000,
+            sourcingFee: 100_000,
+          },
+        }),
+      }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.cooperation?.availableStrategies).toEqual(["fifty-fifty", "sourcing-fee"]);
+    expect(view.cooperation?.netProfitTotal).toBe(950_000);
+    expect(view.cooperation?.investorProfitFiftyFifty).toBe(475_000);
+    expect(view.cooperation?.investorProfitSourcing).toBe(850_000);
+    expect(view.cooperation?.sourcingFee).toBe(100_000);
+  });
+
+  it("cooperation respects strategy locked to a single mode", () => {
+    const view = toPortalView(
+      row({
+        calcMode: "flip",
+        calcSnapshot: JSON.stringify({
+          mode: "flip",
+          netProfit: 900_000,
+          cooperation: {
+            availability: "sourcing-fee",
+            netProfitTotal: 900_000,
+            investorProfitFiftyFifty: 450_000,
+            investorProfitSourcing: 800_000,
+            sourcingFee: 100_000,
+          },
+        }),
+      }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.cooperation?.availableStrategies).toEqual(["sourcing-fee"]);
+  });
+
+  it("legacy snapshot without cooperation block derives both variants", () => {
+    const coop = flipCooperationFromSnapshot({
+      mode: "flip",
+      netProfit: 800_000,
+      sourcingFee: 100_000,
+    } as CalcSnapshotFlip);
+    expect(coop?.availableStrategies).toEqual(["fifty-fifty", "sourcing-fee"]);
+    expect(coop?.netProfitTotal).toBe(900_000);
+    expect(coop?.investorProfitFiftyFifty).toBe(450_000);
+    expect(coop?.investorProfitSourcing).toBe(800_000);
+  });
+
+  it("legacy snapshot without fee derives gross profit and no fee", () => {
+    const coop = flipCooperationFromSnapshot({
+      mode: "flip",
+      netProfit: 500_000,
+    } as CalcSnapshotFlip);
+    expect(coop?.netProfitTotal).toBe(500_000);
+    expect(coop?.investorProfitFiftyFifty).toBe(250_000);
+    expect(coop?.investorProfitSourcing).toBe(500_000);
+    expect(coop?.sourcingFee).toBeNull();
   });
 });

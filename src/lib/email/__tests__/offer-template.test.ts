@@ -16,6 +16,7 @@ const offer = (over: Partial<InvestorPortalItem> = {}): InvestorPortalItem => ({
   calcMode: "flip",
   renovationCost: null,
   snapshot: null,
+  cooperation: null,
   deal: {
     type: "flip",
     netProfit: 1_250_000,
@@ -76,6 +77,58 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("5.2 %");
     expect(html).not.toContain("ROI");
     expect(html).not.toContain("Odhadovaný zisk");
+  });
+
+  it("shows cooperation strategy and profits for flip offers", () => {
+    const html = buildOfferEmailHtml(
+      offer({
+        cooperation: {
+          availableStrategies: ["fifty-fifty", "sourcing-fee"],
+          netProfitTotal: 1_200_000,
+          investorProfitFiftyFifty: 600_000,
+          investorProfitSourcing: 300_000,
+          sourcingFee: 100_000,
+        },
+      }),
+      "https://realflip.app"
+    );
+    expect(html).toContain("Způsob spolupráce");
+    expect(html).toContain("50/50 nebo sourcing fee");
+    expect(html).toContain("Váš zisk při 50/50");
+    expect(html).toContain("600 tis. Kč");
+    expect(html).toContain("Váš zisk při sourcing fee");
+    expect(html).toContain("300 tis. Kč");
+  });
+
+  it("locks cooperation to a single strategy when only one is offered", () => {
+    const html = buildOfferEmailHtml(
+      offer({
+        cooperation: {
+          availableStrategies: ["fifty-fifty"],
+          netProfitTotal: 1_200_000,
+          investorProfitFiftyFifty: 600_000,
+          investorProfitSourcing: null,
+          sourcingFee: null,
+        },
+      }),
+      "https://realflip.app"
+    );
+    expect(html).toContain("50/50 — zisk napůl");
+    expect(html).toContain("Váš zisk při 50/50");
+    expect(html).not.toContain("Váš zisk při sourcing fee");
+  });
+
+  it("does not render cooperation block for rental or snapshot-less offers", () => {
+    const rentalHtml = buildOfferEmailHtml(
+      offer({
+        calcMode: "rental",
+        deal: { type: "rental", grossYield: 6.4, netYield: 5.2, netYieldAfterTax: 3.9, capRate: 5.0, cashFlowMonthly: 3_800 },
+      }),
+      "https://realflip.app"
+    );
+    expect(rentalHtml).not.toContain("Způsob spolupráce");
+    const plainHtml = buildOfferEmailHtml(offer(), "https://realflip.app");
+    expect(plainHtml).not.toContain("Způsob spolupráce");
   });
 
   it("escapes HTML in location", () => {

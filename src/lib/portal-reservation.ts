@@ -4,18 +4,6 @@ import { db } from "@/db";
 
 export const PORTAL_RESERVATION_MS = 72 * 60 * 60 * 1000;
 
-export const COOPERATION_MODELS = {
-  flip: "Flip a prodej",
-  rent: "Nákup a držení",
-  both: "Obojí — flip i držení",
-} as const;
-
-export type CooperationModel = keyof typeof COOPERATION_MODELS;
-
-export function modelLabel(model: string | null | undefined): string {
-  return model && model in COOPERATION_MODELS ? COOPERATION_MODELS[model as CooperationModel] : "Flexibilní — bez omezení";
-}
-
 export type LeadPortalRow = Pick<
   typeof leads.$inferSelect,
   "id" | "portalStatus" | "portalReservedInvestorId" | "portalReservedAt" | "portalExpiresAt"

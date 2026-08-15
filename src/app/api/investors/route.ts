@@ -5,7 +5,7 @@ import { investors, leads, investorOfferEmails } from "@/db/schema";
 import { desc, isNotNull, sql } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { deriveInvestorCredentials } from "@/lib/investor-credentials";
-import { COOPERATION_MODELS } from "@/lib/portal-reservation";
+import { COOPERATION_MODELS } from "@/lib/cooperation-models";
 
 export async function GET() {
   try {

@@ -20,6 +20,7 @@ import {
   EnvelopeSimple,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
+import { COOPERATION_STRATEGIES, type CooperationStrategy } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 interface PortalData {
@@ -28,10 +29,47 @@ interface PortalData {
   investorBudget: number | null;
   investorBudgetUnlimited: number;
   investorEmail: string | null;
+  notice?: { message: string } | null;
 }
 
 function fmtPrice(v: number | null): string {
   return v !== null ? formatCompactPrice(v) : "—";
+}
+
+/** Aktuální zvolená strategie itemu — default první dostupná. */
+function strategyFor(
+  item: InvestorPortalItem,
+  map: Record<string, CooperationStrategy>
+): CooperationStrategy | null {
+  if (item.calcMode !== "flip" || !item.cooperation) return null;
+  const strategies = item.cooperation.availableStrategies;
+  if (strategies.length === 0) return null;
+  const chosen = map[item.id];
+  return chosen && strategies.includes(chosen) ? chosen : strategies[0];
+}
+
+/** Zisk flipu podle zvolené strategie (50/50 vs. sourcing fee). */
+function flipProfitFor(
+  item: InvestorPortalItem,
+  strategy: CooperationStrategy | null,
+  fallback: number | null
+): number | null {
+  const coop = item.cooperation;
+  if (!coop) return fallback;
+  if (strategy === "fifty-fifty") return coop.investorProfitFiftyFifty ?? fallback;
+  if (strategy === "sourcing-fee") return coop.investorProfitSourcing ?? fallback;
+  return fallback;
+}
+
+/** Zisk zobrazený na kartě — dle vybrané strategie, jinak původní číslo z analýzy. */
+function displayFlipProfit(item: InvestorPortalItem, map: Record<string, CooperationStrategy>): number | null {
+  const coop = item.cooperation;
+  if (coop) {
+    const strategy = strategyFor(item, map);
+    const profit = strategy === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
+    if (profit != null) return profit;
+  }
+  return item.deal.type === "flip" ? item.deal.netProfit : null;
 }
 
 export default function InvestorPortalPage() {
@@ -41,6 +79,7 @@ export default function InvestorPortalPage() {
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedStrategy, setSelectedStrategy] = useState<Record<string, CooperationStrategy>>({});
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const dismissedEmailPrompt = useRef(false);
 
@@ -97,10 +136,11 @@ export default function InvestorPortalPage() {
     setActionId(item.id);
     setError("");
     try {
+      const strategy = strategyFor(item, selectedStrategy);
       const res = await fetch("/api/investor-portal/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, action }),
+        body: JSON.stringify({ id: item.id, action, strategy }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -204,6 +244,17 @@ export default function InvestorPortalPage() {
                 </motion.p>
               )}
 
+              {data.notice && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2.5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs text-amber-300"
+                >
+                  <WarningCircle size={15} weight="bold" className="shrink-0 mt-0.5" />
+                  <span>{data.notice.message}</span>
+                </motion.div>
+              )}
+
               {data.items.length === 0 ? (
                 <div className="rounded-2xl border border-border/50 bg-card p-12 text-center">
                   <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-card-hover">
@@ -283,13 +334,14 @@ export default function InvestorPortalPage() {
                                   "—"
                                 )
                               ) : (
-                                item.deal.type === "flip" && item.deal.netProfit !== null ? (
-                                  <span className={item.deal.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}>
-                                    {formatCompactPrice(item.deal.netProfit)}
-                                  </span>
-                                ) : (
-                                  "—"
-                                )
+                                (() => {
+                                  const profit = displayFlipProfit(item, selectedStrategy);
+                                  return profit !== null ? (
+                                    <span className={profit >= 0 ? "text-emerald-400" : "text-red-400"}>
+                                      {formatCompactPrice(profit)}
+                                    </span>
+                                  ) : "—";
+                                })()
                               )}
                             </td>
                             <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
@@ -317,7 +369,11 @@ export default function InvestorPortalPage() {
                               className="bg-card-hover/40"
                             >
                               <td colSpan={7} className="p-4">
-                                <DealDetail item={item} />
+                                <DealDetail
+                                  item={item}
+                                  selectedStrategy={strategyFor(item, selectedStrategy)}
+                                  onSelectStrategy={(s) => setSelectedStrategy((prev) => ({ ...prev, [item.id]: s }))}
+                                />
                               </td>
                             </motion.tr>
                           )}
@@ -387,7 +443,10 @@ export default function InvestorPortalPage() {
                             <>
                               <Metric
                                 label="Odhadovaný zisk"
-                                value={item.deal.type === "flip" && item.deal.netProfit !== null ? formatCompactPrice(item.deal.netProfit) : "—"}
+                                value={(() => {
+                                  const p = displayFlipProfit(item, selectedStrategy);
+                                  return p !== null ? formatCompactPrice(p) : "—";
+                                })()}
                                 accent={item.deal.type === "flip" && item.deal.netProfit !== null && item.deal.netProfit >= 0}
                               />
                               <Metric
@@ -406,7 +465,13 @@ export default function InvestorPortalPage() {
                         >
                           {expandedId === item.id ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
                         </button>
-                        {expandedId === item.id && <DealDetail item={item} />}
+                        {expandedId === item.id && (
+                          <DealDetail
+                            item={item}
+                            selectedStrategy={strategyFor(item, selectedStrategy)}
+                            onSelectStrategy={(s) => setSelectedStrategy((prev) => ({ ...prev, [item.id]: s }))}
+                          />
+                        )}
 
                         <div className="flex justify-end">
                           <ActionButton size="sm" item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
@@ -445,7 +510,15 @@ export default function InvestorPortalPage() {
   );
 }
 
-function DealDetail({ item }: { item: InvestorPortalItem }) {
+function DealDetail({
+  item,
+  selectedStrategy,
+  onSelectStrategy,
+}: {
+  item: InvestorPortalItem;
+  selectedStrategy: CooperationStrategy | null;
+  onSelectStrategy: (strategy: CooperationStrategy) => void;
+}) {
   if (item.calcMode === "rental") {
     const deal = item.deal.type === "rental" ? item.deal : null;
     const snap = item.snapshot?.mode === "rental" ? item.snapshot : null;
@@ -503,6 +576,7 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
           <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Odhadovaný zisk a ROI</p>
           <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
         </div>
+        <FlipStrategyBlock item={item} selectedStrategy={selectedStrategy} onSelectStrategy={onSelectStrategy} />
         <div className="space-y-2 text-[12px]">
           <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatCompactPrice(targetPrice) : "—"}</div>
           <DetailRow label="Kupní cena" value={targetPrice != null ? formatCompactPrice(targetPrice) : "—"} />
@@ -518,7 +592,10 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
           {snap.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatCompactPrice(snap.incomeTax)} />}
           {snap.totalCost != null && <DetailRow label="Náklady celkem" value={formatCompactPrice(snap.totalCost)} accent />}
           {deal?.arv != null && <DetailRow label="ARV (po rekonstrukci)" value={formatCompactPrice(deal.arv)} />}
-          <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatCompactPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
+          <DetailRow label="Odhadovaný zisk" value={(() => {
+            const p = flipProfitFor(item, selectedStrategy, deal?.netProfit ?? null);
+            return p != null ? formatCompactPrice(p) : "—";
+          })()} accent={deal?.netProfit != null && deal.netProfit >= 0} />
           <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
         </div>
         <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
@@ -531,6 +608,7 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
         <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Odhadovaný zisk a ROI</p>
         <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
       </div>
+      <FlipStrategyBlock item={item} selectedStrategy={selectedStrategy} onSelectStrategy={onSelectStrategy} />
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
         <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatCompactPrice(deal.arv) : "—"} />
         <DetailRow label="Kupní cena (v kalkulačce)" value={snap?.purchasePriceUsed != null ? formatCompactPrice(snap.purchasePriceUsed) : "—"} />
@@ -558,6 +636,77 @@ function DetailRow({ label, value, accent }: { label: string; value: string; acc
     <div className="flex items-center justify-between gap-4">
       <p className="text-[11px] text-muted">{label}</p>
       <p className={`font-mono tabular-nums text-right whitespace-nowrap ${accent ? "text-emerald-400" : "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
+/** Volba režimu spolupráce u flipu (50/50 vs. sourcing fee) s čísly. */
+function FlipStrategyBlock({
+  item,
+  selectedStrategy,
+  onSelectStrategy,
+}: {
+  item: InvestorPortalItem;
+  selectedStrategy: CooperationStrategy | null;
+  onSelectStrategy: (strategy: CooperationStrategy) => void;
+}) {
+  const coop = item.cooperation;
+  if (!coop) return null;
+  const strategies = coop.availableStrategies;
+  const profitOf = (s: CooperationStrategy) =>
+    s === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
+  const descOf = (s: CooperationStrategy) =>
+    s === "fifty-fifty"
+      ? "My zajišťujeme rekonstrukci, vy financujete. Zisk se dělí napůl."
+      : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatCompactPrice(coop.sourcingFee)}` : ""}.`;
+
+  if (strategies.length <= 1) {
+    const s = strategies[0];
+    if (!s) return null;
+    const profit = profitOf(s);
+    return (
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Způsob spolupráce</p>
+        <div className={`rounded-xl border p-3 ${s === "fifty-fifty" ? "border-accent/40 bg-accent/5" : "border-border/40 bg-card/60"}`}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-foreground">{COOPERATION_STRATEGIES[s]}</p>
+            <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
+              {profit != null ? formatCompactPrice(profit) : "—"}
+            </span>
+          </div>
+          <p className="text-[11px] text-muted mt-1">{descOf(s)}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Způsob spolupráce — vyberte</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {strategies.map((s) => {
+          const active = selectedStrategy === s;
+          const profit = profitOf(s);
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onSelectStrategy(s)}
+              className={`rounded-xl border p-3 text-left transition-colors ${
+                active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card/60 hover:border-accent/30 hover:bg-card-hover"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>{COOPERATION_STRATEGIES[s]}</p>
+                <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
+                  {profit != null ? formatCompactPrice(profit) : "—"}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted mt-1">{descOf(s)}</p>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

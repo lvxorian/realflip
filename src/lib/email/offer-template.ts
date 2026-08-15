@@ -1,4 +1,4 @@
-import type { InvestorPortalItem } from "@/lib/investor-portal-view";
+import type { CooperationView, InvestorPortalItem } from "@/lib/investor-portal-view";
 import { formatCompactPrice } from "@/lib/utils";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 import { brickLogoSvg } from "@/lib/investor-brick";
@@ -56,6 +56,23 @@ function renderRentalRows(offer: InvestorPortalItem): string {
   ].join("");
 }
 
+function cooperationLabel(coop: CooperationView): string {
+  if (coop.availableStrategies.length === 2) return "50/50 nebo sourcing fee";
+  return coop.availableStrategies[0] === "fifty-fifty" ? "50/50 — zisk napůl" : "Sourcing fee";
+}
+
+function renderCooperationRows(offer: InvestorPortalItem): string {
+  if (offer.calcMode !== "flip" || !offer.cooperation) return "";
+  const rows = [row("Způsob spolupráce", escapeHtml(cooperationLabel(offer.cooperation)))];
+  if (offer.cooperation.availableStrategies.includes("fifty-fifty")) {
+    rows.push(row("Váš zisk při 50/50", price(offer.cooperation.investorProfitFiftyFifty)));
+  }
+  if (offer.cooperation.availableStrategies.includes("sourcing-fee")) {
+    rows.push(row("Váš zisk při sourcing fee", price(offer.cooperation.investorProfitSourcing)));
+  }
+  return rows.join("");
+}
+
 function row(label: string, value: string, accent?: boolean): string {
   return `
     <tr>
@@ -105,7 +122,7 @@ ${row("Inzerovaná cena", price(offer.originalPrice))}
                 ${
                   offer.calcMode === "rental"
                     ? renderRentalRows(offer)
-                    : renderFlipRows(offer)
+                    : renderFlipRows(offer) + renderCooperationRows(offer)
                 }
               </table>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">

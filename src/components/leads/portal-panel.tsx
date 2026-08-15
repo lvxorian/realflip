@@ -5,16 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LockSimple, Eye, EyeSlash, Prohibit } from "@phosphor-icons/react";
-
-const COOPERATION_MODELS = {
-  flip: "Flip a prodej",
-  rent: "Nákup a držení",
-  both: "Obojí — flip i držení",
-} as const;
-
-function modelLabel(model: string | null | undefined): string {
-  return model && model in COOPERATION_MODELS ? COOPERATION_MODELS[model as keyof typeof COOPERATION_MODELS] : "Flexibilní — bez omezení";
-}
+import { COOPERATION_MODELS, COOPERATION_STRATEGIES, COOPERATION_AVAILABILITY, COOPERATION_AVAILABILITY_LABELS, modelLabel } from "@/lib/cooperation-models";
 
 function formatCountdown(expiresAt: number | null): string | null {
   if (!expiresAt) return null;
@@ -35,7 +26,11 @@ interface PortalPanelProps {
   initialVisible: boolean;
   initialReservedInvestorId: string | null;
   initialReservedModel: string | null;
+  initialReservedStrategy: string | null;
   initialReservedExpiresAt: number | null;
+  reservationHours?: number;
+  calcMode?: "flip" | "rental" | null;
+  initialCooperationAvailability?: string | null;
   removed?: boolean;
 }
 
@@ -44,12 +39,18 @@ export function PortalPanel({
   initialVisible,
   initialReservedInvestorId,
   initialReservedModel,
+  initialReservedStrategy,
   initialReservedExpiresAt,
+  reservationHours = 72,
+  calcMode = null,
+  initialCooperationAvailability = null,
   removed = false,
 }: PortalPanelProps) {
   const [visible, setVisible] = useState(initialVisible);
   const [reservedInvestorId, setReservedInvestorId] = useState(initialReservedInvestorId);
   const [reservedModel, setReservedModel] = useState(initialReservedModel);
+  const [cooperation, setCooperation] = useState(initialCooperationAvailability);
+  const [fiftyFiftyBlocked, setFiftyFiftyBlocked] = useState(false);
   const [investors, setInvestors] = useState<InvestorOption[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -62,11 +63,21 @@ export function PortalPanel({
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    fetch("/api/settings/portal")
+      .then((r) => r.json())
+      .then((d: { fiftyFiftyEnabled?: boolean }) => {
+        if (d && d.fiftyFiftyEnabled !== undefined) setFiftyFiftyBlocked(!d.fiftyFiftyEnabled);
+      })
+      .catch(() => {});
+  }, []);
+
   async function save(patch: {
     portalVisible?: boolean;
     portalStatus?: string;
     portalReservedInvestorId?: string | null;
     portalReservedModel?: string | null;
+    cooperationAvailability?: string;
   }) {
     setSaving(true);
     try {
@@ -138,6 +149,35 @@ export function PortalPanel({
 
         {visible && (
           <div className="space-y-3">
+            {calcMode === "flip" && initialCooperationAvailability !== null && (
+              <>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-muted shrink-0 w-24">Způsob spolupráce</label>
+                  <select
+                    value={cooperation ?? ""}
+                    disabled={saving}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setCooperation(value);
+                      save({ cooperationAvailability: value });
+                    }}
+                    className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50 transition-colors"
+                  >
+                    {COOPERATION_AVAILABILITY.map((v) => (
+                      <option key={v} value={v} disabled={fiftyFiftyBlocked && v !== "sourcing-fee"}>
+                        {COOPERATION_AVAILABILITY_LABELS[v]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {fiftyFiftyBlocked && (
+                  <p className="text-xs text-muted">
+                    50/50 je globálně vypnuto v Nastavení — investorům se u tohoto obchodu nabídne jen sourcing fee.
+                  </p>
+                )}
+              </>
+            )}
+
             <div className="flex items-center gap-2">
               <label className="text-xs text-muted shrink-0 w-24">Rezervováno pro</label>
               <select
@@ -200,12 +240,16 @@ export function PortalPanel({
 
             {reservedInvestorId && reservedName && (
               <p className="text-xs text-muted">
-                Rezervováno: <span className="text-foreground/80">{reservedName}</span> · {modelLabel(reservedModel)} · {countdown ?? "—"}
+                Rezervováno: <span className="text-foreground/80">{reservedName}</span> · {modelLabel(reservedModel)}
+                {initialReservedStrategy && initialReservedStrategy in COOPERATION_STRATEGIES
+                  ? ` · ${COOPERATION_STRATEGIES[initialReservedStrategy as keyof typeof COOPERATION_STRATEGIES]}`
+                  : ""}{" "}
+                · {countdown ?? "—"}
               </p>
             )}
 
             <p className="text-xs text-muted">
-              Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží 72h a pak se automaticky uvolní.
+              Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží {reservationHours}h a pak se automaticky uvolní.
             </p>
           </div>
         )}
