@@ -354,9 +354,11 @@ function InteractiveCard({
           });
           if (cfg.flipStrategy === "fifty-fifty" || cfg.flipStrategy === "sourcing-fee" || cfg.flipStrategy === "both") {
             setFlipStrategy(cfg.flipStrategy);
-            // Konzistence s pravidlem kalkulačky: u 50/50 investor neplatí fee za zprostředkování.
+            // Pravidlo kalkulačky: fee za zprostředkování platí vždy kromě 50/50.
             if (cfg.flipStrategy === "fifty-fifty") {
               setCostConfig((prev) => ({ ...prev, sourcingEnabled: false }));
+            } else if (!(typeof cfg.sourcingEnabled === "boolean" && !cfg.sourcingEnabled && cfg.sourcingFee === 0)) {
+              setCostConfig((prev) => ({ ...prev, sourcingEnabled: true }));
             }
           }
           if (cfg.rental) setRentalConfig({ ...RENTAL_DEFAULTS, ...cfg.rental });
@@ -848,8 +850,9 @@ function InteractiveCard({
                     type="button"
                     onClick={() => {
                       setFlipStrategy(s.value);
+                      // Pravidlo kalkulačky: fee za zprostředkování platí vždy kromě 50/50.
                       if (s.value === "fifty-fifty") setCostConfig((prev) => ({ ...prev, sourcingEnabled: false }));
-                      else if (s.value === "sourcing-fee") setCostConfig((prev) => ({ ...prev, sourcingEnabled: true }));
+                      else setCostConfig((prev) => ({ ...prev, sourcingEnabled: true }));
                     }}
                     className={`rounded-lg border px-2 py-1.5 text-center transition-colors ${
                       flipStrategy === s.value
