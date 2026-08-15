@@ -6,13 +6,16 @@ export function isTerminalStage(stage: string | null | undefined): boolean {
 
 /**
  * Předvyplněná kupní cena pro modal „Uzavřít deal":
- * nabídnutá cena (offer.amount) > cílová nákupní cena z analýzy > cenovka nemovitosti.
+ * vyjednaná cena (negotiation.currentAmount) > nabídnutá cena (offer.amount) >
+ * cílová nákupní cena z analýzy > cenovka nemovitosti.
  */
 export function closedDealPrefill(lead: {
-  stageData?: { offer?: { amount?: number | null } | null } | null;
+  stageData?: { offer?: { amount?: number | null } | null; negotiation?: { currentAmount?: number | null } | null } | null;
   analysisTargetPurchasePrice?: number | null;
   propertyPrice?: number | null;
 }): number {
+  const negotiated = lead.stageData?.negotiation?.currentAmount;
+  if (typeof negotiated === "number" && negotiated > 0) return negotiated;
   const offer = lead.stageData?.offer?.amount;
   if (typeof offer === "number" && offer > 0) return offer;
   if (typeof lead.analysisTargetPurchasePrice === "number" && lead.analysisTargetPurchasePrice > 0)

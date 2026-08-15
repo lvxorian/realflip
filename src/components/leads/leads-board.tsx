@@ -20,7 +20,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { WarningCircle, Kanban } from "@phosphor-icons/react";
 import { LEAD_STAGES, LEAD_STAGE_KEYS, resolveDropTarget } from "@/lib/leads";
 import { moveLeadToStage, reorderLeadInStage } from "@/lib/pipeline-board";
-import { cn } from "@/lib/utils";
+import { cn, formatCompactPrice } from "@/lib/utils";
 import { currentTime } from "@/lib/clock";
 import { toast } from "sonner";
 import { LeadCard, LeadCardView } from "./lead-card";
@@ -137,6 +137,7 @@ export function LeadsBoard() {
   const [pending, setPending] = useState<PendingMove | null>(null);
   const [openSeq, setOpenSeq] = useState(0);
   const [latestOver, setLatestOver] = useState<DragTarget | null>(null);
+  const [investorNames, setInvestorNames] = useState<Record<string, string>>({});
   const wasDragging = useRef(false);
   const requestSeq = useRef(0);
   const leadsRef = useRef<LeadItem[] | null>(null);
@@ -145,24 +146,29 @@ export function LeadsBoard() {
     leadsRef.current = leads;
   }, [leads]);
 
+  useEffect(() => {
+    fetch("/api/investors", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: { id: string; name: string }[]) => {
+        if (Array.isArray(d)) setInvestorNames(Object.fromEntries(d.map((i) => [i.id, i.name ?? "??"])));
+      })
+      .catch(() => {});
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadLeads = useCallback(() => {
     fetch("/api/leads", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: LeadItem[]) => {
-        if (!cancelled) setLeads(data);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Nepodařilo se načíst pipeline.");
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((data: LeadItem[]) => setLeads(data))
+      .catch(() => setError("Nepodařilo se načíst pipeline."));
   }, []);
+
+  useEffect(() => {
+    void loadLeads();
+  }, [loadLeads]);
 
   const filtered = useMemo(() => {
     if (!leads) return [];
@@ -288,6 +294,27 @@ export function LeadsBoard() {
         });
       }
       return true;
+    });
+  }
+
+  /** Rychlá akce: dohoda s prodejcem po telefonu/na prohlídce → rovnou do Vyjednáno. */
+  function handleAgree(lead: LeadItem, amount: number) {
+    const history = lead.stageData?.negotiation?.history ?? [];
+    const stageData = {
+      ...lead.stageData,
+      negotiation: {
+        currentAmount: amount,
+        history: [...history, { price: amount, date: new Date().toISOString(), by: "them" as const }],
+      },
+    };
+    void patchLead(lead.id, { stage: "negotiation", stageData }).then((res) => {
+      if (!res.ok) {
+        toast.error(res.error ?? "Dohodu se nepodařilo uložit");
+        return;
+      }
+      onLeadUpdated({ ...lead, stage: "negotiation", stageData });
+      const stageLabel = LEAD_STAGES.find((s) => s.key === "negotiation")?.label ?? "Vyjednáno";
+      toast.success(`Dohodnuto za ${formatCompactPrice(amount)} — přesunuto do „${stageLabel}"`);
     });
   }
 
@@ -421,7 +448,8 @@ export function LeadsBoard() {
         toast.error(data?.error || "Převod na deal selhal");
         return;
       }
-      setLeads((prev) => (prev ? prev.filter((l) => l.id !== p.lead.id) : prev));
+      // Lead zůstává ve sloupci Uzavřeno jako evidence dealu (přenačte se s dealId)
+      loadLeads();
       toast.success("Lead převeden na deal");
     } catch {
       toast.error("Převod na deal selhal");
@@ -536,6 +564,12 @@ export function LeadsBoard() {
                           onTogglePriority={handlePriorityToggle}
                           onAdvance={handleQuickAdvance}
                           onMarkLost={handleMarkLost}
+                          onAgree={handleAgree}
+                          investorName={
+                            lead.portalReservedInvestorId
+                              ? investorNames[lead.portalReservedInvestorId] ?? null
+                              : null
+                          }
                         />
                       </Fragment>
                     ))}
@@ -565,7 +599,7 @@ export function LeadsBoard() {
         lead={selectedLead}
         onClose={() => setSelectedLead(null)}
         onLeadUpdated={onLeadUpdated}
-        onConverted={(id) => setLeads((prev) => (prev ? prev.filter((l) => l.id !== id) : prev))}
+        onConverted={() => loadLeads()}
       />
 
       <StageTransitionModal

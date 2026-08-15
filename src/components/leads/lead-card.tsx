@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle } from "@phosphor-icons/react";
+import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle, Handshake } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
@@ -10,6 +11,7 @@ import { formatPrice, formatCompactPrice, portalLabel, splitAddress } from "@/li
 import { timeInStageDays } from "@/lib/leads";
 import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
+import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 import type { LeadItem } from "./types";
 
 function AgingBadge({ lead }: { lead: LeadItem }) {
@@ -39,6 +41,8 @@ export function LeadCardView({
   onTogglePriority,
   onAdvance,
   onMarkLost,
+  onAgree,
+  investorName,
   isDragging = false,
   style,
   setNodeRef,
@@ -50,12 +54,16 @@ export function LeadCardView({
   onTogglePriority?: (lead: LeadItem) => void;
   onAdvance?: (lead: LeadItem) => void;
   onMarkLost?: (lead: LeadItem) => void;
+  onAgree?: (lead: LeadItem, amount: number) => void;
+  investorName?: string | null;
   isDragging?: boolean;
   style?: React.CSSProperties;
   setNodeRef?: (el: HTMLElement | null) => void;
   attributes?: React.HTMLAttributes<HTMLElement>;
   listeners?: Record<string, unknown>;
 }) {
+  const [agreeing, setAgreeing] = useState(false);
+  const [agreeAmount, setAgreeAmount] = useState("");
   const price = lead.propertyPrice ?? 0;
   const priority = lead.priority ?? 0;
   const isTerminal = lead.stage === "closed" || lead.stage === "lost";
@@ -64,6 +72,12 @@ export function LeadCardView({
   const overdue =
     !isTerminal && lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && lead.nextStepDueAt < now;
   const { street, city } = splitAddress(lead.propertyAddress);
+  const reserved =
+    lead.stage === "negotiation" && lead.portalStatus === "reserved";
+  const reservedHoursLeft =
+    reserved && lead.portalExpiresAt != null && lead.portalExpiresAt > now
+      ? Math.max(1, Math.ceil((lead.portalExpiresAt - now) / 3_600_000))
+      : null;
 
   return (
     <div
@@ -173,6 +187,35 @@ export function LeadCardView({
             <CheckCircle size={10} weight="fill" /> Deal
           </span>
         )}
+        {lead.stage === "closed" && lead.stageData?.negotiation?.currentAmount != null && (
+          <span
+            className="inline-flex items-center gap-1 rounded bg-emerald-600/10 border border-emerald-600/20 px-1.5 py-0.5 text-[10px] font-mono text-emerald-500"
+            title="Prodejní cena vyjednaná s prodejcem"
+          >
+            <Handshake size={10} weight="bold" /> {formatPrice(lead.stageData.negotiation.currentAmount)}
+          </span>
+        )}
+        {isDeal && investorName && lead.portalReservedInvestorId && (
+          <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-400">
+            <span className="truncate max-w-[120px]" title={investorName}>
+              {investorName}
+            </span>
+            {lead.portalReservedStrategy && (
+              <span className="shrink-0 text-blue-400/70">
+                {COOPERATION_STRATEGIES[lead.portalReservedStrategy as keyof typeof COOPERATION_STRATEGIES] ?? lead.portalReservedStrategy}
+              </span>
+            )}
+          </span>
+        )}
+        {reserved && (
+          <span
+            className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-mono text-emerald-400"
+            title="Investor rezervoval nabídku — do 72 h potvrdit zájem"
+          >
+            🔒 Rezervováno{investorName ? `: ${investorName}` : ""}
+            {reservedHoursLeft != null && <span className="text-emerald-400/70">· vyprší za {reservedHoursLeft} h</span>}
+          </span>
+        )}
         {overdue && (
           <span
             className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/25 px-1.5 py-0.5 text-[10px] font-mono text-red-400"
@@ -204,6 +247,62 @@ export function LeadCardView({
           neutral={isTerminal}
           className="mb-1"
         />
+      )}
+
+      {(lead.stage === "contacted" || lead.stage === "meeting") && onAgree && !isDragging && (
+        <div className="mb-1.5">
+          {!agreeing ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAgreeAmount(lead.analysisTargetPurchasePrice ? String(lead.analysisTargetPurchasePrice) : "");
+                setAgreeing(true);
+              }}
+              title="Vyjednáno s prodejcem — přesunout do fáze Vyjednáno"
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+            >
+              <Handshake size={11} weight="bold" /> Dohodnuto za...
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="number"
+                autoFocus
+                value={agreeAmount}
+                onChange={(e) => setAgreeAmount(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && Number(agreeAmount) > 0) {
+                    onAgree(lead, Number(agreeAmount));
+                  }
+                  if (e.key === "Escape") setAgreeing(false);
+                }}
+                placeholder={lead.analysisTargetPurchasePrice ? String(lead.analysisTargetPurchasePrice) : "cena"}
+                className="w-full min-w-0 rounded-lg border border-emerald-500/30 bg-card px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-emerald-500/60"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (Number(agreeAmount) > 0) onAgree(lead, Number(agreeAmount));
+                }}
+                className="shrink-0 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2 py-1 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+              >
+                ✓
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAgreeing(false);
+                }}
+                className="shrink-0 rounded-lg border border-border/40 px-2 py-1 text-[10px] text-muted hover:text-foreground transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex items-center justify-between gap-2">

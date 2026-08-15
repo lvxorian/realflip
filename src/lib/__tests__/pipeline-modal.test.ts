@@ -2,7 +2,17 @@ import { describe, it, expect } from "vitest";
 import { closedDealPrefill, isTerminalStage } from "../pipeline-modal";
 
 describe("closedDealPrefill", () => {
-  it("přednost má nabídnutá cena (offer.amount)", () => {
+  it("přednost má vyjednaná cena (negotiation.currentAmount)", () => {
+    expect(
+      closedDealPrefill({
+        stageData: { negotiation: { currentAmount: 2_200_000 }, offer: { amount: 2_500_000 } },
+        analysisTargetPurchasePrice: 2_400_000,
+        propertyPrice: 2_900_000,
+      })
+    ).toBe(2_200_000);
+  });
+
+  it("bez vyjednané ceny → nabídnutá cena (offer.amount)", () => {
     expect(
       closedDealPrefill({
         stageData: { offer: { amount: 2_500_000 } },

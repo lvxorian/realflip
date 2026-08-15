@@ -9,10 +9,10 @@ import { ArrowLeft, Phone, Envelope } from "@phosphor-icons/react/dist/ssr";
 
 const stageLabels: Record<string, string> = {
   new: "Nový",
-  contacted: "Kontaktován",
-  meeting: "Schůzka",
+  contacted: "Telefonát",
+  meeting: "Prohlídka",
   offer: "Nabídka",
-  negotiation: "Vyjednávání",
+  negotiation: "Vyjednáno",
   closed: "Uzavřeno",
   lost: "Ztraceno",
 };

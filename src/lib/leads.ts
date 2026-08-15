@@ -1,9 +1,9 @@
 export const LEAD_STAGES = [
   { key: "new", label: "Nový", color: "border-l-accent", dot: "bg-accent", probability: 0.1 },
-  { key: "contacted", label: "Kontaktován", color: "border-l-blue-500", dot: "bg-blue-500", probability: 0.25 },
-  { key: "meeting", label: "Schůzka", color: "border-l-amber-500", dot: "bg-amber-500", probability: 0.4 },
+  { key: "contacted", label: "Telefonát", color: "border-l-blue-500", dot: "bg-blue-500", probability: 0.25 },
+  { key: "meeting", label: "Prohlídka", color: "border-l-amber-500", dot: "bg-amber-500", probability: 0.4 },
   { key: "offer", label: "Nabídka", color: "border-l-emerald-500", dot: "bg-emerald-500", probability: 0.55 },
-  { key: "negotiation", label: "Vyjednávání", color: "border-l-emerald-400", dot: "bg-emerald-400", probability: 0.75 },
+  { key: "negotiation", label: "Vyjednáno", color: "border-l-emerald-400", dot: "bg-emerald-400", probability: 0.75 },
   { key: "closed", label: "Uzavřeno", color: "border-l-emerald-600", dot: "bg-emerald-600", probability: 1 },
   { key: "lost", label: "Ztraceno", color: "border-l-red-500", dot: "bg-red-500", probability: 0 },
 ] as const;

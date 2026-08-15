@@ -58,6 +58,15 @@ function parseDate(value: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function reservationCountdown(expiresAt: number): string {
+  const ms = expiresAt - Date.now();
+  if (ms <= 0) return "· vypršelo";
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  if (h <= 0) return `· vyprší za ${m} min`;
+  return `· vyprší za ${h} h ${m} min`;
+}
+
 export function LeadDrawer({
   lead,
   onClose,
@@ -122,7 +131,14 @@ function LeadDrawerContent({
   const [events, setEvents] = useState<LeadEvent[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
-  const [convertPrice, setConvertPrice] = useState(lead.propertyPrice?.toString() ?? "");
+  const [releasing, setReleasing] = useState(false);
+  const [convertPrice, setConvertPrice] = useState(() => {
+    const st = lead.stageData;
+    if (lead.stage === "closed") {
+      return String(st?.negotiation?.currentAmount ?? st?.offer?.amount ?? lead.propertyPrice ?? "");
+    }
+    return lead.propertyPrice?.toString() ?? "";
+  });
   const [convertRenovation, setConvertRenovation] = useState("");
   const [investors, setInvestors] = useState<{ id: string; name: string }[]>([]);
   const [investorId, setInvestorId] = useState("");
@@ -131,10 +147,14 @@ function LeadDrawerContent({
     fetch("/api/investors")
       .then((r) => r.json())
       .then((d: { id: string; name: string }[]) => {
-        if (Array.isArray(d)) setInvestors(d);
+        if (Array.isArray(d)) {
+          setInvestors(d);
+          const reserved = lead.portalReservedInvestorId;
+          if (reserved && d.some((i) => i.id === reserved)) setInvestorId(reserved);
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [lead.portalReservedInvestorId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,9 +188,98 @@ function LeadDrawerContent({
         },
       });
     }
-    // Předvyplnit kupní cenu z nabídky při převodu na deal
-    if (value === "closed" && stageData.offer?.amount != null && !convertPrice) {
-      setConvertPrice(String(stageData.offer.amount));
+    // Předvyplnit kupní cenu z vyjednané částky (nebo nabídky) a investora z rezervace
+    if (value === "closed") prefillForClose();
+  }
+
+  function prefillForClose() {
+    const negotiated = stageData.negotiation?.currentAmount ?? null;
+    const offered = stageData.offer?.amount ?? null;
+    if (negotiated != null) setConvertPrice(String(negotiated));
+    else if (offered != null) setConvertPrice(String(offered));
+    const reserved = lead.portalReservedInvestorId;
+    if (reserved && investors.some((i) => i.id === reserved)) setInvestorId(reserved);
+  }
+
+  /** Jednoklik: potvrzení rezervace → Uzavřeno + převod na deal (cena = vyjednaná, investor = rezervující). */
+  async function confirmAndConvert() {
+    const negotiated = stageData.negotiation?.currentAmount ?? null;
+    if (negotiated == null || negotiated <= 0) {
+      toast.error("Nejdříve zadejte vyjednanou cenu");
+      return;
+    }
+    setConverting(true);
+    try {
+      const save = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage: "closed",
+          notes,
+          stageData,
+          nextStep: null,
+          nextStepDueAt: null,
+          lostReason: null,
+        }),
+      });
+      if (!save.ok) {
+        const data = await save.json().catch(() => null);
+        toast.error(data?.error || "Uložení fáze Uzavřeno se nezdařilo");
+        return;
+      }
+      const reservedInvestor = investors.find((i) => i.id === lead.portalReservedInvestorId) ?? null;
+      const conv = await fetch(`/api/leads/${lead.id}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purchasePrice: negotiated,
+          renovationBudget: null,
+          investorId: lead.portalReservedInvestorId ?? null,
+        }),
+      });
+      const data = await conv.json().catch(() => null);
+      if (!conv.ok) {
+        toast.error(data?.error || "Převod na deal selhal");
+        return;
+      }
+      toast.success(
+        `Deal potvrzen — ${formatPrice(negotiated)}${reservedInvestor ? ` · investor ${reservedInvestor.name}` : ""}`
+      );
+      onConverted(lead.id);
+      onClose();
+    } catch {
+      toast.error("Potvrzení dealu selhalo — zkontrolujte připojení");
+    } finally {
+      setConverting(false);
+    }
+  }
+
+  async function releaseReservation() {
+    setReleasing(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/portal`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portalReservedInvestorId: null }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Rezervaci se nepodařilo uvolnit");
+        return;
+      }
+      toast.success("Rezervace uvolněna — nabídka je zase dostupná investorům");
+      onLeadUpdated({
+        ...lead,
+        portalStatus: "available",
+        portalReservedInvestorId: null,
+        portalReservedModel: null,
+        portalReservedStrategy: null,
+        portalExpiresAt: null,
+      });
+    } catch {
+      toast.error("Rezervaci se nepodařilo uvolnit");
+    } finally {
+      setReleasing(false);
     }
   }
 
@@ -445,9 +554,9 @@ function LeadDrawerContent({
           </div>
         </div>
 
-        {/* ===== Fáze Schůzka ===== */}
+        {/* ===== Fáze Prohlídka ===== */}
         {stage === "meeting" && (
-          <SectionCard title="📅 Schůzka">
+          <SectionCard title="📅 Prohlídka">
             <div>
               <label className={labelClass}>Kdy</label>
               <input
@@ -527,11 +636,11 @@ function LeadDrawerContent({
           </SectionCard>
         )}
 
-        {/* ===== Fáze Vyjednávání ===== */}
+        {/* ===== Fáze Vyjednáno ===== */}
         {stage === "negotiation" && (
-          <SectionCard title="🤝 Vyjednávání">
+          <SectionCard title="🤝 Vyjednáno">
             <div>
-              <label className={labelClass}>Aktuální částka</label>
+              <label className={labelClass}>Vyjednaná cena (s prodejcem)</label>
               <input
                 type="number"
                 value={stageData.negotiation?.currentAmount ?? ""}
@@ -561,6 +670,26 @@ function LeadDrawerContent({
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+            {lead.portalStatus === "reserved" && (
+              <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5 space-y-2">
+                <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+                  <span>🔒 Rezervováno</span>
+                  {lead.portalExpiresAt != null && (
+                    <span className="text-[10px] text-emerald-400/70">
+                      {reservationCountdown(lead.portalExpiresAt)}
+                    </span>
+                  )}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="default" onClick={confirmAndConvert} disabled={converting} className="flex-1 gap-1.5">
+                    <Check size={13} weight="bold" /> {converting ? "Potvrzuji..." : "Potvrdit deal"}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={releaseReservation} disabled={releasing} className="flex-1 gap-1.5">
+                    <X size={13} weight="bold" /> {releasing ? "Uvolňuji..." : "Uvolnit rezervaci"}
+                  </Button>
+                </div>
               </div>
             )}
           </SectionCard>
@@ -675,10 +804,10 @@ function EventRow({ event }: { event: LeadEvent }) {
   } else if (event.type === "offer") {
     title = `Nabídka: ${typeof p.amount === "number" ? formatPrice(p.amount) : "?"}`;
   } else if (event.type === "negotiation") {
-    title = `Vyjednávání: ${typeof p.amount === "number" ? formatPrice(p.amount) : "?"}`;
+    title = `Vyjednáno: ${typeof p.amount === "number" ? formatPrice(p.amount) : "?"}`;
   } else if (event.type === "meeting") {
     const date = typeof p.date === "string" ? p.date : "";
-    title = date ? `Schůzka: ${new Date(date).toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" })}` : "Schůzka naplánována";
+    title = date ? `Prohlídka: ${new Date(date).toLocaleString("cs-CZ", { dateStyle: "short", timeStyle: "short" })}` : "Prohlídka naplánována";
   } else if (event.type === "notes") {
     title = "Poznámka přidána";
   } else if (event.type === "next_step") {

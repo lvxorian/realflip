@@ -62,6 +62,11 @@ function makeLead(overrides: Partial<LeadItem> = {}): LeadItem {
     analysisScore: null,
     analysisArv: null,
     analysisTargetPurchasePrice: null,
+    portalStatus: null,
+    portalReservedInvestorId: null,
+    portalReservedModel: null,
+    portalReservedStrategy: null,
+    portalExpiresAt: null,
     ...overrides,
   };
 }

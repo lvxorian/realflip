@@ -47,10 +47,14 @@ export function StageTransitionModal({
     fetch("/api/investors")
       .then((r) => r.json())
       .then((d: { id: string; name: string }[]) => {
-        if (Array.isArray(d)) setInvestors(d);
+        if (Array.isArray(d)) {
+          setInvestors(d);
+          const reserved = lead?.portalReservedInvestorId;
+          if (reserved && d.some((i) => i.id === reserved)) setInvestorId(reserved);
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [lead?.portalReservedInvestorId]);
 
   const reopenStageLabel = lead ? (LEAD_STAGES.find((s) => s.key === lead.stage)?.label ?? lead.stage) : "";
   const isLoss = action === "lost";
@@ -123,8 +127,8 @@ export function StageTransitionModal({
                     <div>
                       <label className={labelClass}>
                         Kupní cena
-                        {lead.stageData?.offer?.amount != null && (
-                          <span className="text-muted/60 ml-1">(nabídka: {formatPrice(lead.stageData.offer.amount)})</span>
+                        {lead.stageData?.negotiation?.currentAmount != null && (
+                          <span className="text-muted/60 ml-1">(vyjednáno: {formatPrice(lead.stageData.negotiation.currentAmount)})</span>
                         )}
                       </label>
                       <Input

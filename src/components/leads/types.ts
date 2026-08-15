@@ -55,4 +55,9 @@ export interface LeadItem {
   analysisScore: number | null;
   analysisArv: number | null;
   analysisTargetPurchasePrice: number | null;
+  portalStatus: string | null;
+  portalReservedInvestorId: string | null;
+  portalReservedModel: string | null;
+  portalReservedStrategy: string | null;
+  portalExpiresAt: number | null;
 }

@@ -54,6 +54,11 @@ export async function GET() {
         analysisArv: propertyAnalysis.arv,
         analysisTargetPurchasePrice: propertyAnalysis.targetPurchasePrice,
         dealId: deals.id,
+        portalStatus: leads.portalStatus,
+        portalReservedInvestorId: leads.portalReservedInvestorId,
+        portalReservedModel: leads.portalReservedModel,
+        portalReservedStrategy: leads.portalReservedStrategy,
+        portalExpiresAt: leads.portalExpiresAt,
       })
       .from(leads)
       .where(eq(leads.userId, session.user.id))
@@ -91,6 +96,7 @@ export async function GET() {
         updatedAt: row.updatedAt != null ? Number(row.updatedAt) : null,
         stageEnteredAt: row.stageEnteredAt != null ? Number(row.stageEnteredAt) : null,
         nextStepDueAt: row.nextStepDueAt != null ? Number(row.nextStepDueAt) : null,
+        portalExpiresAt: row.portalExpiresAt != null ? Number(row.portalExpiresAt) : null,
       };
     });
 

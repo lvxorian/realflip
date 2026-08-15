@@ -143,7 +143,7 @@ export function investorInitials(name: string | null | undefined): string | null
   return `${parts[0][0]}.${parts[parts.length - 1][0]}.`.toUpperCase();
 }
 
-/** Potvrzená vyjednaná cena z leadu (fáze Vyjednávání) — null, když není zadaná. */
+/** Potvrzená vyjednaná cena z leadu (fáze Vyjednáno) — null, když není zadaná. */
 export function negotiationAmountOf(stageData: StageData | null): number | null {
   const negotiation = stageData?.negotiation;
   if (negotiation && typeof negotiation.currentAmount === "number" && negotiation.currentAmount > 0) {
