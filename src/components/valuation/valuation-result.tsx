@@ -332,7 +332,7 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trendData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                     <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis
                       tick={{ fill: "#9ca3af", fontSize: 10 }}
@@ -343,7 +343,7 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                     />
                     <Tooltip
                       formatter={(value) => [`${Number(value).toLocaleString("cs-CZ")} Kč/m²`, "Průměrná cena"]}
-                      contentStyle={{ background: "#17171a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
+                      contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12, fontSize: 12 }}
                       labelStyle={{ color: "#9ca3af" }}
                     />
                     <Line type="monotone" dataKey="cena" stroke="#10b981" strokeWidth={2} dot={false} />

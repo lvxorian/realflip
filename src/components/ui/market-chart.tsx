@@ -56,8 +56,8 @@ export function MarketChart({
           />
           <Tooltip
             contentStyle={{
-              background: "#18181b",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: "var(--color-card)",
+              border: "1px solid var(--color-border)",
               borderRadius: "0.5rem",
               fontSize: "12px",
             }}

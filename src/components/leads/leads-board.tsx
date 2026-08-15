@@ -532,7 +532,7 @@ export function LeadsBoard() {
                     ))}
                     {latestOver?.kind === "column" && latestOver.id === stage.key && items.length > 0 && <InsertionLine />}
                     {items.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-border/40 px-3 py-4 text-center text-[10px] text-muted/40">
+                      <div className="rounded-xl border border-dashed border-border/40 px-3 py-4 text-center text-[10px] text-muted/60">
                         Přetáhněte sem lead
                       </div>
                     )}

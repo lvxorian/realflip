@@ -48,7 +48,8 @@ export function TiltCard({ children, className, tiltDegree = 8, glare = true }: 
         <div
           className="pointer-events-none absolute inset-0 z-10 rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           style={{
-            background: "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%)",
+            background:
+              "linear-gradient(135deg, color-mix(in oklab, var(--color-foreground) 8%, transparent) 0%, transparent 50%)",
           }}
         />
       )}

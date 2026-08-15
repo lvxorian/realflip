@@ -123,7 +123,7 @@ function Stat({
   valueClass?: string;
 }) {
   return (
-    <div className="rounded-xl bg-white/[0.02] border border-white/5 p-2.5">
+    <div className="rounded-xl bg-foreground/[0.02] border border-foreground/5 p-2.5">
       <span className="text-[10px] text-muted block">{label}</span>
       <p className={`font-mono font-semibold text-xs mt-0.5 ${valueClass ?? ""}`}>
         {value}
@@ -382,27 +382,27 @@ export default function CallModePage() {
                 )}
                 {call.propertyPrice != null && <PriceTag price={call.propertyPrice} perSqm={call.propertyPricePerSqm ?? undefined} size="sm" />}
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Plocha</span>
                     <p className="font-mono font-medium text-xs">{call.propertyArea ? `${call.propertyArea} m²` : "—"}</p>
                   </div>
-                  <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Dispozice</span>
                     <p className="font-medium text-xs">{call.propertyRooms ?? "—"}</p>
                   </div>
-                  <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Patro</span>
                     <p className="font-medium text-xs">{call.propertyFloor != null ? `${call.propertyFloor}.` : "—"}</p>
                   </div>
-                  <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Rok</span>
                     <p className="font-medium text-xs">{call.propertyYearBuilt ?? "—"}</p>
                   </div>
-                  <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Stav</span>
                     <p className="font-medium text-xs">{call.propertyCondition ? conditionLabel(call.propertyCondition) : "—"}</p>
                   </div>
-                  <div className="rounded-lg bg-white/[0.02] border border-white/5 p-2.5">
+                  <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Cena / m²</span>
                     <p className="font-mono font-medium text-xs">
                       {call.propertyPricePerSqm ? `${new Intl.NumberFormat("cs-CZ").format(call.propertyPricePerSqm)} Kč` : "—"}
@@ -488,7 +488,7 @@ export default function CallModePage() {
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl bg-white/[0.02] border border-white/5 p-4 text-center">
+                  <div className="rounded-xl bg-foreground/[0.02] border border-foreground/5 p-4 text-center">
                     <p className="text-xs text-muted">Žádná uložená analýza</p>
                     <p className="text-[10px] text-muted mt-1">Spočtěte ji v detailu nemovitosti.</p>
                   </div>

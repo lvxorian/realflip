@@ -102,17 +102,17 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
               </div>
 
               <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
                   <p className="text-xs text-muted">Kupní cena</p>
                   <p className="text-lg font-semibold font-mono">{(d.purchasePrice / 1000000).toFixed(1)} mil.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
                   <p className="text-xs text-muted">ARV</p>
                   <p className="text-lg font-semibold font-mono text-accent">
                     {((analysis?.arv ?? d.sellPrice ?? 0) / 1000000).toFixed(1)} mil.
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
                   <p className="text-xs text-muted">Očekávaný zisk</p>
                   <p className={`text-lg font-semibold font-mono ${expectedProfit > 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {(expectedProfit / 1000000).toFixed(1)} mil.
@@ -146,7 +146,7 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
                 {renovationItems.map((item, i) => {
                   const pct = item.actual ? (item.actual / item.planned) * 100 : 0;
                   return (
-                    <div key={i} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5">
+                    <div key={i} className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{item.category}</span>
@@ -177,7 +177,7 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
               <h2 className="font-semibold tracking-tight text-sm mb-4">Výdaje ({expenses.length})</h2>
               <div className="space-y-2 text-sm">
                 {expenses.map((e) => (
-                  <div key={e.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-white/[0.02]">
+                  <div key={e.id} className="flex justify-between items-center p-2 rounded-lg hover:bg-foreground/[0.02]">
                     <div>
                       <p className="font-medium">{e.category}</p>
                       {e.description && <p className="text-xs text-muted">{e.description}</p>}

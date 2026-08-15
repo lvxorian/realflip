@@ -29,9 +29,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
             position="bottom-right"
             toastOptions={{
               style: {
-                background: "#18181b",
-                color: "#f5f5f0",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "var(--color-card)",
+                color: "var(--color-foreground)",
+                border: "1px solid var(--color-border)",
                 borderRadius: "0.75rem",
                 boxShadow: "0 20px 40px -15px rgba(0,0,0,0.4)",
               },

@@ -90,7 +90,7 @@ export function PriceIndexCard() {
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-[10px] text-muted/40 mt-1 font-mono">
+          <div className="flex justify-between text-[10px] text-muted/60 mt-1 font-mono">
             <span>{data.points[0].period}</span>
             <span>{data.points[data.points.length - 1].period}</span>
           </div>
