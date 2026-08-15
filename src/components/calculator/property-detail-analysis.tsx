@@ -134,10 +134,12 @@ function buildAnalysisResult(
 export default function PropertyDetailAnalysis({
   property,
   analysis,
+  negotiatedPrice = null,
 }: {
   property: PropertyData;
   analysis: AnalysisData | null;
+  negotiatedPrice?: number | null;
 }) {
   const result = buildAnalysisResult(property, analysis);
-  return <InteractiveAnalysis result={result} index={0} />;
+  return <InteractiveAnalysis result={result} index={0} negotiatedPrice={negotiatedPrice} />;
 }

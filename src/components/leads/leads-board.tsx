@@ -97,14 +97,23 @@ function BoardSkeleton() {
   );
 }
 
-function patchLead(id: string, body: Record<string, unknown>): Promise<boolean> {
+interface PatchResult {
+  ok: boolean;
+  error: string | null;
+}
+
+function patchLead(id: string, body: Record<string, unknown>): Promise<PatchResult> {
   return fetch(`/api/leads/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   })
-    .then((res) => (res.ok ? true : Promise.reject(new Error(`HTTP ${res.status}`))))
-    .catch(() => false);
+    .then(async (res) => {
+      if (res.ok) return { ok: true, error: null };
+      const data = await res.json().catch(() => null);
+      return { ok: false, error: typeof data?.error === "string" ? data.error : `HTTP ${res.status}` };
+    })
+    .catch(() => ({ ok: false, error: "Chyba sítě" }));
 }
 
 interface DragTarget {
@@ -219,10 +228,10 @@ export function LeadsBoard() {
     const cycle = [0, 1, 2, 3];
     const next = cycle[(cycle.indexOf(lead.priority ?? 0) + 1) % cycle.length];
     onLeadUpdated({ ...lead, priority: next });
-    void patchLead(lead.id, { priority: next }).then((ok) => {
-      if (!ok) {
+    void patchLead(lead.id, { priority: next }).then((res) => {
+      if (!res.ok) {
         onLeadUpdated({ ...lead, priority: lead.priority });
-        toast.error("Změna priority se neuložila");
+        toast.error(res.error ?? "Změna priority se neuložila");
       }
     });
   }, [onLeadUpdated]);
@@ -255,12 +264,12 @@ export function LeadsBoard() {
     // Vrácení ztraceného leadu zpět vynuluje uložený důvod ztráty
     if (previousStage === "lost" && toStage !== "lost") body.lostReason = null;
 
-    return patchLead(leadId, body).then((ok) => {
-      if (requestId !== requestSeq.current) return ok;
-      if (!ok) {
+    return patchLead(leadId, body).then((res) => {
+      if (requestId !== requestSeq.current) return res.ok;
+      if (!res.ok) {
         const reverted = moveLeadToStage(base, leadId, previousStage, null, previousPosition ?? 0);
         setLeads(reverted?.leads ?? base);
-        toast.error("Přesun selhal — vráceno zpět");
+        toast.error(res.error ? `${res.error} — přesun vrácen` : "Přesun selhal — vráceno zpět");
         return false;
       }
       if (!opts?.suppressToast) {
@@ -327,11 +336,11 @@ export function LeadsBoard() {
         if (!reordered) return;
         setLeads(reordered.leads);
         const requestId = ++requestSeq.current;
-        void patchLead(lead.id, { position: reordered.newPos }).then((ok) => {
+        void patchLead(lead.id, { position: reordered.newPos }).then((res) => {
           if (requestId !== requestSeq.current) return;
-          if (!ok) {
+          if (!res.ok) {
             setLeads(snapshot);
-            toast.error("Přesun selhal — vráceno zpět");
+            toast.error(res.error ?? "Přesun selhal — vráceno zpět");
           }
         });
       }

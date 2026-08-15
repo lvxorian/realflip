@@ -6,6 +6,7 @@ import { properties, priceHistory, propertyAnalysis, favorites, leads } from "@/
 import { and, eq, desc } from "drizzle-orm";
 import { safeJsonParse, formatPhone, formatPrice } from "@/lib/utils";
 import { parseAltPortals } from "@/lib/scraping/property-match";
+import { parseStageData, negotiationAmountOf } from "@/lib/investor-portal-view";
 import { LEAD_STAGES } from "@/lib/leads";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
@@ -113,6 +114,7 @@ export default async function PropertyDetailPage({
   let pipelineLead: {
     id: string;
     stage: string;
+    stageData: unknown;
     portalVisible: number | null;
     portalStatus: string | null;
     portalReservedInvestorId: string | null;
@@ -138,6 +140,7 @@ export default async function PropertyDetailPage({
       .select({
         id: leads.id,
         stage: leads.stage,
+        stageData: leads.stageData,
         portalVisible: leads.portalVisible,
         portalStatus: leads.portalStatus,
         portalReservedInvestorId: leads.portalReservedInvestorId,
@@ -155,6 +158,11 @@ export default async function PropertyDetailPage({
       .limit(1)
       .then((r) => r[0] ?? null);
   }
+
+  const negotiatedPrice =
+    pipelineLead?.stageData != null
+      ? negotiationAmountOf(parseStageData(pipelineLead.stageData))
+      : null;
 
   const imageUrls: string[] = safeJsonParse<string[]>(property.imageUrls, []);
   const portalLabel = PORTAL_LABELS[property.portalName] || property.portalName;
@@ -573,6 +581,7 @@ export default async function PropertyDetailPage({
               url: property.url,
               portalName: property.portalName,
             }}
+            negotiatedPrice={negotiatedPrice}
             analysis={analysis ? {
               id: analysis.id,
               marketValue: analysis.marketValue,

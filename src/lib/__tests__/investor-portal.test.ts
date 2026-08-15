@@ -1,5 +1,17 @@
 import { describe, it, expect } from "vitest";
-import { parseStageData, offerPriceOf, toPortalView, flipCooperationFromSnapshot, type PortalRow, type CalcSnapshotFlip } from "@/lib/investor-portal-view";
+import {
+  parseStageData,
+  offerPriceOf,
+  toPortalView,
+  flipCooperationFromSnapshot,
+  negotiationAmountOf,
+  shiftFlipAtPrice,
+  shiftFlipDealAtPrice,
+  type PortalRow,
+  type CalcSnapshotFlip,
+  type CooperationView,
+  type FlipDealView,
+} from "@/lib/investor-portal-view";
 
 const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   leadId: "lead-1",
@@ -61,6 +73,79 @@ describe("offerPriceOf", () => {
   it("returns null when nothing matches", () => {
     expect(offerPriceOf(null)).toBeNull();
     expect(offerPriceOf({ negotiation: { currentAmount: null } })).toBeNull();
+  });
+});
+
+describe("negotiationAmountOf", () => {
+  it("returns the confirmed negotiated amount", () => {
+    expect(negotiationAmountOf({ negotiation: { currentAmount: 5_600_000 } })).toBe(5_600_000);
+  });
+
+  it("returns null when missing or invalid", () => {
+    expect(negotiationAmountOf(null)).toBeNull();
+    expect(negotiationAmountOf({})).toBeNull();
+    expect(negotiationAmountOf({ negotiation: { currentAmount: null } })).toBeNull();
+    expect(negotiationAmountOf({ negotiation: { currentAmount: 0 } })).toBeNull();
+  });
+});
+
+describe("shiftFlipAtPrice", () => {
+  const coop: CooperationView = {
+    availableStrategies: ["fifty-fifty", "sourcing-fee"],
+    netProfitTotal: 900_000,
+    investorProfitFiftyFifty: 450_000,
+    investorProfitSourcing: 800_000,
+    sourcingFee: 100_000,
+  };
+
+  it("shifts cooperation profits up when negotiated below snapshot basis", () => {
+    const shifted = shiftFlipAtPrice(coop, 5_600_000, 5_655_000);
+    expect(shifted.netProfitTotal).toBe(955_000);
+    expect(shifted.investorProfitFiftyFifty).toBe(477_500);
+    expect(shifted.investorProfitSourcing).toBe(855_000);
+    expect(shifted.sourcingFee).toBe(100_000);
+    expect(shifted.availableStrategies).toEqual(["fifty-fifty", "sourcing-fee"]);
+  });
+
+  it("reduces profits when negotiated above basis", () => {
+    const shifted = shiftFlipAtPrice(coop, 5_700_000, 5_655_000);
+    expect(shifted.netProfitTotal).toBe(855_000);
+    expect(shifted.investorProfitFiftyFifty).toBe(427_500);
+    expect(shifted.investorProfitSourcing).toBe(755_000);
+  });
+
+  it("keeps verbatim when prices match or basis missing", () => {
+    expect(shiftFlipAtPrice(coop, 5_655_000, 5_655_000)).toBe(coop);
+    expect(shiftFlipAtPrice(coop, 5_600_000, null)).toBe(coop);
+  });
+});
+
+describe("shiftFlipDealAtPrice", () => {
+  const deal: FlipDealView = {
+    type: "flip",
+    netProfit: 800_000,
+    roi: 13.3,
+    annualizedRoi: 21.6,
+    arv: 13_700_000,
+    cashOnCash: 13.3,
+  };
+  const snapshot = {
+    mode: "flip",
+    purchasePriceUsed: 5_655_000,
+    totalCost: 6_000_000,
+    netProfit: 800_000,
+  } as CalcSnapshotFlip;
+
+  it("shifts net profit and recomputes roi at negotiated price", () => {
+    const shifted = shiftFlipDealAtPrice(deal, snapshot, 5_600_000);
+    expect(shifted.netProfit).toBe(855_000);
+    expect(shifted.roi).toBe(14.4);
+    expect(shifted.cashOnCash).toBe(14.4);
+    expect(shifted.annualizedRoi).toBeGreaterThan(21.6);
+  });
+
+  it("keeps deal verbatim when prices match", () => {
+    expect(shiftFlipDealAtPrice(deal, snapshot, 5_655_000)).toBe(deal);
   });
 });
 
@@ -313,5 +398,39 @@ describe("toPortalView", () => {
     expect(coop?.investorProfitFiftyFifty).toBe(250_000);
     expect(coop?.investorProfitSourcing).toBe(500_000);
     expect(coop?.sourcingFee).toBeNull();
+  });
+
+  it("computes cooperation and deal profit from the negotiated pipeline price", () => {
+    const view = toPortalView(
+      row({
+        stageData: JSON.stringify({ negotiation: { currentAmount: 5_600_000 } }),
+        calcSnapshot: JSON.stringify({
+          mode: "flip",
+          purchasePriceUsed: 5_655_000,
+          totalCost: 6_000_000,
+          netProfit: 800_000,
+          roi: 13.3,
+          annualizedRoi: 21.6,
+          arv: 13_700_000,
+          cashOnCash: 13.3,
+          sourcingFee: 100_000,
+          cooperation: {
+            availability: "both",
+            netProfitTotal: 900_000,
+            investorProfitFiftyFifty: 450_000,
+            investorProfitSourcing: 800_000,
+            sourcingFee: 100_000,
+          },
+        }),
+      }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.offerPrice).toBe(5_600_000);
+    expect(view.cooperation?.netProfitTotal).toBe(955_000);
+    expect(view.cooperation?.investorProfitFiftyFifty).toBe(477_500);
+    expect(view.cooperation?.investorProfitSourcing).toBe(855_000);
+    expect(view.deal.type === "flip" && view.deal.netProfit).toBe(855_000);
+    expect(view.deal.type === "flip" && view.deal.roi).toBe(14.4);
   });
 });

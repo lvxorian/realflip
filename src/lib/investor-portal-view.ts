@@ -143,6 +143,60 @@ export function investorInitials(name: string | null | undefined): string | null
   return `${parts[0][0]}.${parts[parts.length - 1][0]}.`.toUpperCase();
 }
 
+/** Potvrzená vyjednaná cena z leadu (fáze Vyjednávání) — null, když není zadaná. */
+export function negotiationAmountOf(stageData: StageData | null): number | null {
+  const negotiation = stageData?.negotiation;
+  if (negotiation && typeof negotiation.currentAmount === "number" && negotiation.currentAmount > 0) {
+    return Math.round(negotiation.currentAmount);
+  }
+  return null;
+}
+
+/** Přepočet čísel spolupráce (flip) na zadanou kupní cenu.
+ *  basePrice = cena, ze které počítal snapshot (purchasePriceUsed);
+ *  atPrice = vyjednaná/zobrazená cena. Zisk roste, když vyjednáno níž.
+ *  Bez platné báze nebo při stejném čísle vrací vstup beze změny. */
+export function shiftFlipAtPrice(
+  coop: CooperationView,
+  atPrice: number,
+  basePrice: number | null
+): CooperationView {
+  if (basePrice == null || coop.netProfitTotal == null) return coop;
+  const delta = basePrice - atPrice;
+  if (delta === 0) return coop;
+  const total = coop.netProfitTotal + delta;
+  return {
+    ...coop,
+    netProfitTotal: total,
+    investorProfitFiftyFifty: Math.round(total / 2),
+    investorProfitSourcing: total - (coop.sourcingFee ?? 0),
+  };
+}
+
+/** Přepočet flip výnosu (zisk/ROI) na zadanou kupní cenu při známé bázi snapshotu. */
+export function shiftFlipDealAtPrice(deal: FlipDealView, snapshot: CalcSnapshotFlip, atPrice: number): FlipDealView {
+  const basePrice = snapshot.purchasePriceUsed;
+  if (basePrice == null || deal.type !== "flip") return deal;
+  const delta = basePrice - atPrice;
+  if (delta === 0) return deal;
+  const netProfit = deal.netProfit != null ? deal.netProfit + delta : deal.netProfit;
+  const totalCost = snapshot.totalCost;
+  const newTotalCost = totalCost != null ? totalCost - delta : null;
+  const roi =
+    netProfit != null && newTotalCost != null && newTotalCost > 0
+      ? Math.round((netProfit / newTotalCost) * 1000) / 10
+      : deal.roi;
+  const annualizedRoi =
+    deal.annualizedRoi != null && deal.roi != null && roi != null && deal.roi !== 0
+      ? Math.round(((deal.annualizedRoi * roi) / deal.roi) * 10) / 10
+      : deal.annualizedRoi;
+  const cashOnCash =
+    netProfit != null && newTotalCost != null && newTotalCost > 0
+      ? Math.round((netProfit / newTotalCost) * 1000) / 10
+      : deal.cashOnCash;
+  return { ...deal, netProfit, roi, annualizedRoi, cashOnCash };
+}
+
 export interface InvestorPortalItem {
   id: string;
   district: string | null;
@@ -276,6 +330,21 @@ export function toPortalView(
   const reservedByMe = row.reservedById === investorId;
   const reserved = row.portalStatus === "reserved";
   const snapshot = parseCalcSnapshot(row.calcSnapshot);
+  const flipSnapshot = snapshot && snapshot.mode === "flip" ? snapshot : null;
+
+  const deal = dealFromColumns(row, calcMode);
+  const cooperation: CooperationView | null = calcMode === "flip" ? flipCooperationFromSnapshot(flipSnapshot) : null;
+
+  // Čísla musí souznít s cenou, kterou investor vidí: při odlišné vyjednané
+  // ceně se zisk/ROI přepočítají z té ceny (báze = cena v snapshotu).
+  let finalDeal = deal;
+  let finalCooperation = cooperation;
+  if (calcMode === "flip" && offerPrice != null && flipSnapshot && deal.type === "flip" && cooperation) {
+    finalCooperation = shiftFlipAtPrice(cooperation, offerPrice, flipSnapshot.purchasePriceUsed);
+    if (finalCooperation !== cooperation) {
+      finalDeal = shiftFlipDealAtPrice(deal, flipSnapshot, offerPrice);
+    }
+  }
 
   return {
     id: row.leadId,
@@ -289,10 +358,10 @@ export function toPortalView(
     offerPrice,
     savingsPct,
     calcMode,
-    deal: dealFromColumns(row, calcMode),
+    deal: finalDeal,
     renovationCost: row.renovationCost,
     snapshot,
-    cooperation: calcMode === "flip" ? flipCooperationFromSnapshot(snapshot && snapshot.mode === "flip" ? snapshot : null) : null,
+    cooperation: finalCooperation,
     status: reserved ? "reserved" : "available",
     reservedByMe,
     reservedByName: reserved ? investorInitials(row.reservedByName) : null,

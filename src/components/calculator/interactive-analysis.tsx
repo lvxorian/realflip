@@ -14,7 +14,8 @@ import {
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
 import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
-import { type CooperationAvailability } from "@/lib/cooperation-models";
+import { strategiesFromAvailability, type CooperationAvailability } from "@/lib/cooperation-models";
+import { shiftFlipAtPrice, type CooperationView } from "@/lib/investor-portal-view";
 import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp, Scales } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -128,7 +129,15 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 100, damping: 20 } },
 };
 
-export default function InteractiveAnalysis({ result, index }: { result: AnalysisResult; index: number }) {
+export default function InteractiveAnalysis({
+  result,
+  index,
+  negotiatedPrice = null,
+}: {
+  result: AnalysisResult;
+  index: number;
+  negotiatedPrice?: number | null;
+}) {
   if (!result.success) {
     return (
       <motion.div variants={itemVariants}>
@@ -148,10 +157,18 @@ export default function InteractiveAnalysis({ result, index }: { result: Analysi
     );
   }
 
-  return <InteractiveCard result={result} index={index} />;
+  return <InteractiveCard result={result} index={index} negotiatedPrice={negotiatedPrice} />;
 }
 
-function InteractiveCard({ result, index }: { result: AnalysisResult; index: number }) {
+function InteractiveCard({
+  result,
+  index,
+  negotiatedPrice = null,
+}: {
+  result: AnalysisResult;
+  index: number;
+  negotiatedPrice?: number | null;
+}) {
   const a = result.analysis!;
   const l = result.listing!;
   const area = l.area ?? 70;
@@ -168,7 +185,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
   const [costConfig, setCostConfig] = useState({
     sellCommission: true,
     appraisal: false,
-    sourcingEnabled: false,
+    sourcingEnabled: true,
     sourcingFee: 100000,
     sourcingFeeIsPct: false,
     holdingMonths: 6,
@@ -212,24 +229,44 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     [renovationMode, renovationLevel, renovationPerSqm, renovationTotal, area]
   );
 
+  /** Sourcing fee je součástí základu kalkulace vždy, když je zapnutý —
+   *  ideální kupní cena se počítá se sourcing fee bez ohledu na nabízenou strategii.
+   *  Strategie (Obojí/50/50/Sourcing fee) mění jen dostupnost pro portál. */
+  const flipCostConfig = useMemo(
+    () => ({ ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 }),
+    [costConfig]
+  );
+
   const flipResults = useMemo(() => {
-    const adjusted = { ...costConfig, sourcingFee: flipStrategy !== "fifty-fifty" ? costConfig.sourcingFee : 0 };
-    return calculateFlipResults(l.price, arv, currentRenovation, area, targetRoi, adjusted);
-  }, [l.price, arv, currentRenovation, area, targetRoi, costConfig, flipStrategy]);
+    return calculateFlipResults(l.price, arv, currentRenovation, area, targetRoi, flipCostConfig);
+  }, [l.price, arv, currentRenovation, area, targetRoi, flipCostConfig]);
 
   const targetFlipResults = useMemo(() => {
     const targetPrice = flipResults.targetPurchasePrice;
     if (targetPrice <= 0) return null;
-    const adjusted = { ...costConfig, sourcingFee: flipStrategy !== "fifty-fifty" ? costConfig.sourcingFee : 0 };
-    return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, adjusted);
-  }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, costConfig, flipStrategy]);
+    return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, flipCostConfig);
+  }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, flipCostConfig]);
 
   /** Zisk celého obchodu bez sourcing fee (základ pro 50/50) — při stejném kupním scénáři. */
   const targetFlipNoFee = useMemo(() => {
     if (!targetFlipResults) return null;
-    const adjusted = { ...costConfig, sourcingFee: 0 };
+    const adjusted = { ...costConfig, sourcingEnabled: true, sourcingFee: 0 };
     return calculateFlipResults(targetFlipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, adjusted);
   }, [targetFlipResults, arv, currentRenovation, area, targetRoi, costConfig]);
+
+  /** Přepočet čísel spolupráce na potvrzenou vyjednanou cenu (co uvidí investor v portálu). */
+  const negotiatedCoop = useMemo<CooperationView | null>(() => {
+    if (negotiatedPrice == null || !targetFlipNoFee || !targetFlipResults) return null;
+    const base: CooperationView = {
+      availableStrategies: strategiesFromAvailability(flipStrategy),
+      netProfitTotal: targetFlipNoFee.netProfit,
+      investorProfitFiftyFifty: Math.round(targetFlipNoFee.netProfit / 2),
+      investorProfitSourcing: targetFlipResults.netProfit,
+      sourcingFee: targetFlipResults.costs.sourcingFee,
+    };
+    const shifted = shiftFlipAtPrice(base, negotiatedPrice, targetFlipResults.targetPurchasePrice);
+    return shifted === base ? null : shifted;
+  }, [negotiatedPrice, targetFlipNoFee, targetFlipResults, flipStrategy]);
 
   const [mode, setMode] = useState<"flip" | "rental">("flip");
   const [rentalConfig, setRentalConfig] = useState<RentalConfig>(() => ({
@@ -305,7 +342,16 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
         if (data.preset.renovationCost != null) setRenovationTotal(data.preset.renovationCost);
         const cfg = data.preset.config;
         if (cfg) {
-          setCostConfig({ ...costConfig, ...cfg });
+          setCostConfig({
+            ...costConfig,
+            ...cfg,
+            // Legacy presety neměly fee checkbox UI — false se starým fee > 0
+            // znamenalo „fee je aktivní", takže se při načtení zapne.
+            sourcingEnabled:
+              typeof cfg.sourcingEnabled === "boolean"
+                ? cfg.sourcingEnabled || (typeof cfg.sourcingFee === "number" && cfg.sourcingFee > 0)
+                : true,
+          });
           if (cfg.flipStrategy === "fifty-fifty" || cfg.flipStrategy === "sourcing-fee" || cfg.flipStrategy === "both") setFlipStrategy(cfg.flipStrategy);
           if (cfg.rental) setRentalConfig({ ...RENTAL_DEFAULTS, ...cfg.rental });
           if (cfg.renovationMode) setRenovationMode(cfg.renovationMode);
@@ -397,7 +443,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
     setRentalRenovationLevel("medium");
     setRentalRenovationPerSqm(Math.round(a.scenarios?.conservative?.renovationCost / area) || 12500);
     setRentalRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
-    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: false, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
+    setCostConfig({ sellCommission: true, appraisal: false, sourcingEnabled: true, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
     setFlipStrategy("both");
   };
 
@@ -806,13 +852,39 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   </button>
                 ))}
               </div>
-              {flipStrategy === "fifty-fifty" ? (
-                <p className="text-[10px] text-muted">
-                  Řemeslnickou část zajišťujeme my, investor financuje celý nákup i rekonstrukci a zisk se dělí napůl.
-                </p>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-foreground/80 whitespace-nowrap">Sourcing fee</span>
+              <p className="text-[10px] text-muted">
+                {flipStrategy === "fifty-fifty"
+                  ? "Řemeslnickou část zajišťujeme my, investor financuje celý nákup i rekonstrukci a zisk se dělí napůl."
+                  : flipStrategy === "sourcing-fee"
+                    ? "Investor obchod kupuje sám a platí nám sourcing fee — ideální kupní cena se počítá s tímto poplatkem."
+                    : "Investor si v portálu vybere. Ideální kupní cena se počítá se sourcing fee; u 50/50 se fee vrací do potu a zisk se dělí napůl."}
+              </p>
+            </div>
+
+            {/* Cost Toggles */}
+            <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">
+              <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Volitelné náklady</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
+                  <span className="text-foreground/80 whitespace-nowrap">Provize RK prodejní (5 %)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
+                  <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
+                  <span className="text-foreground/80 whitespace-nowrap">Mám hypotéku</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={costConfig.sourcingEnabled} onChange={() => toggleConfig("sourcingEnabled")} className="accent-accent" />
+                  <span className="text-foreground/80 whitespace-nowrap">Sourcing fee (RealFlip)</span>
+                </label>
+              </div>
+              {costConfig.sourcingEnabled && (
+                <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                  <span className="text-[10px] text-muted block w-16 shrink-0">Poplatek</span>
                   <input
                     type="number"
                     value={costConfig.sourcingFee || ""}
@@ -834,25 +906,6 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Cost Toggles */}
-            <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">
-              <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Volitelné náklady</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={costConfig.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Provize RK prodejní (5 %)</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={costConfig.appraisal} onChange={() => toggleConfig("appraisal")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Znalecký posudek</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={costConfig.hasMortgage} onChange={() => toggleConfig("hasMortgage")} className="accent-accent" />
-                  <span className="text-foreground/80 whitespace-nowrap">Mám hypotéku</span>
-                </label>
-              </div>
               {costConfig.hasMortgage && (
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/30">
                   <div>
@@ -914,7 +967,7 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
                       { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
                       ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
-                      ...(flipStrategy !== "fifty-fifty" && targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: targetFlipResults.costs.sourcingFee }] : []),
+                      ...(targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: targetFlipResults.costs.sourcingFee }] : []),
                       { label: `Daň z příjmu (21 %)`, value: targetFlipResults.costs.incomeTax },
                     ].map((row) => (
                       <tr key={row.label} className="border-b border-emerald-500/10">
@@ -953,13 +1006,25 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                   <span className="text-muted">Zisk celého obchodu</span>
                   <span className="font-mono text-foreground">{formatPrice(targetFlipNoFee.netProfit)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted">Váš zisk jako investor · 50/50</span>
-                  <span className="font-mono text-emerald-400">{formatPrice(Math.round(targetFlipNoFee.netProfit / 2))}</span>
-                </div>
-                {flipStrategy !== "fifty-fifty" ? (
+                {flipStrategy === "sourcing-fee" ? (
                   <div className="flex justify-between">
-                    <span className="text-muted">Zisk investor · sourcing fee</span>
+                    <span className="text-muted">Váš zisk · 50/50</span>
+                    <span className="font-mono text-muted">nenabízeno</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Váš zisk · 50/50</span>
+                    <span className="font-mono text-emerald-400">{formatPrice(Math.round(targetFlipNoFee.netProfit / 2))}</span>
+                  </div>
+                )}
+                {flipStrategy === "fifty-fifty" ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Váš zisk · sourcing fee</span>
+                    <span className="font-mono text-muted">nenabízeno</span>
+                  </div>
+                ) : (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Váš zisk · sourcing fee</span>
                     <span className="font-mono text-emerald-400">
                       {formatPrice(targetFlipResults.netProfit)}
                       {targetFlipResults.costs.sourcingFee > 0 && (
@@ -967,18 +1032,41 @@ function InteractiveCard({ result, index }: { result: AnalysisResult; index: num
                       )}
                     </span>
                   </div>
-                ) : (
-                  <div className="flex justify-between">
-                    <span className="text-muted">Sourcing fee</span>
-                    <span className="font-mono text-muted">nenabízeno</span>
-                  </div>
                 )}
                 <p className="text-[10px] text-muted pt-1.5 border-t border-accent/10">
                   {flipStrategy === "both"
-                    ? "Na portálu si investor vybere 50/50 nebo sourcing fee a režim se uloží při rezervaci."
+                    ? "Na portálu si investor vybere 50/50 nebo sourcing fee; čísla se přepočtou z vyjednané ceny."
                     : flipStrategy === "fifty-fifty"
                       ? "Na portálu se nabídne jen 50/50 — rekonstrukci zajišťujeme my."
                       : "Na portálu se nabídne jen sourcing fee — investor obchod kupuje sám."}
+                </p>
+              </div>
+            )}
+
+            {/* Čísla při potvrzené vyjednané ceně z pipeline */}
+            {negotiatedCoop && targetFlipNoFee && targetFlipResults && (
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 space-y-1.5 text-xs">
+                <p className="text-[11px] font-semibold text-amber-500 uppercase tracking-wide mb-1">
+                  Při vyjednané ceně {formatPrice(negotiatedPrice!)}
+                </p>
+                <div className="flex justify-between">
+                  <span className="text-muted">Zisk celého obchodu</span>
+                  <span className="font-mono text-foreground">{formatPrice(negotiatedCoop.netProfitTotal ?? 0)}</span>
+                </div>
+                {flipStrategy !== "sourcing-fee" && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Váš zisk · 50/50</span>
+                    <span className="font-mono text-emerald-400">{formatPrice(negotiatedCoop.investorProfitFiftyFifty ?? 0)}</span>
+                  </div>
+                )}
+                {flipStrategy !== "fifty-fifty" && (
+                  <div className="flex justify-between">
+                    <span className="text-muted">Váš zisk · sourcing fee</span>
+                    <span className="font-mono text-emerald-400">{formatPrice(negotiatedCoop.investorProfitSourcing ?? 0)}</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-amber-500/70 pt-1.5 border-t border-amber-500/15">
+                  Přesně tato čísla uvidí investor v portálu Brickon.
                 </p>
               </div>
             )}

@@ -7,6 +7,8 @@ import { ts } from "@/lib/utils";
 import { isValidLeadStage, LEAD_STAGES } from "@/lib/leads";
 import { logLeadEvent, normalizeLeadEventPayload } from "@/lib/lead-events";
 import { notifyInvestorsOfOffer } from "@/lib/email/notify-offers";
+import { parseStageData, negotiationAmountOf } from "@/lib/investor-portal-view";
+import type { StageData } from "@/components/leads/types";
 
 export async function PATCH(
   req: Request,
@@ -48,6 +50,19 @@ export async function PATCH(
     const stageChanged = body.stage !== undefined && body.stage !== existing.stage;
     if (stageChanged) {
       update.stageEnteredAt = ts();
+    }
+
+    // Fáze Vyjednávání vyžaduje potvrzenou vyjednanou cenu — investor v portálu
+    // smí vidět jen pevně domluvená čísla (notifikace se odesílají zde níže).
+    if (body.stage === "negotiation" && stageChanged) {
+      const nextStageData: StageData | null =
+        (body.stageData as StageData | undefined) ?? parseStageData(existing.stageData);
+      if (!negotiationAmountOf(nextStageData)) {
+        return NextResponse.json(
+          { error: "Pro fázi Vyjednávání je nutné zadat vyjednanou cenu v detailu leadu" },
+          { status: 400 }
+        );
+      }
     }
 
     for (const key of allowed) {
