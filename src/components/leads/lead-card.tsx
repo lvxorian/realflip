@@ -279,8 +279,15 @@ export function LeadCardView({
       )}
 
       <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-sm font-semibold font-mono text-amber-400 leading-snug break-words min-w-0">
-          {price > 0 ? formatPrice(price) : "—"}
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold font-mono text-amber-400 leading-snug break-words">
+            {price > 0 ? formatPrice(price) : "—"}
+          </span>
+          {lead.propertyPricePerSqm != null && (
+            <span className="block text-[10px] text-muted font-mono leading-tight">
+              {formatCompactPrice(lead.propertyPricePerSqm)}/m²
+            </span>
+          )}
         </span>
         {lead.stage === "offer" && lead.stageData?.offer?.amount != null && (
           <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono text-amber-400">
@@ -293,9 +300,6 @@ export function LeadCardView({
           </span>
         )}
         <span className="ml-auto flex items-center gap-1.5 shrink-0">
-          {lead.propertyPricePerSqm != null && (
-            <span className="text-[10px] text-muted font-mono">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
-          )}
           {!isTerminal && (onAdvance || onMarkLost) && (
             <span className="flex items-center gap-1.5 w-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:w-auto group-hover:opacity-100">
               {onAdvance && (
