@@ -1606,7 +1606,7 @@ function InteractiveCard({
 
 function InfoBox({ label, value, highlight, subtext, subtextClass }: { label: string; value: string; highlight?: string; subtext?: string; subtextClass?: string }) {
   return (
-    <div className="rounded-xl bg-card-hover border border-border/50 p-3 min-w-0">
+    <div className="flex flex-col justify-center rounded-xl bg-card-hover border border-border/50 p-3 min-w-0">
       <p className="text-xs text-muted mb-1">{label}</p>
       <p className={`text-xs font-semibold font-mono leading-snug break-words ${highlight ?? "text-foreground"}`}>{value}</p>
       {subtext && <p className={`text-[10px] mt-0.5 truncate ${subtextClass ?? "text-muted"}`}>{subtext}</p>}
