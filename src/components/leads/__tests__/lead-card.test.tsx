@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeAll, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { LeadCardView } from "../lead-card";
 import { formatRelative } from "@/lib/utils";
 import type { LeadItem } from "../types";
@@ -88,9 +88,8 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(sqm.className).not.toContain("@max-[240px]:hidden");
   });
 
-  it("nezobrazuje CÍL, ARV, kontakt, stav ani typ budovy, ani relativní čas aktivity", () => {
+  it("nezobrazuje ARV, kontakt, stav ani typ budovy, ani relativní čas aktivity", () => {
     const lead = makeLead({
-      analysisTargetPurchasePrice: 2_000_000,
       analysisArv: 3_500_000,
       propertyCondition: "before_renovation",
       propertyBuildingType: "panel",
@@ -100,7 +99,6 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     });
     render(<LeadCardView lead={lead} onOpen={() => {}} />);
 
-    expect(screen.queryByText(/Cíl:/)).toBeNull();
     expect(screen.queryByText(/ARV:/)).toBeNull();
     expect(screen.queryByText("Michaela Tripalova")).toBeNull();
     expect(screen.queryByText(/Před rekonstrukcí/i)).toBeNull();
@@ -139,6 +137,31 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
 
     const note = screen.getByText(longNote);
     expect(note.className).toContain("line-clamp-2");
+  });
+
+  it("zobrazí ideální kupní cenu z kalkulace a její m² pod inzertní cenou", () => {
+    render(<LeadCardView lead={makeLead({ propertyArea: 49, analysisTargetPurchasePrice: 2_000_000 })} onOpen={() => {}} />);
+
+    expect(screen.getByText("Ideální: 2 000 000 Kč")).toBeTruthy();
+    expect(screen.getByText("41 tis. Kč/m²")).toBeTruthy();
+  });
+
+  it("prompt pro Vyjednáno zobrazí rovnou vstup pro cenu a Enter ji odešle", () => {
+    const onAgree = vi.fn();
+    render(
+      <LeadCardView
+        lead={makeLead({ stage: "negotiation", analysisTargetPurchasePrice: 2_000_000 })}
+        onOpen={() => {}}
+        negotiationPrompt
+        onAgree={onAgree}
+        onAgreeCancel={() => {}}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("2000000");
+    fireEvent.change(input, { target: { value: "1950000" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onAgree).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), 1950000);
   });
 
   it("drag preview ukazuje stejné klíčové údaje jako karta", () => {

@@ -128,6 +128,18 @@ interface PendingMove {
   overLeadId: string | null;
 }
 
+interface PendingNegotiation {
+  leadId: string;
+  fromStage: string;
+  fromPosition: number;
+  newPosition: number;
+}
+
+/** Fáze Vyjednáno vyžaduje domluvenou cenu — lead se serveru nesmí poslat bez ní. */
+function hasNegotiatedPrice(lead: LeadItem) {
+  return (lead.stageData?.negotiation?.currentAmount ?? 0) > 0;
+}
+
 export function LeadsBoard() {
   const [leads, setLeads] = useState<LeadItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +147,7 @@ export function LeadsBoard() {
   const [activeLead, setActiveLead] = useState<LeadItem | null>(null);
   const [selectedLead, setSelectedLead] = useState<LeadItem | null>(null);
   const [pending, setPending] = useState<PendingMove | null>(null);
+  const [pendingNegotiation, setPendingNegotiation] = useState<PendingNegotiation | null>(null);
   const [openSeq, setOpenSeq] = useState(0);
   const [latestOver, setLatestOver] = useState<DragTarget | null>(null);
   const [investorNames, setInvestorNames] = useState<Record<string, string>>({});
@@ -318,6 +331,69 @@ export function LeadsBoard() {
     });
   }
 
+  /** Přesun do Vyjednáno bez ceny → karta se optimisticky přesune a vyzve k zadání ceny. */
+  function beginNegotiation(lead: LeadItem) {
+    const base = leadsRef.current ?? leads;
+    if (!base) return;
+    const moved = moveLeadToStage(base, lead.id, "negotiation", null);
+    if (!moved) return;
+    setLeads(moved.leads);
+    setPendingNegotiation({
+      leadId: lead.id,
+      fromStage: lead.stage,
+      fromPosition: lead.position ?? 0,
+      newPosition: moved.newPos,
+    });
+  }
+
+  /** Zrušení zadávání ceny → karta se vrátí do původní fáze a pozice. */
+  function cancelNegotiation() {
+    const p = pendingNegotiation;
+    setPendingNegotiation(null);
+    if (!p) return;
+    const base = leadsRef.current ?? leads;
+    if (!base) return;
+    const reverted = moveLeadToStage(base, p.leadId, p.fromStage, null, p.fromPosition);
+    if (reverted) setLeads(reverted.leads);
+  }
+
+  /** Potvrzení vyjednané ceny z karty (quick action i prompt po přesunu do Vyjednáno). */
+  function confirmNegotiationPrice(lead: LeadItem, amount: number) {
+    const p = pendingNegotiation?.leadId === lead.id ? pendingNegotiation : null;
+    setPendingNegotiation(null);
+    const history = lead.stageData?.negotiation?.history ?? [];
+    const stageData = {
+      ...lead.stageData,
+      negotiation: {
+        currentAmount: amount,
+        history: [...history, { price: amount, date: new Date().toISOString(), by: "them" as const }],
+      },
+    };
+    void patchLead(lead.id, { stage: "negotiation", position: p?.newPosition, stageData }).then((res) => {
+      if (!res.ok) {
+        if (p) {
+          const base = leadsRef.current ?? leads;
+          const reverted = base ? moveLeadToStage(base, p.leadId, p.fromStage, null, p.fromPosition) : null;
+          if (reverted) setLeads(reverted.leads);
+        }
+        toast.error(res.error ?? "Vyjednanou cenu se nepodařilo uložit — přesun vrácen");
+        return;
+      }
+      onLeadUpdated({ ...lead, stage: "negotiation", position: p?.newPosition ?? lead.position ?? 0, stageData });
+      const stageLabel = LEAD_STAGES.find((s) => s.key === "negotiation")?.label ?? "Vyjednáno";
+      toast.success(`Přesunuto do „${stageLabel}" za ${formatCompactPrice(amount)}`);
+    });
+  }
+
+  /** Společný vstup pro quick action na kartách i prompt po přesunu do Vyjednáno. */
+  function handleCardAgree(lead: LeadItem, amount: number) {
+    if (pendingNegotiation?.leadId === lead.id) {
+      confirmNegotiationPrice(lead, amount);
+      return;
+    }
+    handleAgree(lead, amount);
+  }
+
   function handleDragStart(event: DragStartEvent) {
     wasDragging.current = true;
     const lead = leads?.find((l) => l.id === event.active.id);
@@ -376,6 +452,11 @@ export function LeadsBoard() {
 
     // Terminální a zpětné přesuny jdou přes potvrzovací modal
     const fromTerminal = lead.stage === "closed" || lead.stage === "lost";
+    // Do Vyjednáno bez domluvené ceny → karta sedne do sloupce a vyzve k zadání ceny přímo na sobě
+    if (toStage === "negotiation" && !fromTerminal && !hasNegotiatedPrice(lead)) {
+      beginNegotiation(lead);
+      return;
+    }
     if (toStage === "lost") {
       openPending({ kind: "lost", lead, toStage, overLeadId: overLead?.id ?? null });
     } else if (toStage === "closed") {
@@ -396,6 +477,8 @@ export function LeadsBoard() {
       openPending({ kind: "lost", lead, toStage: "lost", overLeadId: null });
     } else if (next === "closed") {
       openPending({ kind: "closed", lead, toStage: "closed", overLeadId: null });
+    } else if (next === "negotiation" && !hasNegotiatedPrice(lead)) {
+      beginNegotiation(lead);
     } else {
       void executeMove(lead.id, next, null);
     }
@@ -564,7 +647,9 @@ export function LeadsBoard() {
                           onTogglePriority={handlePriorityToggle}
                           onAdvance={handleQuickAdvance}
                           onMarkLost={handleMarkLost}
-                          onAgree={handleAgree}
+                          onAgree={handleCardAgree}
+                          onAgreeCancel={cancelNegotiation}
+                          negotiationPrompt={pendingNegotiation?.leadId === lead.id}
                           investorName={
                             lead.portalReservedInvestorId
                               ? investorNames[lead.portalReservedInvestorId] ?? null

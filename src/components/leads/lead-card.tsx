@@ -42,6 +42,8 @@ export function LeadCardView({
   onAdvance,
   onMarkLost,
   onAgree,
+  onAgreeCancel,
+  negotiationPrompt = false,
   investorName,
   isDragging = false,
   style,
@@ -55,6 +57,8 @@ export function LeadCardView({
   onAdvance?: (lead: LeadItem) => void;
   onMarkLost?: (lead: LeadItem) => void;
   onAgree?: (lead: LeadItem, amount: number) => void;
+  onAgreeCancel?: () => void;
+  negotiationPrompt?: boolean;
   investorName?: string | null;
   isDragging?: boolean;
   style?: React.CSSProperties;
@@ -68,6 +72,9 @@ export function LeadCardView({
   const priority = lead.priority ?? 0;
   const isTerminal = lead.stage === "closed" || lead.stage === "lost";
   const isDeal = lead.stage === "closed" && !!lead.dealId;
+  const promptNegotiation = lead.stage === "negotiation" && negotiationPrompt && !!onAgree && !isDragging;
+  const showQuickAgree = (lead.stage === "contacted" || lead.stage === "meeting") && !!onAgree && !isDragging;
+  const agreeInputOpen = agreeing || promptNegotiation;
   const now = currentTime();
   const overdue =
     !isTerminal && lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && lead.nextStepDueAt < now;
@@ -222,9 +229,9 @@ export function LeadCardView({
         />
       )}
 
-      {(lead.stage === "contacted" || lead.stage === "meeting") && onAgree && !isDragging && (
+      {(showQuickAgree || promptNegotiation) && (
         <div className="mb-1.5">
-          {!agreeing ? (
+          {!agreeInputOpen ? (
             <button
               type="button"
               onClick={(e) => {
@@ -246,9 +253,12 @@ export function LeadCardView({
                 onChange={(e) => setAgreeAmount(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && Number(agreeAmount) > 0) {
-                    onAgree(lead, Number(agreeAmount));
+                    onAgree?.(lead, Number(agreeAmount));
                   }
-                  if (e.key === "Escape") setAgreeing(false);
+                  if (e.key === "Escape") {
+                    if (promptNegotiation) onAgreeCancel?.();
+                    else setAgreeing(false);
+                  }
                 }}
                 placeholder={lead.analysisTargetPurchasePrice ? String(lead.analysisTargetPurchasePrice) : "cena"}
                 className="w-full min-w-0 rounded-lg border border-emerald-500/30 bg-card px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-emerald-500/60"
@@ -257,7 +267,7 @@ export function LeadCardView({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (Number(agreeAmount) > 0) onAgree(lead, Number(agreeAmount));
+                  if (Number(agreeAmount) > 0) onAgree?.(lead, Number(agreeAmount));
                 }}
                 className="shrink-0 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2 py-1 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors"
               >
@@ -267,7 +277,8 @@ export function LeadCardView({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setAgreeing(false);
+                  if (promptNegotiation) onAgreeCancel?.();
+                  else setAgreeing(false);
                 }}
                 className="shrink-0 rounded-lg border border-border/40 px-2 py-1 text-[10px] text-muted hover:text-foreground transition-colors"
               >
@@ -287,6 +298,18 @@ export function LeadCardView({
             <span className="block text-[10px] text-muted font-mono leading-tight">
               {formatCompactPrice(lead.propertyPricePerSqm)}/m²
             </span>
+          )}
+          {lead.analysisTargetPurchasePrice != null && lead.analysisTargetPurchasePrice > 0 && (
+            <>
+              <span className="mt-0.5 block text-[10px] font-mono leading-tight text-muted">
+                Ideální: {formatPrice(lead.analysisTargetPurchasePrice)}
+              </span>
+              {lead.propertyArea != null && lead.propertyArea > 0 && (
+                <span className="block text-[10px] text-muted font-mono leading-tight">
+                  {formatCompactPrice(Math.round(lead.analysisTargetPurchasePrice / lead.propertyArea))}/m²
+                </span>
+              )}
+            </>
           )}
         </span>
         {lead.stage === "offer" && lead.stageData?.offer?.amount != null && (
