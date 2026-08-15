@@ -72,11 +72,11 @@ function makeLead(overrides: Partial<LeadItem> = {}): LeadItem {
 }
 
 describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém sloupci)", () => {
-  it("zobrazí ulici i město na samostatných řádcích", () => {
+  it("zobrazí ulici i město na jednom řádku", () => {
     render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
 
-    expect(screen.getByText("Poděbradova 2842/1")).toBeTruthy();
-    expect(screen.getByText("Jižní Předměstí")).toBeTruthy();
+    expect(screen.getByText("Poděbradova 2842/1, Jižní Předměstí")).toBeTruthy();
+    expect(screen.queryByText("Jižní Předměstí")).toBeNull();
   });
 
   it("zobrazí cenu za m² vedle ceny", () => {
@@ -130,7 +130,7 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(screen.queryByText("614 00")).toBeNull();
   });
 
-  it("poznámka se zobrazí celá, bez ořezu (žádný line-clamp)", () => {
+  it("poznámka se omezí na dva řádky (line-clamp-2), aby karta zůstala nízká", () => {
     const longNote =
       "Dlouhá poznámka, která by se dřív ořezala na dva řádky a skončila třemi tečkami. " +
       "Majitel je ochotný slevit, ale chce vidět vážnou nabídku do konce týdne. " +
@@ -138,14 +138,13 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     render(<LeadCardView lead={makeLead({ notes: longNote })} onOpen={() => {}} />);
 
     const note = screen.getByText(longNote);
-    expect(note.className).not.toContain("line-clamp");
+    expect(note.className).toContain("line-clamp-2");
   });
 
   it("drag preview ukazuje stejné klíčové údaje jako karta", () => {
     render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
 
-    expect(screen.getByText("Poděbradova 2842/1")).toBeTruthy();
-    expect(screen.getByText("Jižní Předměstí")).toBeTruthy();
+    expect(screen.getByText("Poděbradova 2842/1, Jižní Předměstí")).toBeTruthy();
     expect(screen.getByText("51 tis. Kč/m²")).toBeTruthy();
   });
 });

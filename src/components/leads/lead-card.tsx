@@ -107,7 +107,7 @@ export function LeadCardView({
       )}
 
       <div className="flex items-start justify-between gap-2 mb-1">
-        <h3 className="text-xs font-medium leading-snug break-words text-foreground group-hover:text-accent transition-colors">
+        <h3 className="text-xs font-medium leading-snug line-clamp-2 text-foreground group-hover:text-accent transition-colors">
           {lead.propertyTitle ?? "Neznámá nemovitost"}
         </h3>
         <div className="flex items-center gap-1 shrink-0">
@@ -130,54 +130,27 @@ export function LeadCardView({
       </div>
 
       {(street || city || lead.propertyPortalName) && (
-        <div className="mb-1 min-w-0">
-          <div className="flex items-center gap-1 min-w-0">
-            {(street || city) && (
-              <MapPin size={10} weight="fill" className="shrink-0 text-accent/70" />
-            )}
-            <span
-              className="truncate text-[11px] font-medium leading-snug text-foreground/90"
-              title={street || lead.propertyAddress || undefined}
-            >
-              {street || portalLabel(lead.propertyPortalName)}
-            </span>
-          </div>
-          {city && (
-            <div
-              className="pl-[15px] text-[10px] leading-snug text-muted"
-              title={lead.propertyAddress ?? undefined}
-            >
-              {city}
-            </div>
+        <div className="mb-1 flex items-center gap-1 min-w-0">
+          {(street || city) && (
+            <MapPin size={10} weight="fill" className="shrink-0 text-accent/70" />
           )}
+          <span
+            className="truncate text-[11px] font-medium leading-snug text-foreground/90"
+            title={lead.propertyAddress ?? street ?? undefined}
+          >
+            {[street || portalLabel(lead.propertyPortalName), city].filter(Boolean).join(", ")}
+          </span>
         </div>
       )}
 
-      {(lead.stage === "meeting" && lead.stageData?.meeting?.date) ||
-      (lead.stage === "offer" && lead.stageData?.offer?.amount) ||
-      (lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount      ) ? (
-        <div className="flex flex-wrap items-center gap-1 mb-1">
-          {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
-            <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
-              <CalendarBlank size={10} weight="bold" />
-              {new Date(lead.stageData.meeting.date).toLocaleDateString("cs-CZ")}{" "}
-              {new Date(lead.stageData.meeting.date).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          {lead.stage === "offer" && lead.stageData?.offer?.amount != null && (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono text-amber-400">
-              💰 {formatPrice(lead.stageData.offer.amount)}
-            </span>
-          )}
-          {lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount != null && (
-            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono text-emerald-400">
-              🤝 {formatPrice(lead.stageData.negotiation.currentAmount)}
-            </span>
-          )}
-        </div>
-      ) : null}
-
       <div className="flex flex-wrap items-center gap-1 mb-1">
+        {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
+          <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
+            <CalendarBlank size={10} weight="bold" />
+            {new Date(lead.stageData.meeting.date).toLocaleDateString("cs-CZ")}{" "}
+            {new Date(lead.stageData.meeting.date).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
         <AgingBadge lead={lead} />
         {isDeal && (
           <span
@@ -237,7 +210,7 @@ export function LeadCardView({
       </div>
 
       {lead.notes && (
-        <p className="mb-1 text-[10px] leading-relaxed text-muted/70 italic break-words whitespace-pre-wrap">
+        <p className="mb-1 text-[10px] leading-relaxed text-muted/70 italic break-words whitespace-pre-wrap line-clamp-2">
           {lead.notes}
         </p>
       )}
@@ -305,11 +278,21 @@ export function LeadCardView({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold font-mono text-amber-400 truncate min-w-0">
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-sm font-semibold font-mono text-amber-400 leading-snug break-words min-w-0">
           {price > 0 ? formatPrice(price) : "—"}
         </span>
-        <span className="flex items-center gap-1.5 shrink-0">
+        {lead.stage === "offer" && lead.stageData?.offer?.amount != null && (
+          <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-mono text-amber-400">
+            💰 {formatPrice(lead.stageData.offer.amount)}
+          </span>
+        )}
+        {lead.stage === "negotiation" && lead.stageData?.negotiation?.currentAmount != null && (
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-mono text-emerald-400">
+            🤝 {formatPrice(lead.stageData.negotiation.currentAmount)}
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-1.5 shrink-0">
           {lead.propertyPricePerSqm != null && (
             <span className="text-[10px] text-muted font-mono">{formatCompactPrice(lead.propertyPricePerSqm)}/m²</span>
           )}
