@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PctStepper } from "@/components/ui/pct-stepper";
 import { formatPrice, cn } from "@/lib/utils";
 import { CheckCircle, WarningCircle, Calculator, FloppyDisk, Scales, ChartLine } from "@phosphor-icons/react";
 import {
@@ -521,7 +522,8 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
               onChange={(e) => update("targetRoi", parseFloat(e.target.value))}
               className="flex-1 accent-accent h-1.5"
             />
-            <span className="text-sm font-mono text-foreground min-w-[5ch] text-right">{form.targetRoi % 1 === 0 ? form.targetRoi : form.targetRoi.toFixed(1)}%</span>
+            <PctStepper value={form.targetRoi} onChange={(v) => update("targetRoi", v)} min={5} max={100} />
+            <span className="text-sm font-mono text-foreground shrink-0">%</span>
           </div>
 
           <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">

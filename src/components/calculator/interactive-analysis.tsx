@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
+import { PctStepper } from "@/components/ui/pct-stepper";
 import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locationCategoryLabel, portalLabel } from "@/lib/utils";
 import {
   calculateFlipResults,
@@ -851,7 +852,8 @@ function InteractiveCard({
                 onChange={(e) => setTargetRoi(parseFloat(e.target.value))}
                 className="flex-1 accent-accent h-1.5"
               />
-              <span className="text-sm font-mono text-foreground min-w-[5ch] text-right">{targetRoi % 1 === 0 ? targetRoi : targetRoi.toFixed(1)}%</span>
+              <PctStepper value={targetRoi} onChange={setTargetRoi} min={5} max={100} />
+              <span className="text-sm font-mono text-foreground shrink-0">%</span>
             </div>
 
             {/* Způsob spolupráce */}
@@ -1145,7 +1147,13 @@ function InteractiveCard({
                     onChange={(e) => updateRental("targetYield", parseFloat(e.target.value))}
                     className="flex-1 accent-accent h-1.5"
                   />
-                  <span className="text-sm font-mono text-foreground min-w-[5ch] text-right">{rentalConfig.targetYield % 1 === 0 ? rentalConfig.targetYield : rentalConfig.targetYield.toFixed(1)}%</span>
+                  <PctStepper
+                    value={rentalConfig.targetYield}
+                    onChange={(v) => updateRental("targetYield", v)}
+                    min={3}
+                    max={8}
+                  />
+                  <span className="text-sm font-mono text-foreground shrink-0">%</span>
                 </div>
 
                 {/* Renovation (dedicated rental input) */}
