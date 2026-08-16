@@ -204,6 +204,14 @@ describe("toPortalView", () => {
     expect(view.savingsPct).toBe(expectedSavings);
   });
 
+  it("maps city slug to proper display name", () => {
+    const ctx = { budget: null, unlimited: true };
+    expect(toPortalView(row({ city: "praha" }), "inv", ctx).city).toBe("Praha");
+    expect(toPortalView(row({ city: "olomouc" }), "inv", ctx).city).toBe("Olomouc");
+    expect(toPortalView(row({ city: "ceske_budejovice" }), "inv", ctx).city).toBe("České Budějovice");
+    expect(toPortalView(row({ city: "Praha 5" }), "inv", ctx).city).toBe("Praha 5");
+  });
+
   it("flags over-budget when offer exceeds investor budget", () => {
     const ok = toPortalView(row(), "inv-1", { budget: 5_000_000, unlimited: false });
     const over = toPortalView(

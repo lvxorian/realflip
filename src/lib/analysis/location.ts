@@ -103,6 +103,79 @@ export const CITY_ALIASES: Record<string, string> = {
   "cesky brod": "cesky_brod",
 };
 
+/** Prezentace pro investory/e-maily: cityKey → správný český název města. */
+export const CITY_DISPLAY_NAMES: Record<string, string> = {
+  praha: "Praha",
+  brno: "Brno",
+  plzen: "Plzeň",
+  ostrava: "Ostrava",
+  olomouc: "Olomouc",
+  pardubice: "Pardubice",
+  liberec: "Liberec",
+  zlin: "Zlín",
+  kladno: "Kladno",
+  jihlava: "Jihlava",
+  karvina: "Karviná",
+  znojmo: "Znojmo",
+  trebic: "Třebíč",
+  benesov: "Benešov",
+  most: "Most",
+  krnov: "Krnov",
+  opava: "Opava",
+  trinec: "Třinec",
+  cheb: "Cheb",
+  beroun: "Beroun",
+  letohrad: "Letohrad",
+  jirkov: "Jirkov",
+  osek: "Osek",
+  jarov: "Jarov",
+  smrzov: "Smržov",
+  vraz: "Vráž",
+  polna: "Polná",
+  rasin: "Rašín",
+  hostka: "Hoštka",
+  prachatice: "Prachatice",
+  kromeriz: "Kroměříž",
+  bruntal: "Bruntál",
+  jesenik: "Jeseník",
+  litvinov: "Litvínov",
+  nyrsko: "Nýrsko",
+  tremosna: "Třemošná",
+  kramolin: "Kramolín",
+  cerncice: "Černčice",
+  breclav: "Břeclav",
+  karlovy_vary: "Karlovy Vary",
+  mariansk_lazne: "Mariánské Lázně",
+  hradec: "Hradec Králové",
+  usti: "Ústí nad Labem",
+  ceske_budejovice: "České Budějovice",
+  cesky_krumlov: "Český Krumlov",
+  mlada_boleslav: "Mladá Boleslav",
+  kolin: "Kolín",
+  trutnov: "Trutnov",
+  pisek: "Písek",
+  tabor: "Tábor",
+  chomutov: "Chomutov",
+  decin: "Děčín",
+  teplice: "Teplice",
+  pribram: "Příbram",
+  prostejov: "Prostějov",
+  prerov: "Přerov",
+  havlickuv_brod: "Havlíčkův Brod",
+  ceska_lipa: "Česká Lípa",
+  melnik: "Mělník",
+  zacler: "Žacléř",
+  horsovsky_tyn: "Horšovský Týn",
+  cesky_brod: "Český Brod",
+};
+
+/** Lidský název města pro zobrazení (portál, e-maily).
+ *  Neznámá hodnota (např. volně zadaný text) se vrací beze změny. */
+export function cityDisplayName(cityKey: string | null | undefined): string | null {
+  if (!cityKey || cityKey === "Neznámá" || cityKey === "unknown") return null;
+  return CITY_DISPLAY_NAMES[cityKey.toLowerCase().replace(/\s+/g, "_")] ?? cityKey;
+}
+
 export function cityNamesFor(cityKey: string): string[] {
   const names: string[] = [];
   const key = cityKey.toLowerCase().replace(/[_\-]/g, " ");

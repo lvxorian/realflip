@@ -16,6 +16,7 @@ import {
 import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { strategiesFromAvailability, type CooperationAvailability } from "@/lib/cooperation-models";
 import { shiftFlipAtPrice, type CooperationView } from "@/lib/investor-portal-view";
+import { cityDisplayName } from "@/lib/analysis/location";
 import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp, Scales } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -751,7 +752,7 @@ function InteractiveCard({
 
           {/* Location & Meta */}
           <div className="flex flex-wrap gap-2">
-            {a.location && a.location.category !== "unknown" && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{a.location.city.charAt(0).toUpperCase() + a.location.city.slice(1)} ({locationCategoryLabel(a.location.category)})</span>}
+            {a.location && a.location.category !== "unknown" && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{cityDisplayName(a.location.city) ?? a.location.city} ({locationCategoryLabel(a.location.category)})</span>}
             {l.area && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.area} m²</span>}
             {l.rooms && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.rooms}</span>}
             {l.address && <span className="rounded-lg bg-card-hover border border-border/50 px-2.5 py-1 text-xs text-foreground/80">{l.address}</span>}

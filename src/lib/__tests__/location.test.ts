@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyLocation, findCityKey, cityNamesFor, addressMatchesCity } from "../analysis/location";
+import { classifyLocation, findCityKey, cityNamesFor, cityDisplayName, addressMatchesCity } from "../analysis/location";
 
 describe("classifyLocation", () => {
   it("classifies Prague premium district", () => {
@@ -90,5 +90,39 @@ describe("cityNamesFor + addressMatchesCity", () => {
     expect(addressMatchesCity("Praha", cityNamesFor("brno"))).toBe(false);
     expect(addressMatchesCity("Prague", cityNamesFor("praha"))).toBe(true);
     expect(addressMatchesCity("Plzeň", cityNamesFor("plzen"))).toBe(true);
+  });
+});
+
+describe("cityDisplayName", () => {
+  it("maps slugs to proper Czech display names", () => {
+    expect(cityDisplayName("praha")).toBe("Praha");
+    expect(cityDisplayName("olomouc")).toBe("Olomouc");
+    expect(cityDisplayName("plzen")).toBe("Plzeň");
+    expect(cityDisplayName("ceske_budejovice")).toBe("České Budějovice");
+    expect(cityDisplayName("usti")).toBe("Ústí nad Labem");
+    expect(cityDisplayName("hradec")).toBe("Hradec Králové");
+    expect(cityDisplayName("mlada_boleslav")).toBe("Mladá Boleslav");
+    expect(cityDisplayName("havlickuv_brod")).toBe("Havlíčkův Brod");
+    expect(cityDisplayName("karlovy_vary")).toBe("Karlovy Vary");
+    expect(cityDisplayName("zlin")).toBe("Zlín");
+    expect(cityDisplayName("trinec")).toBe("Třinec");
+  });
+
+  it("is case-insensitive for slug input", () => {
+    expect(cityDisplayName("Praha")).toBe("Praha");
+    expect(cityDisplayName("PRAHA")).toBe("Praha");
+    expect(cityDisplayName("Mladá Boleslav")).toBe("Mladá Boleslav");
+  });
+
+  it("passes unknown values through verbatim", () => {
+    expect(cityDisplayName("Praha 5")).toBe("Praha 5");
+    expect(cityDisplayName("Někde v Čechách")).toBe("Někde v Čechách");
+  });
+
+  it("returns null for missing/unknown sentinels", () => {
+    expect(cityDisplayName(null)).toBeNull();
+    expect(cityDisplayName(undefined)).toBeNull();
+    expect(cityDisplayName("Neznámá")).toBeNull();
+    expect(cityDisplayName("unknown")).toBeNull();
   });
 });

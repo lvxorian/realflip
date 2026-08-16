@@ -1,4 +1,4 @@
-import { cityNamesFor } from "@/lib/analysis/location";
+import { cityDisplayName } from "@/lib/analysis/location";
 import { RateLimiter } from "@/lib/scraping/rate-limiter";
 
 export interface GeocodeResult {
@@ -64,18 +64,11 @@ async function nominatimSearch(query: string): Promise<{ lat: number; lng: numbe
 }
 
 /**
- * Převod cityKey na lidský název města pro geokódování.
- * Používá cityNamesFor z location.ts (aliasy: "plzen" -> "Plzeň", "praha" -> "Praha").
+ * Převod cityKey na lidský název města pro geokódování
+ * (např. "plzen" -> "Plzeň", "praha" -> "Praha").
  */
 export function cityKeyToName(cityKey: string | null | undefined): string | null {
-  if (!cityKey || cityKey === "Neznámá" || cityKey === "unknown") return null;
-  const names = cityNamesFor(cityKey);
-  // Preferovat název s diakritikou (má háčky/čárky) a bez podtržítek
-  const pretty =
-    names.find((n) => /[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/.test(n) && !n.includes("_")) ??
-    names.find((n) => n.includes(" ") && !n.includes("_")) ??
-    names[0];
-  return pretty ? pretty.charAt(0).toUpperCase() + pretty.slice(1) : null;
+  return cityDisplayName(cityKey);
 }
 
 /**

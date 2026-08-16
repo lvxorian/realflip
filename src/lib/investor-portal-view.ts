@@ -1,4 +1,5 @@
 import { conditionLabel, safeJsonParse } from "@/lib/utils";
+import { cityDisplayName } from "@/lib/analysis/location";
 import type { StageData } from "@/components/leads/types";
 import { strategiesFromAvailability, type CooperationStrategy } from "@/lib/cooperation-models";
 
@@ -399,7 +400,7 @@ export function toPortalView(
   return {
     id: row.leadId,
     district: row.district,
-    city: row.city,
+    city: cityDisplayName(row.city) ?? row.city,
     condition: conditionLabel(row.condition),
     area: row.area,
     rooms: row.rooms,

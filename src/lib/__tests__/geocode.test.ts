@@ -24,8 +24,8 @@ describe("geocode helpers", () => {
     expect(cityKeyToName("plzen")).toBe("Plzeň");
     expect(cityKeyToName("praha")).toBe("Praha");
     expect(cityKeyToName("brno")).toBe("Brno");
-    expect(cityKeyToName("usti")).toBe("Ústí nad labem");
-    expect(cityKeyToName("ceske_budejovice")).toBe("České budějovice");
+    expect(cityKeyToName("usti")).toBe("Ústí nad Labem");
+    expect(cityKeyToName("ceske_budejovice")).toBe("České Budějovice");
     expect(cityKeyToName("zlin")).toBe("Zlín");
   });
 
