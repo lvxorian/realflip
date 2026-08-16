@@ -20,10 +20,11 @@ import {
   EnvelopeSimple,
   CaretLeft,
   CaretRight,
+  CaretDown,
   X,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
-import type { CooperationView } from "@/lib/investor-portal-view";
+import type { CalcSnapshotFlip, CooperationView, FlipDealView } from "@/lib/investor-portal-view";
 import { COOPERATION_STRATEGIES, type CooperationStrategy } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
@@ -100,6 +101,7 @@ export default function InvestorPortalPage() {
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedModel, setExpandedModel] = useState<{ id: string; strategy: CooperationStrategy } | null>(null);
   const [reserveItem, setReserveItem] = useState<InvestorPortalItem | null>(null);
   const [reserveStrategy, setReserveStrategy] = useState<CooperationStrategy | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -378,64 +380,79 @@ export default function InvestorPortalPage() {
                             </div>
 
                             {/* Klíčové metriky */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                              {item.calcMode === "rental" ? (
-                                <>
-                                  <Metric
-                                    label="Čistý výnos (p.a.)"
-                                    value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
-                                    accent={item.deal.type === "rental" && item.deal.netYield != null}
-                                  />
-                                  <Metric
-                                    label="Cash-flow / měsíc"
-                                    value={item.deal.type === "rental" && item.deal.cashFlowMonthly != null ? formatPrice(item.deal.cashFlowMonthly) : "—"}
-                                    accent={item.deal.type === "rental" && item.deal.cashFlowMonthly != null && item.deal.cashFlowMonthly >= 0}
-                                  />
-                                  <Metric
-                                    label="Měsíční nájem"
-                                    value={item.snapshot?.mode === "rental" && item.snapshot.monthlyRent != null ? formatPrice(item.snapshot.monthlyRent) : "—"}
-                                  />
-                                  <Metric
-                                    label="Investice celkem"
-                                    value={item.snapshot?.mode === "rental" && item.snapshot.totalInvested != null ? formatPrice(item.snapshot.totalInvested) : "—"}
-                                  />
-                                </>
-                              ) : coop && coop.availableStrategies.length > 0 ? (
-                                <div className={`grid gap-2 ${coop.availableStrategies.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-                                  {coop.availableStrategies.map((s) => (
-                                    <ModelProfitCard key={s} strategy={s} coop={coop} />
-                                  ))}
-                                </div>
-                              ) : (
-                                <>
-                                  <Metric
-                                    label="Odhadovaný zisk"
-                                    value={item.deal.type === "flip" && item.deal.netProfit != null ? formatPrice(item.deal.netProfit) : "—"}
-                                    accent={item.deal.type === "flip" && item.deal.netProfit != null && item.deal.netProfit >= 0}
-                                  />
-                                  <Metric
-                                    label="ROI projektu"
-                                    value={item.deal.type === "flip" && item.deal.roi != null ? `${item.deal.roi.toFixed(1)} %` : "—"}
-                                    accent={item.deal.type === "flip" && item.deal.roi != null && item.deal.roi >= 0}
-                                  />
-                                  <Metric
-                                    label="ARV po rekonstrukci"
-                                    value={item.deal.type === "flip" && item.deal.arv != null ? formatPrice(item.deal.arv) : "—"}
-                                  />
-                                </>
-                              )}
-                            </div>
+                            {item.calcMode === "rental" ? (
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                                <Metric
+                                  label="Čistý výnos (p.a.)"
+                                  value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
+                                  accent={item.deal.type === "rental" && item.deal.netYield != null}
+                                />
+                                <Metric
+                                  label="Cash-flow / měsíc"
+                                  value={item.deal.type === "rental" && item.deal.cashFlowMonthly != null ? formatPrice(item.deal.cashFlowMonthly) : "—"}
+                                  accent={item.deal.type === "rental" && item.deal.cashFlowMonthly != null && item.deal.cashFlowMonthly >= 0}
+                                />
+                                <Metric
+                                  label="Měsíční nájem"
+                                  value={item.snapshot?.mode === "rental" && item.snapshot.monthlyRent != null ? formatPrice(item.snapshot.monthlyRent) : "—"}
+                                />
+                                <Metric
+                                  label="Investice celkem"
+                                  value={item.snapshot?.mode === "rental" && item.snapshot.totalInvested != null ? formatPrice(item.snapshot.totalInvested) : "—"}
+                                />
+                              </div>
+                            ) : coop && coop.availableStrategies.length > 0 ? (
+                              <div className={`grid gap-2 ${coop.availableStrategies.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                                {coop.availableStrategies.map((s) => {
+                                  const open = expandedModel?.id === item.id && expandedModel.strategy === s;
+                                  return (
+                                    <ModelProfitCard
+                                      key={s}
+                                      strategy={s}
+                                      coop={coop}
+                                      active={open}
+                                      onClick={() => setExpandedModel(open ? null : { id: item.id, strategy: s })}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+                                <Metric
+                                  label="Odhadovaný zisk"
+                                  value={item.deal.type === "flip" && item.deal.netProfit != null ? formatPrice(item.deal.netProfit) : "—"}
+                                  accent={item.deal.type === "flip" && item.deal.netProfit != null && item.deal.netProfit >= 0}
+                                />
+                                <Metric
+                                  label="ROI projektu"
+                                  value={item.deal.type === "flip" && item.deal.roi != null ? `${item.deal.roi.toFixed(1)} %` : "—"}
+                                  accent={item.deal.type === "flip" && item.deal.roi != null && item.deal.roi >= 0}
+                                />
+                                <Metric
+                                  label="ARV po rekonstrukci"
+                                  value={item.deal.type === "flip" && item.deal.arv != null ? formatPrice(item.deal.arv) : "—"}
+                                />
+                              </div>
+                            )}
 
                             {/* Detail výpočtu */}
-                            <button
-                              type="button"
-                              onClick={() => setExpandedId(expanded ? null : item.id)}
-                              className="w-full text-xs text-muted flex items-center justify-center gap-1 rounded-lg border border-border/40 bg-card-hover/40 py-2 hover:text-foreground hover:border-accent/30 transition-colors"
-                            >
-                              {expanded ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
-                            </button>
-                            {expanded && (
-                              <DealDetail item={item} />
+                            {item.calcMode !== "rental" && coop && coop.availableStrategies.length > 0 ? (
+                              expandedModel?.id === item.id && (
+                                <ModelDetail item={item} strategy={expandedModel.strategy} />
+                              )
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedId(expanded ? null : item.id)}
+                                  className="w-full text-xs text-muted flex items-center justify-center gap-1 rounded-lg border border-border/40 bg-card-hover/40 py-2 hover:text-foreground hover:border-accent/30 transition-colors"
+                                >
+                                  {expanded ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
+                                </button>
+                                {expanded && (
+                                  <DealDetail item={item} />
+                                )}
+                              </>
                             )}
 
                             {/* Rezervace */}
@@ -585,7 +602,6 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
 
   const deal = item.deal.type === "flip" ? item.deal : null;
   const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
-  const coop = item.cooperation;
   const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
   return (
     <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
@@ -595,40 +611,74 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
       </div>
       <div className="space-y-2 text-[12px]">
         <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
-        <DetailRow label="Kupní cena" value={targetPrice != null ? formatPrice(targetPrice) : "—"} />
-        {snap?.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFees)} />}
-        {snap?.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
-        {snap?.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
-        {snap?.contingency != null && snap.contingency > 0 && <DetailRow label="Rezerva 10 %" value={formatPrice(snap.contingency)} />}
-        {snap?.sellingCommission != null && snap.sellingCommission > 0 && <DetailRow label="Provize RK prodejní (5 %)" value={formatPrice(snap.sellingCommission)} />}
-        {snap?.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatPrice(snap.marketingPhoto)} />}
-        {snap?.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatPrice(snap.holdingCosts)} />}
-        {snap?.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
-        {snap?.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
-        {snap?.totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(snap.totalCost)} accent />}
-        <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatPrice(deal.arv) : "—"} />
-        {!coop && (
-          <DetailRow
-            label="Odhadovaný zisk"
-            value={deal?.netProfit != null ? formatPrice(deal.netProfit) : "—"}
-            accent={deal?.netProfit != null && deal.netProfit >= 0}
-          />
-        )}
-        <DetailRow label="ROI projektu" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
+        <FlipCostRows snap={snap} deal={deal} showProfit />
       </div>
-
-      {/* Oba modely spolupráce rozepsané dle uložené kalkulačky */}
-      {coop && coop.availableStrategies.length > 0 && (
-        <div className={`grid gap-2 ${coop.availableStrategies.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
-          {coop.availableStrategies.map((s) => (
-            <ModelDetailBlock key={s} strategy={s} coop={coop} />
-          ))}
-        </div>
-      )}
       <p className="text-[11px] text-muted pt-2 border-t border-border/20">
         Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
       </p>
     </div>
+  );
+}
+
+/** Detail výpočtu konkrétního modelu spolupráce (rozbalený z karty modelu). */
+function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: CooperationStrategy }) {
+  const deal = item.deal.type === "flip" ? item.deal : null;
+  const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
+  const coop = item.cooperation;
+  const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
+  if (!coop) return null;
+  return (
+    <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
+          Model {COOPERATION_STRATEGIES[strategy]} · detail výpočtu
+        </p>
+        <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
+      </div>
+      <div className="space-y-2 text-[12px]">
+        <div className="text-[10px] font-semibold text-emerald-400 mb-1">Rozpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
+        <FlipCostRows snap={snap} deal={deal} />
+      </div>
+      <ModelDetailBlock strategy={strategy} coop={coop} />
+      <p className="text-[11px] text-muted pt-2 border-t border-border/20">
+        Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
+      </p>
+    </div>
+  );
+}
+
+/** Společný rozpis nákladů flipu z uložené kalkulačky (kromě Kupní ceny — ta je v hlavičce). */
+function FlipCostRows({
+  snap,
+  deal,
+  showProfit,
+}: {
+  snap: CalcSnapshotFlip | null;
+  deal: FlipDealView | null;
+  showProfit?: boolean;
+}) {
+  return (
+    <>
+      {snap?.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFees)} />}
+      {snap?.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
+      {snap?.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
+      {snap?.contingency != null && snap.contingency > 0 && <DetailRow label="Rezerva 10 %" value={formatPrice(snap.contingency)} />}
+      {snap?.sellingCommission != null && snap.sellingCommission > 0 && <DetailRow label="Provize RK prodejní (5 %)" value={formatPrice(snap.sellingCommission)} />}
+      {snap?.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatPrice(snap.marketingPhoto)} />}
+      {snap?.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatPrice(snap.holdingCosts)} />}
+      {snap?.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
+      {snap?.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
+      {snap?.totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(snap.totalCost)} accent />}
+      <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatPrice(deal.arv) : "—"} />
+      {showProfit && (
+        <DetailRow
+          label="Odhadovaný zisk"
+          value={deal?.netProfit != null ? formatPrice(deal.netProfit) : "—"}
+          accent={deal?.netProfit != null && deal.netProfit >= 0}
+        />
+      )}
+      <DetailRow label="ROI projektu" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
+    </>
   );
 }
 
@@ -641,25 +691,39 @@ function DetailRow({ label, value, accent }: { label: string; value: string; acc
   );
 }
 
-/** Blok modelu spolupráce na kartě: model + zisk investora + ROI. */
-function ModelProfitCard({ strategy, coop }: { strategy: CooperationStrategy; coop: CooperationView }) {
+/** Karta modelu spolupráce: název modelu + zisk investora. Klik = rozbalení detailu. */
+function ModelProfitCard({
+  strategy,
+  coop,
+  active,
+  onClick,
+}: {
+  strategy: CooperationStrategy;
+  coop: CooperationView;
+  active: boolean;
+  onClick: () => void;
+}) {
   const profit = modelProfitOf(strategy, coop);
-  const roi = modelRoiOf(strategy, coop);
   const sub = strategy === "fifty-fifty" ? "váš zisk · polovina obchodu" : "váš zisk · po rekonstrukci";
   return (
-    <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border px-3.5 py-3 transition-colors ${
+        active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-subtle/60 hover:border-accent/30"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
+        <span className={`text-muted transition-transform ${active ? "rotate-180" : ""}`}>
+          <CaretDown size={12} weight="bold" />
+        </span>
+      </div>
       <p className="text-[10px] text-muted mt-0.5">{sub}</p>
       <p className={`font-mono text-lg font-semibold tabular-nums mt-1 break-words ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
         {profit != null ? formatPrice(profit) : "—"}
       </p>
-      <p className="text-[11px] text-muted mt-1.5">
-        ROI vaší investice{" "}
-        <span className={`font-mono tabular-nums font-medium ${roi != null && roi >= 0 ? "text-emerald-400" : "text-foreground"}`}>
-          {roi != null ? `${roi.toFixed(1)} %` : "—"}
-        </span>
-      </p>
-    </div>
+    </button>
   );
 }
 
@@ -671,7 +735,6 @@ function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; c
   const roi = modelRoiOf(strategy, coop);
   return (
     <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
       {!isFifty && coop.sourcingFee != null && coop.sourcingFee > 0 && (
         <DetailRow label="Sourcing fee" value={formatPrice(coop.sourcingFee)} />
       )}
