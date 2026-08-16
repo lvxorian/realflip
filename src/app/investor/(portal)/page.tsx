@@ -599,7 +599,7 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
 
   const deal = item.deal.type === "flip" ? item.deal : null;
   const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
-  const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
+  const kupniCena = item.offerPrice ?? snap?.targetPurchasePrice ?? snap?.purchasePriceUsed ?? null;
   return (
     <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -607,8 +607,8 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
         <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
       </div>
       <div className="space-y-2 text-[12px]">
-        <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
-        <FlipCostRows snap={snap} deal={deal} area={item.area} showProfit />
+        <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při kupní ceně {kupniCena != null ? formatPrice(kupniCena) : "—"}</div>
+        <FlipCostRows snap={snap} deal={deal} coop={item.cooperation} kupniCena={kupniCena} area={item.area} showProfit />
       </div>
       <p className="text-[11px] text-muted pt-2 border-t border-border/20">
         Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
@@ -656,7 +656,7 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
   const deal = item.deal.type === "flip" ? item.deal : null;
   const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
   const coop = item.cooperation;
-  const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
+  const kupniCena = item.offerPrice ?? snap?.targetPurchasePrice ?? snap?.purchasePriceUsed ?? null;
   if (!coop) return null;
   return (
     <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
@@ -667,8 +667,8 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
         <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
       </div>
       <div className="space-y-2 text-[12px]">
-        <div className="text-[10px] font-semibold text-emerald-400 mb-1">Rozpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
-        <FlipCostRows snap={snap} deal={deal} area={item.area} />
+        <div className="text-[10px] font-semibold text-emerald-400 mb-1">Rozpočet při kupní ceně {kupniCena != null ? formatPrice(kupniCena) : "—"}</div>
+        <FlipCostRows snap={snap} deal={deal} coop={coop} kupniCena={kupniCena} area={item.area} strategy={strategy} />
       </div>
       <ModelDetailBlock strategy={strategy} coop={coop} />
       <p className="text-[11px] text-muted pt-2 border-t border-border/20">
@@ -678,23 +678,38 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
   );
 }
 
-/** Společný rozpis nákladů flipu z uložené kalkulačky — první řádek je Kupní
- *  cena (cílová kupní cena z kalkulačky), pod ARV je přepočet na m². */
+/** Společný rozpis nákladů flipu z uložené kalkulačky na cenové bázi, kterou
+ *  investor vidí (Kupní cena = cena po vyjednání). Náklady celkem = investice
+ *  investora u daného modelu: u 50/50 se sourcing fee neúčtuje (celkem bez
+ *  fee), u sourcing fee je fee součástí nákladů a je vidět jako řádek. */
 function FlipCostRows({
   snap,
   deal,
+  coop,
+  kupniCena,
   area,
+  strategy,
   showProfit,
 }: {
   snap: CalcSnapshotFlip | null;
   deal: FlipDealView | null;
+  coop: CooperationView | null;
+  kupniCena: number | null;
   area: number | null;
+  strategy?: CooperationStrategy;
   showProfit?: boolean;
 }) {
-  const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
+  const isFifty = strategy === "fifty-fifty";
+  const sourcingFee = coop?.sourcingFee ?? snap?.sourcingFee ?? null;
+  // Náklady celkem musí souznít s investicí investora u daného modelu
+  // (hodnoty cooperation jsou už přepočtené na vyjednanou cenu).
+  const totalCost = isFifty
+    ? (coop?.fundingFiftyFifty ??
+        (snap?.totalCost != null && sourcingFee != null ? snap.totalCost - sourcingFee : (snap?.totalCost ?? null)))
+    : (coop?.fundingSourcing ?? snap?.totalCost);
   return (
     <>
-      <DetailRow label="Kupní cena" value={targetPrice != null ? formatPrice(targetPrice) : "—"} />
+      <DetailRow label="Kupní cena" value={kupniCena != null ? formatPrice(kupniCena) : "—"} />
       {snap?.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFees)} />}
       {snap?.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
       {snap?.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
@@ -703,8 +718,9 @@ function FlipCostRows({
       {snap?.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatPrice(snap.marketingPhoto)} />}
       {snap?.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatPrice(snap.holdingCosts)} />}
       {snap?.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
+      {!isFifty && sourcingFee != null && sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatPrice(sourcingFee)} />}
       {snap?.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
-      {snap?.totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(snap.totalCost)} accent />}
+      {totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(totalCost)} accent />}
       <DetailRow
         label="ARV (po rekonstrukci)"
         value={deal?.arv != null ? formatPrice(deal.arv) : "—"}
