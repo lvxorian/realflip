@@ -1145,7 +1145,7 @@ function InteractiveCard({
                   <input
                     type="range"
                     min={3}
-                    max={8}
+                    max={20}
                     step={0.1}
                     value={rentalConfig.targetYield}
                     onChange={(e) => updateRental("targetYield", parseFloat(e.target.value))}
@@ -1155,7 +1155,7 @@ function InteractiveCard({
                     value={rentalConfig.targetYield}
                     onChange={(v) => updateRental("targetYield", v)}
                     min={3}
-                    max={8}
+                    max={20}
                   />
                   <span className="text-sm font-mono text-foreground shrink-0">%</span>
                 </div>
