@@ -13,7 +13,7 @@ import {
   calculateAuctionResults,
   type AuctionCalcInput,
 } from "@/lib/auctions/auction-flip-costs";
-import { resolveRenovationCost } from "@/lib/analysis/flip-costs";
+import { DEFAULT_RENOVATION_PER_SQM, resolveRenovationCost } from "@/lib/analysis/flip-costs";
 import type { ParsedAuction } from "@/lib/auctions/parse-auction";
 import type { AuctionReportData } from "@/components/report/auction-report";
 
@@ -57,9 +57,9 @@ const DEFAULT_FORM: AuctionForm = {
   discount: 30,
   area: 70,
   arv: 0,
-  renovationMode: "preset",
+  renovationMode: "perSqm",
   renovationLevel: "medium",
-  renovationPerSqm: 10000,
+  renovationPerSqm: DEFAULT_RENOVATION_PER_SQM,
   renovationTotal: 700000,
   targetRoi: 15,
   sellCommission: false,

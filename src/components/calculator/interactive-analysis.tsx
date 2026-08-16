@@ -12,6 +12,7 @@ import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locatio
 import {
   calculateFlipResults,
   calculateItemizedRenovation,
+  DEFAULT_RENOVATION_PER_SQM,
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
 import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
@@ -176,9 +177,9 @@ function InteractiveCard({
   const area = l.area ?? 70;
 
   const [arv, setArv] = useState(a.arv);
-  const [renovationMode, setRenovationMode] = useState<"preset" | "perSqm" | "total">("preset");
+  const [renovationMode, setRenovationMode] = useState<"preset" | "perSqm" | "total">("perSqm");
   const [renovationLevel, setRenovationLevel] = useState<"light" | "medium" | "full">("medium");
-  const [renovationPerSqm, setRenovationPerSqm] = useState(Math.round(a.scenarios?.conservative?.renovationCost / area) || 12500);
+  const [renovationPerSqm, setRenovationPerSqm] = useState(DEFAULT_RENOVATION_PER_SQM);
   const [renovationTotal, setRenovationTotal] = useState(a.scenarios?.conservative?.renovationCost || 700000);
   const [targetRoi, setTargetRoi] = useState(15);
 
@@ -298,9 +299,9 @@ function InteractiveCard({
   const toggleRental = (key: keyof RentalConfig) =>
     setRentalConfig((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const [rentalRenovationMode, setRentalRenovationMode] = useState<"preset" | "perSqm" | "total">("preset");
+  const [rentalRenovationMode, setRentalRenovationMode] = useState<"preset" | "perSqm" | "total">("perSqm");
   const [rentalRenovationLevel, setRentalRenovationLevel] = useState<"light" | "medium" | "full">("medium");
-  const [rentalRenovationPerSqm, setRentalRenovationPerSqm] = useState(Math.round(a.scenarios?.conservative?.renovationCost / area) || 12500);
+  const [rentalRenovationPerSqm, setRentalRenovationPerSqm] = useState(DEFAULT_RENOVATION_PER_SQM);
   const [rentalRenovationTotal, setRentalRenovationTotal] = useState(a.scenarios?.conservative?.renovationCost || 700000);
 
   const rentalRenovationCost = useMemo(
@@ -461,13 +462,16 @@ function InteractiveCard({
     try { localStorage.removeItem(`report-config-${propertyId}`); } catch {}
     await fetch(`/api/properties/${propertyId}/calc-preset`, { method: "DELETE" });
     setArv(a.arv);
+    setRenovationMode("perSqm");
+    setRenovationLevel("medium");
+    setRenovationPerSqm(DEFAULT_RENOVATION_PER_SQM);
     setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setTargetRoi(15);
     setMode("flip");
     setRentalConfig({ ...RENTAL_DEFAULTS, monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null) });
-    setRentalRenovationMode("preset");
+    setRentalRenovationMode("perSqm");
     setRentalRenovationLevel("medium");
-    setRentalRenovationPerSqm(Math.round(a.scenarios?.conservative?.renovationCost / area) || 12500);
+    setRentalRenovationPerSqm(DEFAULT_RENOVATION_PER_SQM);
     setRentalRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setCostConfig({ sellCommission: false, appraisal: false, sourcingEnabled: true, sourcingFee: 100000, sourcingFeeIsPct: false, holdingMonths: 6, hasMortgage: false, mortgageAmount: 0, mortgageRate: 5 });
     setFlipStrategy("both");
@@ -827,7 +831,7 @@ function InteractiveCard({
               </div>
               <div className="flex gap-2 items-center">
                 <div className="flex gap-1.5 text-xs text-muted">
-                  <button onClick={() => { setRenovationMode("perSqm"); setRenovationPerSqm(12500); }} className={`px-2 py-1 rounded border ${renovationMode === "perSqm" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Kč/m²</button>
+                  <button onClick={() => { setRenovationMode("perSqm"); setRenovationPerSqm(DEFAULT_RENOVATION_PER_SQM); }} className={`px-2 py-1 rounded border ${renovationMode === "perSqm" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Kč/m²</button>
                   <button onClick={() => setRenovationMode("total")} className={`px-2 py-1 rounded border ${renovationMode === "total" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Celkem</button>
                 </div>
                 {renovationMode === "perSqm" ? (

@@ -10,6 +10,8 @@ export const COST_CONSTANTS = {
   holdingPeriodMonths: 6,
 };
 
+export const DEFAULT_RENOVATION_PER_SQM = 12500; // odrazová průměrná cena kvalitní rekonstrukce od řemeslníků
+
 export const RENOVATION_PRESETS = {
   light: { label: "Lehká", costPerSqm: 4500, months: 3, description: "Malba, podlahy, drobné opravy" },
   medium: { label: "Střední", costPerSqm: 10000, months: 5, description: "Koupelna, kuchyně, elektrika, voda" },
