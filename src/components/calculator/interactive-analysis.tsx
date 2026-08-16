@@ -182,6 +182,8 @@ function InteractiveCard({
   const [renovationPerSqm, setRenovationPerSqm] = useState(DEFAULT_RENOVATION_PER_SQM);
   const [renovationTotal, setRenovationTotal] = useState(a.scenarios?.conservative?.renovationCost || 700000);
   const [targetRoi, setTargetRoi] = useState(15);
+  /** Ručně zadaná přesná kupní cena (např. 2 500 000) — null = řešená z ROI. */
+  const [manualFlipPrice, setManualFlipPrice] = useState<number | null>(null);
 
   const [flipStrategy, setFlipStrategy] = useState<CooperationAvailability>("both");
 
@@ -244,18 +246,21 @@ function InteractiveCard({
     return calculateFlipResults(l.price, arv, currentRenovation, area, targetRoi, flipCostConfig);
   }, [l.price, arv, currentRenovation, area, targetRoi, flipCostConfig]);
 
+  /** Cenová báze výpočtu: ručně zadaná přesná cena, jinak ideální cena z ROI.
+   *  Celý rozpočet (daň, zisk, ROI, modely spolupráce) se počítá z této ceny. */
+  const flipPriceUsed = manualFlipPrice ?? flipResults.targetPurchasePrice;
+
   const targetFlipResults = useMemo(() => {
-    const targetPrice = flipResults.targetPurchasePrice;
-    if (targetPrice <= 0) return null;
-    return calculateFlipResults(targetPrice, arv, currentRenovation, area, targetRoi, flipCostConfig);
-  }, [flipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, flipCostConfig]);
+    if (flipPriceUsed <= 0) return null;
+    return calculateFlipResults(flipPriceUsed, arv, currentRenovation, area, targetRoi, flipCostConfig);
+  }, [flipPriceUsed, arv, currentRenovation, area, targetRoi, flipCostConfig]);
 
   /** Zisk celého obchodu bez sourcing fee (základ pro 50/50) — při stejném kupním scénáři. */
   const targetFlipNoFee = useMemo(() => {
     if (!targetFlipResults) return null;
     const adjusted = { ...costConfig, sourcingEnabled: true, sourcingFee: 0 };
-    return calculateFlipResults(targetFlipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, adjusted);
-  }, [targetFlipResults, arv, currentRenovation, area, targetRoi, costConfig]);
+    return calculateFlipResults(flipPriceUsed, arv, currentRenovation, area, targetRoi, adjusted);
+  }, [targetFlipResults, flipPriceUsed, arv, currentRenovation, area, targetRoi, costConfig]);
 
   /** Přesný výpočet flipu při potvrzené vyjednané ceně z pipeline (co uvidí
    *  investor v portálu Brickon) — vč. přepočtu daně z příjmu ze zisku. */
@@ -268,7 +273,7 @@ function InteractiveCard({
    *  přepočet z kalkulačky, ne lineární posun. */
   const negotiatedCoop = useMemo<CooperationView | null>(() => {
     if (negotiatedPrice == null || !targetFlipResults || !negotiatedFlipResults) return null;
-    if (Math.round(negotiatedPrice) === Math.round(targetFlipResults.targetPurchasePrice)) return null;
+    if (Math.round(negotiatedPrice) === Math.round(flipPriceUsed)) return null;
     const res = negotiatedFlipResults;
     const noFeeConfig = { ...costConfig, sourcingEnabled: true, sourcingFee: 0 };
     const noFee = calculateFlipResults(negotiatedPrice, arv, currentRenovation, area, targetRoi, noFeeConfig);
@@ -296,10 +301,10 @@ function InteractiveCard({
           ? Math.round((profitSourcing / fundingSourcing) * 1000) / 10
           : null,
     };
-  }, [negotiatedPrice, negotiatedFlipResults, targetFlipResults, arv, currentRenovation, area, targetRoi, costConfig, flipStrategy]);
+  }, [negotiatedPrice, negotiatedFlipResults, targetFlipResults, flipPriceUsed, arv, currentRenovation, area, targetRoi, costConfig, flipStrategy]);
 
   // Rozpočet zobrazujeme při ceně, kterou investor skutečně platí (vyjednaná
-  // z pipeline, když existuje); jinak při cílové ceně z kalkulačky.
+  // z pipeline, když existuje); jinak při zvolené kupní ceně (ručně nebo z ROI).
   const flipDisplay = negotiatedFlipResults ?? targetFlipResults;
 
   const [mode, setMode] = useState<"flip" | "rental">("flip");
@@ -362,9 +367,10 @@ function InteractiveCard({
         rentalRenovationLevel,
         rentalRenovationPerSqm,
         rentalRenovationTotal,
+        manualFlipPrice,
       }));
     } catch {}
-  }, [propertyId, arv, currentRenovation, targetRoi, costConfig, flipStrategy, mode, rentalConfig, renovationMode, renovationLevel, renovationPerSqm, renovationItems, rentalRenovationMode, rentalRenovationLevel, rentalRenovationPerSqm, rentalRenovationTotal]);
+  }, [propertyId, arv, currentRenovation, targetRoi, costConfig, flipStrategy, mode, rentalConfig, renovationMode, renovationLevel, renovationPerSqm, renovationItems, rentalRenovationMode, rentalRenovationLevel, rentalRenovationPerSqm, rentalRenovationTotal, manualFlipPrice]);
 
   useEffect(() => {
     if (!propertyId) return;
@@ -404,6 +410,7 @@ function InteractiveCard({
           if (cfg.rentalRenovationLevel) setRentalRenovationLevel(cfg.rentalRenovationLevel);
           if (cfg.rentalRenovationPerSqm) setRentalRenovationPerSqm(cfg.rentalRenovationPerSqm);
           if (cfg.rentalRenovationTotal != null) setRentalRenovationTotal(cfg.rentalRenovationTotal);
+          if (typeof cfg.manualFlipPrice === "number") setManualFlipPrice(cfg.manualFlipPrice > 0 ? cfg.manualFlipPrice : null);
         }
         localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(data.preset));
       }
@@ -417,10 +424,11 @@ function InteractiveCard({
       arv, renovationCost: currentRenovation, targetRoi, costConfig, flipStrategy, mode, rental: rentalConfig,
       renovationMode, renovationLevel, renovationPerSqm, renovationItems,
       rentalRenovationMode, rentalRenovationLevel, rentalRenovationPerSqm, rentalRenovationTotal,
+      manualFlipPrice,
       purchasePriceUsed:
         mode === "rental"
           ? (targetRentalResults?.targetPurchasePrice ?? rentalResults.targetPurchasePrice)
-          : (targetFlipResults?.targetPurchasePrice ?? flipResults.targetPurchasePrice),
+          : flipPriceUsed,
     };
     try {
       localStorage.setItem(`report-config-${propertyId}`, JSON.stringify(preset));
@@ -449,7 +457,7 @@ function InteractiveCard({
           flipAnnualizedRoi: mode === "flip" ? targetFlip.annualizedRoi : null,
           flipCashOnCash: mode === "flip" ? targetFlip.cashOnCash : null,
           flipTotalCost: mode === "flip" ? targetFlip.costs.totalCost : null,
-          flipTargetPurchasePrice: mode === "flip" ? targetFlip.targetPurchasePrice : null,
+          flipTargetPurchasePrice: mode === "flip" ? flipPriceUsed : null,
           flipLegalFees: mode === "flip" ? targetFlip.costs.legalFees : null,
           flipAppraisalFee: mode === "flip" ? targetFlip.costs.appraisalFee : null,
           flipContingency: mode === "flip" ? targetFlip.costs.contingency : null,
@@ -482,6 +490,7 @@ function InteractiveCard({
     setRenovationPerSqm(DEFAULT_RENOVATION_PER_SQM);
     setRenovationTotal(a.scenarios?.conservative?.renovationCost || 700000);
     setTargetRoi(15);
+    setManualFlipPrice(null);
     setMode("flip");
     setRentalConfig({ ...RENTAL_DEFAULTS, monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null) });
     setRentalRenovationMode("perSqm");
@@ -859,19 +868,32 @@ function InteractiveCard({
               </div>
             </div>
 
-            {/* Target ROI */}
+            {/* Target ROI — při ručně zadané ceně ukazuje dosažené ROI; pohyb se vrátí k plánování z ROI */}
             <div className="flex items-center gap-3">
-              <label className="text-xs text-muted shrink-0">Cílové ROI:</label>
+              <label className="text-xs text-muted shrink-0">
+                {manualFlipPrice != null ? "ROI při ceně:" : "Cílové ROI:"}
+              </label>
               <input
                 type="range"
                 min={5}
                 max={100}
                 step={0.1}
-                value={targetRoi}
-                onChange={(e) => setTargetRoi(parseFloat(e.target.value))}
+                value={manualFlipPrice != null && flipDisplay ? flipDisplay.roi : targetRoi}
+                onChange={(e) => {
+                  setManualFlipPrice(null);
+                  setTargetRoi(parseFloat(e.target.value));
+                }}
                 className="flex-1 accent-accent h-1.5"
               />
-              <PctStepper value={targetRoi} onChange={setTargetRoi} min={5} max={100} />
+              <PctStepper
+                value={manualFlipPrice != null && flipDisplay ? flipDisplay.roi : targetRoi}
+                onChange={(v) => {
+                  setManualFlipPrice(null);
+                  setTargetRoi(v);
+                }}
+                min={5}
+                max={100}
+              />
               <span className="text-sm font-mono text-foreground shrink-0">%</span>
             </div>
 
@@ -990,14 +1012,29 @@ function InteractiveCard({
               )}
             </div>
 
-            {/* Target Price Highlight */}
+            {/* Target Price Highlight — editovatelná přesná kupní cena */}
             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">
-              <p className="text-xs text-emerald-400 mb-1">🎯 IDEÁLNÍ KUPNÍ CENA</p>
-              <p className="text-2xl font-bold text-emerald-400 font-mono">{formatPrice(flipResults.targetPurchasePrice)}</p>
-              <p className="text-[10px] text-emerald-400/60 mt-0.5">{formatPrice(area > 0 ? Math.round(flipResults.targetPurchasePrice / area) : 0)} Kč/m²</p>
+              <p className="text-xs text-emerald-400 mb-1">
+                {manualFlipPrice != null ? "✏️ ZVOLENÁ KUPNÍ CENA (ručně)" : "🎯 IDEÁLNÍ KUPNÍ CENA"}
+              </p>
+              <input
+                type="text"
+                value={formatPrice(flipPriceUsed) || "0"}
+                onChange={(e) => {
+                  const num = parseInt(e.target.value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
+                  setManualFlipPrice(num > 0 ? num : null);
+                }}
+                className="w-full bg-transparent text-center text-2xl font-bold text-emerald-400 font-mono outline-none focus:ring-0"
+              />
+              <p className="text-[10px] text-emerald-400/60 mt-0.5">{formatPrice(area > 0 ? Math.round(flipPriceUsed / area) : 0)} Kč/m²</p>
+              {manualFlipPrice != null && flipDisplay && (
+                <p className="text-[10px] text-emerald-400 mt-0.5">ROI při této ceně: {flipDisplay.roi.toFixed(1)} %</p>
+              )}
               <div className="flex items-center justify-center gap-3 mt-2 text-xs">
                 <span className="text-muted">Aktuální: {formatPrice(l.price)}</span>
-                <span className="text-red-400">↓ {formatPrice(flipResults.priceReductionNeeded)} ({flipResults.priceReductionPct}%)</span>
+                <span className="text-red-400">
+                  ↓ {formatPrice(Math.max(0, l.price - flipPriceUsed))} ({l.price > 0 ? Math.round(((l.price - flipPriceUsed) / l.price) * 100 * 10) / 10 : 0}%)
+                </span>
               </div>
             </div>
 
@@ -1007,13 +1044,15 @@ function InteractiveCard({
                 <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">
                   {negotiatedFlipResults
                     ? `Výpočet při kupní ceně ${formatPrice(negotiatedPrice!)}`
-                    : `Výpočet při cílové ceně ${formatPrice(flipResults.targetPurchasePrice)}`}
+                    : manualFlipPrice != null
+                      ? `Výpočet při kupní ceně ${formatPrice(flipPriceUsed)}`
+                      : `Výpočet při cílové ceně ${formatPrice(flipResults.targetPurchasePrice)}`}
                 </div>
                 <table className="w-full text-xs">
                   <tbody>
                     {
                       [
-                        { label: "Kupní cena", value: negotiatedFlipResults ? negotiatedPrice! : flipResults.targetPurchasePrice },
+                        { label: "Kupní cena", value: negotiatedFlipResults ? negotiatedPrice! : flipPriceUsed },
                         { label: "Právní služby", value: flipDisplay.costs.legalFees },
                         ...(costConfig.appraisal ? [{ label: "Znalecký posudek", value: flipDisplay.costs.appraisalFee }] : []),
                         { label: "Rekonstrukce", value: currentRenovation },

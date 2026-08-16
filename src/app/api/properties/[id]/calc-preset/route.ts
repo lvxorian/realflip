@@ -77,7 +77,7 @@ export async function POST(
           renovationCost: body.renovationCost ?? null,
           targetRoi: body.targetRoi ?? 15,
           mode: body.mode === "rental" ? "rental" : "flip",
-          config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
+          config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null, manualFlipPrice: typeof body.manualFlipPrice === "number" ? body.manualFlipPrice : null }),
           updatedAt: now,
         })
         .where(eq(calculatorPresets.id, existing.id));
@@ -90,7 +90,7 @@ export async function POST(
         renovationCost: body.renovationCost ?? null,
         targetRoi: body.targetRoi ?? 15,
         mode: body.mode === "rental" ? "rental" : "flip",
-        config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null }),
+        config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null, manualFlipPrice: typeof body.manualFlipPrice === "number" ? body.manualFlipPrice : null }),
         createdAt: now,
         updatedAt: now,
       });
