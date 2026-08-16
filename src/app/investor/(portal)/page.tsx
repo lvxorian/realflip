@@ -18,6 +18,8 @@ import {
   ArrowCounterClockwise,
   WarningCircle,
   EnvelopeSimple,
+  CaretLeft,
+  CaretRight,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { COOPERATION_STRATEGIES, type CooperationStrategy } from "@/lib/cooperation-models";
@@ -494,8 +496,8 @@ export default function InvestorPortalPage() {
   );
 }
 
-/** Galerie fotek nemovitosti: hlavní fotka v pevném poměru 8:5 + miniatury
- *  pevné velikosti pod ní. Kliknutí na miniaturu přepne hlavní fotku. */
+/** Galerie fotek nemovitosti: hlavní fotka v pevném poměru 8:5 + šipky
+ *  pro listování (stejný vzor jako karty nemovitostí v RealFlipu). */
 function PhotoGallery({
   photos,
   alt,
@@ -508,36 +510,39 @@ function PhotoGallery({
   const [index, setIndex] = useState(0);
   const safeIndex = photos.length > 0 ? Math.min(index, photos.length - 1) : 0;
   const current = photos.length > 0 ? photos[safeIndex] : null;
-  const showStrip = photos.length > 1;
+  const canCycle = photos.length > 1;
+  const cyclePhoto = (dir: 1 | -1) => {
+    if (photos.length < 2) return;
+    setIndex((i) => (i + dir + photos.length) % photos.length);
+  };
 
   return (
-    <div className="space-y-2">
-      <div className="relative aspect-[8/5] w-full">
-        <PropertyImage src={current} alt={alt} containerClassName="h-full w-full" />
-        {showStrip && (
+    <div className="relative aspect-[8/5] w-full">
+      <PropertyImage key={current ?? "no-photo"} src={current} alt={alt} containerClassName="h-full w-full" />
+      {canCycle && (
+        <>
+          <button
+            type="button"
+            onClick={() => cyclePhoto(-1)}
+            aria-label="Předchozí foto"
+            className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/70 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent z-10"
+          >
+            <CaretLeft size={14} weight="bold" />
+          </button>
+          <button
+            type="button"
+            onClick={() => cyclePhoto(1)}
+            aria-label="Další foto"
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/70 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent z-10"
+          >
+            <CaretRight size={14} weight="bold" />
+          </button>
           <div className="absolute bottom-2 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
             {safeIndex + 1} / {photos.length}
           </div>
-        )}
-        {children}
-      </div>
-      {showStrip && (
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {photos.map((p, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setIndex(i)}
-              aria-label={`Foto ${i + 1}`}
-              className={`shrink-0 rounded-lg overflow-hidden transition-all ${
-                i === safeIndex ? "ring-2 ring-accent" : "ring-1 ring-border/40 hover:ring-accent/50"
-              }`}
-            >
-              <PropertyImage src={p} alt={`${alt} — foto ${i + 1}`} containerClassName="h-14 w-14" />
-            </button>
-          ))}
-        </div>
+        </>
       )}
+      {children}
     </div>
   );
 }
