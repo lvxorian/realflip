@@ -516,11 +516,12 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
               type="range"
               min={5}
               max={100}
+              step={0.1}
               value={form.targetRoi}
-              onChange={(e) => update("targetRoi", parseInt(e.target.value))}
+              onChange={(e) => update("targetRoi", parseFloat(e.target.value))}
               className="flex-1 accent-accent h-1.5"
             />
-            <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{form.targetRoi}%</span>
+            <span className="text-sm font-mono text-foreground min-w-[5ch] text-right">{form.targetRoi % 1 === 0 ? form.targetRoi : form.targetRoi.toFixed(1)}%</span>
           </div>
 
           <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">
@@ -660,7 +661,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
                     <p className="font-mono font-semibold text-accent mt-0.5">{formatPrice(results.tbp)}</p>
                   </div>
                   <div className="rounded-lg bg-card-hover border border-border/50 p-2 text-center">
-                    <p className="text-muted">Strop (cílové ROI {form.targetRoi} %)</p>
+                    <p className="text-muted">Strop (cílové ROI {form.targetRoi % 1 === 0 ? form.targetRoi : form.targetRoi.toFixed(1)} %)</p>
                     <p className="font-mono font-semibold text-foreground mt-0.5">{formatPrice(results.ceilingPrice)}</p>
                   </div>
                   <div className="rounded-lg bg-card-hover border border-border/50 p-2 text-center">

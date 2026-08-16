@@ -309,7 +309,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Input label="Cílové ROI (%)" type="number" value={prefs.minRoi.toString()} onChange={(e) => setPref("minRoi", parseInt(e.target.value) || 0)} />
+                      <Input label="Cílové ROI (%)" type="number" step={0.1} value={prefs.minRoi.toString()} onChange={(e) => setPref("minRoi", parseFloat(e.target.value) || 0)} />
                       <Input label="Provize makléře (%)" type="number" value={prefs.agentCommission.toString()} onChange={(e) => setPref("agentCommission", parseInt(e.target.value) || 0)} helper="Použito jako provize při prodeji" />
                       <Input label="Právní služby (Kč)" type="number" value={prefs.legalFees.toString()} onChange={(e) => setPref("legalFees", parseInt(e.target.value) || 0)} />
                       <Input label="Rezerva (%)" type="number" value={prefs.contingencyBuffer.toString()} onChange={(e) => setPref("contingencyBuffer", parseInt(e.target.value) || 0)} />

@@ -846,11 +846,12 @@ function InteractiveCard({
                 type="range"
                 min={5}
                 max={100}
+                step={0.1}
                 value={targetRoi}
-                onChange={(e) => setTargetRoi(parseInt(e.target.value))}
+                onChange={(e) => setTargetRoi(parseFloat(e.target.value))}
                 className="flex-1 accent-accent h-1.5"
               />
-              <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{targetRoi}%</span>
+              <span className="text-sm font-mono text-foreground min-w-[5ch] text-right">{targetRoi % 1 === 0 ? targetRoi : targetRoi.toFixed(1)}%</span>
             </div>
 
             {/* Způsob spolupráce */}
@@ -1139,12 +1140,12 @@ function InteractiveCard({
                     type="range"
                     min={3}
                     max={8}
-                    step={0.5}
+                    step={0.1}
                     value={rentalConfig.targetYield}
                     onChange={(e) => updateRental("targetYield", parseFloat(e.target.value))}
                     className="flex-1 accent-accent h-1.5"
                   />
-                  <span className="text-sm font-mono text-foreground min-w-[3ch] text-right">{rentalConfig.targetYield}%</span>
+                  <span className="text-sm font-mono text-foreground min-w-[5ch] text-right">{rentalConfig.targetYield % 1 === 0 ? rentalConfig.targetYield : rentalConfig.targetYield.toFixed(1)}%</span>
                 </div>
 
                 {/* Renovation (dedicated rental input) */}
