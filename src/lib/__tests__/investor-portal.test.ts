@@ -262,10 +262,10 @@ describe("toPortalView", () => {
 
   it("maps building type label for all values", () => {
     const ctx = { budget: null, unlimited: true };
-    expect(toPortalView(row({ buildingType: "brick" }), "inv", ctx).buildingType).toBe("Cihlový");
-    expect(toPortalView(row({ buildingType: "panel" }), "inv", ctx).buildingType).toBe("Panelový");
+    expect(toPortalView(row({ buildingType: "brick" }), "inv", ctx).buildingType).toBe("Cihla");
+    expect(toPortalView(row({ buildingType: "panel" }), "inv", ctx).buildingType).toBe("Panel");
     expect(toPortalView(row({ buildingType: "new" }), "inv", ctx).buildingType).toBe("Novostavba");
-    expect(toPortalView(row({ buildingType: "mixed" }), "inv", ctx).buildingType).toBe("Smíšený");
+    expect(toPortalView(row({ buildingType: "mixed" }), "inv", ctx).buildingType).toBe("Smíšená");
     expect(toPortalView(row({ buildingType: null }), "inv", ctx).buildingType).toBe("—");
   });
 

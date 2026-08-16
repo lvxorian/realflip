@@ -83,6 +83,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid condition" }, { status: 400 });
     }
 
+    const BUILDING_TYPE_VALUES = ["brick", "panel", "new", "mixed"];
+    if (body.buildingType !== undefined && !BUILDING_TYPE_VALUES.includes(body.buildingType)) {
+      return NextResponse.json({ error: "Invalid building type" }, { status: 400 });
+    }
+
     const property = await db
       .select()
       .from(properties)
@@ -104,6 +109,7 @@ export async function PATCH(
     const now = ts();
     const newArea = body.area ?? property.area;
     const newCondition = body.condition ?? property.condition;
+    const newBuildingType = body.buildingType ?? property.buildingType;
     const areaLocked = body.area !== undefined ? 1 : 0;
     const pricePerSqm =
       newArea != null && newArea > 0 && property.price > 0
@@ -116,6 +122,7 @@ export async function PATCH(
         area: newArea,
         areaLocked,
         condition: newCondition,
+        buildingType: newBuildingType,
         pricePerSqm,
       })
       .where(eq(properties.id, id));
@@ -137,7 +144,7 @@ export async function PATCH(
       rooms: property.rooms ?? null,
       floor: property.floor ?? null,
       condition: newCondition,
-      buildingType: property.buildingType ?? null,
+      buildingType: newBuildingType ?? null,
       yearBuilt: property.yearBuilt ?? null,
       address: property.address ?? null,
       lat: property.lat ?? null,
@@ -173,16 +180,16 @@ export async function PATCH(
     let marketSource: string | null = analysis?.marketSource ?? null;
     let marketSampleSize: number | null = analysis?.marketSampleSize ?? null;
 
-    // Žhavý přepočet: změna stavu mění tržní segment (a tím i ARV), proto načteme
-    // čerstvá tržní data pro nový stav. Při neznámé lokalitě nebo selhání se
+    // Žhavý přepočet: změna stavu/konstrukce mění tržní segment (a tím i ARV),
+    // proto načteme čerstvá tržní data. Při neznámé lokalitě nebo selhání se
     // spoléháme na uložené hodnoty (offline re-analysis).
-    if (body.condition !== undefined && analysis?.locationCity && analysis.locationCity !== "Neznámá") {
+    if ((body.condition !== undefined || body.buildingType !== undefined) && analysis?.locationCity && analysis.locationCity !== "Neznámá") {
       const live = await getAnalysisRanges({
         cityKey: analysis.locationCity,
         lat: property.lat ?? null,
         lng: property.lng ?? null,
         condition: newCondition,
-        buildingType: property.buildingType ?? null,
+        buildingType: newBuildingType ?? null,
         area: newArea ?? null,
         category: analysis.locationCategory ?? "stable",
       }).catch(() => null);

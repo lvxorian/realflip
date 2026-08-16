@@ -139,10 +139,10 @@ export function conditionLabel(condition: string | null): string {
 }
 
 const BUILDING_TYPE_LABELS: Record<string, string> = {
-  brick: "Cihlový",
-  panel: "Panelový",
+  brick: "Cihla",
+  panel: "Panel",
   new: "Novostavba",
-  mixed: "Smíšený",
+  mixed: "Smíšená",
 };
 
 export function buildingTypeLabel(type: string | null): string {

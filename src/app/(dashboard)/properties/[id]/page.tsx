@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis, favorites, leads } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
-import { safeJsonParse, formatPhone, formatPrice, buildingTypeLabel } from "@/lib/utils";
+import { safeJsonParse, formatPhone, formatPrice } from "@/lib/utils";
 import { parseAltPortals } from "@/lib/scraping/property-match";
 import { parseStageData, negotiationAmountOf } from "@/lib/investor-portal-view";
 import { LEAD_STAGES } from "@/lib/leads";
@@ -16,6 +16,7 @@ import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import { InitiateButton } from "@/components/properties/initiate-button";
 import { EditableArea } from "@/components/properties/editable-area";
+import { EditableBuildingType } from "@/components/properties/editable-building-type";
 import { EditableCondition } from "@/components/properties/editable-condition";
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
 import { LocalityProfile } from "@/components/properties/locality-profile";
@@ -313,7 +314,6 @@ export default async function PropertyDetailPage({
                   { label: "dispozice", value: property.rooms ?? "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
                   { label: "rok", value: property.yearBuilt ?? "—" },
-                  { label: "konstrukce", value: property.buildingType ? buildingTypeLabel(property.buildingType) : "—" },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -323,6 +323,10 @@ export default async function PropertyDetailPage({
                     <p className="font-semibold text-foreground font-mono mt-0.5">{s.value}</p>
                   </div>
                 ))}
+                <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
+                  <span className="text-muted">konstrukce</span>
+                  <EditableBuildingType propertyId={id} buildingType={property.buildingType} />
+                </div>
                 <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
                   <span className="text-muted">stav</span>
                   <EditableCondition propertyId={id} condition={property.condition} />

@@ -275,10 +275,10 @@ describe("conditionLabel", () => {
 
 describe("buildingTypeLabel", () => {
   it("maps known types", () => {
-    expect(buildingTypeLabel("brick")).toBe("Cihlový");
-    expect(buildingTypeLabel("panel")).toBe("Panelový");
+    expect(buildingTypeLabel("brick")).toBe("Cihla");
+    expect(buildingTypeLabel("panel")).toBe("Panel");
     expect(buildingTypeLabel("new")).toBe("Novostavba");
-    expect(buildingTypeLabel("mixed")).toBe("Smíšený");
+    expect(buildingTypeLabel("mixed")).toBe("Smíšená");
   });
 
   it("returns em dash for null", () => {

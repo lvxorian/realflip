@@ -7,7 +7,7 @@ const offer = (over: Partial<InvestorPortalItem> = {}): InvestorPortalItem => ({
   district: "Žižkov",
   city: "Praha 3",
   condition: "velmi dobrý",
-  buildingType: "Cihlový",
+  buildingType: "Cihla",
   area: 89,
   rooms: "2+1",
   floor: 3,
@@ -38,7 +38,7 @@ describe("buildOfferEmailHtml", () => {
   it("renders all key offer fields", () => {
     const html = buildOfferEmailHtml(offer(), "https://realflip.app");
     expect(html).toContain("Praha 3 · Žižkov");
-    expect(html).toContain("Stav: velmi dobrý · 2+1 · 89 m² · Cihlový · 3. podlaží");
+    expect(html).toContain("Stav: velmi dobrý · 2+1 · 89 m² · Cihla · 3. podlaží");
     expect(html).toContain("11.5 mil. Kč");
     expect(html).toContain("−16.0 %");
     expect(html).toContain("https://realflip.app/investor");
