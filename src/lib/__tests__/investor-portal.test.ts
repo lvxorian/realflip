@@ -25,6 +25,7 @@ const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   rooms: "3+1",
   floor: 2,
   originalPrice: 4_990_000,
+  imageUrls: null,
   stageData: null,
   arv: 5_200_000,
   renovationCost: 700_000,
@@ -96,6 +97,10 @@ describe("shiftFlipAtPrice", () => {
     investorProfitFiftyFifty: 450_000,
     investorProfitSourcing: 800_000,
     sourcingFee: 100_000,
+    fundingFiftyFifty: 6_000_000,
+    fundingSourcing: 6_100_000,
+    investorRoiFiftyFifty: 7.5,
+    investorRoiSourcing: 13.1,
   };
 
   it("shifts cooperation profits up when negotiated below snapshot basis", () => {
@@ -104,6 +109,10 @@ describe("shiftFlipAtPrice", () => {
     expect(shifted.investorProfitFiftyFifty).toBe(477_500);
     expect(shifted.investorProfitSourcing).toBe(855_000);
     expect(shifted.sourcingFee).toBe(100_000);
+    expect(shifted.fundingFiftyFifty).toBe(5_945_000);
+    expect(shifted.fundingSourcing).toBe(6_045_000);
+    expect(shifted.investorRoiFiftyFifty).toBe(8.0);
+    expect(shifted.investorRoiSourcing).toBe(14.1);
     expect(shifted.availableStrategies).toEqual(["fifty-fifty", "sourcing-fee"]);
   });
 
@@ -112,6 +121,10 @@ describe("shiftFlipAtPrice", () => {
     expect(shifted.netProfitTotal).toBe(855_000);
     expect(shifted.investorProfitFiftyFifty).toBe(427_500);
     expect(shifted.investorProfitSourcing).toBe(755_000);
+    expect(shifted.fundingFiftyFifty).toBe(6_045_000);
+    expect(shifted.fundingSourcing).toBe(6_145_000);
+    expect(shifted.investorRoiFiftyFifty).toBe(7.1);
+    expect(shifted.investorRoiSourcing).toBe(12.3);
   });
 
   it("keeps verbatim when prices match or basis missing", () => {
@@ -162,6 +175,22 @@ describe("toPortalView", () => {
     expect(view.city).toBe("Praha");
     expect(view.condition).toBe("Před rekonstrukcí");
     expect(view.offerPrice).toBe(4_990_000);
+    expect(view.photos).toEqual([]);
+  });
+
+  it("parses imageUrls JSON into photos", () => {
+    const view = toPortalView(
+      row({ imageUrls: '["https://cdn.example.com/a.jpg","https://cdn.example.com/b.jpg"]' }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.photos).toEqual(["https://cdn.example.com/a.jpg", "https://cdn.example.com/b.jpg"]);
+  });
+
+  it("photos are empty when imageUrls malformed or missing", () => {
+    const ctx = { budget: null, unlimited: true };
+    expect(toPortalView(row({ imageUrls: "{broken" }), "inv", ctx).photos).toEqual([]);
+    expect(toPortalView(row({ imageUrls: null }), "inv", ctx).photos).toEqual([]);
   });
 
   it("uses negotiated amount as offer price instead of target", () => {
@@ -336,6 +365,7 @@ describe("toPortalView", () => {
           mode: "flip",
           netProfit: 850_000,
           sourcingFee: 100_000,
+          totalCost: 6_000_000,
           cooperation: {
             availability: "both",
             netProfitTotal: 950_000,
@@ -353,6 +383,10 @@ describe("toPortalView", () => {
     expect(view.cooperation?.investorProfitFiftyFifty).toBe(475_000);
     expect(view.cooperation?.investorProfitSourcing).toBe(850_000);
     expect(view.cooperation?.sourcingFee).toBe(100_000);
+    expect(view.cooperation?.fundingFiftyFifty).toBe(5_900_000);
+    expect(view.cooperation?.fundingSourcing).toBe(6_000_000);
+    expect(view.cooperation?.investorRoiFiftyFifty).toBe(8.1);
+    expect(view.cooperation?.investorRoiSourcing).toBe(14.2);
   });
 
   it("cooperation respects strategy locked to a single mode", () => {
@@ -382,11 +416,16 @@ describe("toPortalView", () => {
       mode: "flip",
       netProfit: 800_000,
       sourcingFee: 100_000,
+      totalCost: 6_000_000,
     } as CalcSnapshotFlip);
     expect(coop?.availableStrategies).toEqual(["fifty-fifty", "sourcing-fee"]);
     expect(coop?.netProfitTotal).toBe(900_000);
     expect(coop?.investorProfitFiftyFifty).toBe(450_000);
     expect(coop?.investorProfitSourcing).toBe(800_000);
+    expect(coop?.fundingFiftyFifty).toBe(5_900_000);
+    expect(coop?.fundingSourcing).toBe(6_000_000);
+    expect(coop?.investorRoiFiftyFifty).toBe(7.6);
+    expect(coop?.investorRoiSourcing).toBe(13.3);
   });
 
   it("legacy snapshot without fee derives gross profit and no fee", () => {
@@ -398,6 +437,10 @@ describe("toPortalView", () => {
     expect(coop?.investorProfitFiftyFifty).toBe(250_000);
     expect(coop?.investorProfitSourcing).toBe(500_000);
     expect(coop?.sourcingFee).toBeNull();
+    expect(coop?.fundingFiftyFifty).toBeNull();
+    expect(coop?.fundingSourcing).toBeNull();
+    expect(coop?.investorRoiFiftyFifty).toBeNull();
+    expect(coop?.investorRoiSourcing).toBeNull();
   });
 
   it("computes cooperation and deal profit from the negotiated pipeline price", () => {
@@ -430,6 +473,10 @@ describe("toPortalView", () => {
     expect(view.cooperation?.netProfitTotal).toBe(955_000);
     expect(view.cooperation?.investorProfitFiftyFifty).toBe(477_500);
     expect(view.cooperation?.investorProfitSourcing).toBe(855_000);
+    expect(view.cooperation?.fundingFiftyFifty).toBe(5_845_000);
+    expect(view.cooperation?.fundingSourcing).toBe(5_945_000);
+    expect(view.cooperation?.investorRoiFiftyFifty).toBe(8.2);
+    expect(view.cooperation?.investorRoiSourcing).toBe(14.4);
     expect(view.deal.type === "flip" && view.deal.netProfit).toBe(855_000);
     expect(view.deal.type === "flip" && view.deal.roi).toBe(14.4);
   });

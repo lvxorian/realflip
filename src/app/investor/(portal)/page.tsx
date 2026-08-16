@@ -1,16 +1,16 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCompactPrice, formatPercent } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { EmailModal } from "@/components/investor/email-modal";
 import { BrickonLogo } from "@/components/investor/brickon-logo";
+import { PropertyImage } from "@/components/ui/property-image";
 import {
   SignOut,
-  MapPin,
   CheckCircle,
   CircleNotch,
   HandCoins,
@@ -30,10 +30,6 @@ interface PortalData {
   investorBudgetUnlimited: number;
   investorEmail: string | null;
   notice?: { message: string } | null;
-}
-
-function fmtPrice(v: number | null): string {
-  return v !== null ? formatCompactPrice(v) : "—";
 }
 
 function ModeBadge({ item }: { item: InvestorPortalItem }) {
@@ -210,7 +206,7 @@ export default function InvestorPortalPage() {
                 <p className="text-[11px] text-muted truncate">
                   {data?.investorName ?? "Přihlášený investor"}
                   {data && !data.investorBudgetUnlimited && data.investorBudget
-                    ? ` · budget ${formatCompactPrice(data.investorBudget)}`
+                    ? ` · budget ${formatPrice(data.investorBudget)}`
                     : ""}
                 </p>
                 {data && data.investorEmail == null && (
@@ -296,213 +292,178 @@ export default function InvestorPortalPage() {
                 </div>
               ) : (
                 <>
-                  {/* Desktop table */}
-                  <div className="hidden lg:block rounded-2xl border border-border/50 bg-card overflow-hidden">
-                    <table className="w-full text-[13px] leading-tight">
-                      <thead>
-                        <tr className="border-b border-border/30 bg-card-elevated/40">
-                          <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Nabídka</th>
-                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Inzerovaná cena</th>
-                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Cena po vyjednání</th>
-                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">{data && data.items.some((i) => i.calcMode === "rental") ? "Zisk / Čistý výnos" : "Odhadovaný zisk"}</th>
-                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">ROI / Výnos</th>
-                          <th className="text-right px-3 py-3 text-[10px] uppercase tracking-wider text-muted font-medium whitespace-nowrap">Status</th>
-                          <th className="text-right p-3"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/20">
-                        {data.items.map((item, i) => (
-                          <Fragment key={item.id}>
-                            <motion.tr
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.03, duration: 0.25 }}
-                            className="hover:bg-card-hover transition-colors"
-                          >
-                            <td className="p-3 pr-4 min-w-[280px]">
-                              <button
-                                type="button"
-                                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                                className="text-left w-full group"
-                              >
-                                <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted">
-                                  <MapPin size={10} weight="bold" className="shrink-0 text-muted/70" />
-                                  <span className="font-semibold capitalize min-w-0 truncate group-hover:text-accent transition-colors">
-                                    {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
-                                  </span>
-                                  <ModeBadge item={item} />
-                                  <PropertyMeta item={item} />
-                                </div>
-                              </button>
-                            </td>
-                            <td className="p-3 text-right font-mono text-muted tabular-nums whitespace-nowrap">
-                              {fmtPrice(item.originalPrice)}
-                            </td>
-                            <td className="p-3 text-right whitespace-nowrap">
-                              <span className="font-mono font-semibold tabular-nums">{fmtPrice(item.offerPrice)}</span>
+                  {/* Karty nabídek — desktop i mobil */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {data.items.map((item, i) => {
+                      const expanded = expandedId === item.id;
+                      const strategy = strategyFor(item, selectedStrategy);
+                      const flipProfit = displayFlipProfit(item, selectedStrategy);
+                      const coop = item.cooperation;
+                      const isMine = item.status === "reserved" && item.reservedByMe;
+                      const investorRoi =
+                        coop && strategy === "fifty-fifty"
+                          ? coop.investorRoiFiftyFifty
+                          : coop && strategy === "sourcing-fee"
+                            ? coop.investorRoiSourcing
+                            : null;
+                      const profitLabel =
+                        strategy === "fifty-fifty"
+                          ? "Váš zisk · 50/50"
+                          : strategy === "sourcing-fee"
+                            ? "Váš zisk · sourcing fee"
+                            : "Odhadovaný zisk";
+                      return (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.03, duration: 0.25 }}
+                          className={cn(
+                            "rounded-2xl border bg-card overflow-hidden transition-colors",
+                            isMine ? "border-accent/60" : "border-border/50"
+                          )}
+                        >
+                          {/* Foto */}
+                          <div className="relative aspect-[8/5] w-full">
+                            <PropertyImage
+                              src={item.photos[0] ?? null}
+                              alt={[item.city, item.district].filter(Boolean).join(" · ") || "Nemovitost"}
+                              containerClassName="h-full w-full"
+                            />
+                            <div className="absolute top-2 left-2">
+                              <ModeBadge item={item} />
+                            </div>
+                            <div className="absolute top-2 right-2">
+                              <StatusPill item={item} />
+                            </div>
+                          </div>
+
+                          <div className="p-4 space-y-3">
+                            {/* Lokalita + parametry */}
+                            <div>
+                              <p className="font-semibold leading-tight min-w-0 truncate">
+                                {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
+                              </p>
+                              <p className="text-xs text-muted mt-1 flex items-center gap-1.5 flex-wrap">
+                                <PropertyMeta item={item} />
+                              </p>
+                            </div>
+
+                            {/* Ceny */}
+                            <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-1.5">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="text-[11px] text-muted">Inzerovaná cena</span>
+                                <span className="text-xs font-mono text-muted tabular-nums line-through whitespace-nowrap">
+                                  {item.originalPrice != null ? formatPrice(item.originalPrice) : "—"}
+                                </span>
+                              </div>
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="text-[11px] text-muted">Cena po vyjednání</span>
+                                <span className="text-lg font-semibold font-mono text-amber-400 tabular-nums whitespace-nowrap">
+                                  {item.offerPrice != null ? formatPrice(item.offerPrice) : "—"}
+                                </span>
+                              </div>
                               {item.savingsPct !== null && item.savingsPct > 0 && (
-                                <span className="text-emerald-400 text-[11px] font-mono tabular-nums ml-1">−{item.savingsPct.toFixed(1)} %</span>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[11px] text-muted">Úspora oproti inzerci</span>
+                                  <span className="text-xs font-mono text-emerald-400 tabular-nums font-semibold">
+                                    −{item.savingsPct.toFixed(1)} %
+                                  </span>
+                                </div>
                               )}
                               {item.overBudget && (
-                                <Badge variant="warning" size="sm" className="ml-1.5 gap-1">
+                                <Badge variant="warning" size="sm" className="gap-1">
                                   <WarningCircle size={10} weight="bold" />
                                   nad budget
                                 </Badge>
                               )}
-                            </td>
-                            <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
+                            </div>
+
+                            {/* Klíčové metriky */}
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
                               {item.calcMode === "rental" ? (
-                                item.deal.type === "rental" && item.deal.netYield != null ? (
-                                  <span className="text-emerald-400">{item.deal.netYield.toFixed(1)} %</span>
-                                ) : (
-                                  "—"
-                                )
+                                <>
+                                  <Metric
+                                    label="Čistý výnos (p.a.)"
+                                    value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
+                                    accent={item.deal.type === "rental" && item.deal.netYield != null}
+                                  />
+                                  <Metric
+                                    label="Cash-flow / měsíc"
+                                    value={item.deal.type === "rental" && item.deal.cashFlowMonthly != null ? formatPrice(item.deal.cashFlowMonthly) : "—"}
+                                    accent={item.deal.type === "rental" && item.deal.cashFlowMonthly != null && item.deal.cashFlowMonthly >= 0}
+                                  />
+                                  <Metric
+                                    label="Měsíční nájem"
+                                    value={item.snapshot?.mode === "rental" && item.snapshot.monthlyRent != null ? formatPrice(item.snapshot.monthlyRent) : "—"}
+                                  />
+                                  <Metric
+                                    label="Investice celkem"
+                                    value={item.snapshot?.mode === "rental" && item.snapshot.totalInvested != null ? formatPrice(item.snapshot.totalInvested) : "—"}
+                                  />
+                                </>
                               ) : (
-                                (() => {
-                                  const profit = displayFlipProfit(item, selectedStrategy);
-                                  return profit !== null ? (
-                                    <span className={profit >= 0 ? "text-emerald-400" : "text-red-400"}>
-                                      {formatCompactPrice(profit)}
-                                    </span>
-                                  ) : "—";
-                                })()
+                                <>
+                                  <Metric
+                                    label={profitLabel}
+                                    value={flipProfit !== null ? formatPrice(flipProfit) : "—"}
+                                    accent={flipProfit !== null && flipProfit >= 0}
+                                  />
+                                  {coop && (
+                                    <Metric
+                                      label="ROI vaší investice"
+                                      value={investorRoi != null ? `${investorRoi.toFixed(1)} %` : "—"}
+                                      accent={investorRoi != null && investorRoi >= 0}
+                                    />
+                                  )}
+                                  <Metric
+                                    label="ROI projektu"
+                                    value={item.deal.type === "flip" && item.deal.roi != null ? `${item.deal.roi.toFixed(1)} %` : "—"}
+                                    accent={item.deal.type === "flip" && item.deal.roi != null && item.deal.roi >= 0}
+                                  />
+                                  <Metric
+                                    label="ARV po rekonstrukci"
+                                    value={item.deal.type === "flip" && item.deal.arv != null ? formatPrice(item.deal.arv) : "—"}
+                                  />
+                                </>
                               )}
-                            </td>
-                            <td className="p-3 text-right font-mono tabular-nums whitespace-nowrap">
-                              {item.calcMode === "rental" ? (
-                                "—"
-                              ) : item.deal.type === "flip" && item.deal.roi !== null ? (
-                                <span className={item.deal.roi >= 15 ? "text-emerald-400" : item.deal.roi >= 10 ? "text-amber-400" : "text-red-400"}>
-                                  {formatPercent(item.deal.roi)}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              <StatusPill item={item} />
-                            </td>
-                            <td className="p-3 text-right">
-                              <ActionButton item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
-                            </td>
-                          </motion.tr>
-                          {expandedId === item.id && (
-                            <motion.tr
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="bg-card-hover/40"
+                            </div>
+
+                            {/* Detail výpočtu */}
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(expanded ? null : item.id)}
+                              className="w-full text-xs text-muted flex items-center justify-center gap-1 rounded-lg border border-border/40 bg-card-hover/40 py-2 hover:text-foreground hover:border-accent/30 transition-colors"
                             >
-                              <td colSpan={7} className="p-4">
-                                <DealDetail
-                                  item={item}
-                                  selectedStrategy={strategyFor(item, selectedStrategy)}
-                                  onSelectStrategy={(s) => setSelectedStrategy((prev) => ({ ...prev, [item.id]: s }))}
-                                />
-                              </td>
-                            </motion.tr>
-                          )}
-                          </Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile cards */}
-                  <div className="lg:hidden space-y-3">
-                    {data.items.map((item, i) => (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.03, duration: 0.25 }}
-                        className="rounded-2xl border border-border/50 bg-card p-4 space-y-3"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-semibold leading-tight min-w-0 truncate">
-                                {[item.city, item.district].filter(Boolean).join(" · ") || "Neznámá lokalita"}
-                              </span>
-                              <ModeBadge item={item} />
-                            </p>
-                            <p className="text-xs text-muted mt-1 flex items-center gap-1.5 flex-wrap">
-                              <PropertyMeta item={item} />
-                            </p>
-                          </div>
-                          <StatusPill item={item} />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-                          <Metric label="Inzerovaná cena" value={fmtPrice(item.originalPrice)} muted />
-                          <Metric label="Cena po vyjednání" value={fmtPrice(item.offerPrice)} strong>
-                            {item.overBudget && (
-                              <Badge variant="warning" size="sm" className="ml-1.5 gap-1">
-                                <WarningCircle size={10} weight="bold" />
-                                nad budget
-                              </Badge>
+                              {expanded ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
+                            </button>
+                            {expanded && (
+                              <DealDetail
+                                item={item}
+                                selectedStrategy={strategy}
+                                onSelectStrategy={(s) => setSelectedStrategy((prev) => ({ ...prev, [item.id]: s }))}
+                              />
                             )}
-                          </Metric>
-                          <Metric
-                            label="Sleva oproti inzerci"
-                            value={
-                              item.savingsPct !== null && item.savingsPct > 0
-                                ? `−${item.savingsPct.toFixed(1)} %`
-                                : "—"
-                            }
-                            accent={item.savingsPct !== null && item.savingsPct > 0}
-                          />
-                          {item.calcMode === "rental" ? (
-                            <>
-                              <Metric
-                                label="Čistý výnos p.a."
-                                value={item.deal.type === "rental" && item.deal.netYield != null ? `${item.deal.netYield.toFixed(1)} %` : "—"}
-                                accent={item.deal.type === "rental" && item.deal.netYield != null}
-                              />
-                              <Metric
-                                label="Cash-flow / měsíc"
-                                value={item.deal.type === "rental" && item.deal.cashFlowMonthly != null ? formatCompactPrice(item.deal.cashFlowMonthly) : "—"}
-                                accent={item.deal.type === "rental" && item.deal.cashFlowMonthly != null && item.deal.cashFlowMonthly >= 0}
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <Metric
-                                label="Odhadovaný zisk"
-                                value={(() => {
-                                  const p = displayFlipProfit(item, selectedStrategy);
-                                  return p !== null ? formatCompactPrice(p) : "—";
-                                })()}
-                                accent={item.deal.type === "flip" && item.deal.netProfit !== null && item.deal.netProfit >= 0}
-                              />
-                              <Metric
-                                label="ROI (celkem)"
-                                value={item.deal.type === "flip" && item.deal.roi != null ? `${item.deal.roi.toFixed(1)} %` : "—"}
-                                accent={item.deal.type === "flip" && item.deal.roi != null && item.deal.roi >= 0}
-                              />
-                            </>
-                          )}
-                        </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                          className="w-full text-xs text-muted flex items-center justify-center gap-1 rounded-lg border border-border/40 bg-card-hover/40 py-2 hover:text-foreground hover:border-accent/30 transition-colors"
-                        >
-                          {expandedId === item.id ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
-                        </button>
-                        {expandedId === item.id && (
-                          <DealDetail
-                            item={item}
-                            selectedStrategy={strategyFor(item, selectedStrategy)}
-                            onSelectStrategy={(s) => setSelectedStrategy((prev) => ({ ...prev, [item.id]: s }))}
-                          />
-                        )}
-
-                        <div className="flex justify-end">
-                          <ActionButton size="sm" item={item} busy={actionId === item.id} onClick={() => toggleReserve(item)} />
-                        </div>
-                      </motion.div>
-                    ))}
+                            {/* Rezervace */}
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                {isMine && item.reservationExpiresAt ? (
+                                  <span className="text-xs text-muted tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span>
+                                ) : item.status === "reserved" && !item.reservedByMe ? (
+                                  <span className="text-xs text-muted">
+                                    {item.reservedByName ? `Rezervováno od ${item.reservedByName}` : "Rezervováno jiným investorem"}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-emerald-400">Dostupná k rezervaci</span>
+                                )}
+                              </div>
+                              <ActionButton item={item} busy={actionId === item.id} size="sm" onClick={() => toggleReserve(item)} />
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -556,15 +517,15 @@ function DealDetail({
             <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
           </div>
           <div className="space-y-2 text-[12px]">
-            <DetailRow label="Kupní cena" value={snap.targetPurchasePrice != null ? formatCompactPrice(snap.targetPurchasePrice) : "—"} />
-            {snap.legalFee != null && snap.legalFee > 0 && <DetailRow label="Právní služby" value={formatCompactPrice(snap.legalFee)} />}
-            {snap.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatCompactPrice(snap.appraisalFee)} />}
-            {snap.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatCompactPrice(snap.sourcingFee)} />}
-            {snap.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatCompactPrice(snap.renovationCost)} />}
-            {snap.totalInvested != null && <DetailRow label="Celková investice" value={formatCompactPrice(snap.totalInvested)} accent />}
-            {snap.noiAnnual != null && <DetailRow label="NOI ročně" value={formatCompactPrice(snap.noiAnnual)} />}
+            <DetailRow label="Kupní cena" value={snap.targetPurchasePrice != null ? formatPrice(snap.targetPurchasePrice) : "—"} />
+            {snap.legalFee != null && snap.legalFee > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFee)} />}
+            {snap.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
+            {snap.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatPrice(snap.sourcingFee)} />}
+            {snap.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
+            {snap.totalInvested != null && <DetailRow label="Celková investice" value={formatPrice(snap.totalInvested)} accent />}
+            {snap.noiAnnual != null && <DetailRow label="NOI ročně" value={formatPrice(snap.noiAnnual)} />}
             <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent={deal?.netYield != null && deal.netYield >= 0} />
-            <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatCompactPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
+            <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
             {snap.cashOnCash != null && <DetailRow label="Cash-on-cash" value={`${snap.cashOnCash.toFixed(1)} %`} accent={snap.cashOnCash >= 0} />}
           </div>
           <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
@@ -581,9 +542,9 @@ function DealDetail({
           <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent />
           <DetailRow label="Hrubý výnos" value={deal?.grossYield != null ? `${deal.grossYield.toFixed(1)} %` : "—"} />
           <DetailRow label="Výnos po dani" value={deal?.netYieldAfterTax != null ? `${deal.netYieldAfterTax.toFixed(1)} %` : "—"} />
-          <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatCompactPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
-          <DetailRow label="Měsíční nájem" value={snap?.monthlyRent != null ? formatCompactPrice(snap.monthlyRent) : "—"} />
-          <DetailRow label="Investice celkem" value={snap?.totalInvested != null ? formatCompactPrice(snap.totalInvested) : "—"} />
+          <DetailRow label="Cash-flow / měsíc" value={deal?.cashFlowMonthly != null ? formatPrice(deal.cashFlowMonthly) : "—"} accent={deal?.cashFlowMonthly != null && deal.cashFlowMonthly >= 0} />
+          <DetailRow label="Měsíční nájem" value={snap?.monthlyRent != null ? formatPrice(snap.monthlyRent) : "—"} />
+          <DetailRow label="Investice celkem" value={snap?.totalInvested != null ? formatPrice(snap.totalInvested) : "—"} />
         </div>
         <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
       </div>
@@ -603,25 +564,35 @@ function DealDetail({
         </div>
         <FlipStrategyBlock item={item} selectedStrategy={selectedStrategy} onSelectStrategy={onSelectStrategy} />
         <div className="space-y-2 text-[12px]">
-          <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatCompactPrice(targetPrice) : "—"}</div>
-          <DetailRow label="Kupní cena" value={targetPrice != null ? formatCompactPrice(targetPrice) : "—"} />
-          {snap.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatCompactPrice(snap.legalFees)} />}
-          {snap.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatCompactPrice(snap.appraisalFee)} />}
-          {snap.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatCompactPrice(snap.renovationCost)} />}
-          {snap.contingency != null && snap.contingency > 0 && <DetailRow label="Rezerva 10 %" value={formatCompactPrice(snap.contingency)} />}
-          {snap.sellingCommission != null && snap.sellingCommission > 0 && <DetailRow label="Provize RK prodejní (5 %)" value={formatCompactPrice(snap.sellingCommission)} />}
-          {snap.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatCompactPrice(snap.marketingPhoto)} />}
-          {snap.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatCompactPrice(snap.holdingCosts)} />}
-          {snap.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatCompactPrice(snap.mortgageCost)} />}
-          {snap.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatCompactPrice(snap.sourcingFee)} />}
-          {snap.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatCompactPrice(snap.incomeTax)} />}
-          {snap.totalCost != null && <DetailRow label="Náklady celkem" value={formatCompactPrice(snap.totalCost)} accent />}
-          {deal?.arv != null && <DetailRow label="ARV (po rekonstrukci)" value={formatCompactPrice(deal.arv)} />}
+          <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
+          <DetailRow label="Kupní cena" value={targetPrice != null ? formatPrice(targetPrice) : "—"} />
+          {snap.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFees)} />}
+          {snap.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
+          {snap.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
+          {snap.contingency != null && snap.contingency > 0 && <DetailRow label="Rezerva 10 %" value={formatPrice(snap.contingency)} />}
+          {snap.sellingCommission != null && snap.sellingCommission > 0 && <DetailRow label="Provize RK prodejní (5 %)" value={formatPrice(snap.sellingCommission)} />}
+          {snap.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatPrice(snap.marketingPhoto)} />}
+          {snap.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatPrice(snap.holdingCosts)} />}
+          {snap.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
+          {snap.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatPrice(snap.sourcingFee)} />}
+          {snap.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
+          {snap.totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(snap.totalCost)} accent />}
+          {deal?.arv != null && <DetailRow label="ARV (po rekonstrukci)" value={formatPrice(deal.arv)} />}
+          {item.cooperation && selectedStrategy && (
+            <DetailRow
+              label={selectedStrategy === "fifty-fifty" ? "Vaše investice · 50/50" : "Vaše investice · sourcing fee"}
+              value={(() => {
+                const f = selectedStrategy === "fifty-fifty" ? item.cooperation.fundingFiftyFifty : item.cooperation.fundingSourcing;
+                return f != null ? formatPrice(f) : "—";
+              })()}
+              accent
+            />
+          )}
           <DetailRow label="Odhadovaný zisk" value={(() => {
             const p = flipProfitFor(item, selectedStrategy, deal?.netProfit ?? null);
-            return p != null ? formatCompactPrice(p) : "—";
+            return p != null ? formatPrice(p) : "—";
           })()} accent={deal?.netProfit != null && deal.netProfit >= 0} />
-          <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
+          <DetailRow label="ROI projektu" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
         </div>
         <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
       </div>
@@ -635,17 +606,17 @@ function DealDetail({
       </div>
       <FlipStrategyBlock item={item} selectedStrategy={selectedStrategy} onSelectStrategy={onSelectStrategy} />
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
-        <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatCompactPrice(deal.arv) : "—"} />
-        <DetailRow label="Kupní cena (v kalkulačce)" value={snap?.purchasePriceUsed != null ? formatCompactPrice(snap.purchasePriceUsed) : "—"} />
-        <DetailRow label="Rekonstrukce" value={snap?.renovationCost != null ? formatCompactPrice(snap.renovationCost) : "—"} />
-        <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatCompactPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
-        <DetailRow label="ROI (celkem)" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
+        <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatPrice(deal.arv) : "—"} />
+        <DetailRow label="Kupní cena (v kalkulačce)" value={snap?.purchasePriceUsed != null ? formatPrice(snap.purchasePriceUsed) : "—"} />
+        <DetailRow label="Rekonstrukce" value={snap?.renovationCost != null ? formatPrice(snap.renovationCost) : "—"} />
+        <DetailRow label="Odhadovaný zisk" value={deal?.netProfit != null ? formatPrice(deal.netProfit) : "—"} accent={deal?.netProfit != null && deal.netProfit >= 0} />
+        <DetailRow label="ROI projektu" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
       </div>
       {snap?.totalCost != null && (
         <div className="rounded-lg border border-border/30 bg-card/60 p-3">
           <div className="flex items-center justify-between">
             <span className="text-[11px] text-muted">Náklady celkem (kupní + rekonstrukce + poplatky + daň)</span>
-            <span className="font-mono tabular-nums font-semibold text-foreground">{formatCompactPrice(snap.totalCost)}</span>
+            <span className="font-mono tabular-nums font-semibold text-foreground">{formatPrice(snap.totalCost)}</span>
           </div>
         </div>
       )}
@@ -680,27 +651,61 @@ function FlipStrategyBlock({
   const strategies = coop.availableStrategies;
   const profitOf = (s: CooperationStrategy) =>
     s === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
+  const roiOf = (s: CooperationStrategy) =>
+    s === "fifty-fifty" ? coop.investorRoiFiftyFifty : coop.investorRoiSourcing;
+  const fundingOf = (s: CooperationStrategy) =>
+    s === "fifty-fifty" ? coop.fundingFiftyFifty : coop.fundingSourcing;
   const descOf = (s: CooperationStrategy) =>
     s === "fifty-fifty"
       ? "My zajišťujeme rekonstrukci, vy financujete. Zisk se dělí napůl."
-      : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatCompactPrice(coop.sourcingFee)}` : ""}.`;
+      : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
+
+  const strategyBox = (s: CooperationStrategy, active: boolean, onClick?: () => void) => {
+    const profit = profitOf(s);
+    const roi = roiOf(s);
+    const funding = fundingOf(s);
+    return (
+      <div
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick}
+        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
+        className={`rounded-xl border p-3 text-left ${onClick ? "cursor-pointer transition-colors" : ""} ${
+          active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card/60 hover:border-accent/30 hover:bg-card-hover"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <p className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>{COOPERATION_STRATEGIES[s]}</p>
+          <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
+            {profit != null ? formatPrice(profit) : "—"}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted mt-1">{descOf(s)}</p>
+        {(roi != null || funding != null) && (
+          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/20 text-[11px]">
+            <span className="text-muted">Vaše investice</span>
+            <span className="font-mono tabular-nums text-foreground">{funding != null ? formatPrice(funding) : "—"}</span>
+          </div>
+        )}
+        {(roi != null || funding != null) && (
+          <div className="flex items-center justify-between gap-2 mt-1 text-[11px]">
+            <span className="text-muted">ROI vaší investice</span>
+            <span className={`font-mono tabular-nums ${roi != null && roi >= 0 ? "text-emerald-400" : "text-foreground"}`}>
+              {roi != null ? `${roi.toFixed(1)} %` : "—"}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (strategies.length <= 1) {
     const s = strategies[0];
     if (!s) return null;
-    const profit = profitOf(s);
     return (
       <div className="space-y-1.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Způsob spolupráce</p>
-        <div className={`rounded-xl border p-3 ${s === "fifty-fifty" ? "border-accent/40 bg-accent/5" : "border-border/40 bg-card/60"}`}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-foreground">{COOPERATION_STRATEGIES[s]}</p>
-            <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
-              {profit != null ? formatCompactPrice(profit) : "—"}
-            </span>
-          </div>
-          <p className="text-[11px] text-muted mt-1">{descOf(s)}</p>
-        </div>
+        {strategyBox(s, true)}
       </div>
     );
   }
@@ -709,28 +714,9 @@ function FlipStrategyBlock({
     <div className="space-y-1.5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Způsob spolupráce — vyberte</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {strategies.map((s) => {
-          const active = selectedStrategy === s;
-          const profit = profitOf(s);
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => onSelectStrategy(s)}
-              className={`rounded-xl border p-3 text-left transition-colors ${
-                active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card/60 hover:border-accent/30 hover:bg-card-hover"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>{COOPERATION_STRATEGIES[s]}</p>
-                <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
-                  {profit != null ? formatCompactPrice(profit) : "—"}
-                </span>
-              </div>
-              <p className="text-[11px] text-muted mt-1">{descOf(s)}</p>
-            </button>
-          );
-        })}
+        {strategies.map((s) =>
+          strategyBox(s, selectedStrategy === s, () => onSelectStrategy(s))
+        )}
       </div>
     </div>
   );
@@ -827,7 +813,7 @@ function Metric({
     <div className="min-w-0">
       <p className="text-[11px] text-muted">{label}</p>
       <p
-        className={`font-mono tabular-nums mt-0.5 truncate ${strong ? "font-semibold" : ""} ${
+        className={`font-mono tabular-nums mt-0.5 break-words ${strong ? "font-semibold" : ""} ${
           accent ? "text-emerald-400" : muted ? "text-muted" : ""
         }`}
       >

@@ -29,6 +29,7 @@ const offer = (over: Partial<InvestorPortalItem> = {}): InvestorPortalItem => ({
   reservedByMe: false,
   reservedByName: null,
   overBudget: false,
+  photos: [],
   ...over,
 });
 
@@ -88,6 +89,10 @@ describe("buildOfferEmailHtml", () => {
           investorProfitFiftyFifty: 600_000,
           investorProfitSourcing: 300_000,
           sourcingFee: 100_000,
+          fundingFiftyFifty: 8_000_000,
+          fundingSourcing: 8_100_000,
+          investorRoiFiftyFifty: 7.5,
+          investorRoiSourcing: 3.7,
         },
       }),
       "https://realflip.app"
@@ -109,6 +114,10 @@ describe("buildOfferEmailHtml", () => {
           investorProfitFiftyFifty: 600_000,
           investorProfitSourcing: null,
           sourcingFee: null,
+          fundingFiftyFifty: 8_000_000,
+          fundingSourcing: null,
+          investorRoiFiftyFifty: 7.5,
+          investorRoiSourcing: null,
         },
       }),
       "https://realflip.app"

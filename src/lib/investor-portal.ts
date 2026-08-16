@@ -66,6 +66,7 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
       rooms: properties.rooms,
       floor: properties.floor,
       originalPrice: properties.price,
+      imageUrls: properties.imageUrls,
       stageData: leads.stageData,
       arv: propertyAnalysis.arv,
       renovationCost: propertyAnalysis.renovationCost,

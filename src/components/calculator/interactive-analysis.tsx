@@ -257,12 +257,28 @@ function InteractiveCard({
   /** Přepočet čísel spolupráce na potvrzenou vyjednanou cenu (co uvidí investor v portálu). */
   const negotiatedCoop = useMemo<CooperationView | null>(() => {
     if (negotiatedPrice == null || !targetFlipNoFee || !targetFlipResults) return null;
+    const totalCost = targetFlipResults.costs.totalCost;
+    const sourcingFee = targetFlipResults.costs.sourcingFee;
+    const profitFifty = Math.round(targetFlipNoFee.netProfit / 2);
+    const profitSourcing = targetFlipResults.netProfit;
+    const fundingFiftyFifty = totalCost != null ? totalCost - sourcingFee : null;
+    const fundingSourcing = totalCost;
     const base: CooperationView = {
       availableStrategies: strategiesFromAvailability(flipStrategy),
       netProfitTotal: targetFlipNoFee.netProfit,
-      investorProfitFiftyFifty: Math.round(targetFlipNoFee.netProfit / 2),
-      investorProfitSourcing: targetFlipResults.netProfit,
-      sourcingFee: targetFlipResults.costs.sourcingFee,
+      investorProfitFiftyFifty: profitFifty,
+      investorProfitSourcing: profitSourcing,
+      sourcingFee,
+      fundingFiftyFifty,
+      fundingSourcing,
+      investorRoiFiftyFifty:
+        profitFifty != null && fundingFiftyFifty != null && fundingFiftyFifty > 0
+          ? Math.round((profitFifty / fundingFiftyFifty) * 1000) / 10
+          : null,
+      investorRoiSourcing:
+        profitSourcing != null && fundingSourcing != null && fundingSourcing > 0
+          ? Math.round((profitSourcing / fundingSourcing) * 1000) / 10
+          : null,
     };
     const shifted = shiftFlipAtPrice(base, negotiatedPrice, targetFlipResults.targetPurchasePrice);
     return shifted === base ? null : shifted;

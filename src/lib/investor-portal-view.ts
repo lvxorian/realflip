@@ -1,4 +1,4 @@
-import { conditionLabel } from "@/lib/utils";
+import { conditionLabel, safeJsonParse } from "@/lib/utils";
 import type { StageData } from "@/components/leads/types";
 import { strategiesFromAvailability, type CooperationStrategy } from "@/lib/cooperation-models";
 
@@ -31,6 +31,13 @@ export interface CooperationView {
   investorProfitFiftyFifty: number | null;
   investorProfitSourcing: number | null;
   sourcingFee: number | null;
+  /** Investice, kterou u 50/50 financuje investor (náklady bez sourcing fee). */
+  fundingFiftyFifty: number | null;
+  /** Investice, kterou financuje investor při sourcing fee (náklady vč. fee). */
+  fundingSourcing: number | null;
+  /** ROI investora (jeho zisk / jeho investice) — 50/50 a sourcing fee. */
+  investorRoiFiftyFifty: number | null;
+  investorRoiSourcing: number | null;
 }
 
 export interface CalcSnapshotFlip {
@@ -105,7 +112,9 @@ export function parseCalcSnapshot(raw: string | null | undefined): CalcSnapshot 
 }
 
 /** Čísla spolupráce (50/50 vs. sourcing fee) z flip snapshotu.
- *  Nové snapshoty mají blok `cooperation`; staré se odvodí z netProfit a fee. */
+ *  Nové snapshoty mají blok `cooperation`; staré se odvodí z netProfit a fee.
+ *  Investice investora: 50/50 financuje náklady bez sourcing fee (fee se
+ *  v tomto režimu neúčtuje), sourcing fee platí náklady včetně poplatku. */
 export function flipCooperationFromSnapshot(s: CalcSnapshotFlip | null): CooperationView | null {
   if (!s) return null;
   const coop = s.cooperation;
@@ -120,6 +129,19 @@ export function flipCooperationFromSnapshot(s: CalcSnapshotFlip | null): Coopera
         coop.investorProfitSourcing ??
         (coop.netProfitTotal != null ? Math.round(coop.netProfitTotal - (coop.sourcingFee ?? 0)) : null),
       sourcingFee: coop.sourcingFee ?? null,
+      fundingFiftyFifty:
+        coop.netProfitTotal != null && s.totalCost != null
+          ? s.totalCost - (coop.sourcingFee ?? 0)
+          : null,
+      fundingSourcing: coop.netProfitTotal != null ? (s.totalCost ?? null) : null,
+      investorRoiFiftyFifty: investorRoi(
+        coop.investorProfitFiftyFifty ?? (coop.netProfitTotal != null ? Math.round(coop.netProfitTotal / 2) : null),
+        coop.netProfitTotal != null && s.totalCost != null ? s.totalCost - (coop.sourcingFee ?? 0) : null
+      ),
+      investorRoiSourcing: investorRoi(
+        coop.investorProfitSourcing ?? (coop.netProfitTotal != null ? Math.round(coop.netProfitTotal - (coop.sourcingFee ?? 0)) : null),
+        coop.netProfitTotal != null ? (s.totalCost ?? null) : null
+      ),
     };
   }
   const fee = s.sourcingFee ?? 0;
@@ -130,7 +152,22 @@ export function flipCooperationFromSnapshot(s: CalcSnapshotFlip | null): Coopera
     investorProfitFiftyFifty: netProfitTotal != null ? Math.round(netProfitTotal / 2) : null,
     investorProfitSourcing: s.netProfit ?? null,
     sourcingFee: s.sourcingFee ?? null,
+    fundingFiftyFifty: netProfitTotal != null && s.totalCost != null ? s.totalCost - fee : null,
+    fundingSourcing: netProfitTotal != null ? (s.totalCost ?? null) : null,
+    investorRoiFiftyFifty: investorRoi(
+      netProfitTotal != null ? Math.round(netProfitTotal / 2) : null,
+      netProfitTotal != null && s.totalCost != null ? s.totalCost - fee : null
+    ),
+    investorRoiSourcing: investorRoi(
+      s.netProfit ?? null,
+      netProfitTotal != null ? s.totalCost : null
+    ),
   };
+}
+
+function investorRoi(profit: number | null, funding: number | null): number | null {
+  if (profit == null || funding == null || funding <= 0) return null;
+  return Math.round((profit / funding) * 1000) / 10;
 }
 
 /** Iniciály jména pro anonymizované zobrazení ostatním investorům:
@@ -155,7 +192,7 @@ export function negotiationAmountOf(stageData: StageData | null): number | null 
 /** Přepočet čísel spolupráce (flip) na zadanou kupní cenu.
  *  basePrice = cena, ze které počítal snapshot (purchasePriceUsed);
  *  atPrice = vyjednaná/zobrazená cena. Zisk roste, když vyjednáno níž.
- *  Bez platné báze nebo při stejném čísle vrací vstup beze změny. */
+ *  Beze změny ceny vrací vstup beze změny; fondy i ROI se posunou o rozdíl cen. */
 export function shiftFlipAtPrice(
   coop: CooperationView,
   atPrice: number,
@@ -165,11 +202,21 @@ export function shiftFlipAtPrice(
   const delta = basePrice - atPrice;
   if (delta === 0) return coop;
   const total = coop.netProfitTotal + delta;
+  const profitFifty = Math.round(total / 2);
+  const profitSourcing = total - (coop.sourcingFee ?? 0);
+  const fundingFiftyFifty =
+    coop.fundingFiftyFifty != null ? coop.fundingFiftyFifty - delta : null;
+  const fundingSourcing =
+    coop.fundingSourcing != null ? coop.fundingSourcing - delta : null;
   return {
     ...coop,
     netProfitTotal: total,
-    investorProfitFiftyFifty: Math.round(total / 2),
-    investorProfitSourcing: total - (coop.sourcingFee ?? 0),
+    investorProfitFiftyFifty: profitFifty,
+    investorProfitSourcing: profitSourcing,
+    fundingFiftyFifty,
+    fundingSourcing,
+    investorRoiFiftyFifty: investorRoi(profitFifty, fundingFiftyFifty),
+    investorRoiSourcing: investorRoi(profitSourcing, fundingSourcing),
   };
 }
 
@@ -208,6 +255,8 @@ export interface InvestorPortalItem {
   originalPrice: number | null;
   offerPrice: number | null;
   savingsPct: number | null;
+  /** Fotky nemovitosti (veřejné pro přihlášeného investora). */
+  photos: string[];
   calcMode: "flip" | "rental";
   deal: DealMetricsView;
   renovationCost: number | null;
@@ -238,6 +287,7 @@ export interface PortalRow {
   floor: number | null;
   originalPrice: number | null;
   stageData: unknown;
+  imageUrls: string | null;
   arv: number | null;
   renovationCost: number | null;
   monthlyRent: number | null;
@@ -357,6 +407,7 @@ export function toPortalView(
     originalPrice: row.originalPrice,
     offerPrice,
     savingsPct,
+    photos: safeJsonParse<string[]>(row.imageUrls, []),
     calcMode,
     deal: finalDeal,
     renovationCost: row.renovationCost,
