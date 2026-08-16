@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, ArrowsOutSimple, X } from "@phosphor-icons/react";
 
 interface ImageGalleryProps {
   images: string[];
@@ -15,6 +15,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   // Přirozený poměr stran aktuální fotky — kontejner se mu přizpůsobí,
   // takže fotka se zobrazí celá (bez ořezu) jako na originálním inzerátu.
   const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   // Šipky ← → na klávesnici listují mezi fotkami (používá se na detailu
   // nemovitosti). Při psaní do polí (editace rozměrů, kalkulačka…) se nezasahuje.
@@ -42,6 +43,21 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [images]);
+
+  // Esc zavře fullscreen a zamkne scroll stránky, dokud je fullscreen otevřený.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fullscreen]);
 
   const handleImgError = (i: number) => {
     setErrored((prev) => new Set(prev).add(i));
@@ -106,6 +122,16 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
+        {/* Fullscreen — otevře fotku na celou obrazovku */}
+        <button
+          onClick={() => setFullscreen(true)}
+          aria-label="Zobrazit na celou obrazovku"
+          title="Zobrazit na celou obrazovku"
+          className="absolute bottom-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full glass opacity-90 transition-all hover:scale-110 hover:bg-card-hover cursor-pointer"
+        >
+          <ArrowsOutSimple size={16} weight="bold" />
+        </button>
+
         {images.length > 1 && (
           <>
             {/* Klikaci zona pres CELOU vysku boku fotky: i kdyz se kontejner
@@ -138,6 +164,74 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
           </>
         )}
       </div>
+
+      {/* Fullscreen overlay: fotka, šipky ← →, křížek nahoře vpravo, Esc zavře */}
+      {fullscreen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 sm:p-10"
+          onClick={() => setFullscreen(false)}
+        >
+          <button
+            onClick={() => setFullscreen(false)}
+            aria-label="Zavřít fullscreen"
+            title="Zavřít (Esc)"
+            className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/25 transition-colors cursor-pointer"
+          >
+            <X size={20} weight="bold" />
+          </button>
+
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goPrev();
+                }}
+                aria-label="Predchozi fotka fullscreen"
+                className="absolute left-3 sm:left-8 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/25 transition-colors cursor-pointer z-10"
+              >
+                <CaretLeft size={24} weight="bold" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goNext();
+                }}
+                aria-label="Dalsi fotka fullscreen"
+                className="absolute right-3 sm:right-8 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/25 transition-colors cursor-pointer z-10"
+              >
+                <CaretRight size={24} weight="bold" />
+              </button>
+            </>
+          )}
+
+          {errored.has(activeIndex) ? (
+            <div className="flex flex-col items-center gap-2 text-white/60">
+              <span className="text-3xl font-mono">{score ?? ""}</span>
+              <span className="text-xs font-mono">fotka není k dispozici</span>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={activeIndex}
+              src={images[activeIndex]}
+              alt={`${alt} - fullscreen ${activeIndex + 1}`}
+              className="max-h-full max-w-full object-contain rounded-lg shadow-2xl"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
+              onClick={(e) => e.stopPropagation()}
+              onError={() => handleImgError(activeIndex)}
+            />
+          )}
+
+          {images.length > 1 && (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-xs font-mono text-white z-10">
+              {activeIndex + 1} / {images.length}
+            </div>
+          )}
+        </div>
+      )}
 
       {images.length > 1 && (
         <div className="flex gap-2 p-3 overflow-x-auto snap-x snap-mandatory">

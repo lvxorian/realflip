@@ -162,3 +162,53 @@ describe("ImageGallery — adaptivní poměr, fotka bez ořezu", () => {
     expect(document.querySelectorAll("img").length).toBe(0);
   });
 });
+
+describe("ImageGallery — fullscreen", () => {
+  it("tlačítko otevře fotku na celou obrazovku a křížek ji zavře", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+
+    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+
+    expect(screen.getByAltText("Byt - fullscreen 1")).toBeTruthy();
+    expect(screen.getByLabelText("Zavřít fullscreen")).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("Zavřít fullscreen"));
+    expect(screen.queryByAltText("Byt - fullscreen 1")).toBeNull();
+  });
+
+  it("ve fullscreenu listují šipky doleva/doprava", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+
+    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    expect(screen.getByAltText("Byt - fullscreen 1").getAttribute("src")).toBe("/a.jpg");
+
+    fireEvent.click(screen.getByLabelText("Dalsi fotka fullscreen"));
+    expect(screen.getByAltText("Byt - fullscreen 2").getAttribute("src")).toBe("/b.jpg");
+
+    fireEvent.click(screen.getByLabelText("Predchozi fotka fullscreen"));
+    expect(screen.getByAltText("Byt - fullscreen 1").getAttribute("src")).toBe("/a.jpg");
+  });
+
+  it("Esc zavře fullscreen", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+
+    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    expect(screen.getByAltText("Byt - fullscreen 1")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByAltText("Byt - fullscreen 1")).toBeNull();
+  });
+
+  it("klik na pozadí zavře fullscreen, klik na fotku ne", () => {
+    render(<ImageGallery images={["/a.jpg"]} alt="Byt" />);
+
+    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    const photo = screen.getByAltText("Byt - fullscreen 1");
+
+    fireEvent.click(photo);
+    expect(screen.getByAltText("Byt - fullscreen 1")).toBeTruthy();
+
+    fireEvent.click(photo.parentElement!);
+    expect(screen.queryByAltText("Byt - fullscreen 1")).toBeNull();
+  });
+});
