@@ -49,6 +49,12 @@ function ModeBadge({ item }: { item: InvestorPortalItem }) {
   );
 }
 
+/** Přepočet ceny na m²: „73 820 Kč/m²" (null, když chybí cena nebo plocha). */
+function perSqmLabel(price: number | null | undefined, area: number | null | undefined): string | null {
+  if (price == null || area == null || area <= 0) return null;
+  return `${Math.round(price / area).toLocaleString("cs-CZ")} Kč/m²`;
+}
+
 /** Hodnoty nemovitosti na jednom řádku oddělené tečkou: 3+1 · 73 m² · Stav: Průměrný · Cihlový · 3. podlaží */
 function PropertyMeta({ item }: { item: InvestorPortalItem }) {
   const parts: React.ReactNode[] = [];
@@ -352,18 +358,8 @@ export default function InvestorPortalPage() {
 
                             {/* Ceny */}
                             <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-1.5">
-                              <div className="flex items-baseline justify-between gap-3">
-                                <span className="text-[11px] text-muted">Inzerovaná cena</span>
-                                <span className="text-xs font-mono text-muted tabular-nums whitespace-nowrap">
-                                  {item.originalPrice != null ? formatPrice(item.originalPrice) : "—"}
-                                </span>
-                              </div>
-                              <div className="flex items-baseline justify-between gap-3">
-                                <span className="text-[11px] text-muted">Cena po vyjednání</span>
-                                <span className="text-lg font-semibold font-mono text-amber-400 tabular-nums whitespace-nowrap">
-                                  {item.offerPrice != null ? formatPrice(item.offerPrice) : "—"}
-                                </span>
-                              </div>
+                              <PriceRow label="Inzerovaná cena" price={item.originalPrice} area={item.area} />
+                              <PriceRow label="Cena po vyjednání" price={item.offerPrice} area={item.area} big />
                               {item.savingsPct !== null && item.savingsPct > 0 && (
                                 <div className="flex items-center justify-between gap-3">
                                   <span className="text-[11px] text-muted">Úspora oproti inzerci</span>
@@ -612,11 +608,45 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
       </div>
       <div className="space-y-2 text-[12px]">
         <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
-        <FlipCostRows snap={snap} deal={deal} showProfit />
+        <FlipCostRows snap={snap} deal={deal} area={item.area} showProfit />
       </div>
       <p className="text-[11px] text-muted pt-2 border-t border-border/20">
         Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
       </p>
+    </div>
+  );
+}
+
+/** Řádek ceny s menším přepočtem na m² pod hodnotou. */
+function PriceRow({
+  label,
+  price,
+  area,
+  big,
+}: {
+  label: string;
+  price: number | null;
+  area: number | null;
+  big?: boolean;
+}) {
+  const perSqm = perSqmLabel(price, area);
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[11px] text-muted">{label}</span>
+      <span className="text-right">
+        <span
+          className={`block font-mono tabular-nums whitespace-nowrap ${
+            big ? "text-lg font-semibold text-amber-400" : "text-xs text-muted"
+          }`}
+        >
+          {price != null ? formatPrice(price) : "—"}
+        </span>
+        {perSqm && (
+          <span className="block text-[10px] font-mono text-muted/50 tabular-nums whitespace-nowrap">
+            {perSqm}
+          </span>
+        )}
+      </span>
     </div>
   );
 }
@@ -638,7 +668,7 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
       </div>
       <div className="space-y-2 text-[12px]">
         <div className="text-[10px] font-semibold text-emerald-400 mb-1">Rozpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
-        <FlipCostRows snap={snap} deal={deal} />
+        <FlipCostRows snap={snap} deal={deal} area={item.area} />
       </div>
       <ModelDetailBlock strategy={strategy} coop={coop} />
       <p className="text-[11px] text-muted pt-2 border-t border-border/20">
@@ -648,18 +678,23 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
   );
 }
 
-/** Společný rozpis nákladů flipu z uložené kalkulačky (kromě Kupní ceny — ta je v hlavičce). */
+/** Společný rozpis nákladů flipu z uložené kalkulačky — první řádek je Kupní
+ *  cena (cílová kupní cena z kalkulačky), pod ARV je přepočet na m². */
 function FlipCostRows({
   snap,
   deal,
+  area,
   showProfit,
 }: {
   snap: CalcSnapshotFlip | null;
   deal: FlipDealView | null;
+  area: number | null;
   showProfit?: boolean;
 }) {
+  const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
   return (
     <>
+      <DetailRow label="Kupní cena" value={targetPrice != null ? formatPrice(targetPrice) : "—"} />
       {snap?.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFees)} />}
       {snap?.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
       {snap?.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
@@ -670,7 +705,11 @@ function FlipCostRows({
       {snap?.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
       {snap?.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
       {snap?.totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(snap.totalCost)} accent />}
-      <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatPrice(deal.arv) : "—"} />
+      <DetailRow
+        label="ARV (po rekonstrukci)"
+        value={deal?.arv != null ? formatPrice(deal.arv) : "—"}
+        sub={perSqmLabel(deal?.arv ?? null, area)}
+      />
       {showProfit && (
         <DetailRow
           label="Odhadovaný zisk"
@@ -683,11 +722,14 @@ function FlipCostRows({
   );
 }
 
-function DetailRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function DetailRow({ label, value, accent, sub }: { label: string; value: string; accent?: boolean; sub?: string | null }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <p className="text-[11px] text-muted min-w-0">{label}</p>
-      <p className={`font-mono tabular-nums text-right break-words ${accent ? "text-emerald-400" : "text-foreground"}`}>{value}</p>
+      <div className="text-right">
+        <p className={`font-mono tabular-nums break-words ${accent ? "text-emerald-400" : "text-foreground"}`}>{value}</p>
+        {sub && <p className="text-[10px] text-muted/60 font-mono tabular-nums">{sub}</p>}
+      </div>
     </div>
   );
 }
