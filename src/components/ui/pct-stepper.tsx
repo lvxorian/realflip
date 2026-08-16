@@ -32,7 +32,7 @@ export function PctStepper({ value, onChange, min, max, step = 0.1, className }:
   return (
     <div
       className={cn(
-        "flex items-center gap-0.5 rounded-lg border border-border/40 bg-card-hover/40 px-0.5",
+        "flex shrink-0 items-center gap-0.5 rounded-lg border border-border/40 bg-card-hover/40 px-0.5",
         className
       )}
     >
@@ -61,7 +61,7 @@ export function PctStepper({ value, onChange, min, max, step = 0.1, className }:
           const raw = parseFloat(e.target.value);
           onChange(clamp(Number.isNaN(raw) ? min : raw));
         }}
-        className="h-6 w-[4.5ch] min-w-0 border-none bg-transparent text-right font-mono text-sm tabular-nums text-foreground focus:outline-none"
+        className="h-6 w-[5ch] shrink-0 border-none bg-transparent p-0 text-right font-mono text-sm tabular-nums text-foreground focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button
         type="button"
