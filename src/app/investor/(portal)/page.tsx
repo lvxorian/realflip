@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatPrice } from "@/lib/utils";
@@ -20,8 +20,10 @@ import {
   EnvelopeSimple,
   CaretLeft,
   CaretRight,
+  X,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
+import type { CooperationView } from "@/lib/investor-portal-view";
 import { COOPERATION_STRATEGIES, type CooperationStrategy } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
@@ -65,40 +67,30 @@ function PropertyMeta({ item }: { item: InvestorPortalItem }) {
   );
 }
 
-/** Aktuální zvolená strategie itemu — default první dostupná. */
-function strategyFor(
-  item: InvestorPortalItem,
-  map: Record<string, CooperationStrategy>
-): CooperationStrategy | null {
-  if (item.calcMode !== "flip" || !item.cooperation) return null;
-  const strategies = item.cooperation.availableStrategies;
-  if (strategies.length === 0) return null;
-  const chosen = map[item.id];
-  return chosen && strategies.includes(chosen) ? chosen : strategies[0];
+/** Dostupné strategie spolupráce u flip itemu (prázdné u rental / bez cooperation). */
+function availableStrategiesOf(item: InvestorPortalItem): CooperationStrategy[] {
+  if (item.calcMode !== "flip" || !item.cooperation) return [];
+  return item.cooperation.availableStrategies;
 }
 
-/** Zisk flipu podle zvolené strategie (50/50 vs. sourcing fee). */
-function flipProfitFor(
-  item: InvestorPortalItem,
-  strategy: CooperationStrategy | null,
-  fallback: number | null
-): number | null {
-  const coop = item.cooperation;
-  if (!coop) return fallback;
-  if (strategy === "fifty-fifty") return coop.investorProfitFiftyFifty ?? fallback;
-  if (strategy === "sourcing-fee") return coop.investorProfitSourcing ?? fallback;
-  return fallback;
+/** Čísla modelu spolupráce (zisk investora / ROI / investice) z cooperation bloku. */
+function modelProfitOf(strategy: CooperationStrategy, coop: CooperationView): number | null {
+  return strategy === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
 }
 
-/** Zisk zobrazený na kartě — dle vybrané strategie, jinak původní číslo z analýzy. */
-function displayFlipProfit(item: InvestorPortalItem, map: Record<string, CooperationStrategy>): number | null {
-  const coop = item.cooperation;
-  if (coop) {
-    const strategy = strategyFor(item, map);
-    const profit = strategy === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
-    if (profit != null) return profit;
-  }
-  return item.deal.type === "flip" ? item.deal.netProfit : null;
+function modelRoiOf(strategy: CooperationStrategy, coop: CooperationView): number | null {
+  return strategy === "fifty-fifty" ? coop.investorRoiFiftyFifty : coop.investorRoiSourcing;
+}
+
+function modelFundingOf(strategy: CooperationStrategy, coop: CooperationView): number | null {
+  return strategy === "fifty-fifty" ? coop.fundingFiftyFifty : coop.fundingSourcing;
+}
+
+/** Krátký popis modelu pro detail i rezervační dialog. */
+function modelDesc(strategy: CooperationStrategy, coop: CooperationView): string {
+  return strategy === "fifty-fifty"
+    ? "My zajišťujeme rekonstrukci, vy financujete. Zisk se dělí napůl."
+    : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
 }
 
 export default function InvestorPortalPage() {
@@ -108,7 +100,8 @@ export default function InvestorPortalPage() {
   const [error, setError] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selectedStrategy, setSelectedStrategy] = useState<Record<string, CooperationStrategy>>({});
+  const [reserveItem, setReserveItem] = useState<InvestorPortalItem | null>(null);
+  const [reserveStrategy, setReserveStrategy] = useState<CooperationStrategy | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const dismissedEmailPrompt = useRef(false);
 
@@ -160,12 +153,24 @@ export default function InvestorPortalPage() {
     };
   }, [router, maybePromptEmail]);
 
-  async function toggleReserve(item: InvestorPortalItem) {
+  /** Kliknutí na Rezervovat: při obou dostupných modelech musí investor nejdřív vybrat.
+   *  Jediný dostupný model (např. vypnutá parta = jen sourcing fee) rezervuje rovnou. */
+  function handleReserveClick(item: InvestorPortalItem) {
+    const strategies = availableStrategiesOf(item);
+    if (strategies.length > 1) {
+      setReserveItem(item);
+      setReserveStrategy(null);
+      setError("");
+      return;
+    }
+    void performReserve(item, strategies.length === 1 ? strategies[0] : null);
+  }
+
+  async function performReserve(item: InvestorPortalItem, strategy: CooperationStrategy | null) {
     const action = item.status === "reserved" && item.reservedByMe ? "cancel" : "reserve";
     setActionId(item.id);
     setError("");
     try {
-      const strategy = strategyFor(item, selectedStrategy);
       const res = await fetch("/api/investor-portal/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,12 +179,19 @@ export default function InvestorPortalPage() {
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         setError(json.error ?? "Operace se nepodařila.");
+        setReserveItem(null);
         return;
       }
+      setReserveItem(null);
       await refresh();
     } finally {
       setActionId(null);
     }
+  }
+
+  function confirmReserve() {
+    if (!reserveItem || !reserveStrategy) return;
+    void performReserve(reserveItem, reserveStrategy);
   }
 
   async function logout() {
@@ -298,22 +310,8 @@ export default function InvestorPortalPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {data.items.map((item, i) => {
                       const expanded = expandedId === item.id;
-                      const strategy = strategyFor(item, selectedStrategy);
-                      const flipProfit = displayFlipProfit(item, selectedStrategy);
                       const coop = item.cooperation;
                       const isMine = item.status === "reserved" && item.reservedByMe;
-                      const investorRoi =
-                        coop && strategy === "fifty-fifty"
-                          ? coop.investorRoiFiftyFifty
-                          : coop && strategy === "sourcing-fee"
-                            ? coop.investorRoiSourcing
-                            : null;
-                      const profitLabel =
-                        strategy === "fifty-fifty"
-                          ? "Váš zisk · 50/50"
-                          : strategy === "sourcing-fee"
-                            ? "Váš zisk · sourcing fee"
-                            : "Odhadovaný zisk";
                       return (
                         <motion.div
                           key={item.id}
@@ -402,20 +400,19 @@ export default function InvestorPortalPage() {
                                     value={item.snapshot?.mode === "rental" && item.snapshot.totalInvested != null ? formatPrice(item.snapshot.totalInvested) : "—"}
                                   />
                                 </>
+                              ) : coop && coop.availableStrategies.length > 0 ? (
+                                <div className={`grid gap-2 ${coop.availableStrategies.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+                                  {coop.availableStrategies.map((s) => (
+                                    <ModelProfitCard key={s} strategy={s} coop={coop} />
+                                  ))}
+                                </div>
                               ) : (
                                 <>
                                   <Metric
-                                    label={profitLabel}
-                                    value={flipProfit !== null ? formatPrice(flipProfit) : "—"}
-                                    accent={flipProfit !== null && flipProfit >= 0}
+                                    label="Odhadovaný zisk"
+                                    value={item.deal.type === "flip" && item.deal.netProfit != null ? formatPrice(item.deal.netProfit) : "—"}
+                                    accent={item.deal.type === "flip" && item.deal.netProfit != null && item.deal.netProfit >= 0}
                                   />
-                                  {coop && (
-                                    <Metric
-                                      label="ROI vaší investice"
-                                      value={investorRoi != null ? `${investorRoi.toFixed(1)} %` : "—"}
-                                      accent={investorRoi != null && investorRoi >= 0}
-                                    />
-                                  )}
                                   <Metric
                                     label="ROI projektu"
                                     value={item.deal.type === "flip" && item.deal.roi != null ? `${item.deal.roi.toFixed(1)} %` : "—"}
@@ -438,11 +435,7 @@ export default function InvestorPortalPage() {
                               {expanded ? "Skrýt detail výpočtu" : "Zobrazit detail výpočtu"}
                             </button>
                             {expanded && (
-                              <DealDetail
-                                item={item}
-                                selectedStrategy={strategy}
-                                onSelectStrategy={(s) => setSelectedStrategy((prev) => ({ ...prev, [item.id]: s }))}
-                              />
+                              <DealDetail item={item} />
                             )}
 
                             {/* Rezervace */}
@@ -458,7 +451,7 @@ export default function InvestorPortalPage() {
                                   <span className="text-xs text-emerald-400">Dostupná k rezervaci</span>
                                 )}
                               </div>
-                              <ActionButton item={item} busy={actionId === item.id} size="sm" onClick={() => toggleReserve(item)} />
+                              <ActionButton item={item} busy={actionId === item.id} size="sm" onClick={() => handleReserveClick(item)} />
                             </div>
                           </div>
                         </motion.div>
@@ -478,6 +471,19 @@ export default function InvestorPortalPage() {
           )}
         </main>
       </div>
+
+      <ReserveModal
+        open={reserveItem != null}
+        item={reserveItem}
+        strategy={reserveStrategy}
+        busy={actionId != null}
+        onSelect={setReserveStrategy}
+        onConfirm={confirmReserve}
+        onClose={() => {
+          setReserveItem(null);
+          setReserveStrategy(null);
+        }}
+      />
 
       <EmailModal
         open={emailModalOpen}
@@ -547,15 +553,7 @@ function PhotoGallery({
   );
 }
 
-function DealDetail({
-  item,
-  selectedStrategy,
-  onSelectStrategy,
-}: {
-  item: InvestorPortalItem;
-  selectedStrategy: CooperationStrategy | null;
-  onSelectStrategy: (strategy: CooperationStrategy) => void;
-}) {
+function DealDetail({ item }: { item: InvestorPortalItem }) {
   if (item.calcMode === "rental") {
     const deal = item.deal.type === "rental" ? item.deal : null;
     const snap = item.snapshot?.mode === "rental" ? item.snapshot : null;
@@ -587,26 +585,14 @@ function DealDetail({
 
   const deal = item.deal.type === "flip" ? item.deal : null;
   const snap = item.snapshot?.mode === "flip" ? item.snapshot : null;
+  const coop = item.cooperation;
   const targetPrice = snap?.targetPurchasePrice ?? snap?.purchasePriceUsed;
-  const investorRoi =
-    item.cooperation && selectedStrategy === "fifty-fifty"
-      ? item.cooperation.investorRoiFiftyFifty
-      : item.cooperation && selectedStrategy === "sourcing-fee"
-        ? item.cooperation.investorRoiSourcing
-        : null;
-  const investorFunding =
-    selectedStrategy === "fifty-fifty"
-      ? item.cooperation?.fundingFiftyFifty
-      : selectedStrategy === "sourcing-fee"
-        ? item.cooperation?.fundingSourcing
-        : null;
   return (
     <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Odhadovaný zisk a ROI</p>
         <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
       </div>
-      <FlipStrategyBlock item={item} selectedStrategy={selectedStrategy} onSelectStrategy={onSelectStrategy} />
       <div className="space-y-2 text-[12px]">
         <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při cílové ceně {targetPrice != null ? formatPrice(targetPrice) : "—"}</div>
         <DetailRow label="Kupní cena" value={targetPrice != null ? formatPrice(targetPrice) : "—"} />
@@ -618,37 +604,27 @@ function DealDetail({
         {snap?.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatPrice(snap.marketingPhoto)} />}
         {snap?.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatPrice(snap.holdingCosts)} />}
         {snap?.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
-        {selectedStrategy === "sourcing-fee" && snap?.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatPrice(snap.sourcingFee)} />}
         {snap?.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
         {snap?.totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(snap.totalCost)} accent />}
         <DetailRow label="ARV (po rekonstrukci)" value={deal?.arv != null ? formatPrice(deal.arv) : "—"} />
-        {item.cooperation && selectedStrategy && (
+        {!coop && (
           <DetailRow
-            label={selectedStrategy === "fifty-fifty" ? "Vaše investice · 50/50" : "Vaše investice · sourcing fee"}
-            value={investorFunding != null ? formatPrice(investorFunding) : "—"}
-            accent
-          />
-        )}
-        <DetailRow
-          label="Odhadovaný zisk"
-          value={(() => {
-            const p = flipProfitFor(item, selectedStrategy, deal?.netProfit ?? null);
-            return p != null ? formatPrice(p) : "—";
-          })()}
-          accent={(() => {
-            const p = flipProfitFor(item, selectedStrategy, deal?.netProfit ?? null);
-            return p != null && p >= 0;
-          })()}
-        />
-        {item.cooperation && selectedStrategy && (
-          <DetailRow
-            label="ROI vaší investice"
-            value={investorRoi != null ? `${investorRoi.toFixed(1)} %` : "—"}
-            accent={investorRoi != null && investorRoi >= 0}
+            label="Odhadovaný zisk"
+            value={deal?.netProfit != null ? formatPrice(deal.netProfit) : "—"}
+            accent={deal?.netProfit != null && deal.netProfit >= 0}
           />
         )}
         <DetailRow label="ROI projektu" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
       </div>
+
+      {/* Oba modely spolupráce rozepsané dle uložené kalkulačky */}
+      {coop && coop.availableStrategies.length > 0 && (
+        <div className={`grid gap-2 ${coop.availableStrategies.length > 1 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}>
+          {coop.availableStrategies.map((s) => (
+            <ModelDetailBlock key={s} strategy={s} coop={coop} />
+          ))}
+        </div>
+      )}
       <p className="text-[11px] text-muted pt-2 border-t border-border/20">
         Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
       </p>
@@ -665,89 +641,162 @@ function DetailRow({ label, value, accent }: { label: string; value: string; acc
   );
 }
 
-/** Volba režimu spolupráce u flipu (50/50 vs. sourcing fee) s čísly. */
-function FlipStrategyBlock({
-  item,
-  selectedStrategy,
-  onSelectStrategy,
-}: {
-  item: InvestorPortalItem;
-  selectedStrategy: CooperationStrategy | null;
-  onSelectStrategy: (strategy: CooperationStrategy) => void;
-}) {
-  const coop = item.cooperation;
-  if (!coop) return null;
-  const strategies = coop.availableStrategies;
-  const profitOf = (s: CooperationStrategy) =>
-    s === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
-  const roiOf = (s: CooperationStrategy) =>
-    s === "fifty-fifty" ? coop.investorRoiFiftyFifty : coop.investorRoiSourcing;
-  const fundingOf = (s: CooperationStrategy) =>
-    s === "fifty-fifty" ? coop.fundingFiftyFifty : coop.fundingSourcing;
-  const descOf = (s: CooperationStrategy) =>
-    s === "fifty-fifty"
-      ? "My zajišťujeme rekonstrukci, vy financujete. Zisk se dělí napůl."
-      : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
-
-  const strategyBox = (s: CooperationStrategy, active: boolean, onClick?: () => void) => {
-    const profit = profitOf(s);
-    const roi = roiOf(s);
-    const funding = fundingOf(s);
-    return (
-      <div
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
-        onClick={onClick}
-        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
-        className={`rounded-xl border p-3 text-left ${onClick ? "cursor-pointer transition-colors" : ""} ${
-          active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card/60 hover:border-accent/30 hover:bg-card-hover"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <p className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>{COOPERATION_STRATEGIES[s]}</p>
-          <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
-            {profit != null ? formatPrice(profit) : "—"}
-          </span>
-        </div>
-        <p className="text-[11px] text-muted mt-1">{descOf(s)}</p>
-        {(roi != null || funding != null) && (
-          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/20 text-[11px]">
-            <span className="text-muted">Vaše investice</span>
-            <span className="font-mono tabular-nums text-foreground">{funding != null ? formatPrice(funding) : "—"}</span>
-          </div>
-        )}
-        {(roi != null || funding != null) && (
-          <div className="flex items-center justify-between gap-2 mt-1 text-[11px]">
-            <span className="text-muted">ROI vaší investice</span>
-            <span className={`font-mono tabular-nums ${roi != null && roi >= 0 ? "text-emerald-400" : "text-foreground"}`}>
-              {roi != null ? `${roi.toFixed(1)} %` : "—"}
-            </span>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  if (strategies.length <= 1) {
-    const s = strategies[0];
-    if (!s) return null;
-    return (
-      <div className="space-y-1.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Způsob spolupráce</p>
-        {strategyBox(s, true)}
-      </div>
-    );
-  }
-
+/** Blok modelu spolupráce na kartě: model + zisk investora + ROI. */
+function ModelProfitCard({ strategy, coop }: { strategy: CooperationStrategy; coop: CooperationView }) {
+  const profit = modelProfitOf(strategy, coop);
+  const roi = modelRoiOf(strategy, coop);
+  const sub = strategy === "fifty-fifty" ? "váš zisk · polovina obchodu" : "váš zisk · po rekonstrukci";
   return (
-    <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Způsob spolupráce — vyberte</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {strategies.map((s) =>
-          strategyBox(s, selectedStrategy === s, () => onSelectStrategy(s))
-        )}
-      </div>
+    <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
+      <p className="text-[10px] text-muted mt-0.5">{sub}</p>
+      <p className={`font-mono text-lg font-semibold tabular-nums mt-1 break-words ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
+        {profit != null ? formatPrice(profit) : "—"}
+      </p>
+      <p className="text-[11px] text-muted mt-1.5">
+        ROI vaší investice{" "}
+        <span className={`font-mono tabular-nums font-medium ${roi != null && roi >= 0 ? "text-emerald-400" : "text-foreground"}`}>
+          {roi != null ? `${roi.toFixed(1)} %` : "—"}
+        </span>
+      </p>
     </div>
+  );
+}
+
+/** Rozpis jednoho modelu spolupráce v detailu výpočtu: investice, zisk, ROI. */
+function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; coop: CooperationView }) {
+  const isFifty = strategy === "fifty-fifty";
+  const funding = modelFundingOf(strategy, coop);
+  const profit = modelProfitOf(strategy, coop);
+  const roi = modelRoiOf(strategy, coop);
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
+      {!isFifty && coop.sourcingFee != null && coop.sourcingFee > 0 && (
+        <DetailRow label="Sourcing fee" value={formatPrice(coop.sourcingFee)} />
+      )}
+      <DetailRow label="Vaše investice" value={funding != null ? formatPrice(funding) : "—"} />
+      <DetailRow
+        label={isFifty ? "Váš zisk (polovina obchodu)" : "Váš zisk (po rekonstrukci)"}
+        value={profit != null ? formatPrice(profit) : "—"}
+        accent={profit != null && profit >= 0}
+      />
+      <DetailRow
+        label="ROI vaší investice"
+        value={roi != null ? `${roi.toFixed(1)} %` : "—"}
+        accent={roi != null && roi >= 0}
+      />
+    </div>
+  );
+}
+
+/** Modal s výběrem modelu spolupráce před rezervací (když jsou dostupné oba modely). */
+function ReserveModal({
+  open,
+  item,
+  strategy,
+  busy,
+  onSelect,
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  item: InvestorPortalItem | null;
+  strategy: CooperationStrategy | null;
+  busy: boolean;
+  onSelect: (s: CooperationStrategy) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const coop = item?.cooperation;
+  return (
+    <AnimatePresence>
+      {open && item && coop && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+          >
+            <div className="p-5 sm:p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 border border-accent/25">
+                  <HandCoins size={20} weight="bold" className="text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold tracking-tight leading-tight">Vyberte způsob spolupráce</h2>
+                  <p className="text-sm text-muted mt-1 leading-relaxed">
+                    {[item.city, item.district].filter(Boolean).join(" · ") || "Nabídka"} — jak chcete obchod realizovat?
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors text-muted"
+                  aria-label="Zavřít"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {coop.availableStrategies.map((s) => {
+                  const active = strategy === s;
+                  const profit = modelProfitOf(s, coop);
+                  const roi = modelRoiOf(s, coop);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => onSelect(s)}
+                      className={cn(
+                        "w-full text-left rounded-xl border p-3.5 transition-colors",
+                        active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-hover/40 hover:border-accent/30"
+                      )}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>
+                          Model {COOPERATION_STRATEGIES[s]}
+                        </span>
+                        <span className={`font-mono text-sm font-semibold tabular-nums ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
+                          {profit != null ? formatPrice(profit) : "—"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted mt-1">{modelDesc(s, coop)}</p>
+                      <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/20 text-[11px]">
+                        <span className="text-muted">ROI vaší investice</span>
+                        <span className={`font-mono tabular-nums ${roi != null && roi >= 0 ? "text-emerald-400" : "text-foreground"}`}>
+                          {roi != null ? `${roi.toFixed(1)} %` : "—"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+                  Zrušit
+                </Button>
+                <Button type="button" loading={busy} disabled={!strategy} onClick={onConfirm} className="flex-1 gap-1.5">
+                  <SealCheck size={14} weight="bold" />
+                  Potvrdit rezervaci
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted mt-3 leading-relaxed">
+                Způsob spolupráce určí, jak se u obchodu rozdělí zisk a investice. Potvrzením si nabídku rezervujete.
+              </p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

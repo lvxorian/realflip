@@ -9,6 +9,7 @@ import { touchInvestorActivity } from "@/lib/investor-activity-actions";
 import { generateId, ts } from "@/lib/utils";
 import { flipCooperationFromSnapshot, parseCalcSnapshot } from "@/lib/investor-portal-view";
 import { getPortalConfig } from "@/lib/portal-config";
+import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 
 export async function POST(req: NextRequest) {
   const session = await getInvestorSession();
@@ -96,11 +97,15 @@ export async function POST(req: NextRequest) {
       .where(eq(leads.id, leadId));
 
     try {
+      const strategyLabel =
+        strategy && strategy in COOPERATION_STRATEGIES
+          ? COOPERATION_STRATEGIES[strategy as keyof typeof COOPERATION_STRATEGIES]
+          : null;
       await db.insert(notifications).values({
         id: generateId(),
         userId: lead.userId,
         title: "Rezervace v investor portálu",
-        message: `Investor ${session.name} rezervoval nemovitost ${lead.propertyTitle ?? lead.propertyId}${lead.propertyAddress ? `, ${lead.propertyAddress}` : ""}.`,
+        message: `Investor ${session.name} rezervoval nemovitost ${lead.propertyTitle ?? lead.propertyId}${lead.propertyAddress ? `, ${lead.propertyAddress}` : ""}${strategyLabel ? ` — model ${strategyLabel}` : ""}.`,
         type: "portal_reservation",
         read: false,
         data: JSON.stringify({ propertyId: lead.propertyId, leadId: lead.id }),
