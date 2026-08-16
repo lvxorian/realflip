@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { userPreferences } from "@/db/schema";
+import { properties, userPreferences } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { scrapeUrl } from "@/lib/scraping/url-scraper";
 import { applyAreaResolution } from "@/lib/scraping/area-resolver";
@@ -38,6 +38,16 @@ export async function POST(req: Request) {
           if (!listing.price || listing.price <= 0) {
             return { url, portal, success: false, error: "Nepodařilo se načíst cenu inzerátu" };
           }
+
+          // Nemovitost už existuje v DB (uložená kalkulačka/preset se pak
+          // po obnovení stránky načte z vestavěného id).
+          const existing = await db
+            .select({ id: properties.id })
+            .from(properties)
+            .where(eq(properties.url, url))
+            .limit(1)
+            .then((r) => r[0])
+            .catch(() => null);
 
           const prefs = await db
             .select({ minRoi: userPreferences.minRoi })
@@ -91,6 +101,7 @@ export async function POST(req: Request) {
             portal,
             success: true,
             listing: {
+              id: existing?.id ?? null,
               title: listing.title,
               price: listing.price,
               area: listing.area,
