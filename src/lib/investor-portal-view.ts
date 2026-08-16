@@ -245,6 +245,86 @@ export function shiftFlipDealAtPrice(deal: FlipDealView, snapshot: CalcSnapshotF
   return { ...deal, netProfit, roi, annualizedRoi, cashOnCash };
 }
 
+/** Přesný přepočet flip rozpočtu na zadanou kupní cenu přímo z položek snapshotu.
+ *  Na rozdíl od lineárního posunu se přepočte i daň z příjmu (závisí na zisku),
+ *  takže čísla souhlasí s kalkulačkou při stejné ceně. Vrací null, když snapshot
+ *  nemá položkový rozpis (legacy) nebo je cena beze změny. */
+export function recalcFlipAtPrice(
+  snap: CalcSnapshotFlip,
+  atPrice: number
+): {
+  netProfit: number;
+  roi: number;
+  annualizedRoi: number;
+  cashOnCash: number;
+  incomeTax: number;
+  totalCost: number;
+  netProfitNoFee: number;
+  fundingFiftyFifty: number;
+  fundingSourcing: number;
+  investorProfitFiftyFifty: number;
+  investorProfitSourcing: number;
+  investorRoiFiftyFifty: number | null;
+  investorRoiSourcing: number | null;
+} | null {
+  if (snap.purchasePriceUsed != null && Math.round(atPrice) === Math.round(snap.purchasePriceUsed)) return null;
+  const arv = snap.arv;
+  // Položkový rozpis je podmínkou — bez něj neumíme přesně přepočítat (fallback = lineární shift).
+  if (
+    arv == null ||
+    snap.legalFees == null ||
+    snap.renovationCost == null ||
+    snap.contingency == null ||
+    snap.holdingCosts == null
+  ) return null;
+  const fee = snap.sourcingFee ?? 0;
+  const months = snap.holdingMonths ?? 6;
+  const fixed =
+    snap.legalFees +
+    (snap.appraisalFee ?? 0) +
+    snap.renovationCost +
+    snap.contingency +
+    snap.holdingCosts +
+    (snap.mortgageCost ?? 0) +
+    (snap.sellingCommission ?? 0) +
+    (snap.marketingPhoto ?? 0);
+
+  const run = (withFee: boolean) => {
+    const subTotal = atPrice + fixed + (withFee ? fee : 0);
+    const grossProfit = arv - subTotal;
+    const incomeTax = grossProfit > 0 ? Math.round(grossProfit * 0.21) : 0;
+    const totalCost = subTotal + incomeTax;
+    const netProfit = arv - totalCost;
+    const roi = totalCost > 0 ? Math.round((netProfit / totalCost) * 1000) / 10 : 0;
+    return { incomeTax, totalCost, netProfit, roi };
+  };
+
+  const withFee = run(true);
+  const noFee = run(false);
+  const annualizedRoi = Math.round((withFee.roi / months) * 12 * 10) / 10;
+  const cashOnCash = atPrice > 0 ? Math.round((withFee.netProfit / atPrice) * 1000) / 10 : 0;
+  const netProfitNoFee = noFee.netProfit;
+  const investorProfitFiftyFifty = Math.round(netProfitNoFee / 2);
+  const investorProfitSourcing = withFee.netProfit;
+  const fundingFiftyFifty = withFee.totalCost - fee;
+  const fundingSourcing = withFee.totalCost;
+  return {
+    netProfit: withFee.netProfit,
+    roi: withFee.roi,
+    annualizedRoi,
+    cashOnCash,
+    incomeTax: withFee.incomeTax,
+    totalCost: withFee.totalCost,
+    netProfitNoFee,
+    fundingFiftyFifty,
+    fundingSourcing,
+    investorProfitFiftyFifty,
+    investorProfitSourcing,
+    investorRoiFiftyFifty: investorRoi(investorProfitFiftyFifty, fundingFiftyFifty),
+    investorRoiSourcing: investorRoi(investorProfitSourcing, fundingSourcing),
+  };
+}
+
 export interface InvestorPortalItem {
   id: string;
   district: string | null;
@@ -390,12 +470,35 @@ export function toPortalView(
 
   // Čísla musí souznít s cenou, kterou investor vidí: při odlišné vyjednané
   // ceně se zisk/ROI přepočítají z té ceny (báze = cena v snapshotu).
+  // Přesný přepočet (vč. daně z příjmu) ze snapshotu; legacy snapshot bez
+  // položkového rozpisu spadne na lineární posun.
   let finalDeal = deal;
   let finalCooperation = cooperation;
   if (calcMode === "flip" && offerPrice != null && flipSnapshot && deal.type === "flip" && cooperation) {
-    finalCooperation = shiftFlipAtPrice(cooperation, offerPrice, flipSnapshot.purchasePriceUsed);
-    if (finalCooperation !== cooperation) {
-      finalDeal = shiftFlipDealAtPrice(deal, flipSnapshot, offerPrice);
+    const recalc = recalcFlipAtPrice(flipSnapshot, offerPrice);
+    if (recalc) {
+      finalCooperation = {
+        ...cooperation,
+        netProfitTotal: recalc.netProfitNoFee,
+        investorProfitFiftyFifty: recalc.investorProfitFiftyFifty,
+        investorProfitSourcing: recalc.investorProfitSourcing,
+        fundingFiftyFifty: recalc.fundingFiftyFifty,
+        fundingSourcing: recalc.fundingSourcing,
+        investorRoiFiftyFifty: recalc.investorRoiFiftyFifty,
+        investorRoiSourcing: recalc.investorRoiSourcing,
+      };
+      finalDeal = {
+        ...deal,
+        netProfit: recalc.netProfit,
+        roi: recalc.roi,
+        annualizedRoi: recalc.annualizedRoi,
+        cashOnCash: recalc.cashOnCash,
+      };
+    } else {
+      finalCooperation = shiftFlipAtPrice(cooperation, offerPrice, flipSnapshot.purchasePriceUsed);
+      if (finalCooperation !== cooperation) {
+        finalDeal = shiftFlipDealAtPrice(deal, flipSnapshot, offerPrice);
+      }
     }
   }
 

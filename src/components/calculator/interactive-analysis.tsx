@@ -17,7 +17,7 @@ import {
 } from "@/lib/analysis/flip-costs";
 import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { strategiesFromAvailability, type CooperationAvailability } from "@/lib/cooperation-models";
-import { shiftFlipAtPrice, type CooperationView } from "@/lib/investor-portal-view";
+import type { CooperationView } from "@/lib/investor-portal-view";
 import { cityDisplayName } from "@/lib/analysis/location";
 import { XCircle, Robot, CurrencyCircleDollar, Toolbox, Buildings, Phone, FloppyDisk, CaretDown, CaretUp, Scales } from "@phosphor-icons/react";
 import Link from "next/link";
@@ -257,18 +257,31 @@ function InteractiveCard({
     return calculateFlipResults(targetFlipResults.targetPurchasePrice, arv, currentRenovation, area, targetRoi, adjusted);
   }, [targetFlipResults, arv, currentRenovation, area, targetRoi, costConfig]);
 
-  /** Přepočet čísel spolupráce na potvrzenou vyjednanou cenu (co uvidí investor v portálu). */
+  /** Přesný výpočet flipu při potvrzené vyjednané ceně z pipeline (co uvidí
+   *  investor v portálu Brickon) — vč. přepočtu daně z příjmu ze zisku. */
+  const negotiatedFlipResults = useMemo(() => {
+    if (negotiatedPrice == null || negotiatedPrice <= 0) return null;
+    return calculateFlipResults(negotiatedPrice, arv, currentRenovation, area, targetRoi, flipCostConfig);
+  }, [negotiatedPrice, arv, currentRenovation, area, targetRoi, flipCostConfig]);
+
+  /** Čísla spolupráce při vyjednané ceně (50/50 vs. sourcing fee) — přesný
+   *  přepočet z kalkulačky, ne lineární posun. */
   const negotiatedCoop = useMemo<CooperationView | null>(() => {
-    if (negotiatedPrice == null || !targetFlipNoFee || !targetFlipResults) return null;
-    const totalCost = targetFlipResults.costs.totalCost;
-    const sourcingFee = targetFlipResults.costs.sourcingFee;
-    const profitFifty = Math.round(targetFlipNoFee.netProfit / 2);
-    const profitSourcing = targetFlipResults.netProfit;
+    if (negotiatedPrice == null || !targetFlipResults || !negotiatedFlipResults) return null;
+    if (Math.round(negotiatedPrice) === Math.round(targetFlipResults.targetPurchasePrice)) return null;
+    const res = negotiatedFlipResults;
+    const noFeeConfig = { ...costConfig, sourcingEnabled: true, sourcingFee: 0 };
+    const noFee = calculateFlipResults(negotiatedPrice, arv, currentRenovation, area, targetRoi, noFeeConfig);
+    const totalCost = res.costs.totalCost;
+    const sourcingFee = res.costs.sourcingFee;
+    const netProfitTotal = noFee.netProfit;
+    const profitFifty = Math.round(netProfitTotal / 2);
+    const profitSourcing = res.netProfit;
     const fundingFiftyFifty = totalCost != null ? totalCost - sourcingFee : null;
     const fundingSourcing = totalCost;
-    const base: CooperationView = {
+    return {
       availableStrategies: strategiesFromAvailability(flipStrategy),
-      netProfitTotal: targetFlipNoFee.netProfit,
+      netProfitTotal,
       investorProfitFiftyFifty: profitFifty,
       investorProfitSourcing: profitSourcing,
       sourcingFee,
@@ -283,9 +296,11 @@ function InteractiveCard({
           ? Math.round((profitSourcing / fundingSourcing) * 1000) / 10
           : null,
     };
-    const shifted = shiftFlipAtPrice(base, negotiatedPrice, targetFlipResults.targetPurchasePrice);
-    return shifted === base ? null : shifted;
-  }, [negotiatedPrice, targetFlipNoFee, targetFlipResults, flipStrategy]);
+  }, [negotiatedPrice, negotiatedFlipResults, targetFlipResults, arv, currentRenovation, area, targetRoi, costConfig, flipStrategy]);
+
+  // Rozpočet zobrazujeme při ceně, kterou investor skutečně platí (vyjednaná
+  // z pipeline, když existuje); jinak při cílové ceně z kalkulačky.
+  const flipDisplay = negotiatedFlipResults ?? targetFlipResults;
 
   const [mode, setMode] = useState<"flip" | "rental">("flip");
   const [rentalConfig, setRentalConfig] = useState<RentalConfig>(() => ({
@@ -986,35 +1001,39 @@ function InteractiveCard({
               </div>
             </div>
 
-            {/* Cost Breakdown — at target price */}
-            {targetFlipResults && (
+            {/* Cost Breakdown — at negotiated (pipeline) price when available, jinak cílová cena */}
+            {flipDisplay && (
               <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/20 overflow-hidden">
                 <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-3 py-2 text-xs font-semibold text-emerald-400">
-                  Výpočet při cílové ceně {formatPrice(flipResults.targetPurchasePrice)}
+                  {negotiatedFlipResults
+                    ? `Výpočet při kupní ceně ${formatPrice(negotiatedPrice!)}`
+                    : `Výpočet při cílové ceně ${formatPrice(flipResults.targetPurchasePrice)}`}
                 </div>
                 <table className="w-full text-xs">
                   <tbody>
-                    {[
-                      { label: "Kupní cena", value: flipResults.targetPurchasePrice },
-                      { label: "Právní služby", value: targetFlipResults.costs.legalFees },
-                      ...(costConfig.appraisal ? [{ label: "Znalecký posudek", value: targetFlipResults.costs.appraisalFee }] : []),
-                      { label: "Rekonstrukce", value: currentRenovation },
-                      { label: "Rezerva 10 %", value: targetFlipResults.costs.contingency },
-                      ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (5 %)", value: targetFlipResults.costs.sellingCommission }] : []),
-                      ...(!costConfig.sellCommission && targetFlipResults.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: targetFlipResults.costs.marketingPhoto }] : []),
-                      { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: targetFlipResults.costs.holdingCosts },
-                      ...(costConfig.hasMortgage && targetFlipResults.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: targetFlipResults.costs.mortgageCost }] : []),
-                      ...(targetFlipResults.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: targetFlipResults.costs.sourcingFee }] : []),
-                      { label: `Daň z příjmu (21 %)`, value: targetFlipResults.costs.incomeTax },
-                    ].map((row) => (
-                      <tr key={row.label} className="border-b border-emerald-500/10">
-                        <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
-                        <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
-                      </tr>
-                    ))}
+                    {
+                      [
+                        { label: "Kupní cena", value: negotiatedFlipResults ? negotiatedPrice! : flipResults.targetPurchasePrice },
+                        { label: "Právní služby", value: flipDisplay.costs.legalFees },
+                        ...(costConfig.appraisal ? [{ label: "Znalecký posudek", value: flipDisplay.costs.appraisalFee }] : []),
+                        { label: "Rekonstrukce", value: currentRenovation },
+                        { label: "Rezerva 10 %", value: flipDisplay.costs.contingency },
+                        ...(costConfig.sellCommission ? [{ label: "Provize RK prodejní (5 %)", value: flipDisplay.costs.sellingCommission }] : []),
+                        ...(!costConfig.sellCommission && flipDisplay.costs.marketingPhoto > 0 ? [{ label: "Marketing + foto", value: flipDisplay.costs.marketingPhoto }] : []),
+                        { label: `Provozní náklady (${costConfig.holdingMonths} měsíců)`, value: flipDisplay.costs.holdingCosts },
+                        ...(costConfig.hasMortgage && flipDisplay.costs.mortgageCost > 0 ? [{ label: "Úrok z hypotéky", value: flipDisplay.costs.mortgageCost }] : []),
+                        ...(flipDisplay.costs.sourcingFee > 0 ? [{ label: "Sourcing fee", value: flipDisplay.costs.sourcingFee }] : []),
+                        { label: `Daň z příjmu (21 %)`, value: flipDisplay.costs.incomeTax },
+                      ].map((row) => (
+                        <tr key={row.label} className="border-b border-emerald-500/10">
+                          <td className="px-3 py-1.5 text-foreground/80">{row.label}</td>
+                          <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.value)}</td>
+                        </tr>
+                      ))
+                    }
                     <tr className="bg-emerald-500/10">
                       <td className="px-3 py-2 font-semibold text-emerald-400">Náklady celkem</td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(targetFlipResults.costs.totalCost)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(flipDisplay.costs.totalCost)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1025,11 +1044,11 @@ function InteractiveCard({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-emerald-400/70">Zisk</span>
-                    <span className={`font-mono ${targetFlipResults.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(targetFlipResults.netProfit)}</span>
+                    <span className={`font-mono ${flipDisplay.netProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPrice(flipDisplay.netProfit)}</span>
                   </div>
                   <div className="flex justify-between font-medium">
                     <span className="text-emerald-400/70">ROI</span>
-                    <span className={`font-mono ${targetFlipResults.roi >= 14.5 ? "text-emerald-400" : targetFlipResults.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{targetFlipResults.roi.toFixed(1)}%</span>
+                    <span className={`font-mono ${flipDisplay.roi >= 14.5 ? "text-emerald-400" : flipDisplay.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>{flipDisplay.roi.toFixed(1)}%</span>
                   </div>
                 </div>
               </div>

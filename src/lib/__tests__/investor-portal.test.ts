@@ -7,6 +7,7 @@ import {
   negotiationAmountOf,
   shiftFlipAtPrice,
   shiftFlipDealAtPrice,
+  recalcFlipAtPrice,
   type PortalRow,
   type CalcSnapshotFlip,
   type CooperationView,
@@ -160,6 +161,51 @@ describe("shiftFlipDealAtPrice", () => {
 
   it("keeps deal verbatim when prices match", () => {
     expect(shiftFlipDealAtPrice(deal, snapshot, 5_655_000)).toBe(deal);
+  });
+});
+
+describe("recalcFlipAtPrice", () => {
+  // Položkový snapshot odpovídající reálnému případu: cílová cena 2 596 400,
+  // vyjednáno 2 500 000. Daň z příjmu se musí přepočítat ze zisku (ne lineárně).
+  const snap: CalcSnapshotFlip = {
+    mode: "flip",
+    purchasePriceUsed: 2_596_400,
+    targetPurchasePrice: 2_596_400,
+    arv: 4_562_177,
+    renovationCost: 770_000,
+    legalFees: 25_000,
+    appraisalFee: 0,
+    contingency: 77_000,
+    holdingCosts: 32_400,
+    holdingMonths: 6,
+    sellingCommission: 0,
+    marketingPhoto: 20_000,
+    mortgageCost: 0,
+    sourcingFee: 0,
+    incomeTax: 218_689,
+    totalCost: 3_739_489,
+    netProfit: 822_688,
+    roi: 22.0,
+    annualizedRoi: 44.0,
+    cashOnCash: 31.7,
+  };
+
+  it("recomputes tax and total cost exactly at the negotiated price", () => {
+    const recalc = recalcFlipAtPrice(snap, 2_500_000);
+    expect(recalc).not.toBeNull();
+    expect(recalc!.totalCost).toBe(3_663_333);
+    expect(recalc!.incomeTax).toBe(238_933);
+    expect(recalc!.netProfit).toBe(898_844);
+    expect(recalc!.roi).toBe(24.5);
+  });
+
+  it("keeps verbatim when price unchanged", () => {
+    expect(recalcFlipAtPrice(snap, 2_596_400)).toBeNull();
+  });
+
+  it("returns null for legacy snapshot without itemized breakdown", () => {
+    const legacy = { mode: "flip", purchasePriceUsed: 5_655_000, arv: 13_700_000, totalCost: 6_000_000 } as CalcSnapshotFlip;
+    expect(recalcFlipAtPrice(legacy, 5_600_000)).toBeNull();
   });
 });
 
@@ -459,6 +505,41 @@ describe("toPortalView", () => {
     expect(coop?.fundingSourcing).toBeNull();
     expect(coop?.investorRoiFiftyFifty).toBeNull();
     expect(coop?.investorRoiSourcing).toBeNull();
+  });
+
+  it("recomputes deal and cooperation exactly from itemized snapshot at negotiated price", () => {
+    const view = toPortalView(
+      row({
+        stageData: JSON.stringify({ negotiation: { currentAmount: 2_500_000 } }),
+        calcSnapshot: JSON.stringify({
+          mode: "flip",
+          purchasePriceUsed: 2_596_400,
+          arv: 4_562_177,
+          renovationCost: 770_000,
+          legalFees: 25_000,
+          appraisalFee: 0,
+          contingency: 77_000,
+          holdingCosts: 32_400,
+          holdingMonths: 6,
+          sellingCommission: 0,
+          marketingPhoto: 20_000,
+          mortgageCost: 0,
+          sourcingFee: 0,
+          incomeTax: 218_689,
+          totalCost: 3_739_489,
+          netProfit: 822_688,
+          roi: 22.0,
+          annualizedRoi: 44.0,
+          cashOnCash: 31.7,
+        }),
+      }),
+      "inv",
+      { budget: null, unlimited: true }
+    );
+    expect(view.offerPrice).toBe(2_500_000);
+    expect(view.deal.type === "flip" && view.deal.netProfit).toBe(898_844);
+    expect(view.deal.type === "flip" && view.deal.roi).toBe(24.5);
+    expect(view.cooperation?.fundingSourcing).toBe(3_663_333);
   });
 
   it("computes cooperation and deal profit from the negotiated pipeline price", () => {

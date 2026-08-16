@@ -24,7 +24,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
-import type { CalcSnapshotFlip, CooperationView, FlipDealView } from "@/lib/investor-portal-view";
+import { recalcFlipAtPrice, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
 import { COOPERATION_STRATEGIES, type CooperationStrategy } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
@@ -707,6 +707,10 @@ function FlipCostRows({
     ? (coop?.fundingFiftyFifty ??
         (snap?.totalCost != null && sourcingFee != null ? snap.totalCost - sourcingFee : (snap?.totalCost ?? null)))
     : (coop?.fundingSourcing ?? snap?.totalCost);
+  // Daň z příjmu závisí na kupní ceně — při odlišné ceně se přepočte přesně
+  // (stejně jako v kalkulačce), jinak se použije hodnota ze snapshotu.
+  const recalc = snap && kupniCena != null ? recalcFlipAtPrice(snap, kupniCena) : null;
+  const incomeTax = recalc?.incomeTax ?? snap?.incomeTax ?? null;
   return (
     <>
       <DetailRow label="Kupní cena" value={kupniCena != null ? formatPrice(kupniCena) : "—"} />
@@ -719,7 +723,7 @@ function FlipCostRows({
       {snap?.holdingCosts != null && snap.holdingCosts > 0 && <DetailRow label={`Provozní náklady (${snap.holdingMonths ?? 6} měsíců)`} value={formatPrice(snap.holdingCosts)} />}
       {snap?.mortgageCost != null && snap.mortgageCost > 0 && <DetailRow label="Úrok z hypotéky" value={formatPrice(snap.mortgageCost)} />}
       {!isFifty && sourcingFee != null && sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatPrice(sourcingFee)} />}
-      {snap?.incomeTax != null && snap.incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(snap.incomeTax)} />}
+      {incomeTax != null && incomeTax > 0 && <DetailRow label="Daň z příjmu (21 %)" value={formatPrice(incomeTax)} />}
       {totalCost != null && <DetailRow label="Náklady celkem" value={formatPrice(totalCost)} accent />}
       <DetailRow
         label="ARV (po rekonstrukci)"
