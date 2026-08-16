@@ -62,6 +62,7 @@ export async function listPortalItems(investorId: string): Promise<ReturnType<ty
       city: propertyAnalysis.locationCity,
       locationCategory: propertyAnalysis.locationCategory,
       condition: properties.condition,
+      buildingType: properties.buildingType,
       area: properties.area,
       rooms: properties.rooms,
       floor: properties.floor,

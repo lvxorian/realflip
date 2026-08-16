@@ -31,6 +31,7 @@ export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
       district: propertyAnalysis.locationDistrict,
       city: propertyAnalysis.locationCity,
       condition: properties.condition,
+      buildingType: properties.buildingType,
       area: properties.area,
       rooms: properties.rooms,
       floor: properties.floor,

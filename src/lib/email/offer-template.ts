@@ -85,7 +85,13 @@ function row(label: string, value: string, accent?: boolean): string {
 
 export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string): string {
   const location = [offer.city, offer.district].filter(Boolean).join(" · ") || "Neznámá lokalita";
-  const details = [offer.condition, offer.rooms, offer.area ? `${offer.area} m²` : null, offer.floor !== null ? `${offer.floor}. podlaží` : null]
+  const details = [
+    offer.condition ? `Stav: ${offer.condition}` : null,
+    offer.rooms,
+    offer.area ? `${offer.area} m²` : null,
+    offer.buildingType && offer.buildingType !== "—" ? offer.buildingType : null,
+    offer.floor !== null ? `${offer.floor}. podlaží` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   const savings = offer.savingsPct !== null && offer.savingsPct > 0 ? `−${offer.savingsPct.toFixed(1)} %` : "—";

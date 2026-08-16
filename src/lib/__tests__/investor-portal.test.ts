@@ -21,6 +21,7 @@ const row = (over: Partial<PortalRow> = {}): PortalRow => ({
   district: "Žižkov",
   city: "Praha",
   condition: "original",
+  buildingType: null,
   area: 74,
   rooms: "3+1",
   floor: 2,
@@ -257,6 +258,15 @@ describe("toPortalView", () => {
     expect(toPortalView(row({ condition: "renovated" }), "inv", ctx).condition).toBe("Po rekonstrukci");
     expect(toPortalView(row({ condition: "dilapidated" }), "inv", ctx).condition).toBe("Neobyvatelný");
     expect(toPortalView(row({ condition: null }), "inv", ctx).condition).toBe("—");
+  });
+
+  it("maps building type label for all values", () => {
+    const ctx = { budget: null, unlimited: true };
+    expect(toPortalView(row({ buildingType: "brick" }), "inv", ctx).buildingType).toBe("Cihlový");
+    expect(toPortalView(row({ buildingType: "panel" }), "inv", ctx).buildingType).toBe("Panelový");
+    expect(toPortalView(row({ buildingType: "new" }), "inv", ctx).buildingType).toBe("Novostavba");
+    expect(toPortalView(row({ buildingType: "mixed" }), "inv", ctx).buildingType).toBe("Smíšený");
+    expect(toPortalView(row({ buildingType: null }), "inv", ctx).buildingType).toBe("—");
   });
 
   it("flip mode passes stored snapshot verbatim — no recompute", () => {

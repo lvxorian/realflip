@@ -49,12 +49,13 @@ function ModeBadge({ item }: { item: InvestorPortalItem }) {
   );
 }
 
-/** Hodnoty nemovitosti na jednom řádku oddělené tečkou: 3+1 · 73 m² · Průměrný */
+/** Hodnoty nemovitosti na jednom řádku oddělené tečkou: 3+1 · 73 m² · Stav: Průměrný · Cihlový · 3. podlaží */
 function PropertyMeta({ item }: { item: InvestorPortalItem }) {
   const parts: React.ReactNode[] = [];
   if (item.rooms) parts.push(<span key="rooms">{item.rooms}</span>);
   if (item.area) parts.push(<span key="area" className="font-mono tabular-nums">{item.area} m²</span>);
-  if (item.condition) parts.push(<span key="condition" className="capitalize">{item.condition}</span>);
+  if (item.condition) parts.push(<span key="condition">{`Stav: ${item.condition}`}</span>);
+  if (item.buildingType && item.buildingType !== "—") parts.push(<span key="building">{item.buildingType}</span>);
   if (item.floor !== null && item.floor !== undefined) parts.push(<span key="floor">{item.floor}. podlaží</span>);
   if (parts.length === 0) return null;
   return (

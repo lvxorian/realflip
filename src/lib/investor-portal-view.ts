@@ -1,4 +1,4 @@
-import { conditionLabel, safeJsonParse } from "@/lib/utils";
+import { conditionLabel, buildingTypeLabel, safeJsonParse } from "@/lib/utils";
 import { cityDisplayName } from "@/lib/analysis/location";
 import type { StageData } from "@/components/leads/types";
 import { strategiesFromAvailability, type CooperationStrategy } from "@/lib/cooperation-models";
@@ -250,6 +250,7 @@ export interface InvestorPortalItem {
   district: string | null;
   city: string | null;
   condition: string;
+  buildingType: string;
   area: number | null;
   rooms: string | null;
   floor: number | null;
@@ -283,6 +284,7 @@ export interface PortalRow {
   district: string | null;
   city: string | null;
   condition: string | null;
+  buildingType: string | null;
   area: number | null;
   rooms: string | null;
   floor: number | null;
@@ -402,6 +404,7 @@ export function toPortalView(
     district: row.district,
     city: cityDisplayName(row.city) ?? row.city,
     condition: conditionLabel(row.condition),
+    buildingType: buildingTypeLabel(row.buildingType),
     area: row.area,
     rooms: row.rooms,
     floor: row.floor,

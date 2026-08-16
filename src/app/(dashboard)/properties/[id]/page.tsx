@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { properties, priceHistory, propertyAnalysis, favorites, leads } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
-import { safeJsonParse, formatPhone, formatPrice } from "@/lib/utils";
+import { safeJsonParse, formatPhone, formatPrice, buildingTypeLabel } from "@/lib/utils";
 import { parseAltPortals } from "@/lib/scraping/property-match";
 import { parseStageData, negotiationAmountOf } from "@/lib/investor-portal-view";
 import { LEAD_STAGES } from "@/lib/leads";
@@ -53,6 +53,13 @@ function formatDate(d: Date | number) {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function daysToAuction(auctionData: Record<string, unknown> | null): number | null {
+  if (!auctionData?.auctionDate) return null;
+  const d = new Date(String(auctionData.auctionDate));
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
 }
 
 const PORTAL_LABELS: Record<string, string> = {
@@ -174,13 +181,6 @@ export default async function PropertyDetailPage({
     : null;
   const isAuction = property.portalName === "portaldrazeb";
 
-  function daysToAuction(): number | null {
-    if (!auctionData?.auctionDate) return null;
-    const d = new Date(String(auctionData.auctionDate));
-    if (isNaN(d.getTime())) return null;
-    return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
-  }
-
   function fmtAuctionPrice(v: unknown): string {
     return typeof v === "number" && v > 0 ? formatPrice(v) : "—";
   }
@@ -275,7 +275,7 @@ export default async function PropertyDetailPage({
                   <Clock size={14} weight="bold" />
                   {formatDays(property.firstSeen)} na trhu
                   {isAuction && (() => {
-                    const days = daysToAuction();
+                    const days = daysToAuction(auctionData);
                     return (
                       <>
                         <span className="w-1 h-1 rounded-full bg-border" />
@@ -313,6 +313,7 @@ export default async function PropertyDetailPage({
                   { label: "dispozice", value: property.rooms ?? "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
                   { label: "rok", value: property.yearBuilt ?? "—" },
+                  { label: "konstrukce", value: property.buildingType ? buildingTypeLabel(property.buildingType) : "—" },
                 ].map((s) => (
                   <div
                     key={s.label}
