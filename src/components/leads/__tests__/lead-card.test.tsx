@@ -139,7 +139,7 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(note.className).toContain("line-clamp-2");
   });
 
-  it("zobrazí ideální kupní cenu z kalkulace a její m² pod inzertní cenou", () => {
+  it("pod inzertní cenou zobrazí přesně číslo ideální kupní ceny z kalkulace a její m²", () => {
     render(<LeadCardView lead={makeLead({ propertyArea: 49, analysisTargetPurchasePrice: 2_000_000 })} onOpen={() => {}} />);
 
     expect(screen.getByText("Ideální: 2 000 000 Kč")).toBeTruthy();

@@ -53,6 +53,7 @@ export async function GET() {
         analysisScore: propertyAnalysis.investmentScore,
         analysisArv: propertyAnalysis.arv,
         analysisTargetPurchasePrice: propertyAnalysis.targetPurchasePrice,
+        analysisCalcSnapshot: propertyAnalysis.calcSnapshot,
         dealId: deals.id,
         portalStatus: leads.portalStatus,
         portalReservedInvestorId: leads.portalReservedInvestorId,
@@ -80,6 +81,12 @@ export async function GET() {
       return {
         ...row,
         stageData,
+        analysisTargetPurchasePrice:
+          (typeof row.analysisCalcSnapshot === "string"
+            ? (safeJsonParse<{ targetPurchasePrice?: number | null }>(row.analysisCalcSnapshot, {}).targetPurchasePrice ??
+              null)
+            : null) ??
+          row.analysisTargetPurchasePrice,
         propertyRemoved: row.propertyStatus === "removed" || row.propertyIsActive === 0,
         propertyIsActive: row.propertyStatus === "active" && row.propertyIsActive === 1,
         propertyPricePerSqm:
