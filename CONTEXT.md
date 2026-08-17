@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (634 tests, 45 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (641 tests, 46 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -431,6 +431,16 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Potvrzení vyjednané ceny funguje i pro česky formátované ceny** (`792dbb8`): prompt „Vyjednáno" na kartě používal `<input type="number">` + `Number(agreeAmount) > 0` — u cen psaných s mezerami jako oddělovači tisíců („2 500 000") prohlížeč vrací prázdný `value`, takže potvrzení zelenou fajfkou se tiše neprovedlo („nic se nestane"). Oprava: `type="text"` + `inputMode="numeric"` + tolerantní parser `parseAmountInput` v `lead-card.tsx` (mezery/NBSP/Kč se odfiltrují — stejný vzor jako kalkulačka/dražby); neplatný vstup ukáže nápovědu „Zadejte platnou cenu v Kč" místo ticha. Stejné parsování (`parsePriceInput`) aplikováno na pole „Vyjednaná cena (s prodejcem)" v lead-draweru. +7 testů (lead-card ✓/Enter/formátované ceny, leads-board celý tok, PATCH route akceptace negotiation).
 - **Badge FLIP/NAJEM s plným pozadím** (`5aef53a`): `ModeBadge` v Brickonu (`src/app/investor/(portal)/page.tsx`) měl transparentní „soft" odstíny → plné pozadí + bílý text: FLIP `bg-accent` (zelená), NÁJEM `bg-info` (modrá). Funguje v light i dark režimu (tokeny se v dark zesvětlí).
 - **Odstraněna věta z portal-panelu** (detail nemovitosti, `src/components/leads/portal-panel.tsx`): „Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží 72h a pak se automaticky uvolní." pryč; ukliděn teď nepoužitý prop `reservationHours` (default + předání z `properties/[id]` + import `PORTAL_RESERVATION_MS`).
+
+### Phase 64 — Živé formátování částek při psaní: 5000000 → „5 000 000" (Done)
+- **Sdílený `AmountInput`** (`src/components/ui/amount-input.tsx`, commit `3448777`): `type="text"` + `inputMode="numeric"` + `autoComplete="off"`, živě formátuje mezery jako oddělovače tisíců (`formatAmountInput` v `src/lib/utils.ts`: nečíslice odfiltruje, „5000000" → „5 000 000"). `onChange` předává dál **jen číslice** — všechna stávající parsování (`Number`/`parseInt`/`parseAmountInput`) fungují beze změny. Sdílený `Input` dostal rezim `type="amount"` (stejné chování v labelovaných polích).
+- **Převedeno ~30 částkových polí napříč aplikací**: kalkulačka (`interactive-analysis.tsx` — sourcing fee, výše úvěru, reko Kč/m² i celkem flip+rental, itemizovaný plán rekonstrukce, Kč pole v rental `NumberField`), pipeline (prompt na kartě v `lead-card.tsx`, nabídnutá/vyjednaná cena + převod na deal v `lead-drawer.tsx`, kupní cena/reko v `stage-transition-modal.tsx`), dražby (`auction-calculator.tsx` — OC/NP/TMV/TD/ARV, TC náklady, reko, sourcing fee), ocenění (`askingPrice`), filtry cen (`properties-explorer.tsx`, `search-form.tsx`), investor budget, nastavení (právní služby, reko Kč/m²), onboarding rozpočet, buy-vs-rent, kalkulačka page (cena, trh/m²), flip kalkulátor. Procenta/m²/plochy/roky/podlaží zůstaly obyčejná číselná pole (bez formátování). Placeholdery částek převedeny na „4 890 000" styl. +5 testů (`formatAmountInput` ×4, živé formátování na kartě).
+
+### Phase 65 — E-mail s novou nabídkou: přesné ceny, bez ROI ročně, přehledný model spolupráce (Done)
+- **Přesné ceny místo zaokrouhlených** (`7f2155f`, `src/lib/email/offer-template.ts`): `price()` používal `formatCompactPrice` („7,9 mil. Kč") → `formatPrice` („7 890 000 Kč" přesně jako v DB; NBSP z cs-CZ locale nahrazen v e-mailu obyčejnou mezerou). Platí pro inzerovanou cenu, cenu po vyjednání, zisk i cash-flow.
+- **Smazán řádek „ROI (ročně)"** — bral se z `deal.annualizedRoi` (extrapolace z doby držení, u flipu zavádějící). Zůstává jen „ROI (celkem)"; nájem dál ukazuje „Čistý výnos p.a.".
+- **„Způsob spolupráce" restrukturalizován**: hodnota = typ investice (**FLIP**/**NAJEM**), pod ním řádek **Model** = „50/50" / „Sourcing fee" / „50/50 nebo Sourcing fee" (velké S, `white-space:nowrap` na buňce hodnoty = jeden řádek). Štítky zisků „Váš zisk při Sourcing fee" s velkým S. Nájem ukazuje typ NAJEM bez Modelu (nájem modely spolupráce nemá); flip bez snapshotu blok spolupráce nezobrazuje. Label modelů z `COOPERATION_STRATEGIES` (`cooperation-models.ts`).
+- **Patička**: smazáno „Chcete-li odhlášení, odpovězte na tento e-mail." — zůstává jen „Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu Brickon."
 
 ## Key Files
 
