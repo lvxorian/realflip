@@ -1,5 +1,5 @@
 import { PortalAdapter } from "./base";
-import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
+import { RawListing, SearchFilters, filterImages, isValidPrice, parseCzkPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
@@ -30,9 +30,17 @@ export class RealityCzAdapter extends PortalAdapter {
                 new URL(nextLink, `${this.config.baseUrl}${pageUrl}`).search;
     }
 
-    const enriched = await Promise.all(
-      all.map((l) => this.enrichListing(l))
-    );
+    // Enrichování dávek — reality.cz je na rychlé požadavky přísný (429 →
+    // 60s retry), proto menší concurrency 2 než u jiných portálů.
+    const enriched: RawListing[] = [];
+    const concurrency = 2;
+    for (let i = 0; i < all.length; i += concurrency) {
+      const batch = all.slice(i, i + concurrency);
+      const batchResults = await Promise.all(
+        batch.map((l) => this.enrichListing(l).catch(() => l))
+      );
+      enriched.push(...batchResults);
+    }
 
     return enriched;
   }
@@ -47,8 +55,6 @@ export class RealityCzAdapter extends PortalAdapter {
       if (!title) return;
 
       const href = $titleLink.attr("href") || "";
-      const id = $el.attr("id") || "";
-      const listingId = id.replace(/^id/, "");
 
       const priceEl = $el.find("p.vypiscena span:not(.neucena) strong").first();
       const noPrice = $el.find("p.vypiscena span.neucena").length > 0;
@@ -77,9 +83,11 @@ export class RealityCzAdapter extends PortalAdapter {
       if (lat !== null && lat === 0) lat = null;
       if (lng !== null && lng === 0) lng = null;
 
+      // Detail se staví z href odkazu („L00-006956/?c=…") — id atribut
+      // („idl00006956") má jiný formát a nevede na detailní stránku.
       const url = href.startsWith("http")
         ? href
-        : `${this.config.baseUrl}/${listingId}/`;
+        : new URL(href, `${this.config.baseUrl}/`).toString();
 
       listings.push({
         portalName: "reality-cz",
@@ -236,9 +244,8 @@ export class RealityCzAdapter extends PortalAdapter {
   }
 
   private parsePrice(text: string): number {
-    const cleaned = text.replace(/\s/g, "").replace(/Kč.*$/i, "").trim();
-    const num = parseInt(cleaned);
-    if (isNaN(num)) return 0;
+    const num = parseCzkPrice(text);
+    if (num === 0) return 0;
     return isValidPrice(num) ? num : 0;
   }
 

@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { RawListing, PortalName, filterImages, isValidPrice, toFullSizeImageUrl, cleanHtmlToText } from "./types";
+import { RawListing, PortalName, filterImages, isValidPrice, toFullSizeImageUrl, cleanHtmlToText, parseCzkPrice } from "./types";
 import { RateLimiter } from "./rate-limiter";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import { parseRealityMatDetail } from "./realitymat-parser";
@@ -144,13 +144,8 @@ function cleanText(text: string | null): string | null {
 }
 
 function extractPrice(text: string): number {
-  const cleaned = text
-    .replace(/[\u200d\u200c]/g, "")
-    .replace(/\s/g, "")
-    .replace(/Kč.*$/i, "")
-    .trim();
-  const num = parseInt(cleaned);
-  if (isNaN(num)) return 0;
+  const num = parseCzkPrice(text);
+  if (num === 0) return 0;
   return isValidPrice(num) ? num : 0;
 }
 

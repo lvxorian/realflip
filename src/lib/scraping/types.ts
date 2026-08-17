@@ -253,6 +253,29 @@ export function isValidPrice(price: number): boolean {
   return price > 0 && price >= MIN_REAL_ESTATE_PRICE;
 }
 
+/**
+ * Parsování české ceny z textu. Řeší tečku jako oddělovač tisíců
+ * („4.390.000 Kč" → 4390000), mezery, i nestandardní znaky (zwnj/zwj).
+ * Desetinnou tečku („4.5") ponechává — skutečné ceny nemovitostí jsou
+ * v CZK celá čísla, tečka za první skupinou číslic = tisíce.
+ */
+export function parseCzkPrice(text: string): number {
+  let cleaned = text
+    .replace(/[\u200d\u200c]/g, "")
+    .replace(/&zwnj;/g, "")
+    .replace(/&zwj;/g, "")
+    .replace(/\s/g, "")
+    .replace(/Kč.*$/i, "")
+    .trim();
+  // České tisíce s tečkou: „4.390.000" → „4390000" (vzor \.\d{3} = tisíce)
+  if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+    cleaned = cleaned.replace(/\./g, "");
+  }
+  const num = parseInt(cleaned, 10);
+  if (isNaN(num)) return 0;
+  return num;
+}
+
 export interface RawListing {
   portalName: PortalName;
   url: string;
