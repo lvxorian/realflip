@@ -45,8 +45,8 @@ interface PortalData {
 function ModeBadge({ item }: { item: InvestorPortalItem }) {
   return (
     <span
-      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-        item.calcMode === "rental" ? "border-info/40 bg-info-soft text-info" : "border-accent/40 bg-accent-soft text-accent"
+      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm ${
+        item.calcMode === "rental" ? "bg-info" : "bg-accent"
       }`}
     >
       {item.calcMode === "rental" ? "Nájem" : "Flip"}
