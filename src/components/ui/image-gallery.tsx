@@ -12,9 +12,6 @@ interface ImageGalleryProps {
 export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [errored, setErrored] = useState<Set<number>>(new Set());
-  // Přirozený poměr stran aktuální fotky — kontejner se mu přizpůsobí,
-  // takže fotka se zobrazí celá (bez ořezu) jako na originálním inzerátu.
-  const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   // Šipky ← → na klávesnici listují mezi fotkami (používá se na detailu
@@ -63,16 +60,6 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
     setErrored((prev) => new Set(prev).add(i));
   };
 
-  const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-      // Rozumné meze: čtverec až panoráma — extrémní poměry se zkrotí,
-      // běžné realitní fotky (4:3, 3:2, 16:9) se zobrazí bez ořezu.
-      const ratio = img.naturalWidth / img.naturalHeight;
-      setNaturalRatio(Math.min(2.1, Math.max(0.8, ratio)));
-    }
-  };
-
   if (!images || images.length === 0 || errored.size >= images.length) {
     return (
       <div className="relative aspect-[8/5] property-image-shimmer flex items-center justify-center">
@@ -94,30 +81,44 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
 
   return (
     <div className="relative">
-      <div
-        className="relative w-full bg-card overflow-hidden"
-        style={naturalRatio ? { aspectRatio: `${naturalRatio}` } : { aspectRatio: "8 / 5" }}
-      >
+      {/* Pevný poměr 8:5 — velikost boxu se nikdy nemění podle fotky,
+          takže se layout stránky nedeformuje. Fotka se vejde celá (object-contain)
+          a prostor kolem vyplňuje rozmazaná kopie téže fotky (blur pruhy). */}
+      <div className="relative w-full bg-card overflow-hidden aspect-[8/5]">
         {errored.has(activeIndex) ? (
           <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
             <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
           </div>
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={activeIndex}
-            src={images[activeIndex]}
-            alt={`${alt} - foto ${activeIndex + 1}`}
-            // object-cover: když kontejner kopíruje přirozený poměr fotky, nedojde
-            // k žádnému ořezu ani pruhům; u extrémních poměrů (mimo clamp 0.8–2.1)
-            // se jen lehce ořízne, ale nikdy nevzniknou pruhy.
-            className="absolute inset-0 h-full w-full object-cover"
-            referrerPolicy="no-referrer"
-            loading="lazy"
-            decoding="async"
-            onLoad={handleImgLoad}
-            onError={() => handleImgError(activeIndex)}
-          />
+          <>
+            {/* Rozmazaná kopie fotky vyplňuje prostor kolem (blur pruhy jako na
+                profi portálech) — fotka se nikdy neprotáhne a layout se nemění. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={`bg-${activeIndex}`}
+              src={images[activeIndex]}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
+              onError={() => handleImgError(activeIndex)}
+            />
+            {/* Fotka celá, bez ořezu — když se poměrem stran nevejde do boxu 8:5,
+                kolem ní zůstanou viditelné blur pruhy z pozadí. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={activeIndex}
+              src={images[activeIndex]}
+              alt={`${alt} - foto ${activeIndex + 1}`}
+              className="absolute inset-0 h-full w-full object-contain"
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              decoding="async"
+              onError={() => handleImgError(activeIndex)}
+            />
+          </>
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
@@ -127,7 +128,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
           onClick={() => setFullscreen(true)}
           aria-label="Zobrazit na celou obrazovku"
           title="Zobrazit na celou obrazovku"
-          className="absolute bottom-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full glass opacity-90 transition-all hover:scale-110 hover:bg-card-hover cursor-pointer"
+          className="absolute bottom-14 left-1/2 z-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full glass opacity-90 transition-all hover:scale-110 hover:bg-card-hover cursor-pointer"
         >
           <ArrowsOutSimple size={16} weight="bold" />
         </button>
