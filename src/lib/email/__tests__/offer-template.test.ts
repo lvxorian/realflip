@@ -39,7 +39,7 @@ describe("buildOfferEmailHtml", () => {
     const html = buildOfferEmailHtml(offer(), "https://realflip.app");
     expect(html).toContain("Praha 3 · Žižkov");
     expect(html).toContain("Stav: velmi dobrý · 2+1 · 89 m² · Cihla · 3. podlaží");
-    expect(html).toContain("11.5 mil. Kč");
+    expect(html).toContain("11 500 000 Kč");
     expect(html).toContain("−16.0 %");
     expect(html).toContain("https://realflip.app/investor");
     expect(html).toContain("BRICKON · Nová nabídka");
@@ -57,7 +57,9 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("Odhadovaný zisk");
     expect(html).toContain("ROI (celkem)");
     expect(html).toContain("10.8 %");
+    expect(html).not.toContain("ROI (ročně)");
     expect(html).toContain("Vstoupit do portálu");
+    expect(html).not.toContain("odhlášení");
   });
 
   it("shows čistý výnos for rental mode instead of zisk/ROI", () => {
@@ -79,6 +81,9 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("5.2 %");
     expect(html).not.toContain("ROI");
     expect(html).not.toContain("Odhadovaný zisk");
+    expect(html).toContain(">NAJEM<");
+    expect(html).not.toContain(">FLIP<");
+    expect(html).not.toContain(">Model<");
   });
 
   it("shows cooperation strategy and profits for flip offers", () => {
@@ -99,11 +104,13 @@ describe("buildOfferEmailHtml", () => {
       "https://realflip.app"
     );
     expect(html).toContain("Způsob spolupráce");
-    expect(html).toContain("50/50 nebo sourcing fee");
+    expect(html).toContain(">FLIP<");
+    expect(html).toContain(">Model<");
+    expect(html).toContain(">50/50 nebo Sourcing fee<");
     expect(html).toContain("Váš zisk při 50/50");
-    expect(html).toContain("600 tis. Kč");
-    expect(html).toContain("Váš zisk při sourcing fee");
-    expect(html).toContain("300 tis. Kč");
+    expect(html).toContain("600 000 Kč");
+    expect(html).toContain("Váš zisk při Sourcing fee");
+    expect(html).toContain("300 000 Kč");
   });
 
   it("locks cooperation to a single strategy when only one is offered", () => {
@@ -123,9 +130,10 @@ describe("buildOfferEmailHtml", () => {
       }),
       "https://realflip.app"
     );
-    expect(html).toContain("50/50 — zisk napůl");
+    expect(html).toContain(">50/50<");
     expect(html).toContain("Váš zisk při 50/50");
-    expect(html).not.toContain("Váš zisk při sourcing fee");
+    expect(html).not.toContain("Váš zisk při Sourcing fee");
+    expect(html).not.toContain("nebo");
   });
 
   it("does not render cooperation block for rental or snapshot-less offers", () => {
@@ -136,7 +144,11 @@ describe("buildOfferEmailHtml", () => {
       }),
       "https://realflip.app"
     );
-    expect(rentalHtml).not.toContain("Způsob spolupráce");
+    // Nájem ukáže typ NAJEM (bez modelu — nájem modely spolupráce nemá)
+    expect(rentalHtml).toContain("Způsob spolupráce");
+    expect(rentalHtml).toContain(">NAJEM<");
+    expect(rentalHtml).not.toContain(">Model<");
+    // Flip bez snapshotu (cooperation = null) blok spolupráce nemá
     const plainHtml = buildOfferEmailHtml(offer(), "https://realflip.app");
     expect(plainHtml).not.toContain("Způsob spolupráce");
   });

@@ -1,5 +1,6 @@
 import type { CooperationView, InvestorPortalItem } from "@/lib/investor-portal-view";
-import { formatCompactPrice } from "@/lib/utils";
+import { formatPrice } from "@/lib/utils";
+import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 import { brickLogoSvg } from "@/lib/investor-brick";
 
@@ -31,18 +32,18 @@ export function escapeHtml(value: string): string {
 }
 
 function price(v: number | null): string {
-  return v !== null ? escapeHtml(formatCompactPrice(v)) : "—";
+  // formatPrice používá NBSP jako oddělovač tisíců — v e-mailu je nahradíme
+  // obyčejnou mezerou (stejný zápis „5 000 000" jako v aplikaci).
+  return v !== null ? escapeHtml(formatPrice(v).replace(/\u00A0/g, " ")) : "—";
 }
 
 function renderFlipRows(offer: InvestorPortalItem): string {
   const deal = offer.deal?.type === "flip" ? offer.deal : null;
   const netProfit = deal?.netProfit ?? null;
-  const annualizedRoi = deal?.annualizedRoi ?? null;
   const roi = deal?.roi ?? null;
   return [
     row("Odhadovaný zisk", price(netProfit), netProfit !== null && netProfit >= 0),
     row("ROI (celkem)", roi !== null ? `${roi.toFixed(1)} %` : "—"),
-    row("ROI (ročně)", annualizedRoi !== null ? `${annualizedRoi.toFixed(1)} %` : "—"),
   ].join("");
 }
 
@@ -56,19 +57,24 @@ function renderRentalRows(offer: InvestorPortalItem): string {
   ].join("");
 }
 
-function cooperationLabel(coop: CooperationView): string {
-  if (coop.availableStrategies.length === 2) return "50/50 nebo sourcing fee";
-  return coop.availableStrategies[0] === "fifty-fifty" ? "50/50 — zisk napůl" : "Sourcing fee";
+function cooperationModelLabel(coop: CooperationView): string {
+  const labels = coop.availableStrategies.map((s) => COOPERATION_STRATEGIES[s]);
+  return labels.length === 2 ? `${labels[0]} nebo ${labels[1]}` : labels[0] ?? "—";
 }
 
 function renderCooperationRows(offer: InvestorPortalItem): string {
-  if (offer.calcMode !== "flip" || !offer.cooperation) return "";
-  const rows = [row("Způsob spolupráce", escapeHtml(cooperationLabel(offer.cooperation)))];
-  if (offer.cooperation.availableStrategies.includes("fifty-fifty")) {
-    rows.push(row("Váš zisk při 50/50", price(offer.cooperation.investorProfitFiftyFifty)));
-  }
-  if (offer.cooperation.availableStrategies.includes("sourcing-fee")) {
-    rows.push(row("Váš zisk při sourcing fee", price(offer.cooperation.investorProfitSourcing)));
+  const isFlip = offer.calcMode === "flip";
+  if (isFlip && !offer.cooperation) return "";
+  const modeLabel = isFlip ? "FLIP" : "NAJEM";
+  const rows = [row("Způsob spolupráce", modeLabel)];
+  if (isFlip && offer.cooperation) {
+    rows.push(row("Model", cooperationModelLabel(offer.cooperation)));
+    if (offer.cooperation.availableStrategies.includes("fifty-fifty")) {
+      rows.push(row("Váš zisk při 50/50", price(offer.cooperation.investorProfitFiftyFifty)));
+    }
+    if (offer.cooperation.availableStrategies.includes("sourcing-fee")) {
+      rows.push(row("Váš zisk při Sourcing fee", price(offer.cooperation.investorProfitSourcing)));
+    }
   }
   return rows.join("");
 }
@@ -77,7 +83,7 @@ function row(label: string, value: string, accent?: boolean): string {
   return `
     <tr>
       <td style="padding:8px 0;font-size:13px;color:${T.muted};">${escapeHtml(label)}</td>
-      <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;font-family:'Geist Mono',ui-monospace,monospace;${
+      <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;${
         accent ? `color:${T.accentRow};` : `color:${T.foreground};`
       }">${value}</td>
     </tr>`;
@@ -128,8 +134,9 @@ ${row("Inzerovaná cena", price(offer.originalPrice))}
                 ${
                   offer.calcMode === "rental"
                     ? renderRentalRows(offer)
-                    : renderFlipRows(offer) + renderCooperationRows(offer)
+                    : renderFlipRows(offer)
                 }
+                ${renderCooperationRows(offer)}
               </table>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
                 <tr>
@@ -138,7 +145,7 @@ ${row("Inzerovaná cena", price(offer.originalPrice))}
                   </td>
                 </tr>
               </table>
-              <p style="margin:20px 0 0;font-size:11px;color:${T.mutedForeground};line-height:1.5;">Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu ${escapeHtml(INVESTOR_BRAND)}. Chcete-li odhlášení, odpovězte na tento e-mail.</p>
+              <p style="margin:20px 0 0;font-size:11px;color:${T.mutedForeground};line-height:1.5;">Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu ${escapeHtml(INVESTOR_BRAND)}.</p>
             </td>
           </tr>
         </table>
