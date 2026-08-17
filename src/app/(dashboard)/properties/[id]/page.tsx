@@ -22,7 +22,6 @@ import { DeletePropertyButton } from "@/components/properties/delete-property-bu
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import { PortalPanel } from "@/components/leads/portal-panel";
-import { PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -448,7 +447,6 @@ export default async function PropertyDetailPage({
               initialReservedModel={pipelineLead.portalReservedModel}
               initialReservedStrategy={pipelineLead.portalReservedStrategy}
               initialReservedExpiresAt={pipelineLead.portalExpiresAt}
-              reservationHours={Math.round(PORTAL_RESERVATION_MS / 3_600_000)}
               calcMode={calcMode}
               initialCooperationAvailability={cooperationAvailability}
               removed={isRemoved}

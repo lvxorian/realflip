@@ -28,7 +28,6 @@ interface PortalPanelProps {
   initialReservedModel: string | null;
   initialReservedStrategy: string | null;
   initialReservedExpiresAt: number | null;
-  reservationHours?: number;
   calcMode?: "flip" | "rental" | null;
   initialCooperationAvailability?: string | null;
   removed?: boolean;
@@ -41,7 +40,6 @@ export function PortalPanel({
   initialReservedModel,
   initialReservedStrategy,
   initialReservedExpiresAt,
-  reservationHours = 72,
   calcMode = null,
   initialCooperationAvailability = null,
   removed = false,
@@ -247,10 +245,6 @@ export function PortalPanel({
                 · {countdown ?? "—"}
               </p>
             )}
-
-            <p className="text-xs text-muted">
-              Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží {reservationHours}h a pak se automaticky uvolní.
-            </p>
           </div>
         )}
       </div>
