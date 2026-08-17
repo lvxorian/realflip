@@ -105,42 +105,33 @@ function modelDesc(strategy: CooperationStrategy, coop: CooperationView): string
     : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
 }
 
-/** Karta legendy pro investory: typ investice (flip/rent) nebo model spolupráce. */
-function LegendCard({
+/** Karta legendy pro investora: typ investice (flip/rent) s vnořenými modely
+ *  spolupráce, které u daného typu přicházejí v úvahu (flip: 50/50 + sourcing
+ *  fee; rent: jen sourcing fee — bez rekonstrukce a prodeje). */
+function LegendTypeCard({
   icon,
   title,
-  tag,
   points,
   tone,
+  models,
 }: {
   icon: React.ReactNode;
   title: string;
-  tag?: string;
   points: string[];
   tone?: "accent" | "info";
+  models: { icon: React.ReactNode; title: string; desc: string }[];
 }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={`flex h-6 w-6 items-center justify-center rounded-md ${
-              tone === "info" ? "bg-info-soft text-info" : "bg-accent/15 text-accent"
-            }`}
-          >
-            {icon}
-          </span>
-          <p className="text-[11px] font-semibold uppercase tracking-wider">{title}</p>
-        </div>
-        {tag && (
-          <span
-            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-              tone === "info" ? "border-info/40 bg-info-soft text-info" : "border-accent/40 bg-accent-soft text-accent"
-            }`}
-          >
-            {tag}
-          </span>
-        )}
+    <div className="rounded-xl border border-border/40 bg-card/60 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <span
+          className={`flex h-6 w-6 items-center justify-center rounded-md ${
+            tone === "info" ? "bg-info-soft text-info" : "bg-accent/15 text-accent"
+          }`}
+        >
+          {icon}
+        </span>
+        <p className="text-[11px] font-semibold uppercase tracking-wider">{title}</p>
       </div>
       <ul className="space-y-1">
         {points.map((p, i) => (
@@ -150,6 +141,18 @@ function LegendCard({
           </li>
         ))}
       </ul>
+      <div className="space-y-2 pt-2 border-t border-border/20">
+        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted/60">Modely spolupráce</p>
+        {models.map((m) => (
+          <div key={m.title} className="rounded-lg border border-border/40 bg-card-subtle/60 p-2.5 space-y-1">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold">
+              <span className={`shrink-0 ${tone === "info" ? "text-info" : "text-accent"}`}>{m.icon}</span>
+              {m.title}
+            </p>
+            <p className="text-[11px] text-muted leading-snug">{m.desc}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -321,47 +324,44 @@ export default function InvestorPortalPage() {
                 <StatCard label="Rezervováno ostatními" value={`${reservedOthers.length}`} tone="text-muted" icon={<CheckCircle size={16} weight="bold" />} />
               </div>
 
-              {/* Legenda pro investora — typy investice a modely spolupráce */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <LegendCard
+              {/* Legenda pro investora — typ investice (flip/rent) s modely spolupráce */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <LegendTypeCard
                   icon={<ArrowsClockwise size={14} weight="bold" />}
                   title="Flip"
-                  tag="typ investice"
                   points={[
                     "Koupíme, zrekonstruujeme a prodáme",
                     "Zisk z prodeje po rekonstrukci",
                     "Horizont: měsíce",
                   ]}
+                  models={[
+                    {
+                      icon: <Handshake size={13} weight="bold" />,
+                      title: "50/50",
+                      desc: "My zajistíme rekonstrukci, vy financujete nákup — zisk se dělí napůl.",
+                    },
+                    {
+                      icon: <Coins size={13} weight="bold" />,
+                      title: "Sourcing fee",
+                      desc: "Kupujete a realizujete sami — platíte nám poplatek za sourcing.",
+                    },
+                  ]}
                 />
-                <LegendCard
+                <LegendTypeCard
                   icon={<HouseLine size={14} weight="bold" />}
                   title="Nájem"
-                  tag="typ investice"
                   tone="info"
                   points={[
                     "Koupíme a držíme nemovitost",
                     "Pravidelný příjem z nájmu",
                     "Horizont: roky",
                   ]}
-                />
-                <LegendCard
-                  icon={<Handshake size={14} weight="bold" />}
-                  title="50/50"
-                  tag="model spolupráce"
-                  points={[
-                    "My zajistíme rekonstrukci",
-                    "Vy financujete nákup",
-                    "Zisk se dělí napůl",
-                  ]}
-                />
-                <LegendCard
-                  icon={<Coins size={14} weight="bold" />}
-                  title="Sourcing fee"
-                  tag="model spolupráce"
-                  points={[
-                    "Kupujete a realizujete sami",
-                    "Platíte nám poplatek za sourcing",
-                    "Zisk jde k vám, my si bereme fee",
+                  models={[
+                    {
+                      icon: <Coins size={13} weight="bold" />,
+                      title: "Sourcing fee",
+                      desc: "Najdeme a vyjednáme nemovitost — kupujete a držíte sami, bez rekonstrukce a prodeje.",
+                    },
                   ]}
                 />
               </div>
@@ -805,7 +805,9 @@ function FlipCostRows({
       <DetailRow label="Kupní cena" value={kupniCena != null ? formatPrice(kupniCena) : "—"} />
       {snap?.legalFees != null && snap.legalFees > 0 && <DetailRow label="Právní služby" value={formatPrice(snap.legalFees)} />}
       {snap?.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
-      {snap?.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
+      {snap?.renovationCost != null && snap.renovationCost > 0 && (
+        <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} sub={perSqmLabel(snap.renovationCost, area)} />
+      )}
       {snap?.contingency != null && snap.contingency > 0 && <DetailRow label="Rezerva 10 %" value={formatPrice(snap.contingency)} />}
       {snap?.sellingCommission != null && snap.sellingCommission > 0 && <DetailRow label="Provize RK prodejní (5 %)" value={formatPrice(snap.sellingCommission)} />}
       {snap?.marketingPhoto != null && snap.marketingPhoto > 0 && <DetailRow label="Marketing + foto" value={formatPrice(snap.marketingPhoto)} />}
