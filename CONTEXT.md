@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (628 tests, 43 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (634 tests, 45 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -426,6 +426,11 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 ### Phase 62 — Kalkulačka ↔ Brickon: jednotný výpočet při vyjednané ceně + editovatelná kupní cena (Done)
 - **Dvojí cenová báze** (`2cc0342`): RealFlip počítal z cílové ceny (2 596 400), Brickon posouval na vyjednanou cenu z pipeline (2 500 000) → Náklady celkem nesouhlasily. Oprava: **obě strany počítají přesně při vyjednané ceně** — RealFlip kalkulačka ukazuje rozpočet „Výpočet při kupní ceně X" (cílová cena zůstává jako zelená reference), Brickon přepočítává ze snapshotu přesně (`recalcFlipAtPrice` v `investor-portal-view.ts`) **včetně daně z příjmu** (lineární shift ji nechal z původní ceny); daň v `FlipCostRows` se při odlišné ceně zobrazuje přepočtená. Legacy snapshoty bez položkového rozpisu spadnou na původní lineární posun. +3 testy.
 - **Editovatelná přesná kupní cena** (`835de03`): zelený box „IDEÁLNÍ KUPNÍ CENA" je editovatelné pole — uživatel zadá přesnou částku (např. 2 500 000) a celý výpočet vč. daně se přepočte přesně z té ceny (místo přibližování ROI sliderem, který řeší cenu z ROI). Při ruční ceně box ukáže dosažené ROI a slider se na něj přepne; pohyb slideru/stepperu se vrátí k plánování z ROI (ruční cena se zruší). `manualFlipPrice` se ukládá do presetu (DB config + localStorage) a do snapshotu jako `purchasePriceUsed`/`flipTargetPurchasePrice` → Brickon ukazuje identická čísla (verbatim, žádný posun).
+
+### Phase 63 — Pipeline: potvrzení vyjednané ceny na kartě + Brickon badge + cleanup (Done)
+- **Potvrzení vyjednané ceny funguje i pro česky formátované ceny** (`792dbb8`): prompt „Vyjednáno" na kartě používal `<input type="number">` + `Number(agreeAmount) > 0` — u cen psaných s mezerami jako oddělovači tisíců („2 500 000") prohlížeč vrací prázdný `value`, takže potvrzení zelenou fajfkou se tiše neprovedlo („nic se nestane"). Oprava: `type="text"` + `inputMode="numeric"` + tolerantní parser `parseAmountInput` v `lead-card.tsx` (mezery/NBSP/Kč se odfiltrují — stejný vzor jako kalkulačka/dražby); neplatný vstup ukáže nápovědu „Zadejte platnou cenu v Kč" místo ticha. Stejné parsování (`parsePriceInput`) aplikováno na pole „Vyjednaná cena (s prodejcem)" v lead-draweru. +7 testů (lead-card ✓/Enter/formátované ceny, leads-board celý tok, PATCH route akceptace negotiation).
+- **Badge FLIP/NAJEM s plným pozadím** (`5aef53a`): `ModeBadge` v Brickonu (`src/app/investor/(portal)/page.tsx`) měl transparentní „soft" odstíny → plné pozadí + bílý text: FLIP `bg-accent` (zelená), NÁJEM `bg-info` (modrá). Funguje v light i dark režimu (tokeny se v dark zesvětlí).
+- **Odstraněna věta z portal-panelu** (detail nemovitosti, `src/components/leads/portal-panel.tsx`): „Investorům se ukazuje jen makrolokalita, stav, m² a ceny — bez adresy a fotek. Rezervace drží 72h a pak se automaticky uvolní." pryč; ukliděn teď nepoužitý prop `reservationHours` (default + předání z `properties/[id]` + import `PORTAL_RESERVATION_MS`).
 
 ## Key Files
 
