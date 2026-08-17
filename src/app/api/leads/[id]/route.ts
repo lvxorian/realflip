@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -118,8 +118,13 @@ export async function PATCH(
     }
 
     if (body.stage === "negotiation" && stageChanged) {
-      notifyInvestorsOfOffer(id).catch((err) => {
-        console.error("[email] Odeslání nabídek selhalo:", err);
+      // after() = waitUntil na Vercel: funkce zůstane naživu, dokud se e-maily
+      // skutečně neodešlou. Dřívější fire-and-forget se občas zabil hned po
+      // odpovědi (serverless freeze) → část investorů nedostala nabídku.
+      after(() => {
+        notifyInvestorsOfOffer(id).catch((err) => {
+          console.error("[email] Odeslání nabídek selhalo:", err);
+        });
       });
     }
 

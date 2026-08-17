@@ -1,6 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PATCH, DELETE } from "../[id]/route";
 
+// after() mimo request scope vyhazuje — v testech callback rovnou spustíme.
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: (task: unknown) => {
+      const result = typeof task === "function" ? (task as () => unknown)() : task;
+      if (result && typeof (result as Promise<unknown>).catch === "function") {
+        (result as Promise<unknown>).catch(() => {});
+      }
+    },
+  };
+});
+
 // In-memory "DB" records
 let existingLead: Record<string, unknown> | null = null;
 const updated = vi.fn();
@@ -47,8 +61,9 @@ vi.mock("@/lib/lead-events", () => ({
   },
 }));
 
+const notifyInvestorsOfOffer = vi.hoisted(() => vi.fn(async () => 0));
 vi.mock("@/lib/email/notify-offers", () => ({
-  notifyInvestorsOfOffer: async () => {},
+  notifyInvestorsOfOffer,
 }));
 
 function jsonReq(body: Record<string, unknown>): Request {
@@ -75,6 +90,7 @@ describe("PATCH /api/leads/[id] — potvrzení vyjednané ceny", () => {
     };
     updated.mockClear();
     setMock.mockClear();
+    notifyInvestorsOfOffer.mockClear();
   });
 
   it("přijme stage negotiation s vyjednanou cenou ve stageData", async () => {
@@ -97,6 +113,7 @@ describe("PATCH /api/leads/[id] — potvrzení vyjednané ceny", () => {
     const updateArg = setMock.mock.calls[0]?.[0] as unknown as Record<string, unknown> | undefined;
     expect(updateArg?.stage).toBe("negotiation");
     expect(updateArg?.stageEnteredAt).toBeTypeOf("number");
+    expect(notifyInvestorsOfOffer).toHaveBeenCalledWith("lead-1");
   });
 
   it("odmítne stage negotiation bez vyjednané ceny", async () => {
@@ -110,6 +127,34 @@ describe("PATCH /api/leads/[id] — potvrzení vyjednané ceny", () => {
     );
 
     expect(res.status).toBe(400);
+    expect(notifyInvestorsOfOffer).not.toHaveBeenCalled();
+  });
+
+  it("neodesílá nabídky, když se stage nemění (jen úprava ceny)", async () => {
+    existingLead = {
+      ...existingLead,
+      stage: "negotiation",
+      stageData: JSON.stringify({
+        negotiation: { currentAmount: 1900000, history: [] },
+      }),
+    };
+
+    const res = await PATCH(
+      jsonReq({
+        stage: "negotiation",
+        position: 0,
+        stageData: {
+          negotiation: {
+            currentAmount: 1950000,
+            history: [{ price: 1950000, date: new Date().toISOString(), by: "them" }],
+          },
+        },
+      }),
+      { params: Promise.resolve({ id: "lead-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(notifyInvestorsOfOffer).not.toHaveBeenCalled();
   });
 });
 

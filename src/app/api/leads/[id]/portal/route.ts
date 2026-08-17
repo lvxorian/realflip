@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { leads, propertyAnalysis, calculatorPresets } from "@/db/schema";
@@ -116,8 +116,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await db.update(leads).set(patch).where(eq(leads.id, id));
 
     if (body.portalVisible === true) {
-      notifyInvestorsOfOffer(id).catch((err) => {
-        console.error("[email] Odeslání nabídek selhalo:", err);
+      // after() = waitUntil na Vercel — e-maily se odešlou spolehlivě i po
+      // vrácení odpovědi (fire-and-forget se v serverless občas zabil).
+      after(() => {
+        notifyInvestorsOfOffer(id).catch((err) => {
+          console.error("[email] Odeslání nabídek selhalo:", err);
+        });
       });
     }
 

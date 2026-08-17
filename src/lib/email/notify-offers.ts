@@ -10,6 +10,12 @@ import type { InvestorPortalItem } from "@/lib/investor-portal-view";
 
 export { filterRecipients, type RecipientLike } from "@/lib/email/recipients";
 
+/** Pauza mezi pokusem a retry — přepínatelné přes env kvůli testům. */
+function retryDelayMs(): number {
+  const v = Number(process.env.OFFER_EMAIL_RETRY_DELAY_MS);
+  return Number.isFinite(v) && v >= 0 ? v : 1500;
+}
+
 function portalUrl(): string {
   return (
     process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "") ??
@@ -58,7 +64,14 @@ export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
     .where(eq(leads.id, leadId))
     .limit(1);
 
-  if (!row || row.stage !== "negotiation" || row.portalVisible !== 1 || row.isActive !== 1) {
+  if (!row) {
+    console.info(`[email] Lead ${leadId} nenalezen — notifikace přeskočena`);
+    return 0;
+  }
+  if (row.stage !== "negotiation" || row.portalVisible !== 1 || row.isActive !== 1) {
+    console.info(
+      `[email] Lead ${leadId} přeskočen (neplatné podmínky): stage=${row.stage} portalVisible=${row.portalVisible} isActive=${row.isActive}`
+    );
     return 0;
   }
 
@@ -84,14 +97,26 @@ export async function notifyInvestorsOfOffer(leadId: string): Promise<number> {
   let sent = 0;
 
   for (const investor of recipients) {
-    const result = await sendEmail({
-      to: investor.email!,
-      subject: `${INVESTOR_BRAND} · Nová nabídka — ${[offer.city, offer.district].filter(Boolean).join(" · ") || "nemovitost"}`,
-      html,
-    });
-    if (!result.sent) continue;
+    const subject = `${INVESTOR_BRAND} · Nová nabídka — ${[offer.city, offer.district].filter(Boolean).join(" · ") || "nemovitost"}`;
 
-    await db.insert(investorOfferEmails).values({ id: crypto.randomUUID(), investorId: investor.id, leadId, sentAt: now });
+    // Přechodná selhání (síť/429/5xx) zkusíme jednou znovu — trvalé chyby
+    // (např. neplatný e-mail) zapíšeme a pokračujeme dál.
+    let result = await sendEmail({ to: investor.email!, subject, html });
+    if (!result.sent && result.reason && result.reason !== "missing_api_key") {
+      await new Promise((r) => setTimeout(r, retryDelayMs()));
+      result = await sendEmail({ to: investor.email!, subject, html });
+    }
+    if (!result.sent) {
+      console.error(`[email] Investor ${investor.id} (${investor.email}) — neodesláno: ${result.reason ?? "neznámá chyba"}`);
+      continue;
+    }
+
+    try {
+      await db.insert(investorOfferEmails).values({ id: crypto.randomUUID(), investorId: investor.id, leadId, sentAt: now });
+    } catch (err) {
+      // Unique (investorId, leadId) — e-mail už proběhl v konkurenčním běhu, to je v pořádku.
+      console.error(`[email] Záznam dedup selhal pro investora ${investor.id}:`, err);
+    }
     sent += 1;
   }
 
