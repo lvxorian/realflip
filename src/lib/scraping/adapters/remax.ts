@@ -103,7 +103,12 @@ export class RemaxAdapter extends PortalAdapter {
     const imageUrls = extractRemaxGalleryImages(html);
     if (imageUrls.length > 0) raw.imageUrls = imageUrls;
 
-    const description = this.cleanText($("div.text-justify").first().text());
+    // Popis je v collapse bloku („read more") uvnitř .pd-base-info — starý
+    // div.text-justify už na detailu není. div[ref="content-inner"] je
+    // stabilní napříč inzeráty (1 výskyt na stránce).
+    const description = this.cleanText(
+      $(".pd-base-info__content-collapse-inner div[ref='content-inner']").first().text()
+    );
     if (description && description.length > 20) raw.description = description;
 
     const address = this.cleanText($(".detail__headline .breadcrumb").last().text());

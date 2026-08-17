@@ -146,11 +146,14 @@ export class AnnonceAdapter extends PortalAdapter {
       const html = await this.fetch(listing.url);
       const $ = cheerio.load(html);
 
-      const fullDesc = this.cleanText($("div.popisdetail").text());
-      if (!fullDesc) {
-        const metaDesc = $('meta[name="description"]').attr("content") || "";
-        if (metaDesc) listing.description = metaDesc;
-      }
+      // Aktuální annonce.cz detail: popis je v <span class="ad-detail-desc-container">
+      // uvnitř <p class="ad-desc"> (sekcí „Popis"). Starý div.popisdetail už na
+      // stránce není — fallback na meta description by uložil boilerplate
+      // („Inzerát v kategorii…"), proto žádný meta fallback nemáme.
+      const fullDesc =
+        this.cleanText($("span.ad-detail-desc-container").first().text()) ||
+        this.cleanText($("p.ad-desc").first().text());
+      if (fullDesc) listing.description = fullDesc;
 
       if (listing.description) {
         listing.condition = inferConditionFromText(listing.description, listing.title);

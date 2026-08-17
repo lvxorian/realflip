@@ -448,7 +448,13 @@ async function scrapeAnnonce(url: string): Promise<RawListing> {
     price = extractPrice(priceText);
   }
 
-  const description = cleanText($("div.popisdetail").text()) ?? cleanText($('meta[name="description"]').attr("content") ?? null) ?? null;
+  // Popis na aktuálním annonce.cz detailu je v <span class="ad-detail-desc-container">
+  // (starý div.popisdetail už neexistuje). Meta description je jen boilerplate
+  // („Inzerát v kategorii…"), takže se jako fallback nepoužívá.
+  const description =
+    cleanText($("span.ad-detail-desc-container").first().text()) ??
+    cleanText($("p.ad-desc").first().text()) ??
+    null;
 
   let area: number | null = null;
   if (parsedLd) {

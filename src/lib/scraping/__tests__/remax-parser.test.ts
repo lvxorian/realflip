@@ -99,7 +99,9 @@ describe("RemaxAdapter", () => {
           <a class="gallery__item" data-fancybox="images" href="https://mlsf.remax-czech.cz/data//zs/445375/3387973.jpg"></a>
         </div>
       </div>
-      <div class="text-justify">Pěkný byt s velkou terasou, 3+kk, cihla.</div>
+      <div class="pd-base-info__content-collapse-inner">
+        <div ref="content-inner">Pěkný byt s velkou terasou, 3+kk, cihla.</div>
+      </div>
     </body></html>`;
 
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input: RequestInfo | URL) => {
