@@ -96,8 +96,8 @@ export function BuyVsRentCalculator() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Input label="Nájem (Kč/měs)" type="number" value={form.rentMonthly.toString()} onChange={(e) => set("rentMonthly")(e.target.value)} />
-        <Input label="Cena nemovitosti (Kč)" type="number" value={form.price.toString()} onChange={(e) => set("price")(e.target.value)} />
+        <Input label="Nájem (Kč/měs)" type="amount" value={form.rentMonthly.toString()} onChange={(e) => set("rentMonthly")(e.target.value)} />
+        <Input label="Cena nemovitosti (Kč)" type="amount" value={form.price.toString()} onChange={(e) => set("price")(e.target.value)} />
         <Input label="Úrok hypotéky (%)" type="number" value={form.interestRate.toString()} onChange={(e) => set("interestRate")(e.target.value)} />
         <Input label="LTV — % půjčky" type="number" value={form.ltv.toString()} onChange={(e) => set("ltv")(e.target.value)} />
         <Input label="Inflace nájmu (%)" type="number" value={form.inflation.toString()} onChange={(e) => set("inflation")(e.target.value)} />

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CaretDown, CaretUp, Calculator } from "@phosphor-icons/react";
+import { AmountInput } from "@/components/ui/amount-input";
 
 interface FlipCalculatorProps {
   initialPrice: number;
@@ -39,8 +40,7 @@ export function FlipCalculator({ initialPrice, renovationCost }: FlipCalculatorP
         <div className="space-y-3 mt-4">
           <div>
             <label className="text-xs text-muted mb-1 block">Kupní cena</label>
-            <input
-              type="number"
+            <AmountInput
               value={purchasePrice}
               onChange={(e) => setPurchasePrice(Number(e.target.value))}
               className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-mono focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20 transition-all"

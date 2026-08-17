@@ -31,6 +31,17 @@ export function formatCompactPrice(price: number): string {
   return `${price} Kč`;
 }
 
+/**
+ * Naformátuje částku s mezerami jako oddělovači tisíců („5000000" → „5 000 000").
+ * Používá se pro živé formátování částkových vstupů (AmountInput / Input type="amount").
+ * Tolerantně přijme číslo i řetězec (i už naformátovaný) — nečíslice se odfiltrují.
+ */
+export function formatAmountInput(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "";
+  const digits = String(value).replace(/\D/g, "");
+  return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "";
+}
+
 export function formatPercent(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }

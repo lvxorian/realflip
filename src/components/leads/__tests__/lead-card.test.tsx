@@ -158,7 +158,7 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
       />
     );
 
-    const input = screen.getByPlaceholderText("2000000");
+    const input = screen.getByPlaceholderText("2 000 000");
     fireEvent.change(input, { target: { value: "1950000" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onAgree).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), 1950000);
@@ -176,7 +176,7 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
       />
     );
 
-    const input = screen.getByPlaceholderText("2000000");
+    const input = screen.getByPlaceholderText("2 000 000");
     fireEvent.change(input, { target: { value: "2 500 000" } });
     fireEvent.click(screen.getByText("✓"));
     expect(onAgree).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), 2500000);
@@ -194,11 +194,27 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
       />
     );
 
-    const input = screen.getByPlaceholderText("2000000");
-    fireEvent.change(input, { target: { value: "abc" } });
+    const input = screen.getByPlaceholderText("2 000 000");
+    fireEvent.change(input, { target: { value: "0" } });
     fireEvent.click(screen.getByText("✓"));
     expect(onAgree).not.toHaveBeenCalled();
     expect(screen.getByText(/platnou cenu v Kč/i)).toBeTruthy();
+  });
+
+  it("psaní ceny se živě formátuje mezerami (5000000 → 5 000 000)", () => {
+    render(
+      <LeadCardView
+        lead={makeLead({ stage: "negotiation", analysisTargetPurchasePrice: 2_000_000 })}
+        onOpen={() => {}}
+        negotiationPrompt
+        onAgree={() => {}}
+        onAgreeCancel={() => {}}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("2 000 000");
+    fireEvent.change(input, { target: { value: "5000000" } });
+    expect((input as HTMLInputElement).value).toBe("5 000 000");
   });
 
   it("drag preview ukazuje stejné klíčové údaje jako karta", () => {

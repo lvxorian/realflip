@@ -132,7 +132,7 @@ export function StageTransitionModal({
                         )}
                       </label>
                       <Input
-                        type="number"
+                        type="amount"
                         value={price}
                         onChange={(e) => setPrice(e.target.value)}
                         placeholder="0"
@@ -141,10 +141,10 @@ export function StageTransitionModal({
                     <div>
                       <label className={labelClass}>Rozpočet na reko</label>
                       <Input
-                        type="number"
+                        type="amount"
                         value={renovation}
                         onChange={(e) => setRenovation(e.target.value)}
-                        placeholder="např. 500000"
+                        placeholder="např. 500 000"
                       />
                     </div>
                     <div>

@@ -229,9 +229,8 @@ function InvestorModalForm({
             </button>
           </label>
           <Input
-            type="number"
-            min={0}
-            placeholder="např. 5000000"
+            type="amount"
+            placeholder="např. 5 000 000"
             value={budget}
             disabled={budgetUnlimited}
             onChange={(e) => setBudget(e.target.value)}

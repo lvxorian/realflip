@@ -1,5 +1,5 @@
-import { forwardRef, type InputHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import { forwardRef, type ChangeEvent, type InputHTMLAttributes } from "react";
+import { cn, formatAmountInput } from "@/lib/utils";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -8,8 +8,19 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, helper, id, ...props }, ref) => {
+  ({ className, label, error, helper, id, type, onChange, value, autoComplete, ...props }, ref) => {
     const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+    const isAmount = type === "amount";
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+      if (!isAmount) {
+        onChange?.(e);
+        return;
+      }
+      // type="amount": value předáme dál jen s číslicemi (mezery jsou jen formátování)
+      const digits = e.target.value.replace(/\D/g, "");
+      onChange?.({ ...e, target: { ...e.target, value: digits } });
+    };
 
     return (
       <div className="space-y-1.5">
@@ -24,6 +35,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         <input
           ref={ref}
           id={inputId}
+          type={isAmount ? "text" : type}
+          inputMode={isAmount ? "numeric" : undefined}
+          autoComplete={isAmount ? "off" : autoComplete}
+          value={isAmount ? formatAmountInput(value as string | number | undefined) : value}
+          onChange={handleChange}
           className={cn(
             "flex h-10 w-full rounded-lg border bg-card px-3 py-2 text-sm",
             "placeholder:text-muted/50",

@@ -311,15 +311,15 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <Input label="Cílové ROI (%)" type="number" step={0.1} value={prefs.minRoi.toString()} onChange={(e) => setPref("minRoi", parseFloat(e.target.value) || 0)} />
                       <Input label="Provize makléře (%)" type="number" value={prefs.agentCommission.toString()} onChange={(e) => setPref("agentCommission", parseInt(e.target.value) || 0)} helper="Použito jako provize při prodeji" />
-                      <Input label="Právní služby (Kč)" type="number" value={prefs.legalFees.toString()} onChange={(e) => setPref("legalFees", parseInt(e.target.value) || 0)} />
+                      <Input label="Právní služby (Kč)" type="amount" value={prefs.legalFees.toString()} onChange={(e) => setPref("legalFees", parseInt(e.target.value) || 0)} />
                       <Input label="Rezerva (%)" type="number" value={prefs.contingencyBuffer.toString()} onChange={(e) => setPref("contingencyBuffer", parseInt(e.target.value) || 0)} />
                     </div>
                     <div>
                       <span className="text-sm font-medium text-foreground/80 block mb-3">Náklady na rekonstrukci</span>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <Input label="Lehká" type="number" value={prefs.renovationCostPerSqm.light.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, light: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
-                        <Input label="Střední" type="number" value={prefs.renovationCostPerSqm.medium.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, medium: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
-                        <Input label="Kompletní" type="number" value={prefs.renovationCostPerSqm.full.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, full: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
+                        <Input label="Lehká" type="amount" value={prefs.renovationCostPerSqm.light.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, light: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
+                        <Input label="Střední" type="amount" value={prefs.renovationCostPerSqm.medium.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, medium: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
+                        <Input label="Kompletní" type="amount" value={prefs.renovationCostPerSqm.full.toString()} onChange={(e) => setPref("renovationCostPerSqm", { ...prefs.renovationCostPerSqm, full: parseInt(e.target.value) || 0 })} helper="Kč/m²" />
                       </div>
                     </div>
                     <Button size="sm" onClick={savePrefs} loading={savingPrefs}>

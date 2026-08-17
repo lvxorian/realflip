@@ -121,15 +121,15 @@ export function SearchForm({ initial, submitLabel = "Uložit hledání", onSubmi
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Cena od (Kč)"
-              type="number"
-              placeholder="např. 2000000"
+              type="amount"
+              placeholder="např. 2 000 000"
               value={priceMin}
               onChange={(e) => setPriceMin(e.target.value)}
             />
             <Input
               label="Cena do (Kč)"
-              type="number"
-              placeholder="např. 8000000"
+              type="amount"
+              placeholder="např. 8 000 000"
               value={priceMax}
               onChange={(e) => setPriceMax(e.target.value)}
             />

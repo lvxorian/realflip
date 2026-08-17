@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { PctStepper } from "@/components/ui/pct-stepper";
 import { formatPrice, cn } from "@/lib/utils";
 import { CheckCircle, WarningCircle, Calculator, FloppyDisk, Scales, ChartLine } from "@phosphor-icons/react";
@@ -337,8 +338,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
             </Field>
             <Field label="OC – odhadní cena" helper="Ze znaleckého posudku">
               <Input
-                type="number"
-                min={0}
+                type="amount"
                 value={form.oc || ""}
                 onChange={(e) => update("oc", Number(e.target.value))}
                 className="font-mono"
@@ -346,8 +346,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
             </Field>
             <Field label="NP – nejnižší podání">
               <Input
-                type="number"
-                min={0}
+                type="amount"
                 value={form.np || ""}
                 onChange={(e) => update("np", Number(e.target.value))}
                 className="font-mono"
@@ -358,8 +357,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
               helper="100 % trhu – výchozí = OC"
             >
               <Input
-                type="number"
-                min={0}
+                type="amount"
                 value={form.asIsTmv || ""}
                 onChange={(e) => update("asIsTmv", Number(e.target.value))}
                 className="font-mono"
@@ -377,8 +375,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
             </Field>
             <Field label="TD – celkové dluhy" helper="Z KN, vyhlášky a vyčíslení exekutora">
               <Input
-                type="number"
-                min={0}
+                type="amount"
                 value={form.td || ""}
                 onChange={(e) => update("td", Number(e.target.value))}
                 className="font-mono"
@@ -412,11 +409,10 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
               ).map(([key, label]) => (
                 <div key={key}>
                   <label className="text-[10px] text-muted block mb-1">{label}</label>
-                  <input
-                    type="text"
-                    value={form[key] > 0 ? form[key].toLocaleString("cs-CZ") : ""}
+                  <AmountInput
+                    value={form[key] > 0 ? form[key] : ""}
                     onChange={(e) => {
-                      const num = parseInt(e.target.value.replace(/\s/g, "")) || 0;
+                      const num = parseInt(e.target.value) || 0;
                       update(key, num);
                     }}
                     className={inputClass + " text-xs py-1.5"}
@@ -438,8 +434,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="ARV (hodnota po rekonstrukci)" helper="Výchozí = AsIs TMV">
                 <Input
-                  type="number"
-                  min={0}
+                  type="amount"
                   value={form.arv || ""}
                   onChange={(e) => update("arv", Number(e.target.value))}
                   className="font-mono"
@@ -481,21 +476,19 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
                     </button>
                   </div>
                   {form.renovationMode === "perSqm" ? (
-                    <input
-                      type="text"
-                      value={form.renovationPerSqm.toLocaleString("cs-CZ")}
+                    <AmountInput
+                      value={form.renovationPerSqm}
                       onChange={(e) => {
-                        const num = parseInt(e.target.value.replace(/\s/g, "")) || 0;
+                        const num = parseInt(e.target.value) || 0;
                         update("renovationPerSqm", num);
                       }}
                       className={inputClass + " flex-1"}
                     />
                   ) : form.renovationMode === "total" ? (
-                    <input
-                      type="text"
-                      value={form.renovationTotal > 0 ? form.renovationTotal.toLocaleString("cs-CZ") : ""}
+                    <AmountInput
+                      value={form.renovationTotal > 0 ? form.renovationTotal : ""}
                       onChange={(e) => {
-                        const num = parseInt(e.target.value.replace(/\s/g, "")) || 0;
+                        const num = parseInt(e.target.value) || 0;
                         update("renovationTotal", num);
                       }}
                       className={inputClass + " flex-1"}
@@ -540,8 +533,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
             </div>
             {form.sourcingEnabled && (
               <div className="flex items-center gap-2 pl-6 pt-1">
-                <input
-                  type="number"
+                <AmountInput
                   value={form.sourcingFee || ""}
                   onChange={(e) => update("sourcingFee", parseInt(e.target.value) || 0)}
                   className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"

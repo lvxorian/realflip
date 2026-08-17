@@ -202,8 +202,8 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <Input label="Min. rozpočet" type="number" placeholder="2 000 000" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} />
-                    <Input label="Max. rozpočet" type="number" placeholder="15 000 000" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} />
+                    <Input label="Min. rozpočet" type="amount" placeholder="2 000 000" value={budgetMin} onChange={(e) => setBudgetMin(e.target.value)} />
+                    <Input label="Max. rozpočet" type="amount" placeholder="15 000 000" value={budgetMax} onChange={(e) => setBudgetMax(e.target.value)} />
                   </div>
 
                   <Input label="Minimální ROI" type="number" helper="%" value={minRoi} onChange={(e) => setMinRoi(e.target.value)} />

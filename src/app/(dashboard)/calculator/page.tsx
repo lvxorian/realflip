@@ -227,7 +227,7 @@ export default function CalculatorPage() {
             <Input label="Název / adresa" placeholder="např. Byt 3+kk, Praha 8" value={title} onChange={(e) => setTitle(e.target.value)} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Město" placeholder="např. Praha" value={city} onChange={(e) => setCity(e.target.value)} onBlur={fetchMarket} />
-              <Input label="Cena (Kč)" type="number" placeholder="např. 4890000" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <Input label="Cena (Kč)" type="amount" placeholder="např. 4 890 000" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Plocha (m²)" type="number" placeholder="např. 50" value={area} onChange={(e) => setArea(e.target.value)} />
@@ -258,9 +258,9 @@ export default function CalculatorPage() {
 
             <h2 className="font-semibold tracking-tight text-sm">Tržní data</h2>
             <div className="flex items-center gap-2">
-              <Input label="Trh/m² od" type="number" value={marketLow} onChange={(e) => setMarketLow(e.target.value)} className="flex-1" />
+              <Input label="Trh/m² od" type="amount" value={marketLow} onChange={(e) => setMarketLow(e.target.value)} className="flex-1" />
               <span className="text-muted mt-6">–</span>
-              <Input label="Trh/m² do" type="number" value={marketHigh} onChange={(e) => setMarketHigh(e.target.value)} className="flex-1" />
+              <Input label="Trh/m² do" type="amount" value={marketHigh} onChange={(e) => setMarketHigh(e.target.value)} className="flex-1" />
             </div>
             {city && (
               <Button variant="secondary" size="sm" onClick={fetchMarket} loading={loadingMarket} className="text-xs">

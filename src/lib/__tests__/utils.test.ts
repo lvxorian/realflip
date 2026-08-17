@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatPrice,
   formatCompactPrice,
+  formatAmountInput,
   formatPercent,
   formatDate,
   formatRelative,
@@ -323,5 +324,28 @@ describe("portalLabel", () => {
 
   it("capitalizes unknown", () => {
     expect(portalLabel("newportal")).toBe("Newportal");
+  });
+});
+
+describe("formatAmountInput", () => {
+  it("formats digits with spaces as thousands separators", () => {
+    expect(formatAmountInput(5000000)).toBe("5 000 000");
+    expect(formatAmountInput(5000)).toBe("5 000");
+    expect(formatAmountInput(500)).toBe("500");
+  });
+
+  it("accepts digit strings and already formatted strings", () => {
+    expect(formatAmountInput("5000000")).toBe("5 000 000");
+    expect(formatAmountInput("5 000 000")).toBe("5 000 000");
+  });
+
+  it("strips non-digit characters", () => {
+    expect(formatAmountInput("2 500 000 Kč")).toBe("2 500 000");
+  });
+
+  it("returns empty string for empty/null/undefined", () => {
+    expect(formatAmountInput("")).toBe("");
+    expect(formatAmountInput(null)).toBe("");
+    expect(formatAmountInput(undefined)).toBe("");
   });
 });

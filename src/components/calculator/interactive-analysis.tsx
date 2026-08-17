@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { PctStepper } from "@/components/ui/pct-stepper";
+import { AmountInput } from "@/components/ui/amount-input";
 import { formatPrice, conditionLabel, buildingTypeLabel, occupancyLabel, locationCategoryLabel, portalLabel } from "@/lib/utils";
 import {
   calculateFlipResults,
@@ -859,9 +860,9 @@ function InteractiveCard({
                   <button onClick={() => setRenovationMode("total")} className={`px-2 py-1 rounded border ${renovationMode === "total" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Celkem</button>
                 </div>
                 {renovationMode === "perSqm" ? (
-                  <input type="text" value={renovationPerSqm.toLocaleString()} onChange={(e) => handleRenovationPerSqmChange(e.target.value)} className={inputClass + " flex-1"} />
+                  <AmountInput value={renovationPerSqm} onChange={(e) => handleRenovationPerSqmChange(e.target.value)} className={inputClass + " flex-1"} />
                 ) : renovationMode === "total" ? (
-                  <input type="text" value={formatPrice(renovationTotal) || "0"} onChange={(e) => handleRenovationTotalChange(e.target.value)} className={inputClass + " flex-1"} />
+                  <AmountInput value={renovationTotal > 0 ? renovationTotal : ""} onChange={(e) => handleRenovationTotalChange(e.target.value)} className={inputClass + " flex-1"} />
                 ) : (
                   <span className="flex-1 text-right text-sm font-mono text-foreground">{formatPrice(currentRenovation)}</span>
                 )}
@@ -959,8 +960,7 @@ function InteractiveCard({
               {costConfig.sourcingEnabled && (
                 <div className="flex items-center gap-2 pt-2 border-t border-border/30">
                   <span className="text-[10px] text-muted block w-16 shrink-0">Poplatek</span>
-                  <input
-                    type="number"
+                  <AmountInput
                     value={costConfig.sourcingFee || ""}
                     onChange={(e) => setCostConfig((prev) => ({ ...prev, sourcingFee: parseInt(e.target.value) || 0 }))}
                     className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
@@ -984,11 +984,10 @@ function InteractiveCard({
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/30">
                   <div>
                     <label className="text-[10px] text-muted block mb-1">Výše úvěru</label>
-                    <input
-                      type="text"
-                      value={costConfig.mortgageAmount > 0 ? costConfig.mortgageAmount.toLocaleString() : ""}
+                    <AmountInput
+                      value={costConfig.mortgageAmount > 0 ? costConfig.mortgageAmount : ""}
                       onChange={(e) => {
-                        const num = parseInt(e.target.value.replace(/\s/g, "")) || 0;
+                        const num = parseInt(e.target.value) || 0;
                         updateConfig("mortgageAmount", num);
                       }}
                       placeholder="např. 3 000 000"
@@ -1242,9 +1241,9 @@ function InteractiveCard({
                       <button onClick={() => setRentalRenovationMode("total")} className={`px-2 py-1 rounded border ${rentalRenovationMode === "total" ? "border-accent/40 bg-accent/10 text-accent" : "border-border/50 hover:bg-card-hover"}`}>Celkem</button>
                     </div>
                     {rentalRenovationMode === "perSqm" ? (
-                      <input type="text" value={rentalRenovationPerSqm.toLocaleString()} onChange={(e) => handleRentalRenovationPerSqmChange(e.target.value)} className={inputClass + " flex-1"} />
+                      <AmountInput value={rentalRenovationPerSqm} onChange={(e) => handleRentalRenovationPerSqmChange(e.target.value)} className={inputClass + " flex-1"} />
                     ) : rentalRenovationMode === "total" ? (
-                      <input type="text" value={formatPrice(rentalRenovationTotal) || "0"} onChange={(e) => handleRentalRenovationTotalChange(e.target.value)} className={inputClass + " flex-1"} />
+                      <AmountInput value={rentalRenovationTotal > 0 ? rentalRenovationTotal : ""} onChange={(e) => handleRentalRenovationTotalChange(e.target.value)} className={inputClass + " flex-1"} />
                     ) : (
                       <span className="flex-1 text-right text-sm font-mono text-foreground">{formatPrice(rentalRenovationCost)}</span>
                     )}
@@ -1284,8 +1283,7 @@ function InteractiveCard({
                   </div>
                   {rentalConfig.sourcingEnabled && (
                     <div className="flex items-center gap-2 pl-6">
-                      <input
-                        type="number"
+                      <AmountInput
                         value={rentalConfig.sourcingFee || ""}
                         onChange={(e) => updateRental("sourcingFee", parseInt(e.target.value) || 0)}
                         className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:border-accent/50"
@@ -1307,10 +1305,9 @@ function InteractiveCard({
                     <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border/30">
                       <div>
                         <label className="text-[10px] text-muted block mb-1">Výše úvěru</label>
-                        <input
-                          type="text"
-                          value={rentalConfig.mortgageAmount > 0 ? rentalConfig.mortgageAmount.toLocaleString() : ""}
-                          onChange={(e) => updateRental("mortgageAmount", parseInt(e.target.value.replace(/\s/g, "")) || 0)}
+                        <AmountInput
+                          value={rentalConfig.mortgageAmount > 0 ? rentalConfig.mortgageAmount : ""}
+                          onChange={(e) => updateRental("mortgageAmount", parseInt(e.target.value) || 0)}
                           placeholder="např. 3 000 000"
                           className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
                         />
@@ -1480,9 +1477,8 @@ function InteractiveCard({
                 {renovationItems.map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
                     <span className="flex-1 text-foreground/80">{item.category}</span>
-                    <input
-                      type="text"
-                      value={item.estimatedCost.toLocaleString()}
+                    <AmountInput
+                      value={item.estimatedCost}
                       onChange={(e) => handleItemCostChange(i, e.target.value)}
                       className="w-28 rounded border border-border/50 bg-card px-2 py-1 text-right font-mono text-xs focus:outline-none focus:ring-1 focus:ring-accent/40"
                     />
@@ -1703,20 +1699,32 @@ function InfoBox({ label, value, highlight, subtext, subtextClass }: { label: st
 }
 
 function NumberField({ label, value, suffix, onChange }: { label: string; value: number; suffix: string; onChange: (v: number) => void }) {
+  const isPct = suffix === "%";
   return (
     <div>
       <label className="text-[10px] text-muted block mb-1">{label}</label>
       <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          inputMode="decimal"
-          value={value > 0 ? (suffix === "%" ? value.toString() : value.toLocaleString()) : ""}
-          onChange={(e) => {
-            const num = parseFloat(e.target.value.replace(/\s/g, "").replace(",", ".")) || 0;
-            onChange(num);
-          }}
-          className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
-        />
+        {isPct ? (
+          <input
+            type="text"
+            inputMode="decimal"
+            value={value > 0 ? value.toString() : ""}
+            onChange={(e) => {
+              const num = parseFloat(e.target.value.replace(",", ".")) || 0;
+              onChange(num);
+            }}
+            className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+          />
+        ) : (
+          <AmountInput
+            value={value > 0 ? value : ""}
+            onChange={(e) => {
+              const num = parseInt(e.target.value) || 0;
+              onChange(num);
+            }}
+            className="w-full rounded-lg border border-border/50 bg-card px-2.5 py-1.5 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+          />
+        )}
         <span className="text-muted text-[10px] shrink-0">{suffix}</span>
       </div>
     </div>

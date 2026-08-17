@@ -7,7 +7,8 @@ import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle, H
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
-import { formatPrice, formatCompactPrice, portalLabel, splitAddress } from "@/lib/utils";
+import { AmountInput } from "@/components/ui/amount-input";
+import { formatPrice, formatCompactPrice, portalLabel, splitAddress, formatAmountInput } from "@/lib/utils";
 import { timeInStageDays } from "@/lib/leads";
 import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
@@ -261,9 +262,7 @@ export function LeadCardView({
           ) : (
             <div onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  inputMode="numeric"
+                <AmountInput
                   autoFocus
                   value={agreeAmount}
                   onChange={(e) => setAgreeAmount(e.target.value)}
@@ -276,7 +275,7 @@ export function LeadCardView({
                       else setAgreeing(false);
                     }
                   }}
-                  placeholder={lead.analysisTargetPurchasePrice ? String(lead.analysisTargetPurchasePrice) : "cena"}
+                  placeholder={lead.analysisTargetPurchasePrice ? formatAmountInput(lead.analysisTargetPurchasePrice) : "cena"}
                   className="w-full min-w-0 rounded-lg border border-emerald-500/30 bg-card px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-emerald-500/60"
                 />
                 <button

@@ -6,6 +6,7 @@ import { PropertyCard } from "@/components/ui/property-card";
 import { PropertyImage } from "@/components/ui/property-image";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import Link from "next/link";
 import { X, ArrowDown, CaretLeft, CaretRight, Star } from "@phosphor-icons/react/dist/ssr";
 import {
@@ -449,22 +450,20 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="flex items-center gap-1.5">
-                  <input
+                  <AmountInput
                     placeholder="Cena od"
                     value={filters.priceMin}
                     onChange={(e) => setFilter("priceMin", e.target.value)}
-                    type="number"
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                   />
                   <span className="text-[10px] text-muted">Kč</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <input
+                  <AmountInput
                     placeholder="Cena do"
                     value={filters.priceMax}
                     onChange={(e) => setFilter("priceMax", e.target.value)}
-                    type="number"
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                   />
                   <span className="text-[10px] text-muted">Kč</span>
                 </div>

@@ -12,7 +12,8 @@ import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel } from "@/lib/utils";
+import { AmountInput } from "@/components/ui/amount-input";
+import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel, formatAmountInput } from "@/lib/utils";
 import { PropertyImage } from "@/components/ui/property-image";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
@@ -605,14 +606,13 @@ function LeadDrawerContent({
                   </span>
                 ) : null}
               </label>
-              <input
-                type="number"
+              <AmountInput
                 value={stageData.offer?.amount ?? ""}
                 onChange={(e) => {
                   const amount = e.target.value ? parseInt(e.target.value, 10) : null;
                   updateStageData({ offer: { ...stageData.offer, amount, expiresAt: stageData.offer?.expiresAt ?? null } });
                 }}
-                placeholder={lead.analysisTargetPurchasePrice?.toString() ?? "0"}
+                placeholder={lead.analysisTargetPurchasePrice ? formatAmountInput(lead.analysisTargetPurchasePrice) : "0"}
                 className={inputClass + " font-mono"}
               />
             </div>
@@ -648,15 +648,13 @@ function LeadDrawerContent({
           <SectionCard title="🤝 Vyjednáno">
             <div>
               <label className={labelClass}>Vyjednaná cena (s prodejcem)</label>
-              <input
-                type="text"
-                inputMode="numeric"
+              <AmountInput
                 value={stageData.negotiation?.currentAmount ?? ""}
                 onChange={(e) => {
                   const currentAmount = parsePriceInput(e.target.value);
                   updateStageData({ negotiation: { ...stageData.negotiation, currentAmount, history: stageData.negotiation?.history ?? [] } });
                 }}
-                placeholder={lead.analysisTargetPurchasePrice?.toString() ?? "0"}
+                placeholder={lead.analysisTargetPurchasePrice ? formatAmountInput(lead.analysisTargetPurchasePrice) : "0"}
                 className={inputClass + " font-mono"}
               />
             </div>
@@ -733,17 +731,17 @@ function LeadDrawerContent({
             <h3 className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Převod na deal</h3>
             <Input
               label="Kupní cena"
-              type="number"
+              type="amount"
               value={convertPrice}
               onChange={(e) => setConvertPrice(e.target.value)}
-              placeholder={lead.propertyPrice?.toString() ?? "0"}
+              placeholder={lead.propertyPrice ? formatAmountInput(lead.propertyPrice) : "0"}
             />
             <Input
               label="Rozpočet na reko"
-              type="number"
+              type="amount"
               value={convertRenovation}
               onChange={(e) => setConvertRenovation(e.target.value)}
-              placeholder="např. 500000"
+              placeholder="např. 500 000"
             />
             <div>
               <label className={labelClass}>Investor</label>

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MagnifyingGlass, PencilLine, MapPin } from "@phosphor-icons/react";
+import { AmountInput } from "@/components/ui/amount-input";
 import { MARKET_DATA } from "@/lib/analysis/market-data";
 import { cityKeyToName } from "@/lib/geocode";
 import type { AddressSuggestion } from "@/lib/geocode";
@@ -311,7 +312,7 @@ export default function ValuationInput({
 
             <div>
               <label className={labelCls}>Inzerovaná cena (Kč)</label>
-              <input type="number" value={fields.askingPrice ?? ""} onChange={(e) => set("askingPrice", e.target.value ? Number(e.target.value) : null)} placeholder="např. 4500000" className={inputCls} />
+              <AmountInput value={fields.askingPrice ?? ""} onChange={(e) => set("askingPrice", e.target.value ? Number(e.target.value) : null)} placeholder="např. 4 500 000" className={inputCls} />
             </div>
 
             <div className="sm:col-span-2 lg:col-span-3">

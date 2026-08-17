@@ -111,7 +111,7 @@ describe("LeadsBoard — přesun do Vyjednáno s potvrzením ceny", () => {
     fireEvent.click(advance);
 
     // Prompt se zobrazí rovnou se vstupem pro cenu
-    const input = await screen.findByPlaceholderText("2000000");
+    const input = await screen.findByPlaceholderText("2 000 000");
     fireEvent.change(input, { target: { value: "1950000" } });
 
     // Potvrzení zelenou fajfkou
@@ -136,7 +136,7 @@ describe("LeadsBoard — přesun do Vyjednáno s potvrzením ceny", () => {
     await screen.findByText("Prodej, byt 2+kk");
     fireEvent.click(screen.getByTitle("Posunout do další fáze"));
 
-    const input = await screen.findByPlaceholderText("2000000");
+    const input = await screen.findByPlaceholderText("2 000 000");
     fireEvent.change(input, { target: { value: "2 500 000" } });
     fireEvent.click(screen.getByText("✓"));
 
