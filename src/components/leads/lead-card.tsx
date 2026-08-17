@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle, Handshake } from "@phosphor-icons/react";
+import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle, Handshake, Trash } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
@@ -54,6 +54,7 @@ export function LeadCardView({
   onTogglePriority,
   onAdvance,
   onMarkLost,
+  onDelete,
   onAgree,
   onAgreeCancel,
   negotiationPrompt = false,
@@ -69,6 +70,7 @@ export function LeadCardView({
   onTogglePriority?: (lead: LeadItem) => void;
   onAdvance?: (lead: LeadItem) => void;
   onMarkLost?: (lead: LeadItem) => void;
+  onDelete?: (lead: LeadItem) => void;
   onAgree?: (lead: LeadItem, amount: number) => void;
   onAgreeCancel?: () => void;
   negotiationPrompt?: boolean;
@@ -344,9 +346,9 @@ export function LeadCardView({
           </span>
         )}
         <span className="ml-auto flex items-center gap-1.5 shrink-0">
-          {!isTerminal && (onAdvance || onMarkLost) && (
+          {((!isTerminal && (onAdvance || onMarkLost)) || onDelete) && (
             <span className="flex items-center gap-1.5 w-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:w-auto group-hover:opacity-100">
-              {onAdvance && (
+              {!isTerminal && onAdvance && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -359,7 +361,7 @@ export function LeadCardView({
                   <ArrowRight size={12} weight="bold" />
                 </button>
               )}
-              {onMarkLost && (
+              {!isTerminal && onMarkLost && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -370,6 +372,19 @@ export function LeadCardView({
                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
                 >
                   <XCircle size={12} weight="bold" />
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(lead);
+                  }}
+                  title="Odstranit z pipeline"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                >
+                  <Trash size={12} weight="bold" />
                 </button>
               )}
             </span>

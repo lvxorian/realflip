@@ -89,6 +89,9 @@ function mockFetch(leads: LeadItem[]) {
     if (url.startsWith("/api/leads/") && method === "PATCH") {
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
+    if (url.startsWith("/api/leads/") && method === "DELETE") {
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     if (url.startsWith("/api/leads/") && method === "GET") {
       return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
     }
@@ -149,5 +152,74 @@ describe("LeadsBoard — přesun do Vyjednáno s potvrzením ceny", () => {
     const body = JSON.parse(String(patchCall[1]?.body));
     expect(body.stage).toBe("negotiation");
     expect(body.stageData.negotiation.currentAmount).toBe(2500000);
+  });
+});
+
+describe("LeadsBoard — trvalé odstranění leadu", () => {
+  it("odešle DELETE přes potvrzovací modal s varováním a lead zmizí z boardu", async () => {
+    const fetchMock = mockFetch([makeLead()]);
+    render(<LeadsBoard />);
+
+    await screen.findByText("Prodej, byt 2+kk");
+
+    // Otevřít drawer kliknutím na kartu
+    fireEvent.click(screen.getByText("Prodej, byt 2+kk"));
+
+    // Danger zóna v draweru
+    fireEvent.click(await screen.findByText("Odstranit z pipeline"));
+
+    // Potvrzovací modal s varováním o ztrátě záznamů
+    expect(await screen.findByText("Odstranit lead z pipeline?")).toBeTruthy();
+    expect(screen.getByText(/Nemovitost zůstane v databázi — neodstraňuje se/)).toBeTruthy();
+    expect(screen.getByText(/záznamy o tomto leadu/)).toBeTruthy();
+
+    // Potvrzení smazání
+    fireEvent.click(screen.getByText("Odstranit"));
+
+    await waitFor(() => {
+      const del = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE");
+      expect(del).toBeTruthy();
+    });
+    const delCall = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE")!;
+    expect(String(delCall[0])).toBe("/api/leads/lead-1");
+  });
+
+  it("zrušení v modalu neodešle DELETE a lead zůstane", async () => {
+    const fetchMock = mockFetch([makeLead()]);
+    render(<LeadsBoard />);
+
+    await screen.findByText("Prodej, byt 2+kk");
+    fireEvent.click(screen.getByText("Prodej, byt 2+kk"));
+    fireEvent.click(await screen.findByText("Odstranit z pipeline"));
+
+    expect(await screen.findByText("Odstranit lead z pipeline?")).toBeTruthy();
+    fireEvent.click(screen.getByText("Zrušit"));
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    });
+    // Lead zůstává — karta pořád na boardu (titul je i v otevřeném draweru)
+    expect(screen.getAllByText("Prodej, byt 2+kk").length).toBeGreaterThan(0);
+  });
+
+  it("odešle DELETE i z hover akce karty (koš) přes stejný potvrzovací modal", async () => {
+    const fetchMock = mockFetch([makeLead()]);
+    render(<LeadsBoard />);
+
+    await screen.findByText("Prodej, byt 2+kk");
+
+    // Hover akce na kartě — koš (drawer se neotevře, stopPropagation)
+    fireEvent.click(screen.getByTitle("Odstranit z pipeline"));
+
+    // Sdílený potvrzovací modal
+    expect(await screen.findByText("Odstranit lead z pipeline?")).toBeTruthy();
+    fireEvent.click(screen.getByText("Odstranit"));
+
+    await waitFor(() => {
+      const del = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE");
+      expect(del).toBeTruthy();
+    });
+    const delCall = fetchMock.mock.calls.find(([, init]) => init?.method === "DELETE")!;
+    expect(String(delCall[0])).toBe("/api/leads/lead-1");
   });
 });

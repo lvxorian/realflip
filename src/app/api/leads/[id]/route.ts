@@ -128,3 +128,44 @@ export async function PATCH(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+/**
+ * Trvalé odstranění leadu z pipeline (mimo „Ztraceno“).
+ * Cascade smaže i související záznamy (lead_events, call_queue, call_logs,
+ * investor_offer_emails). Nemovitost NENÍ smazána — lead odkazuje na
+ * properties přes FK (cascade jen z property strany), takže záznam
+ * nemovitosti zůstává v databázi. Deal (pokud byl lead převeden) je
+ * navázaný na property, takže také zůstává zachován.
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+
+    const existing = await db
+      .select()
+      .from(leads)
+      .where(and(eq(leads.id, id), eq(leads.userId, session.user.id)))
+      .limit(1)
+      .then((r) => r[0]);
+
+    if (!existing) {
+      return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    }
+
+    await db
+      .delete(leads)
+      .where(and(eq(leads.id, id), eq(leads.userId, session.user.id)));
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   X, Phone, Envelope, ArrowSquareOut, Check, Plus,
   ArrowsLeftRight, CurrencyCircleDollar, CalendarBlank, NotePencil,
-  ListChecks, CheckCircle, WarningCircle, Handshake,
+  ListChecks, CheckCircle, WarningCircle, Handshake, Trash,
 } from "@phosphor-icons/react";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { Badge } from "@/components/ui/badge";
@@ -80,11 +80,13 @@ export function LeadDrawer({
   onClose,
   onLeadUpdated,
   onConverted,
+  onRequestDelete,
 }: {
   lead: LeadItem | null;
   onClose: () => void;
   onLeadUpdated: (lead: LeadItem) => void;
   onConverted: (leadId: string) => void;
+  onRequestDelete?: (lead: LeadItem) => void;
 }) {
   return (
     <AnimatePresence>
@@ -110,6 +112,7 @@ export function LeadDrawer({
               onClose={onClose}
               onLeadUpdated={onLeadUpdated}
               onConverted={onConverted}
+              onRequestDelete={() => onRequestDelete?.(lead)}
             />
           </motion.aside>
         </>
@@ -123,11 +126,13 @@ function LeadDrawerContent({
   onClose,
   onLeadUpdated,
   onConverted,
+  onRequestDelete,
 }: {
   lead: LeadItem;
   onClose: () => void;
   onLeadUpdated: (lead: LeadItem) => void;
   onConverted: (leadId: string) => void;
+  onRequestDelete?: () => void;
 }) {
   const [stage, setStage] = useState(lead.stage);
   const [priority, setPriority] = useState(lead.priority ?? 0);
@@ -785,6 +790,23 @@ function LeadDrawerContent({
             </ol>
           )}
         </section>
+
+        {/* ===== Odstranění z pipeline ===== */}
+        {onRequestDelete && (
+          <div className="pt-4 border-t border-red-500/15">
+            <Button
+              variant="outline"
+              onClick={onRequestDelete}
+              className="w-full text-sm gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-400"
+            >
+              <Trash size={14} weight="bold" />
+              Odstranit z pipeline
+            </Button>
+            <p className="text-[10px] text-muted/60 mt-2 text-center leading-relaxed">
+              Trvale odstraní lead i všechny jeho záznamy. Nemovitost zůstane v databázi.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

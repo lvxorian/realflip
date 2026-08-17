@@ -25,6 +25,7 @@ import { currentTime } from "@/lib/clock";
 import { toast } from "sonner";
 import { LeadCard, LeadCardView } from "./lead-card";
 import { LeadDrawer } from "./lead-drawer";
+import { DeleteLeadModal } from "./delete-lead-modal";
 import { StageTransitionModal, type StageAction } from "./stage-transition-modal";
 import { LeadsToolbar, INITIAL_LEAD_FILTERS, type LeadFilterState } from "./leads-toolbar";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -148,6 +149,8 @@ export function LeadsBoard() {
   const [selectedLead, setSelectedLead] = useState<LeadItem | null>(null);
   const [pending, setPending] = useState<PendingMove | null>(null);
   const [pendingNegotiation, setPendingNegotiation] = useState<PendingNegotiation | null>(null);
+  const [deletingLead, setDeletingLead] = useState<LeadItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [openSeq, setOpenSeq] = useState(0);
   const [latestOver, setLatestOver] = useState<DragTarget | null>(null);
   const [investorNames, setInvestorNames] = useState<Record<string, string>>({});
@@ -242,6 +245,43 @@ export function LeadsBoard() {
   const onLeadUpdated = useCallback((updated: LeadItem) => {
     setLeads((prev) => (prev ? prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)) : prev));
   }, []);
+
+  /** Trvalé odstranění leadu z pipeline — lead zmizí z boardu, nemovitost zůstává. */
+  const removeLeadFromBoard = useCallback((leadId: string) => {
+    setLeads((prev) => (prev ? prev.filter((l) => l.id !== leadId) : prev));
+  }, []);
+
+  /** Otevře potvrzovací modal (z hover akce karty nebo danger zóny v draweru). */
+  const handleRequestDelete = useCallback((lead: LeadItem) => {
+    setDeletingLead(lead);
+  }, []);
+
+  async function confirmDeleteLead() {
+    const lead = deletingLead;
+    if (!lead) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || "Odstranění leadu se nezdařilo");
+        return;
+      }
+      toast.success("Lead odstraněn z pipeline");
+      setDeletingLead(null);
+      setSelectedLead(null);
+      removeLeadFromBoard(lead.id);
+    } catch {
+      toast.error("Odstranění leadu se nezdařilo — zkontrolujte připojení");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function cancelDeleteLead() {
+    if (deleting) return;
+    setDeletingLead(null);
+  }
 
   const handlePriorityToggle = useCallback((lead: LeadItem) => {
     const cycle = [0, 1, 2, 3];
@@ -647,6 +687,7 @@ export function LeadsBoard() {
                           onTogglePriority={handlePriorityToggle}
                           onAdvance={handleQuickAdvance}
                           onMarkLost={handleMarkLost}
+                          onDelete={handleRequestDelete}
                           onAgree={handleCardAgree}
                           onAgreeCancel={cancelNegotiation}
                           negotiationPrompt={pendingNegotiation?.leadId === lead.id}
@@ -685,6 +726,14 @@ export function LeadsBoard() {
         onClose={() => setSelectedLead(null)}
         onLeadUpdated={onLeadUpdated}
         onConverted={() => loadLeads()}
+        onRequestDelete={handleRequestDelete}
+      />
+
+      <DeleteLeadModal
+        lead={deletingLead}
+        deleting={deleting}
+        onCancel={cancelDeleteLead}
+        onConfirm={confirmDeleteLead}
       />
 
       <StageTransitionModal
