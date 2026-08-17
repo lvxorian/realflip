@@ -14,6 +14,18 @@ import { cn } from "@/lib/utils";
 import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 import type { LeadItem } from "./types";
 
+/**
+ * Převod textu ceny z promptu na číslo (stejně jako zbytek aplikace —
+ * kalkulačka, dražby, investor modal). type="number" vrací pro česky
+ * formátované ceny („2 500 000") prázdný řetězec, takže by se potvrzení
+ * tiše neprovedlo — proto se mezery/mezery NBSP/Kč odfiltrují.
+ */
+function parseAmountInput(value: string): number {
+  const cleaned = value.replace(/\s+/g, "").replace(/Kč/gi, "");
+  const n = parseInt(cleaned, 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 function AgingBadge({ lead }: { lead: LeadItem }) {
   if (lead.stage === "closed" || lead.stage === "lost") return null;
   const days = timeInStageDays(lead.stageEnteredAt, currentTime());
@@ -68,6 +80,8 @@ export function LeadCardView({
 }) {
   const [agreeing, setAgreeing] = useState(false);
   const [agreeAmount, setAgreeAmount] = useState("");
+  const agreeAmountNum = parseAmountInput(agreeAmount);
+  const agreeAmountInvalid = agreeAmount.trim() !== "" && agreeAmountNum <= 0;
   const price = lead.propertyPrice ?? 0;
   const priority = lead.priority ?? 0;
   const isTerminal = lead.stage === "closed" || lead.stage === "lost";
@@ -245,45 +259,53 @@ export function LeadCardView({
               <Handshake size={11} weight="bold" /> Dohodnuto za...
             </button>
           ) : (
-            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="number"
-                autoFocus
-                value={agreeAmount}
-                onChange={(e) => setAgreeAmount(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && Number(agreeAmount) > 0) {
-                    onAgree?.(lead, Number(agreeAmount));
-                  }
-                  if (e.key === "Escape") {
+            <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoFocus
+                  value={agreeAmount}
+                  onChange={(e) => setAgreeAmount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && agreeAmountNum > 0) {
+                      onAgree?.(lead, agreeAmountNum);
+                    }
+                    if (e.key === "Escape") {
+                      if (promptNegotiation) onAgreeCancel?.();
+                      else setAgreeing(false);
+                    }
+                  }}
+                  placeholder={lead.analysisTargetPurchasePrice ? String(lead.analysisTargetPurchasePrice) : "cena"}
+                  className="w-full min-w-0 rounded-lg border border-emerald-500/30 bg-card px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-emerald-500/60"
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (agreeAmountNum > 0) onAgree?.(lead, agreeAmountNum);
+                  }}
+                  className="shrink-0 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2 py-1 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     if (promptNegotiation) onAgreeCancel?.();
                     else setAgreeing(false);
-                  }
-                }}
-                placeholder={lead.analysisTargetPurchasePrice ? String(lead.analysisTargetPurchasePrice) : "cena"}
-                className="w-full min-w-0 rounded-lg border border-emerald-500/30 bg-card px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-emerald-500/60"
-              />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (Number(agreeAmount) > 0) onAgree?.(lead, Number(agreeAmount));
-                }}
-                className="shrink-0 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-2 py-1 text-[10px] font-semibold text-emerald-400 hover:bg-emerald-500/25 transition-colors"
-              >
-                ✓
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (promptNegotiation) onAgreeCancel?.();
-                  else setAgreeing(false);
-                }}
-                className="shrink-0 rounded-lg border border-border/40 px-2 py-1 text-[10px] text-muted hover:text-foreground transition-colors"
-              >
-                ✕
-              </button>
+                  }}
+                  className="shrink-0 rounded-lg border border-border/40 px-2 py-1 text-[10px] text-muted hover:text-foreground transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              {agreeAmountInvalid && (
+                <p className="mt-1 text-[10px] font-medium text-red-400">
+                  Zadejte platnou cenu v Kč — např. 2500000
+                </p>
+              )}
             </div>
           )}
         </div>

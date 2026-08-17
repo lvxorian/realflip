@@ -50,6 +50,13 @@ const labelClass = "text-xs text-muted block mb-1";
 const inputClass =
   "w-full h-10 rounded-lg border border-border/50 bg-card px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors";
 
+/** Česky formátovaná cena (mezery, Kč) → číslo; neplatné = null. */
+function parsePriceInput(value: string): number | null {
+  const cleaned = value.replace(/\s+/g, "").replace(/Kč/gi, "");
+  const n = parseInt(cleaned, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function parseDate(value: string | null | undefined): string {
   if (!value) return "";
   const d = new Date(value);
@@ -642,10 +649,11 @@ function LeadDrawerContent({
             <div>
               <label className={labelClass}>Vyjednaná cena (s prodejcem)</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={stageData.negotiation?.currentAmount ?? ""}
                 onChange={(e) => {
-                  const currentAmount = e.target.value ? parseInt(e.target.value, 10) : null;
+                  const currentAmount = parsePriceInput(e.target.value);
                   updateStageData({ negotiation: { ...stageData.negotiation, currentAmount, history: stageData.negotiation?.history ?? [] } });
                 }}
                 placeholder={lead.analysisTargetPurchasePrice?.toString() ?? "0"}

@@ -164,6 +164,43 @@ describe("LeadCardView — klíčové údaje jsou vždy vidět (i v úzkém slou
     expect(onAgree).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), 1950000);
   });
 
+  it("zelená fajfka odešle i česky formátovanou cenu (mezery jako oddělovač tisíců)", () => {
+    const onAgree = vi.fn();
+    render(
+      <LeadCardView
+        lead={makeLead({ stage: "negotiation", analysisTargetPurchasePrice: 2_000_000 })}
+        onOpen={() => {}}
+        negotiationPrompt
+        onAgree={onAgree}
+        onAgreeCancel={() => {}}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("2000000");
+    fireEvent.change(input, { target: { value: "2 500 000" } });
+    fireEvent.click(screen.getByText("✓"));
+    expect(onAgree).toHaveBeenCalledWith(expect.objectContaining({ id: "lead-1" }), 2500000);
+  });
+
+  it("neplatná cena se tiše neodešle, ale ukáže nápovědu", () => {
+    const onAgree = vi.fn();
+    render(
+      <LeadCardView
+        lead={makeLead({ stage: "negotiation", analysisTargetPurchasePrice: 2_000_000 })}
+        onOpen={() => {}}
+        negotiationPrompt
+        onAgree={onAgree}
+        onAgreeCancel={() => {}}
+      />
+    );
+
+    const input = screen.getByPlaceholderText("2000000");
+    fireEvent.change(input, { target: { value: "abc" } });
+    fireEvent.click(screen.getByText("✓"));
+    expect(onAgree).not.toHaveBeenCalled();
+    expect(screen.getByText(/platnou cenu v Kč/i)).toBeTruthy();
+  });
+
   it("drag preview ukazuje stejné klíčové údaje jako karta", () => {
     render(<LeadCardView lead={makeLead()} onOpen={() => {}} />);
 
