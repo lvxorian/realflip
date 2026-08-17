@@ -629,16 +629,14 @@ function PriceRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-[11px] text-muted">{label}</span>
-      <span className="text-right">
-        <span
-          className={`block font-mono tabular-nums whitespace-nowrap ${
-            big ? "text-lg font-semibold text-amber-400" : "text-xs text-muted"
-          }`}
-        >
-          {price != null ? formatPrice(price) : "—"}
-        </span>
+      <span
+        className={`inline-flex items-baseline gap-1.5 font-mono tabular-nums whitespace-nowrap ${
+          big ? "text-lg font-semibold text-amber-400" : "text-xs text-muted"
+        }`}
+      >
+        {price != null ? formatPrice(price) : "—"}
         {perSqm && (
-          <span className="block text-[10px] font-mono text-muted/50 tabular-nums whitespace-nowrap">
+          <span className="text-[10px] font-mono text-muted/50 tabular-nums whitespace-nowrap">
             {perSqm}
           </span>
         )}
