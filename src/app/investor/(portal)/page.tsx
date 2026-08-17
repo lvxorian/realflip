@@ -592,7 +592,6 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
           <DetailRow label="Měsíční nájem" value={snap?.monthlyRent != null ? formatPrice(snap.monthlyRent) : "—"} />
           {snap?.cashOnCash != null && <DetailRow label="Cash-on-cash" value={`${snap.cashOnCash.toFixed(1)} %`} accent={snap.cashOnCash >= 0} />}
         </div>
-        <p className="text-[11px] text-muted pt-2 border-t border-border/20">Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.</p>
       </div>
     );
   }
@@ -610,9 +609,6 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
         <div className="text-[10px] font-semibold text-emerald-400 mb-1">Výpočet při kupní ceně {kupniCena != null ? formatPrice(kupniCena) : "—"}</div>
         <FlipCostRows snap={snap} deal={deal} coop={item.cooperation} kupniCena={kupniCena} area={item.area} showProfit />
       </div>
-      <p className="text-[11px] text-muted pt-2 border-t border-border/20">
-        Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
-      </p>
     </div>
   );
 }
@@ -671,9 +667,6 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
         <FlipCostRows snap={snap} deal={deal} coop={coop} kupniCena={kupniCena} area={item.area} strategy={strategy} />
       </div>
       <ModelDetailBlock strategy={strategy} coop={coop} />
-      <p className="text-[11px] text-muted pt-2 border-t border-border/20">
-        Čísla odpovídají analýze z kalkulačky RealFlip uložené pro tuto nemovitost.
-      </p>
     </div>
   );
 }
@@ -798,9 +791,6 @@ function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; c
   const roi = modelRoiOf(strategy, coop);
   return (
     <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
-      {!isFifty && coop.sourcingFee != null && coop.sourcingFee > 0 && (
-        <DetailRow label="Sourcing fee" value={formatPrice(coop.sourcingFee)} />
-      )}
       <DetailRow label="Vaše investice" value={funding != null ? formatPrice(funding) : "—"} />
       <DetailRow
         label={isFifty ? "Váš zisk (polovina obchodu)" : "Váš zisk (po rekonstrukci)"}
