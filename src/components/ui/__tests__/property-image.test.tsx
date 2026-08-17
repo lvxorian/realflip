@@ -52,13 +52,31 @@ describe("PropertyImage — fotka vyplní celý kontejner", () => {
   });
 });
 
-describe("ImageGallery — pevný box 8:5, blur pruhy, fotka bez ořezu", () => {
-  it("hlavní fotka má object-contain a rozmazané pozadí (blur pruhy) ze stejné fotky", () => {
+describe("ImageGallery — pevný box 8:5, fit podle poměru stran", () => {
+  it("fotka na šířku vyplní celý box (object-cover, žádné pruhy)", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
 
     const main = screen.getByAltText("Byt - foto 1");
     expect(main.getAttribute("src")).toBe("/a.jpg");
+    // poměr 4:1 (na šířku) → object-cover
+    Object.defineProperty(main, "naturalWidth", { value: 4000 });
+    Object.defineProperty(main, "naturalHeight", { value: 1000 });
+    fireEvent.load(main);
+    expect(main.className).toContain("object-cover");
+    expect(main.className).not.toContain("object-contain");
+  });
+
+  it("fotka na výšku zůstane celá (object-contain) s blur pruhy po stranách", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+
+    const main = screen.getByAltText("Byt - foto 1");
+    expect(main.getAttribute("src")).toBe("/a.jpg");
+    // poměr 3:4 (na výšku) → object-contain, ne ořez
+    Object.defineProperty(main, "naturalWidth", { value: 600 });
+    Object.defineProperty(main, "naturalHeight", { value: 800 });
+    fireEvent.load(main);
     expect(main.className).toContain("object-contain");
+    expect(main.className).not.toContain("object-cover");
 
     const bg = document.querySelector('img[aria-hidden="true"]');
     expect(bg).toBeTruthy();
@@ -147,15 +165,11 @@ describe("ImageGallery — pevný box 8:5, blur pruhy, fotka bez ořezu", () => 
     expect(screen.getByAltText("Byt - foto 1").getAttribute("src")).toBe("/a.jpg");
   });
 
-  it("fullscreen tlačítko je dole uprostřed nad počtem fotek (nekoliduje se šipkou vpravo)", () => {
+  it("fullscreen ikonka už neexistuje — místo ní se otevře klikem na fotku", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
 
-    const btn = screen.getByLabelText("Zobrazit na celou obrazovku");
-    expect(btn.className).toContain("bottom-14");
-    expect(btn.className).toContain("left-1/2");
-    expect(btn.className).toContain("-translate-x-1/2");
-    // není vpravo dole (kde je šipka „další fotka")
-    expect(btn.className).not.toContain("right-3");
+    expect(screen.queryByLabelText("Zobrazit na celou obrazovku")).toBeNull();
+    expect(document.querySelector('[title="Zobrazit na celou obrazovku"]')).toBeNull();
   });
 
   it("bez fotek zobrazí placeholder bez fotky", () => {
@@ -166,10 +180,10 @@ describe("ImageGallery — pevný box 8:5, blur pruhy, fotka bez ořezu", () => 
 });
 
 describe("ImageGallery — fullscreen", () => {
-  it("tlačítko otevře fotku na celou obrazovku a křížek ji zavře", () => {
+  it("klik na fotku otevře fullscreen a křížek ho zavře", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
 
-    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    fireEvent.click(screen.getByAltText("Byt - foto 1"));
 
     expect(screen.getByAltText("Byt - fullscreen 1")).toBeTruthy();
     expect(screen.getByLabelText("Zavřít fullscreen")).toBeTruthy();
@@ -181,7 +195,7 @@ describe("ImageGallery — fullscreen", () => {
   it("ve fullscreenu listují šipky doleva/doprava", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
 
-    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    fireEvent.click(screen.getByAltText("Byt - foto 1"));
     expect(screen.getByAltText("Byt - fullscreen 1").getAttribute("src")).toBe("/a.jpg");
 
     fireEvent.click(screen.getByLabelText("Dalsi fotka fullscreen"));
@@ -194,7 +208,7 @@ describe("ImageGallery — fullscreen", () => {
   it("Esc zavře fullscreen", () => {
     render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
 
-    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    fireEvent.click(screen.getByAltText("Byt - foto 1"));
     expect(screen.getByAltText("Byt - fullscreen 1")).toBeTruthy();
 
     fireEvent.keyDown(window, { key: "Escape" });
@@ -204,7 +218,7 @@ describe("ImageGallery — fullscreen", () => {
   it("klik na pozadí zavře fullscreen, klik na fotku ne", () => {
     render(<ImageGallery images={["/a.jpg"]} alt="Byt" />);
 
-    fireEvent.click(screen.getByLabelText("Zobrazit na celou obrazovku"));
+    fireEvent.click(screen.getByAltText("Byt - foto 1"));
     const photo = screen.getByAltText("Byt - fullscreen 1");
 
     fireEvent.click(photo);

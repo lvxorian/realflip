@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CaretLeft, CaretRight, ArrowsOutSimple, X } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
 
 interface ImageGalleryProps {
   images: string[];
@@ -13,6 +13,10 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [errored, setErrored] = useState<Set<number>>(new Set());
   const [fullscreen, setFullscreen] = useState(false);
+  // Poměr stran (width/height) načtené fotky per index — podle něj se vybere,
+  // jestli fotka vyplní celý box (na šířku, object-cover) nebo zůstanou blur
+  // pruhy po stranách (na výšku, object-contain — aby se neořezala budova).
+  const [aspectRatios, setAspectRatios] = useState<Record<number, number>>({});
 
   // Šipky ← → na klávesnici listují mezi fotkami (používá se na detailu
   // nemovitosti). Při psaní do polí (editace rozměrů, kalkulačka…) se nezasahuje.
@@ -60,6 +64,21 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
     setErrored((prev) => new Set(prev).add(i));
   };
 
+  const handleImgLoad = (i: number) => (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      setAspectRatios((prev) => ({
+        ...prev,
+        [i]: img.naturalWidth / img.naturalHeight,
+      }));
+    }
+  };
+
+  // Fotka na šířku (poměr ≥ 1) → vyplní celý box bez pruhů (object-cover).
+  // Fotka na výšku (poměr < 1) → object-contain, kolem zůstanou blur pruhy.
+  const ratio = aspectRatios[activeIndex];
+  const isPortrait = ratio !== undefined && ratio < 1;
+
   if (!images || images.length === 0 || errored.size >= images.length) {
     return (
       <div className="relative aspect-[8/5] property-image-shimmer flex items-center justify-center">
@@ -82,8 +101,9 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   return (
     <div className="relative">
       {/* Pevný poměr 8:5 — velikost boxu se nikdy nemění podle fotky,
-          takže se layout stránky nedeformuje. Fotka se vejde celá (object-contain)
-          a prostor kolem vyplňuje rozmazaná kopie téže fotky (blur pruhy). */}
+          takže se layout stránky nedeformuje. Fotky na šířku vyplní celý box
+          (object-cover), fotky na výšku zůstanou celé (object-contain) a prostor
+          kolem vyplňuje rozmazaná kopie téže fotky (blur pruhy). */}
       <div className="relative w-full bg-card overflow-hidden aspect-[8/5]">
         {errored.has(activeIndex) ? (
           <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
@@ -105,33 +125,26 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
               decoding="async"
               onError={() => handleImgError(activeIndex)}
             />
-            {/* Fotka celá, bez ořezu — když se poměrem stran nevejde do boxu 8:5,
-                kolem ní zůstanou viditelné blur pruhy z pozadí. */}
+            {/* Fotka: na šířku vyplní celý box (object-cover), na výšku zůstane
+                celá s blur pruhy po stranách. Klik doprostřed otevře fullscreen
+                (boční zóny patří šipkám ← →). */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               key={activeIndex}
               src={images[activeIndex]}
               alt={`${alt} - foto ${activeIndex + 1}`}
-              className="absolute inset-0 h-full w-full object-contain"
+              className={`absolute inset-0 h-full w-full ${isPortrait ? "object-contain" : "object-cover"} cursor-zoom-in`}
               referrerPolicy="no-referrer"
               loading="lazy"
               decoding="async"
+              onClick={() => setFullscreen(true)}
+              onLoad={handleImgLoad(activeIndex)}
               onError={() => handleImgError(activeIndex)}
             />
           </>
         )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
-
-        {/* Fullscreen — otevře fotku na celou obrazovku */}
-        <button
-          onClick={() => setFullscreen(true)}
-          aria-label="Zobrazit na celou obrazovku"
-          title="Zobrazit na celou obrazovku"
-          className="absolute bottom-14 left-1/2 z-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full glass opacity-90 transition-all hover:scale-110 hover:bg-card-hover cursor-pointer"
-        >
-          <ArrowsOutSimple size={16} weight="bold" />
-        </button>
 
         {images.length > 1 && (
           <>
