@@ -1,12 +1,12 @@
-﻿import { PortalAdapter } from "./adapters/base";
+﻿import { PortalAdapter, CrawlStep } from "./adapters/base";
 import { PortalName, PORTAL_CONFIGS, RawListing, SearchFilters, isValidPrice, filterImages } from "./types";
 import { matchFilters, isCzechListing, isSaleListing } from "./filters";
 import { applyAreaResolution } from "./area-resolver";
 import { Deduplicator } from "./deduplicator";
 import { db } from "@/db";
-import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties, leads, realizedSales } from "@/db/schema";
+import { properties, propertyAnalysis, scrapingJobs, activityLog, priceHistory, searches, searchProperties, leads, realizedSales, crawlProgress } from "@/db/schema";
 import { toRealizedSale } from "./sold-pairing";
-import { eq, and, ne, notInArray, inArray, lte, gt } from "drizzle-orm";
+import { eq, and, ne, notInArray, inArray, lte, gt, desc } from "drizzle-orm";
 import { listingMatches, PROPERTY_STATUS, REMOVAL_GRACE_MS, type RelistCandidate } from "./relisting";
 import { matchStrengthCrossPortal, isAutoMergeMatch, parseAltPortals, appendAltPortal, hasAltUrl, toDbAltPortals } from "./property-match";
 import { analyzeListing } from "@/lib/analysis/analyzer";
@@ -178,6 +178,7 @@ export class ScrapingOrchestrator {
     const urls = new Set(rows.map((r) => r.url));
     for (const adapter of this.adapters.values()) {
       adapter.skipDetailForUrls = urls;
+      adapter.setKnownUrls?.(urls);
     }
   }
 
@@ -362,8 +363,11 @@ export class ScrapingOrchestrator {
       skipSearchIds?: string[];
       /** Portály už dokončené pro dané hledání (auto-pokračování) — přeskočí se. */
       skipPortals?: Record<string, PortalName[]>;
+      /** Časový strop běhu v ms (Vercel limit 60 s) — výchozí 45 s práce,
+       *  zbytek je rezerva na ukládání a odeslání done události. */
+      budgetMs?: number;
     }
-  ): Promise<{ total: number; runCount: number; failed: string[] }> {
+  ): Promise<{ total: number; runCount: number; failed: string[]; incomplete: boolean }> {
     const userSearches = await db
       .select()
       .from(searches)
@@ -377,8 +381,16 @@ export class ScrapingOrchestrator {
     let total = 0;
     let runCount = 0;
     const failed: string[] = [];
+    // Hledání, která nemají všechny portály dokončené (limit 60 s) — nedostanou
+    // search-done, takže je client nepřeskočí a dojedou se příštím během.
+    const incompleteSearches = new Set<string>();
 
-    if (pending.length === 0) return { total, runCount, failed };
+    if (pending.length === 0) return { total, runCount, failed, incomplete: false };
+
+    // Časový strop běhu. Vercel Hobby = 60 s; 45 s crawlu + ~15 s rezerva
+    // na ukládání výsledků a odeslání done události.
+    const budgetMs = opts?.budgetMs ?? 45_000;
+    const deadline = Date.now() + budgetMs;
 
     // Načti známé URL jednou — adaptéry pak přeskočí detail fetche známých inzerátů.
     await this.loadKnownListingUrls().catch(() => {});
@@ -469,21 +481,75 @@ export class ScrapingOrchestrator {
         if (needed.length === 0) return;
 
         const errors: string[] = [];
+        const progressId = `${job.portal}:${job.cityKey ?? ""}`;
+
+        // Poslední dokončený krok (stránka) z předchozích běhů — přeskočí se,
+        // aby auto-pokračování navazovalo místo restartu od nuly.
+        let startStep = 0;
+        try {
+          const row = await db
+            .select({ step: crawlProgress.step })
+            .from(crawlProgress)
+            .where(eq(crawlProgress.id, progressId))
+            .limit(1)
+            .then((r) => r[0]);
+          startStep = row?.step ?? 0;
+        } catch {
+          // crawl_progress tabulka nemusí existovat (stará DB) — pokračuj od nuly.
+        }
+
+        const ctx: CrawlStep = {
+          startStep,
+          deadlineMs: deadline,
+          completed: true,
+          onStepDone: (step) => {
+            // Best-effort persist — ztracený krok = jen přeskočená stránka příště.
+            void db
+              .insert(crawlProgress)
+              .values({
+                id: progressId,
+                portal: job.portal,
+                city: job.cityKey ?? "",
+                step: step + 1,
+                updatedAt: ts(),
+              })
+              .onConflictDoUpdate({
+                target: crawlProgress.id,
+                set: { step: step + 1, updatedAt: ts() },
+              })
+              .catch(() => {});
+          },
+        };
+
         let listings: RawListing[] = [];
         try {
           if (job.cityKey && typeof adapter.crawlCityListings === "function") {
-            listings = await adapter.crawlCityListings(job.cityKey);
+            listings = await adapter.crawlCityListings(job.cityKey, undefined, ctx);
           } else if (job.portal === "idnes-reality") {
             listings = await adapter.crawlListings(
-              job.locationText ? { location: job.locationText } : undefined
+              job.locationText ? { location: job.locationText } : undefined,
+              ctx
             );
           } else {
             listings = await adapter.crawlListings(
-              job.cityKey ? { location: job.cityKey } : undefined
+              job.cityKey ? { location: job.cityKey } : undefined,
+              ctx
             );
           }
         } catch (err) {
           errors.push(`Crawl error (${job.portal}): ${err}`);
+        }
+
+        // Běž skončil předčasně (deadline) → portál se dojede příštím během:
+        // progress řádek zůstává v DB, hledání nedostane search-done (client
+        // ho nepřeskočí) a portál dostane chybu (client ho taky nepřeskočí).
+        // Uložené částečné výsledky se přitom normálně projeví.
+        if (!ctx.completed) {
+          errors.push("Běž přerušen limitem 60 s — portál se dojede příštím během");
+          for (const p of needed) incompleteSearches.add(p.search.id);
+        } else {
+          // Portál dokončen → progress záznam už netřeba.
+          void db.delete(crawlProgress).where(eq(crawlProgress.id, progressId)).catch(() => {});
         }
 
         // Dedup URL v rámci jednoho crawlu (paginace vrací duplicity).
@@ -508,6 +574,19 @@ export class ScrapingOrchestrator {
 
           let found = 0;
           for (const listing of matched) {
+            // Ukládání je pomalé (analýza + tržní data) — když je deadline za
+            // námi, necháme zbytek na příštím běhu, ať stihneme done událost
+            // v limitu 60 s. Portál se tím označí jako neúplný (viz níže).
+            if (Date.now() >= deadline) {
+              if (ctx.completed) {
+                // Crawl deadline stihl, ale ukládání už ne — portál se dojede
+                // příštím během, jinak by zbylé inzeráty nikdy nespadly do DB.
+                ctx.completed = false;
+                portalErrors.push("Běž přerušen limitem 60 s — portál se dojede příštím během");
+                incompleteSearches.add(search.id);
+              }
+              break;
+            }
             try {
               const propertyId = await this.saveListing(listing, search.id);
               if (propertyId) {
@@ -537,8 +616,10 @@ export class ScrapingOrchestrator {
       if (result.status === "rejected") failed.push(`Crawl selhal: ${result.reason}`);
     }
 
-    // search-done pro každé hledání.
+    // search-done jen pro hledání s dokončenými portály — nedokončená (limit
+    // 60 s) client nepřeskočí a dojedou se příštím během.
     for (const { search, filters } of parsed) {
+      if (incompleteSearches.has(search.id)) continue;
       runCount++;
       if (!filters) {
         failed.push(`Search ${search.id} (${search.name}): invalid filters`);
@@ -552,10 +633,14 @@ export class ScrapingOrchestrator {
       });
     }
 
-    refreshAllMarketData().catch(() => {});
-    await this.sweepRemovedListings().catch(() => {});
+    // Refresh tržních dat sem nepatří — Tier 3 sampling (až 80 sreality fetchů)
+    // by spálil zbývající čas a běh by nestihl done událost. Patří do plánované
+    // úlohy (crawlAllScheduled).
+    if (Date.now() < deadline) {
+      await this.sweepRemovedListings().catch(() => {});
+    }
 
-    return { total, runCount, failed };
+    return { total, runCount, failed, incomplete: incompleteSearches.size > 0 };
   }
 
   private async saveListing(
@@ -790,7 +875,10 @@ export class ScrapingOrchestrator {
         recordedAt: listing.publishedAt ? new Date(listing.publishedAt).getTime() : ts(),
       });
 
-      // Enhanced analysis with live market data
+      // Enhanced analysis with live market data. Během crawlu se Tier 3
+      // (až 80 sreality fetchů na nový inzerát) nepouští — limit 60 s by
+      // nestihl ani jeden saveListing. Tržní data se doberou plánovanou
+      // úlohou (refreshAllMarketData s live režimem).
       const location = classifyLocation(listing.address, listing.title);
       const ranges = location.city !== "Neznámá"
         ? await getAnalysisRanges({
@@ -801,7 +889,7 @@ export class ScrapingOrchestrator {
             buildingType: listing.buildingType,
             area: listing.area,
             category: location.category,
-          }).catch(() => ({ dynamicRange: null, arvRange: null }))
+          }, false).catch(() => ({ dynamicRange: null, arvRange: null }))
         : { dynamicRange: null, arvRange: null };
       const analysis = analyzeListing(listing, ranges.dynamicRange, undefined, location, ranges.arvRange);
 
@@ -878,11 +966,15 @@ export class ScrapingOrchestrator {
   // se nesmí stát novým řádkem — vrací kanonický záznam, pokud se obsahově shoduje.
   private async findCrossPortalProperty(listing: RawListing): Promise<typeof properties.$inferSelect | null> {
     const cutoff = Date.now() - 180 * 24 * 60 * 60 * 1000;
+    // Prohlížení 2000 řádků na JEDEN nový inzerát bylo drahé (až 6+ dotazů
+    // napříč celou DB v saveListing) — aktivní kandidáti stačí, 300 je
+    // kompromis mezi rychlostí a přesností sloučení.
     const rows = await db
       .select()
       .from(properties)
       .where(gt(properties.lastSeen, cutoff))
-      .limit(2000);
+      .orderBy(desc(properties.isActive), desc(properties.lastSeen))
+      .limit(300);
 
     let best: typeof properties.$inferSelect | null = null;
     for (const row of rows) {

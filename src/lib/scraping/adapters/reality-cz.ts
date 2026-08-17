@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters, filterImages, isValidPrice, parseCzkPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
@@ -11,11 +11,20 @@ export class RealityCzAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const all: RawListing[] = [];
     let pageUrl = "/prodej/byty/Ceska-republika/";
 
+    // Paginace reality.cz není deterministická (token ?g= se mění mezi
+    // návštěvami), proto se stránky nedají přeskočit po kroku — jen se
+    // respektuje deadline; stránky jsou jen 2 fetche (~4 s), zbytek stojí
+    // enrichBatch, který se dojíždí přes skipDetailForUrls (známé z DB).
     for (let page = 0; page < this.maxPages; page++) {
+      if (ctx?.deadlineMs != null && Date.now() >= ctx.deadlineMs) {
+        ctx.completed = false;
+        break;
+      }
+
       const url = `${this.config.baseUrl}${pageUrl}`;
       const html = await this.fetch(url);
       const $ = cheerio.load(html);
@@ -33,7 +42,7 @@ export class RealityCzAdapter extends PortalAdapter {
     // Enrichování dávek — reality.cz je na rychlé požadavky přísný (429 →
     // 60s retry), proto menší concurrency 2 než u jiných portálů. Známé
     // inzeráty z DB se přeskočí (skipDetailForUrls).
-    return this.enrichBatch(all, (l) => this.enrichListing(l), 2);
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 2, ctx);
   }
 
   private parsePage($: cheerio.CheerioAPI, _pageUrl: string): RawListing[] {

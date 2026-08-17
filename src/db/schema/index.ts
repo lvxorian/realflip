@@ -12,6 +12,7 @@ export { alerts, notifications } from "./alerts";
 export { marketData, marketCache, scrapingJobs, localityMetrics, poiMetrics, rents } from "./market";
 export { activityLog } from "./activity";
 export { searches, searchProperties } from "./searches";
+export { crawlProgress } from "./crawl-progress";
 export { calculatorPresets } from "./presets";
 export { tasks } from "./tasks";
 export { vykupyLeads, vykupyRegions } from "./vykupy";

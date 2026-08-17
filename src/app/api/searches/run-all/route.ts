@@ -68,6 +68,7 @@ export async function POST(req: Request) {
           total: result.total,
           runCount: result.runCount,
           failed: result.failed,
+          incomplete: result.incomplete,
         });
       } catch (error) {
         console.error("Run-all searches error:", error);

@@ -221,8 +221,7 @@ describe("RealityMatAdapter", () => {
             <h2 class="h4">
               <a class="stretched-link" title="${title}" href="${href}">${title}</a>
             </h2>
-            <p>${address}</p>
-            <div class="lead font-weight-bold mt-auto">${price}${suffix}</div>
+            <p class="font-weight-bold mt-auto">${price}${suffix}</p>
           </div>
         </div>
       </div>

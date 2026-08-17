@@ -533,7 +533,7 @@ function cacheResult(result: MarketRangeResult, cityKey: string, segment: string
   if (!segment.includes("__g")) persistCache(entry).catch(() => {});
 }
 
-export async function getPropertyMarketRange(ctx: PropertyMarketContext, force = false): Promise<MarketRangeResult | null> {
+export async function getPropertyMarketRange(ctx: PropertyMarketContext, force = false, live = true): Promise<MarketRangeResult | null> {
   const segment = segmentOf(ctx.condition, ctx.buildingType);
   const seg = cacheSegment(ctx, segment);
   const key = cacheKey(ctx.cityKey, seg);
@@ -568,19 +568,24 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
   // celorepublikový feed (ověřeno 2026-08). Nahrazen Tierem 3 (sitemap + detail API),
   // který filtruje vzorky podle města správně.
 
-  // Tier 3: sitemap + detail API vzorky (aktuální data pro libovolné město)
-  try {
-    const samples = await fetchSrealitySamples(ctx.cityKey);
-    if (samples) {
-      for (const seg of SEGMENT_KEYS) {
-        const st = statsFromSamples(samples, seg, ctx);
-        if (st) cacheResult(st, ctx.cityKey, seg);
+  // Tier 3: sitemap + detail API vzorky (aktuální data pro libovolné město).
+  // Při crawlu (live=false) se přeskočí — až 80 sreality fetchů × 3 s = 240 s
+  // na JEDNO uložení inzerátu by rozbilo limit 60 s běhu. Tržní data se
+  // doplní plánovanou úlohou (refreshAllMarketData), která volá live režim.
+  if (live) {
+    try {
+      const samples = await fetchSrealitySamples(ctx.cityKey);
+      if (samples) {
+        for (const seg of SEGMENT_KEYS) {
+          const st = statsFromSamples(samples, seg, ctx);
+          if (st) cacheResult(st, ctx.cityKey, seg);
+        }
+        const own = statsFromSamples(samples, segment, ctx);
+        if (own) return own;
       }
-      const own = statsFromSamples(samples, segment, ctx);
-      if (own) return own;
+    } catch {
+      // fall through
     }
-  } catch {
-    // fall through
   }
 
   // Tier 4: fixní MARKET_DATA — konkrétní segment nemovitosti
@@ -607,18 +612,19 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
 // ARV (hodnota po rekonstrukci) se musí počítat z renovovaného segmentu, ne ze segmentu
 // aktuálního stavu (např. "original" => brick_needs_renov místo brick_renovated).
 export async function getAnalysisRanges(
-  ctx: PropertyMarketContext
+  ctx: PropertyMarketContext,
+  live = true
 ): Promise<{ dynamicRange: MarketRangeResult | null; arvRange: MarketRangeResult | null }> {
   const needsRenov = ctx.condition === "original" || ctx.condition === "dilapidated";
 
   if (!needsRenov) {
-    const dynamicRange = await getPropertyMarketRange(ctx).catch(() => null);
+    const dynamicRange = await getPropertyMarketRange(ctx, false, live).catch(() => null);
     return { dynamicRange, arvRange: dynamicRange };
   }
 
   const [dynamicRange, arvRange] = await Promise.all([
-    getPropertyMarketRange(ctx).catch(() => null),
-    getPropertyMarketRange({ ...ctx, condition: "renovated" }).catch(() => null),
+    getPropertyMarketRange(ctx, false, live).catch(() => null),
+    getPropertyMarketRange({ ...ctx, condition: "renovated" }, false, live).catch(() => null),
   ]);
   return { dynamicRange, arvRange };
 }

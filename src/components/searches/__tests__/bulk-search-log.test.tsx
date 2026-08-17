@@ -133,6 +133,41 @@ describe("BulkSearchLog — live log hromadného hledání", () => {
     expect(screen.getByText("+5 inzerátů")).toBeTruthy();
   });
 
+  it("pokračuje auto-během, když done hlásí incomplete portály (limit 60 s)", async () => {
+    // 1. běh: server stihl done událost, ale portál bazos byl přerušen limitem →
+    // search-done NEpřišlo a done.incomplete=true → client běží znovu, místo
+    // aby skončil jako dokončený.
+    // 2. běh: vše dokončeno → search-done + done.incomplete=false → konec.
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(async () => sseResponse([
+        { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Praha byty", index: 0, total: 1 } },
+        { event: "progress", data: { kind: "portal", searchId: "s1", searchName: "Praha byty", portal: "bazos", found: 2, errors: ["Běž přerušen limitem 60 s — portál se dojede příštím během"] } },
+        { event: "done", data: { total: 2, runCount: 0, failed: [], incomplete: true } },
+      ]))
+      .mockImplementationOnce(async () => sseResponse([
+        { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Praha byty", index: 0, total: 1 } },
+        { event: "progress", data: { kind: "portal", searchId: "s1", searchName: "Praha byty", portal: "bazos", found: 1, errors: [] } },
+        { event: "progress", data: { kind: "search-done", searchId: "s1", searchName: "Praha byty", total: 3, errors: [] } },
+        { event: "done", data: { total: 3, runCount: 1, failed: [], incomplete: false } },
+      ]));
+    vi.stubGlobal("fetch", fetchMock);
+    const onFinished = vi.fn();
+
+    render(<BulkSearchLog open onClose={() => {}} onFinished={onFinished} maxRetries={3} retryDelayMs={0} />);
+
+    await waitFor(() => expect(screen.getByText("Dokončeno")).toBeTruthy());
+
+    // Běh pokračoval automaticky — 2 pokusy
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // s1 nikdy nedostalo search-done → nepřeskočilo se v žádném běhu
+    const bodies = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body));
+    expect(bodies[0].skipSearchIds).toEqual([]);
+    expect(bodies[1].skipSearchIds).toEqual([]);
+    // Součet nalezených napříč běhy: 2 + 1 = 3
+    expect(screen.getByText("+3 inzerátů")).toBeTruthy();
+    await waitFor(() => expect(onFinished).toHaveBeenCalledTimes(1));
+  });
+
   it("zobrazí chybu portálu červeně", async () => {
     const events = [
       { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Brno", index: 0, total: 1 } },

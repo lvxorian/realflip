@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters, filterImages } from "../types";
 import { generateId } from "@/lib/utils";
 
@@ -10,17 +10,17 @@ export class IdnesRealityAdapter extends PortalAdapter {
     super("idnes-reality");
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const results: RawListing[] = [];
     const searchPath = this.buildSearchPath(filters);
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = page === 1 ? searchPath : `${searchPath}?strana=${page}`;
       const html = await this.fetch(url);
       const items = this.parseSearchResults(html, url);
-      if (items.length === 0) break;
       results.push(...items);
-    }
+      return items.length;
+    });
 
     // Paginace idnes vrací přes stránky duplicitní inzeráty (stejné URL) —
     // bez dedupu by se stejné detaily stahovaly a ukládaly víckrát, což
@@ -36,7 +36,7 @@ export class IdnesRealityAdapter extends PortalAdapter {
     // 5 paralelních fetchů detailů je s rate limiterem (2 s) bezpečné a
     // zvládne to výrazně rychleji než 3 — limitu 60 s jde vstříc. Známé
     // inzeráty z DB se přeskočí (skipDetailForUrls).
-    return this.enrichBatch(unique, (l) => this.enrichListing(l), 5);
+    return this.enrichBatch(unique, (l) => this.enrichListing(l), 5, ctx);
   }
 
   private buildSearchPath(filters?: SearchFilters): string {

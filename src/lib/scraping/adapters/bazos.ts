@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, PortalName, SearchFilters, filterImages, isValidPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
@@ -15,11 +15,11 @@ export class BazosAdapter extends PortalAdapter {
     return `${this.config.baseUrl}${this.searchPath}`;
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
     // Bazoš stránkuje pomocí offsetu: /prodam/byt/20/ = 2. stránka (20 inzerátů/stránku)
-    for (let page = 1; page <= 5; page++) {
+    await this.forPages(ctx, 5, async (page) => {
       const pageUrl = page === 1 ? this.getSearchUrl() : `${this.getSearchUrl()}${(page - 1) * 20}/`;
       const html = await this.fetch(pageUrl);
       const $ = cheerio.load(html);
@@ -76,12 +76,12 @@ export class BazosAdapter extends PortalAdapter {
         });
       });
 
-      if (pageCount === 0) break;
-    }
+      return pageCount;
+    });
 
     // Enrich with detail page info (GPS, full description, name, more images)
     // — dávkově s omezenou konkurencí, známé inzeráty z DB se přeskočí.
-    return this.enrichBatch(all, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 3, ctx);
   }
 
   private async enrichListing(listing: RawListing): Promise<RawListing> {

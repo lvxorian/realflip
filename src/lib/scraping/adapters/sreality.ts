@@ -1,7 +1,6 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters, filterImages, isValidPrice, cleanHtmlToText } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
-import { getSrealitySitemapIds, pickSrealitySampleIds } from "../sreality-sitemap";
 import { cityNamesFor, addressMatchesCity, findCityKey } from "@/lib/analysis/location";
 
 interface SrealitySearchResult {
@@ -19,6 +18,26 @@ interface SrealitySearchResult {
     gps_lat: number | null;
     gps_lon: number | null;
   } | null;
+}
+
+/** Výsledek v __NEXT_DATA__ městské stránky (sreality.cz/hledani/prodej/byty/{mesto}). */
+interface SrealityCityResult {
+  id: number;
+  name: string | null;
+  priceCzk: number;
+  priceCzkPerSqM: number | null;
+  locality: {
+    city: string | null;
+    citySeoName: string | null;
+    street: string | null;
+    streetSeoName: string | null;
+    streetNumber: string | null;
+    cityPartSeoName: string | null;
+    districtSeoName: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  } | null;
+  images: Array<{ url?: string } | string> | null;
 }
 
 interface SrealityDetail {
@@ -98,6 +117,13 @@ function normalizeBuildingType(raw: string | null): string | null {
 
 const SREALITY_CDN_PARAMS = "?fl=res,1200,1200,1|wrm,/watermark/sreality.png,10|shr,,20|webp,80";
 
+/** SEO názvy měst, kde cityKey (podtržítka) nesedí s URL sreality. */
+const SREALITY_CITY_SEO: Record<string, string> = {
+  hradec: "hradec-kralove",
+  usti: "usti-nad-labem",
+  mariansk_lazne: "marianske-lazne",
+};
+
 export class SrealityAdapter extends PortalAdapter {
   private baseApi = "https://www.sreality.cz/api/v1/estates";
   private resultsPerPage = 20;
@@ -107,14 +133,14 @@ export class SrealityAdapter extends PortalAdapter {
     super("sreality");
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const all: RawListing[] = [];
     const cityNames = filters?.location
       ? cityNamesFor(findCityKey(filters.location) ?? filters.location.toLowerCase().replace(/\s+/g, "_"))
       : null;
 
-    for (let page = 0; page < this.maxPages; page++) {
-      const offset = page * this.resultsPerPage;
+    await this.forPages(ctx, this.maxPages, async (page) => {
+      const offset = (page - 1) * this.resultsPerPage;
       let url = `${this.baseApi}/search?category_main_cb=1&category_type_cb=1&limit=${this.resultsPerPage}&offset=${offset}`;
       if (filters?.priceMin) url += `&price_min=${filters.priceMin}`;
       if (filters?.priceMax) url += `&price_max=${filters.priceMax}`;
@@ -123,7 +149,6 @@ export class SrealityAdapter extends PortalAdapter {
 
       const data = await this.fetchJson(url);
       const items: SrealitySearchResult[] = data?.results ?? [];
-      if (items.length === 0) break;
 
       for (const item of items) {
         const locality = item.locality;
@@ -164,65 +189,141 @@ export class SrealityAdapter extends PortalAdapter {
         });
       }
 
-      if (items.length < this.resultsPerPage) break;
-    }
+      return items.length < this.resultsPerPage ? 0 : items.length;
+    });
 
-    return this.enrichBatch(all, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 3, ctx);
   }
 
-  async crawlCityListings(cityKey: string, limit = 40): Promise<RawListing[]> {
-    const ids = await getSrealitySitemapIds();
-    if (ids.length === 0) return [];
+  /**
+   * URL inzerátů, které už máme v DB — pro městský crawl si z nich odvodíme
+   * známá hash ID a přeskočíme drahé detail fetche (list data z městské
+   * stránky stačí na aktualizaci ceny/živosti). Nastavuje orchestrator.
+   */
+  private knownHashIds: Set<number> = new Set();
 
+  setKnownUrls(urls: Set<string>): void {
+    this.knownHashIds = new Set();
+    for (const url of urls) {
+      const m = url.match(/\/(\d+)$/);
+      if (m) this.knownHashIds.add(parseInt(m[1], 10));
+    }
+  }
+
+  /**
+   * Městský crawl přes stránky sreality.cz/hledani/prodej/byty/{mesto} —
+   * výsledky (cena, lokalita, fotky) jsou v __NEXT_DATA__, takže netřeba
+   * drahé detail fetche. Detail fetch dostanou jen NOVÉ inzeráty (do limitu);
+   * známé z DB se jen aktualizují z list dat. Dřív se náhodně vzorkovalo až
+   * 80 ID ze sitemapy na město (≈160 s s rate limiterem) — na 60 s limit
+   * Vercelu to nikdy nestačilo a běh se po každém přerušení lezl od nuly.
+   */
+  async crawlCityListings(cityKey: string, limit = 40, ctx?: CrawlStep): Promise<RawListing[]> {
     const cityNames = cityNamesFor(cityKey);
-    const sampleIds = pickSrealitySampleIds(cityKey, Math.max(limit * 2, 60));
+    const seo = SREALITY_CITY_SEO[cityKey] ?? cityKey.replace(/_/g, "-");
+    const raw: RawListing[] = [];
+
+    await this.forPages(ctx, this.maxPages, async (page) => {
+      const url = page === 1
+        ? `https://www.sreality.cz/hledani/prodej/byty/${seo}`
+        : `https://www.sreality.cz/hledani/prodej/byty/${seo}?strana=${page}`;
+      const html = await this.fetch(url);
+      const items = this.parseCityPage(html, cityNames);
+      raw.push(...items);
+      return items.length;
+    });
+
+    // Dedup podle hash ID (paginace vrací duplicity).
+    const byId = new Map<number, RawListing>();
+    for (const l of raw) {
+      const m = l.url.match(/\/(\d+)$/);
+      if (!m) continue;
+      byId.set(parseInt(m[1], 10), l);
+    }
+
+    // Známé inzeráty necháme jen z list dat (cena, lokalita, fotky) —
+    // detail fetch pro ně je zbytečný. Nové do detailu dotáhneme (do limitu).
+    const fresh: RawListing[] = [];
+    const known: RawListing[] = [];
+    for (const [id, l] of byId) {
+      if (this.knownHashIds.has(id)) known.push(l);
+      else fresh.push(l);
+    }
+
+    const enriched = await this.enrichBatch(
+      fresh.slice(0, Math.max(limit, 10)),
+      (l) => this.enrichListing(l),
+      3,
+      ctx
+    );
+
+    return [...enriched, ...known];
+  }
+
+  /** Rozparsuje __NEXT_DATA__ městské stránky na list inzeráty. */
+  private parseCityPage(html: string, cityNames: string[]): RawListing[] {
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]+?)<\/script>/);
+    if (!match) return [];
+    let data: any;
+    try {
+      data = JSON.parse(match[1]);
+    } catch {
+      return [];
+    }
+    const queries = data.props?.pageProps?.dehydratedState?.queries ?? [];
+    const q = queries.find((query: any) =>
+      JSON.stringify(query.queryKey ?? []).includes("estates")
+    );
+    const items: SrealityCityResult[] = q?.state?.data?.results ?? [];
     const listings: RawListing[] = [];
 
-    // Detail fetche běží v dávkách (4 najednou) místo sekvenčně — sreality
-    // má rate limiter 2 s, takže 60 id by sekvenčně znamenalo 120+ s a běh
-    // by vždy překročil Vercel limit 60 s. Známé inzeráty z DB se přeskočí.
-    const concurrency = 4;
-    for (let i = 0; i < sampleIds.length && listings.length < limit; i += concurrency) {
-      const batch = sampleIds.slice(i, i + concurrency);
-      const results = await Promise.all(
-        batch.map(async (id) => ({ id, data: await this.tryEnrichFromApi(String(id)).catch(() => null) }))
-      );
-      for (const { id, data } of results) {
-        const r = data?.result;
-        if (!r) continue;
+    for (const item of items) {
+      const locality = item.locality;
+      const city = locality?.city ?? null;
+      const street = locality?.street ?? null;
+      const streetNumber = locality?.streetNumber ?? null;
+      const address = [street, streetNumber, city].filter(Boolean).join(" ") || null;
+      if (!city || !addressMatchesCity(city, cityNames)) continue;
 
-        const city = r.locality?.city ?? null;
-        if (!city || !addressMatchesCity(city, cityNames)) continue;
+      const rawPrice = item.priceCzk ?? 0;
+      if (!isValidPrice(rawPrice)) continue;
 
-        const base: RawListing = {
-          portalName: "sreality",
-          url: `https://www.sreality.cz/detail/prodej/byt/${id}`,
-          title: "",
-          price: 0,
-          pricePerSqm: null,
-          area: null,
-          rooms: null,
-          floor: null,
-          condition: null,
-          buildingType: null,
-          yearBuilt: null,
-          address: null,
-          lat: null,
-          lng: null,
-          contactPhone: null,
-          contactName: null,
-          contactEmail: null,
-          description: null,
-          imageUrls: [],
-          publishedAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        this.applyEnrichedData(base, r, String(id));
-        if (!isValidPrice(base.price)) continue;
+      const roomsStr = extractRoomsFromName(item.name ?? "");
+      const imgUrls = (item.images ?? [])
+        .map((img) => (typeof img === "string" ? img : img.url ?? ""));
 
-        listings.push(base);
-        if (listings.length >= limit) break;
-      }
+      listings.push({
+        portalName: "sreality",
+        url: buildSrealityDetailUrl(item.id, roomsStr, {
+          city_seo_name: locality?.citySeoName ?? null,
+          street_seo_name: locality?.streetSeoName ?? null,
+          citypart_seo_name: locality?.cityPartSeoName ?? null,
+          district_seo_name: locality?.districtSeoName ?? null,
+        }),
+        title: item.name ?? "",
+        price: rawPrice,
+        pricePerSqm: item.priceCzkPerSqM ?? null,
+        area: null,
+        floorArea: null,
+        usableArea: null,
+        rooms: null,
+        floor: null,
+        condition: null,
+        buildingType: null,
+        yearBuilt: null,
+        address,
+        lat: locality?.latitude ?? null,
+        lng: locality?.longitude ?? null,
+        contactPhone: null,
+        contactName: null,
+        contactEmail: null,
+        description: null,
+        imageUrls: filterImages(imgUrls, this.config.name).map(
+          (url) => url + SREALITY_CDN_PARAMS
+        ),
+        publishedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
     }
 
     return listings;
@@ -339,12 +440,16 @@ export class SrealityAdapter extends PortalAdapter {
       "Sec-Fetch-Dest": "empty",
     };
 
-    for (let attempt = 0; attempt <= 2; attempt++) {
-      const response = await globalThis.fetch(url, { headers });
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      const response = await globalThis.fetch(url, {
+        headers,
+        // Zaseknutý požadavek nesmí zabít celý běh (limit 60 s).
+        signal: AbortSignal.timeout(15000),
+      });
       if (response.ok) return response.json();
       if (response.status === 429 || response.status === 403 || response.status === 404) {
         const retryAfter = response.headers.get("Retry-After");
-        const waitMs = retryAfter ? parseInt(retryAfter) * 1000 : response.status === 429 ? 30000 : 15000;
+        const waitMs = Math.min(retryAfter ? parseInt(retryAfter) * 1000 : response.status === 429 ? 10000 : 5000, 10000);
         await new Promise((r) => setTimeout(r, waitMs));
         continue;
       }

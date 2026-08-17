@@ -112,7 +112,7 @@ export function BulkSearchLog({
 }) {
   const [phase, setPhase] = useState<Phase>("running");
   const [searches, setSearches] = useState<SearchState[]>([]);
-  const [result, setResult] = useState<{ total: number; runCount: number; failed: string[] } | null>(null);
+  const [result, setResult] = useState<{ total: number; runCount: number; failed: string[]; incomplete?: boolean } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [retryCount, setRetryCount] = useState(0);
@@ -124,6 +124,10 @@ export function BulkSearchLog({
   const phaseRef = useRef<Phase>("running");
   const onFinishedRef = useRef(onFinished);
   onFinishedRef.current = onFinished;
+
+  // Poslední done událost — když server dokončil běh s incomplete portály,
+  // smyčka pokračuje (dojedou se), jinak skončí.
+  const lastDoneRef = useRef<{ total: number; runCount: number; failed: string[]; incomplete?: boolean } | null>(null);
 
   // Hledání, která už proběhla (dostala search-done) — při auto-pokračování
   // se pošlou serveru, aby je přeskočil a dojel jen zbývající.
@@ -208,8 +212,13 @@ export function BulkSearchLog({
         applyProgress(data as ScrapeProgressEvent);
       } else if (event === "done") {
         doneReceivedRef.current = true;
-        setResult(data as { total: number; runCount: number; failed: string[] });
-        setPhaseSafe("done");
+        lastDoneRef.current = data as { total: number; runCount: number; failed: string[]; incomplete?: boolean };
+        setResult(lastDoneRef.current);
+        // Běh dokončen, ale některé portály se nestihly (limit 60 s) — dojedou
+        // se dalším během, proto zůstáváme ve fázi "running" (auto-pokračování).
+        if (!lastDoneRef.current.incomplete) {
+          setPhaseSafe("done");
+        }
       } else if (event === "error") {
         setErrorMsg(typeof (data as { message?: unknown })?.message === "string" ? (data as { message: string }).message : "Neočekávaná chyba");
         setPhaseSafe("error");
@@ -268,8 +277,14 @@ export function BulkSearchLog({
             handleRawEvent(raw);
           }
         }
-        if (doneReceivedRef.current || phaseRef.current !== "running") return "done";
-        // Stream skončil bez „done" — server běh přerušil (Vercel limit 60 s).
+        if (lastDoneRef.current && !lastDoneRef.current.incomplete) return "done";
+        if (doneReceivedRef.current || phaseRef.current !== "running") {
+          // done s incomplete portály → pokračujeme auto-během (dojedou se);
+          // jiná fáze (error) → konec smyčky.
+          if (phaseRef.current === "error") return "done";
+        }
+        // Stream skončil bez done, nebo s incomplete done — běh byl přerušen
+        // (Vercel limit 60 s) a zbývající hledání se dojedou příštím pokusem.
         return "interrupted";
       } catch {
         if (cancelled || phaseRef.current !== "running") return "interrupted";

@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters } from "../types";
 import { parseBezrealitkyDetail, parseBezrealitkySearch } from "../bezrealitky-parser";
 import { matchFilters, isCzechListing } from "../filters";
@@ -24,15 +24,15 @@ export class BezrealitkyAdapter extends PortalAdapter {
     return `${base}?${params.toString()}`;
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const results: RawListing[] = [];
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const html = await this.fetch(this.buildSearchUrl(page));
       const { listings } = parseBezrealitkySearch(html, this.buildSearchUrl(page));
-      if (listings.length === 0) break;
       results.push(...listings);
-    }
+      return listings.length;
+    });
 
     // Bezrealitky search URL nepodporuje přímé omezení na lokalitu —
     // filtrujeme zde, aby zůstaly jen inzeráty odpovídající hledání a ČR.
@@ -50,7 +50,7 @@ export class BezrealitkyAdapter extends PortalAdapter {
     const toEnrich = results.filter(needsDetail);
     const byUrl = new Map(results.map((l) => [l.url, l]));
 
-    const enriched = await this.enrichBatch(toEnrich, (l) => this.enrichListing(l), 3);
+    const enriched = await this.enrichBatch(toEnrich, (l) => this.enrichListing(l), 3, ctx);
     enriched.forEach((l) => byUrl.set(l.url, l));
 
     return results.map((l) => byUrl.get(l.url) ?? l);

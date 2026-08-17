@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
 import * as cheerio from "cheerio";
 
@@ -63,24 +63,24 @@ export class RemaxAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const results: RawListing[] = [];
     const baseParams = "sale=1&types%5B0%5D=4";
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = `${BASE}/reality/vyhledavani/?${baseParams}${page > 1 ? `&stranka=${page}` : ""}`;
       const html = await this.fetch(url);
       const $ = cheerio.load(html);
       const cards = this.parseCards($);
-      if (cards.length === 0) break;
       for (const card of cards) results.push(this.toListing(card));
-    }
+      return cards.length;
+    });
 
     // Detailní stránka obsahuje plnou galerii (a[data-fancybox="images"] → href)
     // a také popis, patro, stav a GPS — kartička má jen náhled. Zobohacení je
     // pomalé (rate limit 3 s), proto s malou konkurencí jako ostatní adaptéry.
     // Známé inzeráty z DB se přeskočí (skipDetailForUrls).
-    return this.enrichBatch(results, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(results, (l) => this.enrichListing(l), 3, ctx);
   }
 
   /**

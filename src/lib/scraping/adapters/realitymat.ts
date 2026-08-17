@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters } from "../types";
 import { parseRealityMatDetail } from "../realitymat-parser";
 
@@ -10,7 +10,7 @@ export class RealityMatAdapter extends PortalAdapter {
     super("realitymat");
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const results: RawListing[] = [];
 
     const citySlug = filters?.location ? this.slugFor(filters.location) : null;
@@ -18,24 +18,26 @@ export class RealityMatAdapter extends PortalAdapter {
       ? `https://www.realitymat.cz/prodej/byty/${citySlug}`
       : "https://www.realitymat.cz/prodej/byty";
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = page === 1
         ? basePath
         : `${basePath}?page=${page}`;
       const html = await this.fetch(url);
       const items = this.parseSearchResults(html);
-      if (items.length === 0) break;
       results.push(...items);
-    }
+      return items.length;
+    });
 
-    return this.enrichBatch(results, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(results, (l) => this.enrichListing(l), 3, ctx);
   }
 
   private parseSearchResults(html: string): RawListing[] {
     const $ = cheerio.load(html);
     const listings: RawListing[] = [];
 
-    $("div#w1 div.mb-4[data-key]").each((_, el) => {
+    // data-key je na sloupcovém wrapperu (div.col-*), karta je vnitřní div.card —
+    // starý selektor (div#w1 div.mb-4[data-key]) po redesignu stránky nenašel nic.
+    $("div#w1 div[data-key]").each((_, el) => {
       try {
         const linkEl = $(el).find("a.stretched-link");
         const href = linkEl.attr("href") || "";
@@ -44,14 +46,17 @@ export class RealityMatAdapter extends PortalAdapter {
         const detailUrl = href.startsWith("http") ? href : `https://www.realitymat.cz${href}`;
         const title = this.cleanText(linkEl.text()) || "";
 
-        const priceText = this.cleanText($(el).find("div.lead.font-weight-bold").first().text());
+        const priceText = this.cleanText($(el).find("p.font-weight-bold").first().text());
         const price = this.extractPrice(priceText ?? "") ?? 0;
         // Pronájmy (Kč/měsíc) nejsou pro flip relevantní — přeskočit
         if (/\/za\s*měsíc/i.test(priceText ?? "") || (price > 0 && price < 50000)) return;
 
-        const address = this.cleanText($(el).find("div.card-body p").first().text()) || title;
+        // Nová karta nemá samostatný adresní řádek — adresa je v titulku.
+        const address = title;
 
-        const imgSrc = $(el).find("img.card-img.img-fluid").attr("src") || undefined;
+        // Lazy img: data-src má plný obrázek, src je jen preload placeholder.
+        const imgEl = $(el).find("img.img-fluid").first();
+        const imgSrc = imgEl.attr("data-src") || imgEl.attr("src") || undefined;
 
         const area = this.extractArea(title);
         const rooms = this.extractRooms(title);
@@ -143,21 +148,21 @@ export class RealityMatAdapter extends PortalAdapter {
       .replace(/[ž]/g, "z");
   }
 
-  async crawlCityListings(cityKey: string, limit = 40): Promise<RawListing[]> {
+  async crawlCityListings(cityKey: string, limit = 40, ctx?: CrawlStep): Promise<RawListing[]> {
     const slug = this.slugFor(cityKey.replace(/_/g, "-"));
     const results: RawListing[] = [];
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = page === 1
         ? `https://www.realitymat.cz/prodej/byty/${slug}`
         : `https://www.realitymat.cz/prodej/byty/${slug}?page=${page}`;
       const html = await this.fetch(url);
       const items = this.parseSearchResults(html);
-      if (items.length === 0) break;
       results.push(...items);
-      if (results.length >= limit) break;
-    }
+      if (results.length >= limit) return 0;
+      return items.length;
+    });
 
-    return this.enrichBatch(results, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(results, (l) => this.enrichListing(l), 3, ctx);
   }
 }

@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
-import { PortalAdapter } from "./base";
-import { RawListing } from "../types";
+import { PortalAdapter, CrawlStep } from "./base";
+import { RawListing, SearchFilters } from "../types";
 import { parseRealityMixDetail } from "../realitymix-parser";
 
 export class RealityMixAdapter extends PortalAdapter {
@@ -10,20 +10,20 @@ export class RealityMixAdapter extends PortalAdapter {
     super("realitymix");
   }
 
-  async crawlListings(): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const results: RawListing[] = [];
 
     const basePath = `${this.config.baseUrl}${this.config.searchPath}`;
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = page === 1 ? basePath : `${basePath}?stranka=${page}`;
       const html = await this.fetch(url);
       const items = this.parseSearchResults(html);
-      if (items.length === 0) break;
       results.push(...items);
-    }
+      return items.length;
+    });
 
-    return this.enrichBatch(results, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(results, (l) => this.enrichListing(l), 3, ctx);
   }
 
   private parseSearchResults(html: string): RawListing[] {

@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, PortalName, SearchFilters, filterImages, isValidPrice } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
@@ -31,10 +31,10 @@ export class MmrealityAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = page === 1
         ? `${this.config.baseUrl}${this.config.searchPath}`
         : `${this.config.baseUrl}${this.config.searchPath}/?page=${page}`;
@@ -42,9 +42,8 @@ export class MmrealityAdapter extends PortalAdapter {
       const html = await this.fetch(url);
       const listings = this.parsePage(html);
       all.push(...listings);
-
-      if (listings.length === 0) break;
-    }
+      return listings.length;
+    });
 
     // Dedup URL (paginace může vracet stejné inzeráty víckrát) — zbytečné
     // detail fetche by jen prodlužovaly crawl.
@@ -59,7 +58,7 @@ export class MmrealityAdapter extends PortalAdapter {
     // Enrichování dávek (ne všechny najednou): neomezená paralelizace by
     // zasypala portál požadavky → 429 a celý crawl by se zasekl. Známé
     // inzeráty z DB se přeskočí (skipDetailForUrls).
-    return this.enrichBatch(unique, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(unique, (l) => this.enrichListing(l), 3, ctx);
   }
 
   private parsePage(html: string): RawListing[] {

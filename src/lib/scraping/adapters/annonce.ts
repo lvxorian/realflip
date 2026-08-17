@@ -1,4 +1,4 @@
-import { PortalAdapter } from "./base";
+import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters, filterImages, isValidPrice, toFullSizeImageUrl } from "../types";
 import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
@@ -11,21 +11,21 @@ export class AnnonceAdapter extends PortalAdapter {
     this.maxPages = maxPages;
   }
 
-  async crawlListings(filters?: SearchFilters): Promise<RawListing[]> {
+  async crawlListings(filters?: SearchFilters, ctx?: CrawlStep): Promise<RawListing[]> {
     const all: RawListing[] = [];
 
-    for (let page = 1; page <= this.maxPages; page++) {
+    await this.forPages(ctx, this.maxPages, async (page) => {
       const url = page === 1
         ? `${this.config.baseUrl}/byty-na-prodej.html`
         : `${this.config.baseUrl}/byty-na-prodej$18-str${page}.html`;
 
       const html = await this.fetch(url);
       const listings = this.parsePage(html);
-      if (listings.length === 0) break;
       all.push(...listings);
-    }
+      return listings.length;
+    });
 
-    return this.enrichBatch(all, (l) => this.enrichListing(l), 3);
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 3, ctx);
   }
 
   private parsePage(html: string): RawListing[] {
