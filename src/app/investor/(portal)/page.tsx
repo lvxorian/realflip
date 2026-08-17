@@ -106,65 +106,68 @@ function modelDesc(strategy: CooperationStrategy, coop: CooperationView): string
     : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
 }
 
-/** Karta legendy pro investora: typ investice (flip/rent). */
+/** Karta legendy pro investora: typ investice (flip/rent). Klik na kartu rozbalí
+ *  modely spolupráce, které u daného typu přicházejí v úvahu (flip: 50/50 +
+ *  sourcing fee; nájem: jen sourcing fee). */
 function LegendTypeCard({
   icon,
   title,
   points,
   tone,
+  models,
 }: {
   icon: React.ReactNode;
   title: string;
   points: string[];
   tone?: "accent" | "info";
-}) {
-  return (
-    <div className="rounded-xl border border-border/40 bg-card/60 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <span
-          className={`flex h-6 w-6 items-center justify-center rounded-md ${
-            tone === "info" ? "bg-info-soft text-info" : "bg-accent/15 text-accent"
-          }`}
-        >
-          {icon}
-        </span>
-        <p className="text-[11px] font-semibold uppercase tracking-wider">{title}</p>
-      </div>
-      <ul className="space-y-1">
-        {points.map((p, i) => (
-          <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted leading-snug">
-            <CheckCircle size={12} weight="bold" className={`mt-0.5 shrink-0 ${tone === "info" ? "text-info/70" : "text-emerald-400"}`} />
-            {p}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/** Karta s modely spolupráce — kde se který model používá. */
-function LegendModelsCard({
-  models,
-}: {
   models: { icon: React.ReactNode; title: string; desc: string }[];
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-xl border border-border/40 bg-card/60 p-4 space-y-2.5">
-      <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/15 text-accent">
-          <Handshake size={14} weight="bold" />
-        </span>
-        <p className="text-[11px] font-semibold uppercase tracking-wider">Modely spolupráce</p>
-      </div>
-      {models.map((m) => (
-        <div key={m.title} className="rounded-lg border border-border/40 bg-card-subtle/60 p-2.5 space-y-1">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold">
-            <span className="shrink-0 text-accent">{m.icon}</span>
-            {m.title}
-          </p>
-          <p className="text-[11px] text-muted leading-snug">{m.desc}</p>
+    <div
+      className={`rounded-xl border overflow-hidden transition-colors ${
+        open ? "border-accent/50 bg-accent/5" : "border-border/40 bg-card/60 hover:border-accent/30"
+      }`}
+    >
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full p-4 text-left space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={`flex h-6 w-6 items-center justify-center rounded-md ${
+                tone === "info" ? "bg-info-soft text-info" : "bg-accent/15 text-accent"
+              }`}
+            >
+              {icon}
+            </span>
+            <p className="text-[11px] font-semibold uppercase tracking-wider">{title}</p>
+          </div>
+          <span className="flex items-center gap-1 text-[10px] text-muted shrink-0">
+            {models.length > 0 && `${models.length} model${models.length > 1 ? "y" : ""} spolupráce`}
+            <CaretDown size={13} weight="bold" className={`transition-transform ${open ? "rotate-180" : ""}`} />
+          </span>
         </div>
-      ))}
+        <ul className="space-y-1">
+          {points.map((p, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted leading-snug">
+              <CheckCircle size={12} weight="bold" className={`mt-0.5 shrink-0 ${tone === "info" ? "text-info/70" : "text-emerald-400"}`} />
+              {p}
+            </li>
+          ))}
+        </ul>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {models.map((m) => (
+            <div key={m.title} className="rounded-lg border border-border/40 bg-card-subtle/60 p-2.5 space-y-1">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold">
+                <span className={`shrink-0 ${tone === "info" ? "text-info" : "text-accent"}`}>{m.icon}</span>
+                {m.title}
+              </p>
+              <p className="text-[11px] text-muted leading-snug">{m.desc}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -351,7 +354,7 @@ export default function InvestorPortalPage() {
                   <CaretDown size={14} weight="bold" className={`shrink-0 text-muted transition-transform ${legendOpen ? "rotate-180" : ""}`} />
                 </button>
                 {legendOpen && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 px-4 pb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-4 pb-4">
                     <LegendTypeCard
                       icon={<ArrowsClockwise size={14} weight="bold" />}
                       title="Flip"
@@ -359,6 +362,18 @@ export default function InvestorPortalPage() {
                         "Koupíme, zrekonstruujeme a prodáme",
                         "Zisk z prodeje po rekonstrukci",
                         "Horizont: měsíce",
+                      ]}
+                      models={[
+                        {
+                          icon: <Handshake size={13} weight="bold" />,
+                          title: "50/50",
+                          desc: "My najdeme a vyjednáme nemovitost a zajistíme rekonstrukci — vy financujete nákup. Po prodeji se zisk dělí napůl.",
+                        },
+                        {
+                          icon: <Coins size={13} weight="bold" />,
+                          title: "Sourcing fee",
+                          desc: "Nemovitost kupujete a rekonstruujete sami — my vám ji najdeme a vyjednáme. Platíte nám poplatek za sourcing, zisk z prodeje jde celý k vám.",
+                        },
                       ]}
                     />
                     <LegendTypeCard
@@ -370,18 +385,11 @@ export default function InvestorPortalPage() {
                         "Pravidelný příjem z nájmu",
                         "Horizont: roky",
                       ]}
-                    />
-                    <LegendModelsCard
                       models={[
-                        {
-                          icon: <Handshake size={13} weight="bold" />,
-                          title: "50/50",
-                          desc: "My zajistíme rekonstrukci, vy financujete nákup — zisk napůl. Jen u flipu.",
-                        },
                         {
                           icon: <Coins size={13} weight="bold" />,
                           title: "Sourcing fee",
-                          desc: "Kupujete a realizujete sami, platíte poplatek za sourcing. U flipu i nájmu.",
+                          desc: "Nemovitost kupujete a držíte sami — my vám ji najdeme a vyjednáme. Bez rekonstrukce a prodeje, platíte nám poplatek za sourcing.",
                         },
                       ]}
                     />
