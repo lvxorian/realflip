@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (593 tests, 43 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (628 tests, 43 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -397,6 +397,35 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Čistší hlavičky sloupců** (`b6a25e7`): KPI „X celkem" / „Ø dní" pod nadpisem pryč (zůstává počet + progress bar + N overdue); **poznámka na kartě celá** (line-clamp pryč, `whitespace-pre-wrap`); **listování fotkami v detailu** — LeadDrawer používá `ImageGallery` (šipky, klávesnice, náhledy), API `/api/leads` + `LeadItem` vystavují `propertyImageUrls` (celé pole, dřív jen první fotka).
 - **Sloupce se vejdou na obrazovku** (`b112c24`): min-w 220 → pružné `flex-1 basis-0` + `min-w-[160px] lg:min-w-0` (desktop všech 7 bez scrollu, mobil scroll).
 - **Kompaktní karty** (`c945ccb`): pryč „X dní na trhu", badge m²/dispozice (jsou v nadpisu), CÍL/ARV/stav/typ budovy/kontakt/relativní čas; fotka h-20→h-14, padding p-3→p-2.5, akce (posunout/ztraceno) do cenového řádku — na hover se plynule rozbalí (w-0→w-auto).
+
+### Phase 57 — Kalkulačka: jemné ROI, reko defaults a opravy (Done)
+- **ROI kroky 0.1 %** (`c8de475`): cílové ROI a výnos nastavitelné po 0.1 % napříč flip/aukce/rental/settings; přesný −/+ stepper + číselné pole u posuvníků (`bc17296`), cílová ROI hodnota se zobrazí celá (skryté nativní spinery, širší pole, `1562310`).
+- **Cílový výnos až 20 %** (`a78e80e`): v kalkulačce se posunul strop z původních 8 %.
+- **Rekonstrukce default 12 500 Kč/m²** (`a9cb5cd`): `perSqm` default ve všech kalkulačkách.
+- **URL analýza vrací DB id** (`8a05610`): uložená kalkulačka se po reloadu načte (analýza přes URL vrací id nemovitosti z DB).
+
+### Phase 58 — Brickon portál: fotky, modely spolupráce, karty modelů (Done)
+- **Fotky + investice/ROI investora** (`c8f11d5`): fotky nemovitosti a investice+ROI investora u spolupráce v portálu; velká písmena názvů měst (slug → správný český název, `47d2411`).
+- **Galerie miniatur** (`69d4e84`): galerie fotek s miniaturami, cena bez přeškrtnutí, přehledný detail výpočtu, sourcing fee jen u fee modelu; později šipky místo pasky miniatur (`f870b59`, jako karty v realflipu).
+- **Karty modelů 50/50 + sourcing fee** (`8f0e14c`, `eeb85a0`): karta flipu ukazuje oba modely na plnou šířku, klik rozbalí detail výpočtu daného modelu (accordion); **rezervace vyžaduje výběr modelu**.
+- **Nové logo Brickon v e-mailech** (`8f50843`): `public/brickon.svg`.
+
+### Phase 59 — Nemovitosti: konstrukce v detailu, portálu i e-mailu (Done)
+- **Chip „konstrukce"** (`a0a5e51`): v detailu nemovitosti mezi rok a stav (pořadí dispozice · patro · rok · konstrukce · stav · velikost); `buildingType` protéká do Brickonu (`investor-portal-view.ts` + `investor-portal.ts` + `notify-offers.ts`), v Brickonu `PropertyMeta` ukazuje „Stav: X · Cihla …" a e-mail nabídek „Stav: velmi dobrý · 2+1 · 89 m² · Cihla · 3. podlaží".
+- **Nové labely konstrukce** (`bac6fdb`): `BUILDING_TYPE_LABELS` → **Cihla, Panel, Novostavba, Smíšená** (místo Cihlový/Panelový/Smíšený); projevuje se všude přes `buildingTypeLabel`.
+- **Editovatelná konstrukce** (`bac6fdb`): `EditableBuildingType` (`src/components/properties/editable-building-type.tsx`, vzor `EditableCondition`) — tužka → dropdown Cihla/Panel/Novostavba/Smíšená; PATCH `/api/properties/[id]` validuje (`brick|panel|new|mixed`), uloží do `properties.buildingType` a spustí žhavou re-analýzu s čerstvými tržními daty.
+
+### Phase 60 — Brickon: kupní cena, přepočty m² a konzistence nákladů (Done)
+- **„Kupní cena" v detailu výpočtu** (`31da885`): první řádek rozpočtu nad „Právní služby" = cílová kupní cena z kalkulačky (`targetPurchasePrice`, fallback `purchasePriceUsed`).
+- **Přepočet na m² u cen a ARV** (`31da885`): pod „Inzerovanou cenou" i „Cenou po vyjednání" menší text X Kč/m² (10px, muted); pod ARV v detailu výpočtu taky. Pomocná `perSqmLabel(price, area)` (null → řádek skryt).
+- **Náklady celkem = Vaše investice** (`96bdf1a`): horní tabulka brala snapshot z cílové ceny, spodní model přepočítával na vyjednanou cenu → nesoulad. Celý detail je na jedné cenové bázi: „Náklady celkem" = `fundingSourcing`/`fundingFiftyFifty` (přepočtené na cenu, kterou investor platí), sourcing fee je vidět jako řádek rozpočtu u fee modelu.
+
+### Phase 61 — Galerie: fullscreen prohlížení fotek (Done)
+- **Fullscreen režim** (`d41fc92`) v `image-gallery.tsx` (detail nemovitosti i lead drawer): tlačítko `ArrowsOutSimple` v pravém dolním rohu fotky → overlay přes celou obrazovku (černé rozmazané pozadí, `object-contain`); šipky ←/→ listují (vč. cyklení), klávesové šipky pokračují, počítadlo „2 / 5"; zavírání křížkem (X), Esc, kliknutím na pozadí; zámek scrollu stránky po dobu otevření. +4 testy.
+
+### Phase 62 — Kalkulačka ↔ Brickon: jednotný výpočet při vyjednané ceně + editovatelná kupní cena (Done)
+- **Dvojí cenová báze** (`2cc0342`): RealFlip počítal z cílové ceny (2 596 400), Brickon posouval na vyjednanou cenu z pipeline (2 500 000) → Náklady celkem nesouhlasily. Oprava: **obě strany počítají přesně při vyjednané ceně** — RealFlip kalkulačka ukazuje rozpočet „Výpočet při kupní ceně X" (cílová cena zůstává jako zelená reference), Brickon přepočítává ze snapshotu přesně (`recalcFlipAtPrice` v `investor-portal-view.ts`) **včetně daně z příjmu** (lineární shift ji nechal z původní ceny); daň v `FlipCostRows` se při odlišné ceně zobrazuje přepočtená. Legacy snapshoty bez položkového rozpisu spadnou na původní lineární posun. +3 testy.
+- **Editovatelná přesná kupní cena** (`835de03`): zelený box „IDEÁLNÍ KUPNÍ CENA" je editovatelné pole — uživatel zadá přesnou částku (např. 2 500 000) a celý výpočet vč. daně se přepočte přesně z té ceny (místo přibližování ROI sliderem, který řeší cenu z ROI). Při ruční ceně box ukáže dosažené ROI a slider se na něj přepne; pohyb slideru/stepperu se vrátí k plánování z ROI (ruční cena se zruší). `manualFlipPrice` se ukládá do presetu (DB config + localStorage) a do snapshotu jako `purchasePriceUsed`/`flipTargetPurchasePrice` → Brickon ukazuje identická čísla (verbatim, žádný posun).
 
 ## Key Files
 
