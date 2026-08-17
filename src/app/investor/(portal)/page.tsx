@@ -26,6 +26,7 @@ import {
   Coins,
   Handshake,
   HouseLine,
+  LightbulbFilament,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { recalcFlipAtPrice, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
@@ -105,21 +106,17 @@ function modelDesc(strategy: CooperationStrategy, coop: CooperationView): string
     : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
 }
 
-/** Karta legendy pro investora: typ investice (flip/rent) s vnořenými modely
- *  spolupráce, které u daného typu přicházejí v úvahu (flip: 50/50 + sourcing
- *  fee; rent: jen sourcing fee — bez rekonstrukce a prodeje). */
+/** Karta legendy pro investora: typ investice (flip/rent). */
 function LegendTypeCard({
   icon,
   title,
   points,
   tone,
-  models,
 }: {
   icon: React.ReactNode;
   title: string;
   points: string[];
   tone?: "accent" | "info";
-  models: { icon: React.ReactNode; title: string; desc: string }[];
 }) {
   return (
     <div className="rounded-xl border border-border/40 bg-card/60 p-4 space-y-3">
@@ -141,18 +138,33 @@ function LegendTypeCard({
           </li>
         ))}
       </ul>
-      <div className="space-y-2 pt-2 border-t border-border/20">
-        <p className="text-[9px] font-semibold uppercase tracking-wider text-muted/60">Modely spolupráce</p>
-        {models.map((m) => (
-          <div key={m.title} className="rounded-lg border border-border/40 bg-card-subtle/60 p-2.5 space-y-1">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold">
-              <span className={`shrink-0 ${tone === "info" ? "text-info" : "text-accent"}`}>{m.icon}</span>
-              {m.title}
-            </p>
-            <p className="text-[11px] text-muted leading-snug">{m.desc}</p>
-          </div>
-        ))}
+    </div>
+  );
+}
+
+/** Karta s modely spolupráce — kde se který model používá. */
+function LegendModelsCard({
+  models,
+}: {
+  models: { icon: React.ReactNode; title: string; desc: string }[];
+}) {
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/60 p-4 space-y-2.5">
+      <div className="flex items-center gap-2">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/15 text-accent">
+          <Handshake size={14} weight="bold" />
+        </span>
+        <p className="text-[11px] font-semibold uppercase tracking-wider">Modely spolupráce</p>
       </div>
+      {models.map((m) => (
+        <div key={m.title} className="rounded-lg border border-border/40 bg-card-subtle/60 p-2.5 space-y-1">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold">
+            <span className="shrink-0 text-accent">{m.icon}</span>
+            {m.title}
+          </p>
+          <p className="text-[11px] text-muted leading-snug">{m.desc}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -168,6 +180,7 @@ export default function InvestorPortalPage() {
   const [reserveItem, setReserveItem] = useState<InvestorPortalItem | null>(null);
   const [reserveStrategy, setReserveStrategy] = useState<CooperationStrategy | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const dismissedEmailPrompt = useRef(false);
 
   const maybePromptEmail = useCallback((json: PortalData) => {
@@ -324,46 +337,56 @@ export default function InvestorPortalPage() {
                 <StatCard label="Rezervováno ostatními" value={`${reservedOthers.length}`} tone="text-muted" icon={<CheckCircle size={16} weight="bold" />} />
               </div>
 
-              {/* Legenda pro investora — typ investice (flip/rent) s modely spolupráce */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <LegendTypeCard
-                  icon={<ArrowsClockwise size={14} weight="bold" />}
-                  title="Flip"
-                  points={[
-                    "Koupíme, zrekonstruujeme a prodáme",
-                    "Zisk z prodeje po rekonstrukci",
-                    "Horizont: měsíce",
-                  ]}
-                  models={[
-                    {
-                      icon: <Handshake size={13} weight="bold" />,
-                      title: "50/50",
-                      desc: "My zajistíme rekonstrukci, vy financujete nákup — zisk se dělí napůl.",
-                    },
-                    {
-                      icon: <Coins size={13} weight="bold" />,
-                      title: "Sourcing fee",
-                      desc: "Kupujete a realizujete sami — platíte nám poplatek za sourcing.",
-                    },
-                  ]}
-                />
-                <LegendTypeCard
-                  icon={<HouseLine size={14} weight="bold" />}
-                  title="Nájem"
-                  tone="info"
-                  points={[
-                    "Koupíme a držíme nemovitost",
-                    "Pravidelný příjem z nájmu",
-                    "Horizont: roky",
-                  ]}
-                  models={[
-                    {
-                      icon: <Coins size={13} weight="bold" />,
-                      title: "Sourcing fee",
-                      desc: "Najdeme a vyjednáme nemovitost — kupujete a držíte sami, bez rekonstrukce a prodeje.",
-                    },
-                  ]}
-                />
+              {/* Legenda pro investora — skládací, ve výchozím stavu sbalená (šetří místo) */}
+              <div className="rounded-xl border border-border/40 bg-card/60 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setLegendOpen((o) => !o)}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-card-subtle/60"
+                >
+                  <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
+                    <LightbulbFilament size={14} weight="bold" className="text-accent shrink-0" />
+                    Jak to funguje — typy investic a modely spolupráce
+                  </span>
+                  <CaretDown size={14} weight="bold" className={`shrink-0 text-muted transition-transform ${legendOpen ? "rotate-180" : ""}`} />
+                </button>
+                {legendOpen && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 px-4 pb-4">
+                    <LegendTypeCard
+                      icon={<ArrowsClockwise size={14} weight="bold" />}
+                      title="Flip"
+                      points={[
+                        "Koupíme, zrekonstruujeme a prodáme",
+                        "Zisk z prodeje po rekonstrukci",
+                        "Horizont: měsíce",
+                      ]}
+                    />
+                    <LegendTypeCard
+                      icon={<HouseLine size={14} weight="bold" />}
+                      title="Nájem"
+                      tone="info"
+                      points={[
+                        "Koupíme a držíme nemovitost",
+                        "Pravidelný příjem z nájmu",
+                        "Horizont: roky",
+                      ]}
+                    />
+                    <LegendModelsCard
+                      models={[
+                        {
+                          icon: <Handshake size={13} weight="bold" />,
+                          title: "50/50",
+                          desc: "My zajistíme rekonstrukci, vy financujete nákup — zisk napůl. Jen u flipu.",
+                        },
+                        {
+                          icon: <Coins size={13} weight="bold" />,
+                          title: "Sourcing fee",
+                          desc: "Kupujete a realizujete sami, platíte poplatek za sourcing. U flipu i nájmu.",
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
