@@ -28,6 +28,11 @@ interface SearchState {
 
 type Phase = "running" | "done" | "interrupted" | "error";
 
+/** Kolik běhů celkem může auto-pokračování udělat, než se vzdá. */
+const MAX_RETRIES = 8;
+/** Pauza mezi běhy, aby server stihl uvolnit prostředky. */
+const RETRY_DELAY_MS = 3000;
+
 const ENABLED_PORTALS = (Object.keys(PORTAL_CONFIGS) as PortalName[]).filter(
   (p) => PORTAL_CONFIGS[p].enabled
 );
@@ -88,6 +93,8 @@ export function BulkSearchLog({
   onFinished,
   url = "/api/searches/run-all",
   title = "Hromadné hledání",
+  maxRetries = MAX_RETRIES,
+  retryDelayMs = RETRY_DELAY_MS,
 }: {
   open: boolean;
   onClose: () => void;
@@ -95,12 +102,17 @@ export function BulkSearchLog({
   /** SSE endpoint — hromadné (výchozí) nebo jednotlivé hledání. */
   url?: string;
   title?: string;
+  /** Kolik běhů celkem může auto-pokračování udělat, než se vzdá (testy). */
+  maxRetries?: number;
+  /** Pauza mezi běhy, aby server stihl uvolnit prostředky (testy). */
+  retryDelayMs?: number;
 }) {
   const [phase, setPhase] = useState<Phase>("running");
   const [searches, setSearches] = useState<SearchState[]>([]);
   const [result, setResult] = useState<{ total: number; runCount: number; failed: string[] } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [retryCount, setRetryCount] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const startedAtRef = useRef<number>(Date.now());
@@ -109,6 +121,10 @@ export function BulkSearchLog({
   const phaseRef = useRef<Phase>("running");
   const onFinishedRef = useRef(onFinished);
   onFinishedRef.current = onFinished;
+
+  // Hledání, která už proběhla (dostala search-done) — při auto-pokračování
+  // se pošlou serveru, aby je přeskočil a dojel jen zbývající.
+  const doneSearchIdsRef = useRef<Set<string>>(new Set());
 
   const setPhaseSafe = (p: Phase) => {
     phaseRef.current = p;
@@ -152,6 +168,7 @@ export function BulkSearchLog({
         entry.status = "done";
         entry.found = ev.total;
         entry.errors = ev.errors;
+        doneSearchIdsRef.current.add(ev.searchId);
       }
       return next;
     });
@@ -181,27 +198,29 @@ export function BulkSearchLog({
     let cancelled = false;
     doneReceivedRef.current = false;
     finishedRef.current = false;
+    doneSearchIdsRef.current = new Set();
     setPhaseSafe("running");
     setSearches([]);
     setResult(null);
     setErrorMsg(null);
+    setRetryCount(0);
     startedAtRef.current = Date.now();
     setNow(Date.now());
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    async function run() {
+    async function runOnce(controller: AbortController): Promise<"done" | "interrupted" | "error"> {
       try {
         const res = await fetch(url, {
           method: "POST",
           signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          // Auto-pokračování: přeskoč hledání, která už proběhla.
+          body: JSON.stringify({ skipSearchIds: Array.from(doneSearchIdsRef.current) }),
         });
         if (!res.ok || !res.body) {
-          if (cancelled) return;
+          if (cancelled) return "interrupted";
           setErrorMsg(`HTTP ${res.status}`);
           setPhaseSafe("error");
-          return;
+          return "error";
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -215,23 +234,49 @@ export function BulkSearchLog({
           while ((sep = buffer.indexOf("\n\n")) >= 0) {
             const raw = buffer.slice(0, sep);
             buffer = buffer.slice(sep + 2);
-            if (cancelled) return;
+            if (cancelled) return "interrupted";
             handleRawEvent(raw);
           }
         }
-        if (!cancelled && !doneReceivedRef.current && phaseRef.current === "running") {
-          // Stream skončil bez „done" — server běh přerušil (Vercel limit 60 s).
-          setPhaseSafe("interrupted");
-        }
+        if (doneReceivedRef.current || phaseRef.current !== "running") return "done";
+        // Stream skončil bez „done" — server běh přerušil (Vercel limit 60 s).
+        return "interrupted";
       } catch {
-        if (!cancelled && phaseRef.current === "running") {
+        if (cancelled || phaseRef.current !== "running") return "interrupted";
+        return "interrupted";
+      }
+    }
+
+    async function run() {
+      let attempt = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        if (cancelled) return;
+        if (attempt > 0) {
+          setPhaseSafe("running");
+          setRetryCount(attempt);
+        }
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        const outcome = await runOnce(controller);
+        if (cancelled) return;
+        if (outcome === "done" || outcome === "error") break;
+
+        // Přerušeno (limit 60 s): počkáme a automaticky dojedeme zbývající
+        // hledání — uživatel nemusí spouštět hromadné hledání znovu ručně.
+        attempt++;
+        if (attempt >= maxRetries) {
           setPhaseSafe("interrupted");
+          break;
         }
-      } finally {
-        if (!cancelled && !finishedRef.current) {
-          finishedRef.current = true;
-          onFinishedRef.current();
-        }
+        await new Promise((r) => setTimeout(r, retryDelayMs));
+        if (cancelled) return;
+      }
+      if (!cancelled && !finishedRef.current) {
+        finishedRef.current = true;
+        onFinishedRef.current();
       }
     }
     void run();
@@ -241,7 +286,7 @@ export function BulkSearchLog({
     return () => {
       cancelled = true;
       clearInterval(tick);
-      controller.abort();
+      abortRef.current?.abort();
     };
   }, [open, url]);
 
@@ -335,8 +380,18 @@ export function BulkSearchLog({
                 {/* Přehled chyb / varování */}
                 {phase === "interrupted" && (
                   <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-xs text-amber-400/90 leading-relaxed">
-                    Server přerušil běh (limit 60 s). Uložené výsledky zůstávají v databázi —
-                    proběhlá hledání můžete spustit znovu a zbytek se doplní.
+                    Server přerušil běh (limit 60 s) i po {maxRetries} automatických pokusech.
+                    Uložené výsledky zůstávají v databázi — proběhlá hledání můžete spustit znovu
+                    a zbytek se doplní.
+                  </div>
+                )}
+                {phase === "running" && retryCount > 0 && (
+                  <div className="rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 text-xs text-accent/90 leading-relaxed flex items-center gap-2">
+                    <SpinnerGap size={13} weight="bold" className="animate-spin shrink-0" />
+                    <span>
+                      Limit 60 s byl překročen — {retryCount}. běh dojíždí zbývající hledání
+                      automaticky ({maxRetries - retryCount} pokusů zbývá).
+                    </span>
                   </div>
                 )}
                 {phase === "error" && (

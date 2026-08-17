@@ -22,10 +22,23 @@ export class IdnesRealityAdapter extends PortalAdapter {
       results.push(...items);
     }
 
+    // Paginace idnes vrací přes stránky duplicitní inzeráty (stejné URL) —
+    // bez dedupu by se stejné detaily stahovaly a ukládaly víckrát, což
+    // zbytečně prodlužuje crawl (a snadno překročí Vercel limit 60 s).
+    const seen = new Set<string>();
+    const unique: RawListing[] = [];
+    for (const l of results) {
+      if (seen.has(l.url)) continue;
+      seen.add(l.url);
+      unique.push(l);
+    }
+
     const enriched: RawListing[] = [];
-    const concurrency = 3;
-    for (let i = 0; i < results.length; i += concurrency) {
-      const batch = results.slice(i, i + concurrency);
+    // 5 paralelních fetchů detailů je s rate limiterem (2 s) bezpečné a
+    // zvládne to výrazně rychleji než 3 — limitu 60 s jde vstříc.
+    const concurrency = 5;
+    for (let i = 0; i < unique.length; i += concurrency) {
+      const batch = unique.slice(i, i + concurrency);
       const batchResults = await Promise.all(
         batch.map((l) => this.enrichListing(l).catch(() => l))
       );

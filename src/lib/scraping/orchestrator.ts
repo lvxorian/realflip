@@ -332,12 +332,20 @@ export class ScrapingOrchestrator {
    */
   async crawlAllForUser(
     userId: string,
-    opts?: { onProgress?: (event: ScrapeProgressEvent) => void }
+    opts?: {
+      onProgress?: (event: ScrapeProgressEvent) => void;
+      /** Hledání, která už proběhla v předchozím běhu (auto-pokračování po
+       *  60s limitu) — spustí se jen zbývající, takže se zbytek dojede sám. */
+      skipSearchIds?: string[];
+    }
   ): Promise<{ total: number; runCount: number; failed: string[] }> {
     const userSearches = await db
       .select()
       .from(searches)
       .where(eq(searches.userId, userId));
+
+    const skip = new Set(opts?.skipSearchIds ?? []);
+    const pending = userSearches.filter((s) => !skip.has(s.id));
 
     const totalSearches = userSearches.length;
     let total = 0;
@@ -345,7 +353,7 @@ export class ScrapingOrchestrator {
     const failed: string[] = [];
 
     const results = await Promise.allSettled(
-      userSearches.map(async (search, index) => {
+      pending.map(async (search, index) => {
         opts?.onProgress?.({
           kind: "search-start",
           searchId: search.id,

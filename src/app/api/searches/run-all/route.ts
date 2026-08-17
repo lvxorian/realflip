@@ -17,11 +17,23 @@ function sse(event: string, data: unknown): Uint8Array {
  * Vercelu při 60s limitu padala timeoutem). Průběžné výsledky se ukládají
  * do DB průběžně, takže i při přerušení streamu zůstávají zachovány.
  */
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) {
     return new Response("Unauthorized", { status: 401 });
+  }
+
+  // Auto-pokračování: klient po přerušení (Vercel limit 60 s) pošle seznam
+  // hledání, která už proběhla — spustí se jen zbývající a zbytek se dojede sám.
+  let skipSearchIds: string[] = [];
+  try {
+    const body = await req.json();
+    if (Array.isArray(body?.skipSearchIds)) {
+      skipSearchIds = body.skipSearchIds.filter((x: unknown) => typeof x === "string");
+    }
+  } catch {
+    // Bez body (první spuštění) — spustí se všechna hledání.
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -35,6 +47,7 @@ export async function POST() {
         // omezená) — generuje se on-demand tlačítkem v detailu nemovitosti.
         const result = await orchestrator.crawlAllForUser(userId, {
           onProgress: (event: ScrapeProgressEvent) => send("progress", event),
+          skipSearchIds,
         });
 
         send("done", {

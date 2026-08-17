@@ -61,15 +61,47 @@ describe("BulkSearchLog — live log hromadného hledání", () => {
     await waitFor(() => expect(onFinished).toHaveBeenCalledTimes(1));
   });
 
-  it("označí běh jako přerušený, když stream skončí bez done (limit serveru)", async () => {
+  it("označí běh jako přerušený, když stream skončí bez done i po auto-pokusech (limit serveru)", async () => {
+    // Bez done události — server běh přerušil. Auto-pokračování zkusí
+    // dojet zbývající hledání, a když to nejde ani po vyčerpání pokusů,
+    // ukáže finální „Přerušeno" (v testu jen 1 pokus, bez pauzy).
     vi.stubGlobal("fetch", vi.fn(async () => sseResponse(baseEvents())));
     const onFinished = vi.fn();
 
-    render(<BulkSearchLog open onClose={() => {}} onFinished={onFinished} />);
+    render(<BulkSearchLog open onClose={() => {}} onFinished={onFinished} maxRetries={1} retryDelayMs={0} />);
 
     await screen.findByText("Praha byty");
     expect(await screen.findByText("Přerušeno")).toBeTruthy();
     expect(screen.getByText(/limit 60 s/)).toBeTruthy();
+    await waitFor(() => expect(onFinished).toHaveBeenCalledTimes(1));
+  });
+
+  it("při přerušení automaticky spustí další běh a dojede zbývající hledání", async () => {
+    // 1. běh: hledání s1 proběhne, s2 se nestihne → stream skončí bez done.
+    // 2. běh: server dostane skipSearchIds=[s1] a dojede jen s2.
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(async () => sseResponse([
+        { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Praha byty", index: 0, total: 2 } },
+        { event: "progress", data: { kind: "search-done", searchId: "s1", searchName: "Praha byty", total: 5, errors: [] } },
+      ]))
+      .mockImplementationOnce(async () => sseResponse([
+        { event: "progress", data: { kind: "search-start", searchId: "s2", searchName: "Brno domy", index: 1, total: 2 } },
+        { event: "progress", data: { kind: "search-done", searchId: "s2", searchName: "Brno domy", total: 3, errors: [] } },
+        { event: "done", data: { total: 3, runCount: 1, failed: [] } },
+      ]));
+    vi.stubGlobal("fetch", fetchMock);
+    const onFinished = vi.fn();
+
+    render(<BulkSearchLog open onClose={() => {}} onFinished={onFinished} maxRetries={3} retryDelayMs={0} />);
+
+    // Oba běhy proběhnou automaticky bez zásahu uživatele
+    expect(await screen.findByText("Brno domy")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText("Dokončeno")).toBeTruthy());
+
+    // Druhý běh poslal serveru jen zbývající hledání (s1 přeskočeno)
+    const bodies = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body));
+    expect(bodies[0].skipSearchIds).toEqual([]);
+    expect(bodies[1].skipSearchIds).toEqual(["s1"]);
     await waitFor(() => expect(onFinished).toHaveBeenCalledTimes(1));
   });
 

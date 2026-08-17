@@ -48,7 +48,7 @@ describe("POST /api/searches/run-all — SSE streaming hromadného hledání", (
   });
 
   it("vrací SSE stream s progress událostmi a dokončovací událostí done", async () => {
-    const res = await POST();
+    const res = await POST(new Request("http://localhost/api/searches/run-all", { method: "POST" }));
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/event-stream");
 
@@ -63,9 +63,25 @@ describe("POST /api/searches/run-all — SSE streaming hromadného hledání", (
 
   it("pošle error událost, když crawl vyhodí výjimku", async () => {
     crawlAllForUser.mockRejectedValueOnce(new Error("boom"));
-    const res = await POST();
+    const res = await POST(new Request("http://localhost/api/searches/run-all", { method: "POST" }));
     const text = await readStreamText(res);
     expect(text).toContain("event: error");
     expect(text).toContain("boom");
+  });
+
+  it("předá skipSearchIds z body orchestratoru (auto-pokračování po limitu)", async () => {
+    crawlAllForUser.mockImplementation(async (_userId: string, opts?: { skipSearchIds?: string[] }) => {
+      return { total: 0, runCount: 0, failed: [], skip: opts?.skipSearchIds };
+    });
+    const res = await POST(
+      new Request("http://localhost/api/searches/run-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skipSearchIds: ["s1", "s2"] }),
+      })
+    );
+    const text = await readStreamText(res);
+    expect(text).toContain("event: done");
+    expect(crawlAllForUser).toHaveBeenCalledWith("user-1", expect.objectContaining({ skipSearchIds: ["s1", "s2"] }));
   });
 });
