@@ -22,6 +22,10 @@ import {
   CaretRight,
   CaretDown,
   X,
+  ArrowsClockwise,
+  Coins,
+  Handshake,
+  HouseLine,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { recalcFlipAtPrice, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
@@ -99,6 +103,55 @@ function modelDesc(strategy: CooperationStrategy, coop: CooperationView): string
   return strategy === "fifty-fifty"
     ? "My zajišťujeme rekonstrukci, vy financujete. Zisk se dělí napůl."
     : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
+}
+
+/** Karta legendy pro investory: typ investice (flip/rent) nebo model spolupráce. */
+function LegendCard({
+  icon,
+  title,
+  tag,
+  points,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  tag?: string;
+  points: string[];
+  tone?: "accent" | "info";
+}) {
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            className={`flex h-6 w-6 items-center justify-center rounded-md ${
+              tone === "info" ? "bg-info-soft text-info" : "bg-accent/15 text-accent"
+            }`}
+          >
+            {icon}
+          </span>
+          <p className="text-[11px] font-semibold uppercase tracking-wider">{title}</p>
+        </div>
+        {tag && (
+          <span
+            className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+              tone === "info" ? "border-info/40 bg-info-soft text-info" : "border-accent/40 bg-accent-soft text-accent"
+            }`}
+          >
+            {tag}
+          </span>
+        )}
+      </div>
+      <ul className="space-y-1">
+        {points.map((p, i) => (
+          <li key={i} className="flex items-start gap-1.5 text-[11px] text-muted leading-snug">
+            <CheckCircle size={12} weight="bold" className={`mt-0.5 shrink-0 ${tone === "info" ? "text-info/70" : "text-emerald-400"}`} />
+            {p}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 export default function InvestorPortalPage() {
@@ -266,6 +319,51 @@ export default function InvestorPortalPage() {
                 <StatCard label="Dostupné nabídky" value={`${available.length}`} tone="text-emerald-400" icon={<HandCoins size={16} weight="bold" />} />
                 <StatCard label="Moje rezervace" value={`${reservedByMe.length}`} tone="text-accent" icon={<SealCheck size={16} weight="bold" />} />
                 <StatCard label="Rezervováno ostatními" value={`${reservedOthers.length}`} tone="text-muted" icon={<CheckCircle size={16} weight="bold" />} />
+              </div>
+
+              {/* Legenda pro investora — typy investice a modely spolupráce */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <LegendCard
+                  icon={<ArrowsClockwise size={14} weight="bold" />}
+                  title="Flip"
+                  tag="typ investice"
+                  points={[
+                    "Koupíme, zrekonstruujeme a prodáme",
+                    "Zisk z prodeje po rekonstrukci",
+                    "Horizont: měsíce",
+                  ]}
+                />
+                <LegendCard
+                  icon={<HouseLine size={14} weight="bold" />}
+                  title="Nájem"
+                  tag="typ investice"
+                  tone="info"
+                  points={[
+                    "Koupíme a držíme nemovitost",
+                    "Pravidelný příjem z nájmu",
+                    "Horizont: roky",
+                  ]}
+                />
+                <LegendCard
+                  icon={<Handshake size={14} weight="bold" />}
+                  title="50/50"
+                  tag="model spolupráce"
+                  points={[
+                    "My zajistíme rekonstrukci",
+                    "Vy financujete nákup",
+                    "Zisk se dělí napůl",
+                  ]}
+                />
+                <LegendCard
+                  icon={<Coins size={14} weight="bold" />}
+                  title="Sourcing fee"
+                  tag="model spolupráce"
+                  points={[
+                    "Kupujete a realizujete sami",
+                    "Platíte nám poplatek za sourcing",
+                    "Zisk jde k vám, my si bereme fee",
+                  ]}
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
