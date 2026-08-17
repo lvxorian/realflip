@@ -200,10 +200,10 @@ export default function SearchDetailPage() {
               <Badge variant="secondary">{SCHEDULE_LABELS[data.schedule] ?? data.schedule}</Badge>
             </div>
             <p className="text-sm text-muted mt-1">{filterParts.join(" · ") || "Bez filtrů"}</p>
-            {typeof data.lastRunAt === "number" && !isNaN(new Date(data.lastRunAt).getTime()) && (
+            {data.lastRunAt != null && !isNaN(new Date(Number(data.lastRunAt)).getTime()) && (
               <p className="text-xs text-muted mt-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                Poslední sken: {new Date(data.lastRunAt).toLocaleString("cs-CZ")}
+                Poslední sken: {new Date(Number(data.lastRunAt)).toLocaleString("cs-CZ")}
               </p>
             )}
           </div>

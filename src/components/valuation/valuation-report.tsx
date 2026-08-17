@@ -232,7 +232,7 @@ export default function ValuationReport({ data }: { data: ValuationReportData })
                       <td className="px-6 py-2 text-right text-gray-500">
                         {c.source === "realized"
                           ? c.soldAt
-                            ? `prodej ${new Date(c.soldAt).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
+                            ? `prodej ${new Date(Number(c.soldAt)).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
                             : c.addressTx
                               ? "adresní transakce"
                               : "realizované prodeje"

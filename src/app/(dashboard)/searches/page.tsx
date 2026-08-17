@@ -40,9 +40,11 @@ const itemVariants = {
   },
 };
 
-function formatDate(ts: number | null | undefined) {
-  if (ts == null || typeof ts !== "number" || isNaN(ts)) return "Nikdy";
-  return new Date(ts).toLocaleString("cs-CZ", {
+function formatDate(ts: number | string | null | undefined) {
+  // Neon vrací bigint jako string — převedeme na Number
+  const num = typeof ts === "string" ? Number(ts) : ts;
+  if (num == null || isNaN(num)) return "Nikdy";
+  return new Date(num).toLocaleString("cs-CZ", {
     day: "numeric",
     month: "short",
     hour: "2-digit",

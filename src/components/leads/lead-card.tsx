@@ -224,9 +224,9 @@ export function LeadCardView({
         {lead.nextStep && (
           <span className="inline-flex items-center gap-1 rounded bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent max-w-[200px]">
             <span className="truncate" title={lead.nextStep}>→ {lead.nextStep}</span>
-            {lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && (
+            {lead.nextStepDueAt != null && Number(lead.nextStepDueAt) > 0 && (
               <span className="shrink-0 text-accent/70">
-                (do {new Date(lead.nextStepDueAt).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" })})
+                (do {new Date(Number(lead.nextStepDueAt)).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" })})
               </span>
             )}
           </span>

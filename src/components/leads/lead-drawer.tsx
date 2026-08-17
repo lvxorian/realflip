@@ -857,7 +857,7 @@ function EventRow({ event }: { event: LeadEvent }) {
       <div className="min-w-0">
         <p className="text-xs text-foreground leading-snug break-words">{title}</p>
         <p className="text-[10px] text-muted/50 mt-0.5">
-          {event.createdAt ? new Date(event.createdAt).toLocaleString("cs-CZ", { dateStyle: "medium", timeStyle: "short" }) : ""}
+          {event.createdAt ? new Date(Number(event.createdAt)).toLocaleString("cs-CZ", { dateStyle: "medium", timeStyle: "short" }) : ""}
           {lostReasonLabel && <span className="text-red-400/80"> · {lostReasonLabel}</span>}
         </p>
       </div>

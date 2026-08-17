@@ -15,9 +15,19 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+/**
+ * Převede timestamp na Date. Odolává dvěma reálným tvarům z DB:
+ * - Neon/Postgres vrací bigint jako řetězec ("1786960404172") — new Date() na
+ *   číselný string vrací Invalid Date, proto číselné stringy převedeme na Number
+ * - ISO řetězce ("2026-08-17T10:00:00Z") projdou přímo
+ */
 export function parseDate(date: Date | string | number | null | undefined): Date | null {
   if (date === null || date === undefined || date === "") return null;
-  const parsed = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  let value: Date | string | number = date;
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    value = Number(value);
+  }
+  const parsed = typeof value === "string" || typeof value === "number" ? new Date(value) : value;
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 

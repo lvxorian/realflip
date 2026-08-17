@@ -279,7 +279,7 @@ export default function ValuationResultView({ result, ai, aiCorrection, fields, 
                             <p className="text-[10px] text-muted">
                               {c.source === "realized"
                                 ? c.soldAt
-                                  ? `prodej · ${new Date(c.soldAt).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
+                                  ? `prodej · ${new Date(Number(c.soldAt)).toLocaleDateString("cs-CZ", { month: "short", year: "numeric" })}`
                                   : c.addressTx
                                     ? "adresní transakce"
                                     : "realizované prodeje"

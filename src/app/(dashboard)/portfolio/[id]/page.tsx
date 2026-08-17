@@ -82,9 +82,10 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
 
               <div className="flex items-center gap-4 py-4 mb-4">
                 {[
-                  { label: "Koupeno", date: new Date(d.purchaseDate).toLocaleDateString("cs-CZ"), done: true },
+                  // Neon vrací bigint jako string — Number() zajistí validní Date
+                  { label: "Koupeno", date: new Date(Number(d.purchaseDate)).toLocaleDateString("cs-CZ"), done: true },
                   { label: "Rekonstrukce", date: d.status === "purchased" ? "Zbývá" : "Probíhá", done: d.status !== "purchased" },
-                  { label: "Prodej", date: d.status === "sold" ? new Date(d.sellDate!).toLocaleDateString("cs-CZ") : "Čeká", done: d.status === "sold" },
+                  { label: "Prodej", date: d.status === "sold" ? new Date(Number(d.sellDate)).toLocaleDateString("cs-CZ") : "Čeká", done: d.status === "sold" },
                 ].map((phase, i) => (
                   <div key={i} className="flex items-center gap-2 flex-1">
                     <div className={`flex h-8 w-8 items-center justify-center rounded-full border ${

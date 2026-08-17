@@ -24,8 +24,11 @@ export default async function MarketPage() {
   const avgPricePerSqm = activeListings.length > 0
     ? Math.round(activeListings.reduce((s, p) => s + ((p.properties.price / (p.properties.area ?? 70)) || 0), 0) / activeListings.length)
     : 0;
+  // Neon vrací bigint jako string ("1786960404172") — převedeme na Number
+  const tsNum = (v: number | string | null | undefined) => Number(v ?? 0);
+
   const avgDays = activeListings.length > 0
-    ? Math.round(activeListings.reduce((s, p) => s + Math.floor((Date.now() - new Date(p.properties.firstSeen).getTime()) / 86400000), 0) / activeListings.length)
+    ? Math.round(activeListings.reduce((s, p) => s + Math.floor((Date.now() - tsNum(p.properties.firstSeen)) / 86400000), 0) / activeListings.length)
     : 0;
 
   // Group by city
@@ -36,7 +39,7 @@ export default async function MarketPage() {
     if (p.properties.area && p.properties.area > 0) {
       byCity[city].priceSqm.push(Math.round(p.properties.price / p.properties.area));
     }
-    byCity[city].days.push(Math.floor((Date.now() - new Date(p.properties.firstSeen).getTime()) / 86400000));
+    byCity[city].days.push(Math.floor((Date.now() - tsNum(p.properties.firstSeen)) / 86400000));
     byCity[city].count++;
   }
 
@@ -53,10 +56,10 @@ export default async function MarketPage() {
   const now = Date.now();
   const weekAgo = new Date(now - 7 * 86400000);
   const twoWeeksAgo = new Date(now - 14 * 86400000);
-  const recentProps = activeListings.filter((p) => new Date(p.properties.lastSeen) >= weekAgo);
+  const recentProps = activeListings.filter((p) => tsNum(p.properties.lastSeen) >= weekAgo.getTime());
   const olderProps = activeListings.filter((p) => {
-    const d = new Date(p.properties.lastSeen);
-    return d >= twoWeeksAgo && d < weekAgo;
+    const t = tsNum(p.properties.lastSeen);
+    return t >= twoWeeksAgo.getTime() && t < weekAgo.getTime();
   });
   const recentAvg = recentProps.length > 0 ? recentProps.reduce((s, p) => s + (p.properties.price / (p.properties.area ?? 70)), 0) / recentProps.length : 0;
   const olderAvg = olderProps.length > 0 ? olderProps.reduce((s, p) => s + (p.properties.price / (p.properties.area ?? 70)), 0) / olderProps.length : 0;
@@ -64,7 +67,7 @@ export default async function MarketPage() {
 
   const priceDrops = activeListings.filter((p) => {
     // Simplification: properties with updated_at != first_seen may have had price changes
-    return new Date(p.properties.lastSeen).getTime() - new Date(p.properties.firstSeen).getTime() > 86400000 * 14;
+    return tsNum(p.properties.lastSeen) - tsNum(p.properties.firstSeen) > 86400000 * 14;
   }).length;
 
   if (totalListings === 0) {

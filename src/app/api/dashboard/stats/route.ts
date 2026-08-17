@@ -7,8 +7,9 @@ import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function fmtTime(d: Date | number): string {
-  const diff = Date.now() - new Date(d).getTime();
+function fmtTime(d: Date | number | string): string {
+  // Neon vrací bigint jako string — převedeme na Number
+  const diff = Date.now() - Number(d);
   const min = Math.floor(diff / 60000);
   if (min < 1) return "právě teď";
   if (min < 60) return `před ${min} min`;
@@ -122,7 +123,7 @@ export async function GET() {
     ]);
 
     const todayProperties = props.filter(
-      (p) => p.firstSeen && new Date(p.firstSeen).getTime() >= todayTs
+      (p) => p.firstSeen && Number(p.firstSeen) >= todayTs
     );
 
     const n = analyses.length;
@@ -143,12 +144,12 @@ export async function GET() {
     const activeDeals = dealsCount;
 
     const recentProps = props
-      .sort((a, b) => new Date(b.firstSeen).getTime() - new Date(a.firstSeen).getTime())
+      .sort((a, b) => Number(b.firstSeen) - Number(a.firstSeen))
       .slice(0, 4)
       .map((p) => {
         const analysis = analyses.find((a) => a.propertyId === p.id);
         const daysOnMarket = Math.floor(
-          (Date.now() - new Date(p.firstSeen).getTime()) / 86400000
+          (Date.now() - Number(p.firstSeen)) / 86400000
         );
         return {
           id: p.id,

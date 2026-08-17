@@ -90,6 +90,19 @@ describe("formatDate", () => {
     const result = formatDate(1700000000000);
     expect(typeof result).toBe("string");
   });
+
+  it("formats numeric string epoch (Neon vrací bigint jako string)", () => {
+    // Postgres/Neon vrací bigint timestamp jako "1700000000000" — new Date()
+    // na číselný string vrací Invalid Date, proto ho parseDate převede na Number.
+    const result = formatDate("1700000000000");
+    expect(result).toContain("2023");
+    expect(result).not.toBe("—");
+  });
+
+  it("vrací em dash pro neplatný datum", () => {
+    expect(formatDate("nonsense")).toBe("—");
+    expect(formatDate(null as unknown as number)).toBe("—");
+  });
 });
 
 describe("splitAddress", () => {

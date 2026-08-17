@@ -47,8 +47,13 @@ function formatDays(firstSeen: unknown) {
   return `${days} dní`;
 }
 
-function formatDate(d: Date | number) {
-  return new Date(d).toLocaleDateString("cs-CZ", {
+function formatDate(d: Date | number | string) {
+  // Neon vrací bigint jako string ("1786960404172") — new Date() na číselný
+  // string vrací Invalid Date, proto číselné stringy převedeme na Number.
+  const value = typeof d === "string" && /^\d+$/.test(d.trim()) ? Number(d) : d;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("cs-CZ", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
