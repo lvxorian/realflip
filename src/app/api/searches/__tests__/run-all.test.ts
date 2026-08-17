@@ -1,0 +1,71 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { POST } from "../run-all/route";
+
+vi.mock("@/lib/auth", () => ({
+  auth: async () => ({ user: { id: "user-1" } }),
+}));
+
+const crawlAllForUser = vi.fn();
+
+vi.mock("@/lib/scraping/orchestrator-setup", () => ({
+  createScrapingOrchestrator: async () => ({ crawlAllForUser }),
+}));
+
+async function readStreamText(res: Response): Promise<string> {
+  return new Response(res.body).text();
+}
+
+describe("POST /api/searches/run-all — SSE streaming hromadného hledání", () => {
+  beforeEach(() => {
+    crawlAllForUser.mockReset();
+    crawlAllForUser.mockImplementation(
+      async (_userId: string, opts?: { onProgress?: (ev: unknown) => void }) => {
+        opts?.onProgress?.({
+          kind: "search-start",
+          searchId: "s1",
+          searchName: "Praha byty",
+          index: 0,
+          total: 1,
+        });
+        opts?.onProgress?.({
+          kind: "portal",
+          searchId: "s1",
+          searchName: "Praha byty",
+          portal: "sreality",
+          found: 3,
+          errors: [],
+        });
+        opts?.onProgress?.({
+          kind: "search-done",
+          searchId: "s1",
+          searchName: "Praha byty",
+          total: 3,
+          errors: [],
+        });
+        return { total: 3, runCount: 1, failed: [] };
+      }
+    );
+  });
+
+  it("vrací SSE stream s progress událostmi a dokončovací událostí done", async () => {
+    const res = await POST();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+    const text = await readStreamText(res);
+    expect(text).toContain("event: progress");
+    expect(text).toContain('"kind":"search-start"');
+    expect(text).toContain('"searchName":"Praha byty"');
+    expect(text).toContain('"portal":"sreality"');
+    expect(text).toContain("event: done");
+    expect(text).toContain('"total":3');
+  });
+
+  it("pošle error událost, když crawl vyhodí výjimku", async () => {
+    crawlAllForUser.mockRejectedValueOnce(new Error("boom"));
+    const res = await POST();
+    const text = await readStreamText(res);
+    expect(text).toContain("event: error");
+    expect(text).toContain("boom");
+  });
+});

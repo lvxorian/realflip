@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { BulkSearchLog } from "@/components/searches/bulk-search-log";
 import { PropertyCard } from "@/components/ui/property-card";
 import {
   MagnifyingGlass,
@@ -85,7 +86,7 @@ export default function SearchDetailPage() {
   const [now] = useState(() => Date.now());
   const [data, setData] = useState<SearchDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const fetchData = async () => {
@@ -129,22 +130,9 @@ export default function SearchDetailPage() {
     };
   }, [status, router, params.id]);
 
-  const runSearch = async () => {
-    setRunning(true);
-    try {
-      const res = await fetch(`/api/searches/${params.id}/run`, { method: "POST" });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        toast.error(data?.error || "Skenování selhalo");
-      } else {
-        toast.success(`Skenování dokončeno (${data?.total ?? 0} inzerátů)`);
-      }
-    } catch {
-      toast.error("Skenování selhalo");
-    } finally {
-      setRunning(false);
-      fetchData();
-    }
+  // Skenování běží přes live log (SSE stream z /api/searches/[id]/run).
+  const runSearch = () => {
+    setShowLog(true);
   };
 
   const deleteSearch = async () => {
@@ -221,7 +209,7 @@ export default function SearchDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={runSearch} loading={running}>
+          <Button onClick={runSearch} disabled={showLog}>
             <Play weight="fill" />
             Spustit skenování
           </Button>
@@ -238,7 +226,7 @@ export default function SearchDetailPage() {
           title="Zatím žádné výsledky"
           description="Spusťte skenování pro nalezení inzerátů odpovídajících vašim filtrům."
           action={
-            <Button onClick={runSearch} loading={running}>
+            <Button onClick={runSearch} disabled={showLog}>
               <Play weight="fill" />
               Spustit skenování
             </Button>
@@ -278,6 +266,14 @@ export default function SearchDetailPage() {
           })}
         </motion.div>
       )}
+
+      <BulkSearchLog
+        open={showLog}
+        url={`/api/searches/${params.id}/run`}
+        title={data.name}
+        onClose={() => setShowLog(false)}
+        onFinished={fetchData}
+      />
     </motion.div>
   );
 }

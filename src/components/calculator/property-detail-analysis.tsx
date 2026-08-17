@@ -62,11 +62,44 @@ interface AnalysisData {
   marketSampleSize: number | null;
 }
 
+interface ParsedAiReport {
+  summary?: string | null;
+  sentiment?: string | null;
+  maxBid?: number | null;
+  negotiationTips?: string[] | null;
+  redFlags?: string[] | null;
+  hiddenInfo?: string[] | null;
+  comparableNotes?: string | null;
+}
+
+/**
+ * aiReport v DB může být buď JSON z analyzeListing (novější), nebo holý text
+ * (starší záznamy / aukce). Vrátí rozparsovanou strukturu nebo null.
+ */
+function parseAiReport(raw: string | null): ParsedAiReport | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && typeof parsed.summary === "string") {
+      return parsed as ParsedAiReport;
+    }
+    // JSON bez summary — bereme jako prostý text
+    if (typeof parsed === "string" && parsed.trim()) {
+      return { summary: parsed };
+    }
+    return null;
+  } catch {
+    // Není JSON — holý textový summary
+    return raw.trim() ? { summary: raw } : null;
+  }
+}
+
 function buildAnalysisResult(
   property: PropertyData,
   analysis: AnalysisData | null
 ): any {
   const a = analysis;
+  const aiReport = a?.aiReport ? parseAiReport(a.aiReport) : null;
   const arvValue = a?.arv ?? property.price;
   const roiValue = a?.roi ?? 0;
   const netProfitValue = a?.netProfit ?? 0;
@@ -124,10 +157,10 @@ function buildAnalysisResult(
         : [],
       scenarios: {} as any,
     },
-    aiSummary: null,
-    aiNegotiationTips: null,
-    aiComparableNotes: null,
-    aiHiddenInfo: null,
+    aiSummary: aiReport?.summary ?? null,
+    aiNegotiationTips: aiReport?.negotiationTips ?? null,
+    aiComparableNotes: aiReport?.comparableNotes ?? null,
+    aiHiddenInfo: aiReport?.hiddenInfo ?? null,
   };
 }
 

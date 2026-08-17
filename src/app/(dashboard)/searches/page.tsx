@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { MagnifyingGlass, Plus, Clock, Play, PencilSimple, Trash, ArrowsClockwise } from "@phosphor-icons/react";
 import { SCHEDULE_LABELS } from "@/components/searches/search-form";
+import { BulkSearchLog } from "@/components/searches/bulk-search-log";
 
 interface SearchItem {
   id: string;
@@ -71,7 +72,7 @@ export default function SearchesPage() {
   const [searches, setSearches] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState<string | null>(null);
-  const [runningAll, setRunningAll] = useState(false);
+  const [showBulkLog, setShowBulkLog] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,29 +106,19 @@ export default function SearchesPage() {
     }
   };
 
-  const runAll = async () => {
-    setRunningAll(true);
+const reloadSearches = async () => {
     try {
-      const res = await fetch("/api/searches/run-all", { method: "POST" });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        toast.error(data?.error || "Hromadné hledání selhalo");
-      } else {
-        const failed = data?.failed?.length ?? 0;
-        if (failed > 0) {
-          toast.warning(`Hromadné hledání dokončeno (${data?.total ?? 0} inzerátů, ${failed} selhalo)`);
-        } else {
-          toast.success(`Hromadné hledání dokončeno (${data?.total ?? 0} inzerátů)`);
-        }
-      }
-    } catch {
-      toast.error("Hromadné hledání selhalo");
-    } finally {
-      setRunningAll(false);
       const res = await fetch("/api/searches");
       const data = await res.json();
       setSearches(data);
+    } catch {
+      // seznam se obnoví při příštím načtení stránky
     }
+  };
+
+  // Hromadné hledání běží přes live log (SSE stream z /api/searches/run-all).
+  const runAll = () => {
+    setShowBulkLog(true);
   };
 
   const deleteSearch = async (id: string, name: string) => {
@@ -176,7 +167,6 @@ export default function SearchesPage() {
           {searches.length > 0 && (
             <Button
               variant="secondary"
-              loading={runningAll}
               disabled={running !== null || deleting !== null}
               onClick={() => runAll()}
             >
@@ -236,7 +226,7 @@ export default function SearchesPage() {
                           variant="secondary"
                           size="icon-sm"
                           loading={running === s.id}
-                          disabled={runningAll}
+                          disabled={showBulkLog}
                           onClick={(e) => {
                             e.preventDefault();
                             runSearch(s.id);
@@ -276,6 +266,12 @@ export default function SearchesPage() {
           ))}
         </motion.div>
       )}
+
+      <BulkSearchLog
+        open={showBulkLog}
+        onClose={() => setShowBulkLog(false)}
+        onFinished={reloadSearches}
+      />
     </motion.div>
   );
 }

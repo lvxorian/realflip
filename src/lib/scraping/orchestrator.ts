@@ -10,7 +10,6 @@ import { eq, and, ne, notInArray, inArray, lte, gt } from "drizzle-orm";
 import { listingMatches, PROPERTY_STATUS, REMOVAL_GRACE_MS, type RelistCandidate } from "./relisting";
 import { matchStrengthCrossPortal, isAutoMergeMatch, parseAltPortals, appendAltPortal, hasAltUrl, toDbAltPortals } from "./property-match";
 import { analyzeListing } from "@/lib/analysis/analyzer";
-import { analyzeListing as aiAnalyzeListing } from "@/lib/ai/analyzer";
 import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts, safeJsonParse } from "@/lib/utils";
 import { checkPriceDropAlert, checkScoreThresholdAlert } from "@/lib/alert-matcher";
@@ -33,6 +32,15 @@ function pickBetterTitle(
   // plný text se objeví až při sloučení se stejným inzerátem z jiného portálu.
   return incoming.length > current.length ? incoming : current;
 }
+
+/**
+ * Událost progressu pro hromadné hledání (streamované do UI přes SSE).
+ * search-start → série portal událostí → search-done, pro každé hledání.
+ */
+export type ScrapeProgressEvent =
+  | { kind: "search-start"; searchId: string; searchName: string; index: number; total: number }
+  | { kind: "portal"; searchId: string; searchName: string; portal: PortalName; found: number; errors: string[] }
+  | { kind: "search-done"; searchId: string; searchName: string; total: number; errors: string[] };
 
 export class ScrapingOrchestrator {
   private adapters: Map<PortalName, PortalAdapter> = new Map();
@@ -158,7 +166,8 @@ export class ScrapingOrchestrator {
 
   async crawlSearch(
     searchId: string,
-    filters: SearchFilters
+    filters: SearchFilters,
+    opts?: { onPortalProgress?: (portal: PortalName, found: number, errors: string[]) => void }
   ): Promise<{ total: number; errors: string[] }> {
     // Mark as run immediately so UI shows something even if timeout happens later
     await db
@@ -177,6 +186,7 @@ export class ScrapingOrchestrator {
       if (!PORTAL_CONFIGS[portal].enabled) return;
 
       const errors: string[] = [];
+      let found = 0;
 
       try {
         const cityKey = filters.location ? findCityKey(filters.location) : null;
@@ -196,7 +206,10 @@ export class ScrapingOrchestrator {
 
           try {
             const propertyId = await this.saveListing(listing, searchId);
-            if (propertyId) total++;
+            if (propertyId) {
+              total++;
+              found++;
+            }
           } catch (err) {
             errors.push(`Failed to save listing ${listing.url}: ${err}`);
           }
@@ -206,6 +219,7 @@ export class ScrapingOrchestrator {
       }
 
       allErrors.push(...errors);
+      opts?.onPortalProgress?.(portal, found, errors);
     };
 
     const results = await Promise.allSettled(
@@ -308,32 +322,90 @@ export class ScrapingOrchestrator {
     await this.sweepRemovedListings().catch(() => {});
   }
 
-  async crawlAllForUser(userId: string): Promise<{ total: number; runCount: number; failed: string[] }> {
+  /**
+   * Hromadné hledání — všechna hledání uživatele najednou.
+   * Hledání běží PARALELNĚ (Promise.allSettled), aby se celkový čas rovnal
+   * nejpomalejšímu hledání, ne součtu všech (sekvenčně to na Vercelu vždy
+   * překročilo 60s limit). `skipAi` vypíná per-inzerátovou Gemini analýzu —
+   * v bulk režimu je to největší časová zátěž a free-tier kvóta (20/den)
+   * ji stejně nedovolí pro desítky nových inzerátů.
+   */
+  async crawlAllForUser(
+    userId: string,
+    opts?: { onProgress?: (event: ScrapeProgressEvent) => void }
+  ): Promise<{ total: number; runCount: number; failed: string[] }> {
     const userSearches = await db
       .select()
       .from(searches)
       .where(eq(searches.userId, userId));
 
+    const totalSearches = userSearches.length;
     let total = 0;
     let runCount = 0;
     const failed: string[] = [];
 
-    for (const search of userSearches) {
-      let filters: SearchFilters = {};
-      try {
-        filters = JSON.parse(search.filters) as SearchFilters;
-      } catch {
-        failed.push(`Search ${search.id} (${search.name}): invalid filters`);
-        continue;
-      }
+    const results = await Promise.allSettled(
+      userSearches.map(async (search, index) => {
+        opts?.onProgress?.({
+          kind: "search-start",
+          searchId: search.id,
+          searchName: search.name,
+          index,
+          total: totalSearches,
+        });
 
-      try {
-        const result = await this.crawlSearch(search.id, filters);
-        total += result.total;
-        runCount++;
-      } catch (err) {
-        failed.push(`Search ${search.id} (${search.name}) failed: ${err}`);
-      }
+        let filters: SearchFilters = {};
+        try {
+          filters = JSON.parse(search.filters) as SearchFilters;
+        } catch {
+          failed.push(`Search ${search.id} (${search.name}): invalid filters`);
+          opts?.onProgress?.({
+            kind: "search-done",
+            searchId: search.id,
+            searchName: search.name,
+            total: 0,
+            errors: ["Neplatné filtry"],
+          });
+          return;
+        }
+
+        try {
+          const result = await this.crawlSearch(search.id, filters, {
+            onPortalProgress: (portal, found, errors) => {
+              opts?.onProgress?.({
+                kind: "portal",
+                searchId: search.id,
+                searchName: search.name,
+                portal,
+                found,
+                errors,
+              });
+            },
+          });
+          total += result.total;
+          runCount++;
+          opts?.onProgress?.({
+            kind: "search-done",
+            searchId: search.id,
+            searchName: search.name,
+            total: result.total,
+            errors: result.errors,
+          });
+        } catch (err) {
+          failed.push(`Search ${search.id} (${search.name}) failed: ${err}`);
+          opts?.onProgress?.({
+            kind: "search-done",
+            searchId: search.id,
+            searchName: search.name,
+            total: 0,
+            errors: [String(err)],
+          });
+        }
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === "rejected") failed.push(`Hledání selhalo: ${result.reason}`);
     }
 
     refreshAllMarketData().catch(() => {});
@@ -342,7 +414,10 @@ export class ScrapingOrchestrator {
     return { total, runCount, failed };
   }
 
-  private async saveListing(listing: RawListing, searchId?: string): Promise<string | null> {
+  private async saveListing(
+    listing: RawListing,
+    searchId?: string
+  ): Promise<string | null> {
     if (!isSaleListing(listing)) {
       console.log(`Skipped non-sale listing (${listing.title}): ${listing.url}`);
       return null;
@@ -468,29 +543,8 @@ export class ScrapingOrchestrator {
           })
           .where(eq(propertyAnalysis.propertyId, existing.id));
 
-        // AI re-analysis on price change
-        if (process.env.GEMINI_API_KEY) {
-          try {
-            const { analyzeListing: aiAnalyzeListing } = await import("@/lib/ai/analyzer");
-            const aiResult = await aiAnalyzeListing({
-              title: listing.title,
-              description: listing.description ?? "",
-              price: listing.price,
-              pricePerSqm: listing.pricePerSqm,
-              area: listing.area,
-              rooms: listing.rooms,
-              address: listing.address,
-              condition: listing.condition,
-            });
-            await db
-              .update(propertyAnalysis)
-              .set({ aiReport: JSON.stringify(aiResult), updatedAt: ts() })
-              .where(eq(propertyAnalysis.propertyId, existing.id));
-          } catch {
-            // AI analysis is optional
-          }
-        }
-
+        // AI hodnocení se negeneruje při crawlu — generuje se on-demand
+        // tlačítkem v detailu nemovitosti (kvóta Gemini free tieru je omezená).
         await checkScoreThresholdAlert(existing.id, listing.title, listing.url, existingAnalysis?.investmentScore ?? null).catch(() => {});
       }
 
@@ -607,26 +661,8 @@ export class ScrapingOrchestrator {
         : { dynamicRange: null, arvRange: null };
       const analysis = analyzeListing(listing, ranges.dynamicRange, undefined, location, ranges.arvRange);
 
-      // AI analysis (only if API key available)
-      let aiReport: string | null = null;
-      if (process.env.GEMINI_API_KEY) {
-        try {
-          const aiResult = await aiAnalyzeListing({
-            title: listing.title,
-          description: listing.description ?? "",
-          price: listing.price,
-          pricePerSqm: listing.pricePerSqm,
-          area: listing.area,
-          rooms: listing.rooms,
-          address: listing.address,
-          condition: listing.condition,
-        });
-          aiReport = JSON.stringify(aiResult);
-        } catch {
-          // AI analysis is optional
-        }
-      }
-
+      // AI hodnocení se negeneruje při crawlu — generuje se on-demand
+      // tlačítkem v detailu nemovitosti (kvóta Gemini free tieru je omezená).
       await db.insert(propertyAnalysis).values({
         id: generateId(),
         propertyId: id,
@@ -665,7 +701,6 @@ export class ScrapingOrchestrator {
         costsJson: JSON.stringify(analysis.costs),
         alternativeStrategiesJson: JSON.stringify(analysis.alternativeStrategies),
         rentalYield: analysis.rentalYield,
-        aiReport,
         createdAt: ts(),
         updatedAt: ts(),
       });

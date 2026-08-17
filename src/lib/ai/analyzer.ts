@@ -4,7 +4,16 @@ import { GEMINI_MODEL } from "@/lib/ai/gemini";
 let _client: GoogleGenAI | null = null;
 function getClient(): GoogleGenAI {
   if (!_client) {
-    _client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    _client = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY || "",
+      httpOptions: {
+        // Žádné automatické retry: při vyčerpané kvótě (429) volání selže
+        // okamžitě a crawler pokračuje dál — výchozí backoff SDK (~50 s na
+        // volání) drtil celé hromadné hledání.
+        retryOptions: { attempts: 1 },
+        timeout: 20_000,
+      },
+    });
   }
   return _client;
 }

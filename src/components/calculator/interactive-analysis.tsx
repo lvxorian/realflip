@@ -220,6 +220,22 @@ function InteractiveCard({
   const [showNegotiation, setShowNegotiation] = useState(false);
   const [negotiationError, setNegotiationError] = useState<string | null>(null);
 
+  // AI hodnocení (on-demand) — inicializuje se z uloženého aiReport, jinak se generuje tlačítkem
+  const [aiReport, setAiReport] = useState<any | null>(() => {
+    if (!result.aiSummary) return null;
+    return {
+      summary: result.aiSummary,
+      sentiment: null,
+      maxBid: null,
+      negotiationTips: result.aiNegotiationTips ?? [],
+      redFlags: [],
+      hiddenInfo: result.aiHiddenInfo ?? [],
+      comparableNotes: result.aiComparableNotes ?? null,
+    };
+  });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dbSaving, setDbSaving] = useState(false);
@@ -577,6 +593,33 @@ function InteractiveCard({
       }
     } catch {}
     setLoadingComps(false);
+  };
+
+  const generateAiReport = async () => {
+    if (!l.id) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch(`/api/properties/${l.id}/ai-analysis`, { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAiError(data?.error ?? "Chyba serveru — zkuste to prosím později");
+        return;
+      }
+      setAiReport({
+        summary: data.summary ?? null,
+        sentiment: data.sentiment ?? null,
+        maxBid: data.maxBid ?? null,
+        negotiationTips: data.negotiationTips ?? [],
+        redFlags: data.redFlags ?? [],
+        hiddenInfo: data.hiddenInfo ?? [],
+        comparableNotes: data.comparableNotes ?? null,
+      });
+    } catch {
+      setAiError("Chyba sítě — zkontrolujte připojení");
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const generateNegotiation = async () => {
@@ -1660,11 +1703,89 @@ function InteractiveCard({
             </>
           )}
 
-          {/* Existing: AI Summary */}
-          {result.aiSummary && (
-            <div className="rounded-xl bg-card-hover border border-border/50 p-4">
-              <p className="text-xs text-muted mb-3 font-medium">🤖 AI Hodnocení</p>
-              <p className="text-sm text-foreground/80 leading-relaxed">{result.aiSummary}</p>
+          {/* ===== FEATURE: AI HODNOCENÍ (on-demand) ===== */}
+          {(aiReport || l.id) && (
+            <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Robot size={16} className="text-accent" />
+                  <h2 className="font-semibold tracking-tight text-sm">AI Hodnocení</h2>
+                </div>
+                {!aiReport && l.id && (
+                  <Button size="sm" onClick={generateAiReport} disabled={aiLoading} className="text-xs">
+                    {aiLoading ? "Generuji..." : "Generovat AI hodnocení"}
+                  </Button>
+                )}
+              </div>
+              {aiError && (
+                <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3">
+                  <p className="text-xs text-red-400">{aiError}</p>
+                </div>
+              )}
+              {!aiReport && !aiLoading && !aiError && l.id && (
+                <p className="text-xs text-muted leading-relaxed">
+                  Nechte AI posoudit investiční potenciál — shrnutí, maximální nabídku pro 15 % ROI, vyjednávací tipy a skryté informace k ověření.
+                </p>
+              )}
+              {aiLoading && !aiReport && (
+                <p className="text-xs text-accent animate-pulse">Analyzuji inzerát…</p>
+              )}
+              {aiReport && (
+                <div className="space-y-3">
+                  <p className="text-sm text-foreground/80 leading-relaxed">{aiReport.summary}</p>
+                  {aiReport.maxBid != null && aiReport.maxBid > 0 && (
+                    <div className="rounded-lg bg-card border border-border/50 p-2 text-center">
+                      <p className="text-muted text-xs">Max. nabídka pro 15 % ROI</p>
+                      <p className="font-mono font-semibold text-emerald-400">{formatPrice(aiReport.maxBid)}</p>
+                    </div>
+                  )}
+                  {aiReport.negotiationTips?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted mb-1.5 font-medium">💡 Vyjednávací tipy</p>
+                      <ul className="space-y-1">
+                        {aiReport.negotiationTips.map((tip: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
+                            <span className="text-accent mt-0.5 shrink-0">•</span>
+                            <span>{tip}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiReport.redFlags?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted mb-1.5 font-medium">⚠️ AI varovné signály</p>
+                      <ul className="space-y-1">
+                        {aiReport.redFlags.map((rf: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-red-400/80">
+                            <span className="mt-0.5 shrink-0">⚠</span>
+                            <span>{rf}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiReport.hiddenInfo?.length > 0 && (
+                    <div>
+                      <p className="text-xs text-muted mb-1.5 font-medium">🔍 Skryté informace k ověření</p>
+                      <ul className="space-y-1">
+                        {aiReport.hiddenInfo.map((h: string, i: number) => (
+                          <li key={i} className="flex items-start gap-2 text-xs text-amber-400/80">
+                            <span className="mt-0.5 shrink-0">•</span>
+                            <span>{h}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {aiReport.comparableNotes && (
+                    <div className="rounded-lg bg-card-hover border border-border/50 p-3">
+                      <p className="text-xs text-muted mb-1 font-medium">📊 Srovnání s lokalitou</p>
+                      <p className="text-xs text-foreground/80 leading-relaxed">{aiReport.comparableNotes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
