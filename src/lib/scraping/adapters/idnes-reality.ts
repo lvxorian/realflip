@@ -33,19 +33,10 @@ export class IdnesRealityAdapter extends PortalAdapter {
       unique.push(l);
     }
 
-    const enriched: RawListing[] = [];
     // 5 paralelních fetchů detailů je s rate limiterem (2 s) bezpečné a
-    // zvládne to výrazně rychleji než 3 — limitu 60 s jde vstříc.
-    const concurrency = 5;
-    for (let i = 0; i < unique.length; i += concurrency) {
-      const batch = unique.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map((l) => this.enrichListing(l).catch(() => l))
-      );
-      enriched.push(...batchResults);
-    }
-
-    return enriched;
+    // zvládne to výrazně rychleji než 3 — limitu 60 s jde vstříc. Známé
+    // inzeráty z DB se přeskočí (skipDetailForUrls).
+    return this.enrichBatch(unique, (l) => this.enrichListing(l), 5);
   }
 
   private buildSearchPath(filters?: SearchFilters): string {

@@ -28,8 +28,11 @@ interface SearchState {
 
 type Phase = "running" | "done" | "interrupted" | "error";
 
-/** Kolik běhů celkem může auto-pokračování udělat, než se vzdá. */
-const MAX_RETRIES = 8;
+/** Kolik běhů celkem může auto-pokračování udělat, než se vzdá.
+ *  Každý běh teď navazuje (skipSearchIds + skipPortals), takže se neleze
+ *  znovu to, co už proběhlo — 12 běhů × 60 s stačí i pro pomalé portály
+ *  (sreality crawleje po městech, reality.cz má přísný rate limit). */
+const MAX_RETRIES = 12;
 /** Pauza mezi běhy, aby server stihl uvolnit prostředky. */
 const RETRY_DELAY_MS = 3000;
 
@@ -126,6 +129,11 @@ export function BulkSearchLog({
   // se pošlou serveru, aby je přeskočil a dojel jen zbývající.
   const doneSearchIdsRef = useRef<Set<string>>(new Set());
 
+  // Portály už dokončené pro každé hledání (dostaly portal událost s 0 chyb) —
+  // při auto-pokračování se pošlou serveru, aby je nepřelezal znovu a běh
+  // navazoval místo restartu od nuly (každý pokus je tak rychlejší).
+  const donePortalsRef = useRef<Map<string, string[]>>(new Map());
+
   const setPhaseSafe = (p: Phase) => {
     phaseRef.current = p;
     setPhase(p);
@@ -135,16 +143,21 @@ export function BulkSearchLog({
     setSearches((prev) => {
       const next = [...prev];
       if (ev.kind === "search-start") {
+        const existing = next.find((s) => s.id === ev.searchId);
         const entry: SearchState = {
           id: ev.searchId,
           name: ev.searchName,
           index: ev.index,
           status: "running",
-          found: 0,
-          errors: [],
-          portals: Object.fromEntries(ENABLED_PORTALS.map((p) => [p, undefined])) as SearchState["portals"],
+          // Při auto-pokračování si zachováme už hotové portály z minulých běhů
+          // (server je znovu neposílá — přeskočené se nemají zobrazit jako pending).
+          found: existing?.found ?? 0,
+          errors: existing?.errors ?? [],
+          portals: {
+            ...(Object.fromEntries(ENABLED_PORTALS.map((p) => [p, undefined])) as SearchState["portals"]),
+            ...(existing?.portals ?? {}),
+          },
         };
-        const existing = next.find((s) => s.id === ev.searchId);
         if (existing) {
           next[next.indexOf(existing)] = entry;
         } else {
@@ -164,9 +177,21 @@ export function BulkSearchLog({
             errors: ev.errors,
           },
         };
+        // Součet nalezených napříč portály — při auto-pokračování se sčítá
+        // za všechny běhy (search-done po přeskočených portálech by vrátil 0).
+        entry.found += ev.found;
+        // Dokončený portál si zapamatujeme pro auto-pokračování — při dalším
+        // běhu se serveru pošle, aby ho nepřelezal znovu. Chybové portály se
+        // nepřeskočí (zkusí se znovu — mohla to být přechodná chyba).
+        if (ev.errors.length === 0) {
+          const list = donePortalsRef.current.get(ev.searchId) ?? [];
+          if (!list.includes(ev.portal)) {
+            list.push(ev.portal);
+            donePortalsRef.current.set(ev.searchId, list);
+          }
+        }
       } else if (ev.kind === "search-done") {
         entry.status = "done";
-        entry.found = ev.total;
         entry.errors = ev.errors;
         doneSearchIdsRef.current.add(ev.searchId);
       }
@@ -199,6 +224,7 @@ export function BulkSearchLog({
     doneReceivedRef.current = false;
     finishedRef.current = false;
     doneSearchIdsRef.current = new Set();
+    donePortalsRef.current = new Map();
     setPhaseSafe("running");
     setSearches([]);
     setResult(null);
@@ -213,8 +239,12 @@ export function BulkSearchLog({
           method: "POST",
           signal: controller.signal,
           headers: { "Content-Type": "application/json" },
-          // Auto-pokračování: přeskoč hledání, která už proběhla.
-          body: JSON.stringify({ skipSearchIds: Array.from(doneSearchIdsRef.current) }),
+          // Auto-pokračování: přeskoč hledání, která už proběhla, i portály,
+          // které už v nich proběhly — každý běh navazuje, místo restartu.
+          body: JSON.stringify({
+            skipSearchIds: Array.from(doneSearchIdsRef.current),
+            skipPortals: Object.fromEntries(donePortalsRef.current),
+          }),
         });
         if (!res.ok || !res.body) {
           if (cancelled) return "interrupted";

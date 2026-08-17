@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { createScrapingOrchestrator } from "@/lib/scraping/orchestrator-setup";
 import type { ScrapeProgressEvent } from "@/lib/scraping/orchestrator";
+import { PORTAL_CONFIGS, type PortalName } from "@/lib/scraping/types";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -26,11 +27,23 @@ export async function POST(req: Request) {
 
   // Auto-pokračování: klient po přerušení (Vercel limit 60 s) pošle seznam
   // hledání, která už proběhla — spustí se jen zbývající a zbytek se dojede sám.
+  // Navíc pošle portály dokončené pro každé hledání, aby se nepřelezaly znovu.
   let skipSearchIds: string[] = [];
+  let skipPortals: Record<string, PortalName[]> = {};
   try {
     const body = await req.json();
     if (Array.isArray(body?.skipSearchIds)) {
       skipSearchIds = body.skipSearchIds.filter((x: unknown) => typeof x === "string");
+    }
+    if (body?.skipPortals && typeof body.skipPortals === "object") {
+      skipPortals = {};
+      for (const [searchId, portals] of Object.entries(body.skipPortals as Record<string, unknown>)) {
+        if (Array.isArray(portals)) {
+          skipPortals[searchId] = portals.filter(
+            (x): x is PortalName => typeof x === "string" && x in PORTAL_CONFIGS
+          );
+        }
+      }
     }
   } catch {
     // Bez body (první spuštění) — spustí se všechna hledání.
@@ -48,6 +61,7 @@ export async function POST(req: Request) {
         const result = await orchestrator.crawlAllForUser(userId, {
           onProgress: (event: ScrapeProgressEvent) => send("progress", event),
           skipSearchIds,
+          skipPortals,
         });
 
         send("done", {

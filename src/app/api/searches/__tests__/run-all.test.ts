@@ -84,4 +84,23 @@ describe("POST /api/searches/run-all — SSE streaming hromadného hledání", (
     expect(text).toContain("event: done");
     expect(crawlAllForUser).toHaveBeenCalledWith("user-1", expect.objectContaining({ skipSearchIds: ["s1", "s2"] }));
   });
+
+  it("předá skipPortals z body orchestratoru (auto-pokračování na úrovni portálů)", async () => {
+    crawlAllForUser.mockImplementation(async (_userId: string, opts?: { skipPortals?: Record<string, string[]> }) => {
+      return { total: 0, runCount: 0, failed: [], skip: opts?.skipPortals };
+    });
+    const res = await POST(
+      new Request("http://localhost/api/searches/run-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skipPortals: { s1: ["sreality", "bazos"] } }),
+      })
+    );
+    const text = await readStreamText(res);
+    expect(text).toContain("event: done");
+    expect(crawlAllForUser).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({ skipPortals: { s1: ["sreality", "bazos"] } })
+    );
+  });
 });

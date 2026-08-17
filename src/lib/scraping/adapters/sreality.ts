@@ -167,14 +167,7 @@ export class SrealityAdapter extends PortalAdapter {
       if (items.length < this.resultsPerPage) break;
     }
 
-    const enriched: RawListing[] = [];
-    const concurrency = 3;
-    for (let i = 0; i < all.length; i += concurrency) {
-      const batch = all.slice(i, i + concurrency);
-      const results = await Promise.all(batch.map((l) => this.enrichListing(l)));
-      enriched.push(...results);
-    }
-    return enriched;
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 3);
   }
 
   async crawlCityListings(cityKey: string, limit = 40): Promise<RawListing[]> {
@@ -185,9 +178,16 @@ export class SrealityAdapter extends PortalAdapter {
     const sampleIds = pickSrealitySampleIds(cityKey, Math.max(limit * 2, 60));
     const listings: RawListing[] = [];
 
-    for (const id of sampleIds) {
-      try {
-        const data = await this.tryEnrichFromApi(String(id));
+    // Detail fetche běží v dávkách (4 najednou) místo sekvenčně — sreality
+    // má rate limiter 2 s, takže 60 id by sekvenčně znamenalo 120+ s a běh
+    // by vždy překročil Vercel limit 60 s. Známé inzeráty z DB se přeskočí.
+    const concurrency = 4;
+    for (let i = 0; i < sampleIds.length && listings.length < limit; i += concurrency) {
+      const batch = sampleIds.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map(async (id) => ({ id, data: await this.tryEnrichFromApi(String(id)).catch(() => null) }))
+      );
+      for (const { id, data } of results) {
         const r = data?.result;
         if (!r) continue;
 
@@ -222,8 +222,6 @@ export class SrealityAdapter extends PortalAdapter {
 
         listings.push(base);
         if (listings.length >= limit) break;
-      } catch {
-        // skip failed detail
       }
     }
 

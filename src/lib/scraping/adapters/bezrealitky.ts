@@ -50,14 +50,8 @@ export class BezrealitkyAdapter extends PortalAdapter {
     const toEnrich = results.filter(needsDetail);
     const byUrl = new Map(results.map((l) => [l.url, l]));
 
-    const concurrency = 3;
-    for (let i = 0; i < toEnrich.length; i += concurrency) {
-      const batch = toEnrich.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map((l) => this.enrichListing(l).catch(() => l))
-      );
-      batchResults.forEach((l) => byUrl.set(l.url, l));
-    }
+    const enriched = await this.enrichBatch(toEnrich, (l) => this.enrichListing(l), 3);
+    enriched.forEach((l) => byUrl.set(l.url, l));
 
     return results.map((l) => byUrl.get(l.url) ?? l);
   }

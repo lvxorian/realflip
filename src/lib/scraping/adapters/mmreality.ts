@@ -57,18 +57,9 @@ export class MmrealityAdapter extends PortalAdapter {
     }
 
     // Enrichování dávek (ne všechny najednou): neomezená paralelizace by
-    // zasypala portál požadavky → 429 a celý crawl by se zasekl.
-    const enriched: RawListing[] = [];
-    const concurrency = 3;
-    for (let i = 0; i < unique.length; i += concurrency) {
-      const batch = unique.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map((l) => this.enrichListing(l).catch(() => l))
-      );
-      enriched.push(...batchResults);
-    }
-
-    return enriched;
+    // zasypala portál požadavky → 429 a celý crawl by se zasekl. Známé
+    // inzeráty z DB se přeskočí (skipDetailForUrls).
+    return this.enrichBatch(unique, (l) => this.enrichListing(l), 3);
   }
 
   private parsePage(html: string): RawListing[] {

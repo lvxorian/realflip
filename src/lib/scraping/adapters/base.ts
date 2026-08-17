@@ -5,9 +5,43 @@ export abstract class PortalAdapter {
   protected config: PortalConfig;
   protected rateLimiter: RateLimiter;
 
+  /**
+   * URL inzerátů, které už máme v DB — pro ně se při bulk crawlu přeskočí
+   * drahý detail fetch (popis/fotky už známe, list stránka stačí na aktualizaci
+   * ceny a prodejnosti). Nastavuje orchestrator před hromadným hledáním.
+   */
+  public skipDetailForUrls: Set<string> | null = null;
+
   constructor(portalName: PortalName) {
     this.config = PORTAL_CONFIGS[portalName];
     this.rateLimiter = RateLimiter.getInstance();
+  }
+
+  /** Má se pro tento inzerát vynechat detail fetch? (známý z DB) */
+  protected shouldSkipDetail(url: string): boolean {
+    return this.skipDetailForUrls?.has(url) ?? false;
+  }
+
+  /**
+   * Enrichne dávky s omezenou konkurencí. Pro inzeráty už známé z DB
+   * (skipDetailForUrls) detail fetch vynechá úplně — list data stačí.
+   * Nahrazuje neomezené `Promise.all(all.map(enrich))`, které zasypávalo
+   * portály požadavky (429) a znemožňovalo dokončit běh v limitu 60 s.
+   */
+  protected async enrichBatch<T extends RawListing>(
+    listings: T[],
+    enrich: (l: T) => Promise<T>,
+    concurrency = 3
+  ): Promise<T[]> {
+    const out: T[] = [];
+    for (let i = 0; i < listings.length; i += concurrency) {
+      const batch = listings.slice(i, i + concurrency);
+      const results = await Promise.all(
+        batch.map((l) => (this.shouldSkipDetail(l.url) ? l : enrich(l).catch(() => l)))
+      );
+      out.push(...results);
+    }
+    return out;
   }
 
   abstract crawlListings(filters?: SearchFilters): Promise<RawListing[]>;

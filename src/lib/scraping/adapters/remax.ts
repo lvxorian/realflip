@@ -79,17 +79,8 @@ export class RemaxAdapter extends PortalAdapter {
     // Detailní stránka obsahuje plnou galerii (a[data-fancybox="images"] → href)
     // a také popis, patro, stav a GPS — kartička má jen náhled. Zobohacení je
     // pomalé (rate limit 3 s), proto s malou konkurencí jako ostatní adaptéry.
-    const enriched: RawListing[] = [];
-    const concurrency = 3;
-    for (let i = 0; i < results.length; i += concurrency) {
-      const batch = results.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map((l) => this.enrichListing(l).catch(() => l))
-      );
-      enriched.push(...batchResults);
-    }
-
-    return enriched;
+    // Známé inzeráty z DB se přeskočí (skipDetailForUrls).
+    return this.enrichBatch(results, (l) => this.enrichListing(l), 3);
   }
 
   /**

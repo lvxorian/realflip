@@ -105,6 +105,34 @@ describe("BulkSearchLog — live log hromadného hledání", () => {
     await waitFor(() => expect(onFinished).toHaveBeenCalledTimes(1));
   });
 
+  it("při auto-pokračování pošle serveru dokončené portály, aby je nepřelezal znovu", async () => {
+    // 1. běh: sreality dokončeno, pak běh přerušen (stream skončí bez done).
+    // 2. běh: client pošle skipPortals={ s1: ["sreality"] } — server ho přeskočí.
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(async () => sseResponse([
+        { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Praha byty", index: 0, total: 1 } },
+        { event: "progress", data: { kind: "portal", searchId: "s1", searchName: "Praha byty", portal: "sreality", found: 3, errors: [] } },
+      ]))
+      .mockImplementationOnce(async () => sseResponse([
+        { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Praha byty", index: 0, total: 1 } },
+        { event: "progress", data: { kind: "portal", searchId: "s1", searchName: "Praha byty", portal: "bazos", found: 2, errors: [] } },
+        { event: "progress", data: { kind: "search-done", searchId: "s1", searchName: "Praha byty", total: 2, errors: [] } },
+        { event: "done", data: { total: 2, runCount: 1, failed: [] } },
+      ]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<BulkSearchLog open onClose={() => {}} onFinished={() => {}} maxRetries={3} retryDelayMs={0} />);
+
+    await waitFor(() => expect(screen.getByText("Dokončeno")).toBeTruthy());
+
+    // Druhý běh poslal dokončený sreality jako skipPortals
+    const bodies = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body));
+    expect(bodies[0].skipPortals).toEqual({});
+    expect(bodies[1].skipPortals).toEqual({ s1: ["sreality"] });
+    // Součet nalezených napříč běhy: 3 (sreality) + 2 (bazos) = 5
+    expect(screen.getByText("+5 inzerátů")).toBeTruthy();
+  });
+
   it("zobrazí chybu portálu červeně", async () => {
     const events = [
       { event: "progress", data: { kind: "search-start", searchId: "s1", searchName: "Brno", index: 0, total: 1 } },

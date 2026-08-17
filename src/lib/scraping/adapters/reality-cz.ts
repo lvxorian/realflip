@@ -31,18 +31,9 @@ export class RealityCzAdapter extends PortalAdapter {
     }
 
     // Enrichování dávek — reality.cz je na rychlé požadavky přísný (429 →
-    // 60s retry), proto menší concurrency 2 než u jiných portálů.
-    const enriched: RawListing[] = [];
-    const concurrency = 2;
-    for (let i = 0; i < all.length; i += concurrency) {
-      const batch = all.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map((l) => this.enrichListing(l).catch(() => l))
-      );
-      enriched.push(...batchResults);
-    }
-
-    return enriched;
+    // 60s retry), proto menší concurrency 2 než u jiných portálů. Známé
+    // inzeráty z DB se přeskočí (skipDetailForUrls).
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 2);
   }
 
   private parsePage($: cheerio.CheerioAPI, _pageUrl: string): RawListing[] {

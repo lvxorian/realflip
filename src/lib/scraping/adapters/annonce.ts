@@ -25,11 +25,7 @@ export class AnnonceAdapter extends PortalAdapter {
       all.push(...listings);
     }
 
-    const enriched = await Promise.all(
-      all.map((l) => this.enrichListing(l))
-    );
-
-    return enriched;
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 3);
   }
 
   private parsePage(html: string): RawListing[] {

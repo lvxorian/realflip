@@ -80,11 +80,8 @@ export class BazosAdapter extends PortalAdapter {
     }
 
     // Enrich with detail page info (GPS, full description, name, more images)
-    const enriched = await Promise.all(
-      all.map((l) => this.enrichListing(l))
-    );
-
-    return enriched;
+    // — dávkově s omezenou konkurencí, známé inzeráty z DB se přeskočí.
+    return this.enrichBatch(all, (l) => this.enrichListing(l), 3);
   }
 
   private async enrichListing(listing: RawListing): Promise<RawListing> {

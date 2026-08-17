@@ -164,11 +164,31 @@ export class ScrapingOrchestrator {
     return { total, errors: allErrors };
   }
 
+  /**
+   * Načte URL aktivních inzerátů z DB a nastaví je adaptérům jako
+   * `skipDetailForUrls` — opakované běhy pak přeskočí drahé detail fetche
+   * známých inzerátů (list stránka stačí na aktualizaci ceny/živosti).
+   */
+  private async loadKnownListingUrls(): Promise<void> {
+    const rows = await db
+      .select({ url: properties.url })
+      .from(properties)
+      .where(eq(properties.isActive, 1))
+      .limit(20000);
+    const urls = new Set(rows.map((r) => r.url));
+    for (const adapter of this.adapters.values()) {
+      adapter.skipDetailForUrls = urls;
+    }
+  }
+
   async crawlSearch(
     searchId: string,
     filters: SearchFilters,
     opts?: { onPortalProgress?: (portal: PortalName, found: number, errors: string[]) => void }
   ): Promise<{ total: number; errors: string[] }> {
+    // Načti známé URL jednou — adaptéry pak přeskočí detail fetche známých inzerátů.
+    await this.loadKnownListingUrls().catch(() => {});
+
     // Mark as run immediately so UI shows something even if timeout happens later
     await db
       .update(searches)
@@ -324,11 +344,14 @@ export class ScrapingOrchestrator {
 
   /**
    * Hromadné hledání — všechna hledání uživatele najednou.
-   * Hledání běží PARALELNĚ (Promise.allSettled), aby se celkový čas rovnal
-   * nejpomalejšímu hledání, ne součtu všech (sekvenčně to na Vercelu vždy
-   * překročilo 60s limit). `skipAi` vypíná per-inzerátovou Gemini analýzu —
-   * v bulk režimu je to největší časová zátěž a free-tier kvóta (20/den)
-   * ji stejně nedovolí pro desítky nových inzerátů.
+   *
+   * Načte známé URL z DB (skipDetailForUrls), takže opakované běhy přeskočí
+   * drahé detail fetche známých inzerátů. Portály, které neumí městský crawl,
+   * se crawlejí JEDNOU a výsledky se sdílí mezi všemi hledáními (dřív se
+   * každé hledání crawlovalo znovu — 6 hledání = 6× celá ČR). City-scoped
+   * portály (sreality, realitymat, idnes) se crawlejí jednou na město.
+   * `skipPortals` umožňuje pokračovat na úrovni portálu (auto-pokračování po
+   * 60s limitu) — dokončené portály se přeskočí, místo restartu od nuly.
    */
   async crawlAllForUser(
     userId: string,
@@ -337,6 +360,8 @@ export class ScrapingOrchestrator {
       /** Hledání, která už proběhla v předchozím běhu (auto-pokračování po
        *  60s limitu) — spustí se jen zbývající, takže se zbytek dojede sám. */
       skipSearchIds?: string[];
+      /** Portály už dokončené pro dané hledání (auto-pokračování) — přeskočí se. */
+      skipPortals?: Record<string, PortalName[]>;
     }
   ): Promise<{ total: number; runCount: number; failed: string[] }> {
     const userSearches = await db
@@ -345,6 +370,7 @@ export class ScrapingOrchestrator {
       .where(eq(searches.userId, userId));
 
     const skip = new Set(opts?.skipSearchIds ?? []);
+    const skipPortals = opts?.skipPortals ?? {};
     const pending = userSearches.filter((s) => !skip.has(s.id));
 
     const totalSearches = userSearches.length;
@@ -352,68 +378,178 @@ export class ScrapingOrchestrator {
     let runCount = 0;
     const failed: string[] = [];
 
-    const results = await Promise.allSettled(
-      pending.map(async (search, index) => {
-        opts?.onProgress?.({
-          kind: "search-start",
-          searchId: search.id,
-          searchName: search.name,
-          index,
-          total: totalSearches,
-        });
+    if (pending.length === 0) return { total, runCount, failed };
 
-        let filters: SearchFilters = {};
-        try {
-          filters = JSON.parse(search.filters) as SearchFilters;
-        } catch {
-          failed.push(`Search ${search.id} (${search.name}): invalid filters`);
-          opts?.onProgress?.({
-            kind: "search-done",
-            searchId: search.id,
-            searchName: search.name,
-            total: 0,
-            errors: ["Neplatné filtry"],
+    // Načti známé URL jednou — adaptéry pak přeskočí detail fetche známých inzerátů.
+    await this.loadKnownListingUrls().catch(() => {});
+
+    // Rozparsuj filtry dopředu.
+    const parsed = pending.map((search) => {
+      let filters: SearchFilters = {};
+      try {
+        filters = JSON.parse(search.filters) as SearchFilters;
+      } catch {
+        // neplatné filtry — ošetřeno níže
+      }
+      return {
+        search,
+        filters,
+        cityKey: filters.location ? findCityKey(filters.location) : null,
+        locationText: filters.location?.trim() ?? null,
+      };
+    });
+
+    const portals = (Object.keys(PORTAL_CONFIGS) as PortalName[]).filter((p) => PORTAL_CONFIGS[p].enabled);
+
+    // City-scoped portály (mají crawlCityListings nebo staví URL podle města)
+    // se crawlejí jednou na město. Ostatní (celá ČR, filtr až v matchFilters)
+    // se crawlejí jednou a sdílí mezi všemi hledáními.
+    const uniqueCities = [...new Set(parsed.map((p) => p.cityKey).filter((c): c is string => !!c))];
+    const hasCityless = parsed.some((p) => !p.cityKey);
+
+    interface CrawlJob {
+      portal: PortalName;
+      cityKey: string | null;
+      /** Původní text lokace (idnes ho potřebuje pro URL — cityKey má jiný tvar). */
+      locationText?: string | null;
+      searches: typeof parsed;
+    }
+    const jobs: CrawlJob[] = [];
+
+    for (const portal of portals) {
+      const adapter = this.adapters.get(portal);
+      if (!adapter) continue;
+      const cityScoped =
+        typeof adapter.crawlCityListings === "function" || portal === "idnes-reality";
+
+      if (cityScoped) {
+        for (const city of uniqueCities) {
+          jobs.push({
+            portal,
+            cityKey: city,
+            // idnes staví URL z filtru location — pošleme mu původní text („Brno"),
+            // ne cityKey („brno") — slugifyCity v adaptéru čeká lidský název.
+            locationText: parsed.find((p) => p.cityKey === city)?.locationText ?? null,
+            searches: parsed.filter((p) => p.cityKey === city),
           });
-          return;
+        }
+        if (hasCityless) {
+          jobs.push({ portal, cityKey: null, searches: parsed.filter((p) => !p.cityKey) });
+        }
+      } else {
+        jobs.push({ portal, cityKey: null, searches: parsed });
+      }
+    }
+
+    // search-start pro všechna hledání (i přeskočená — client si je pamatuje).
+    parsed.forEach((p, index) => {
+      opts?.onProgress?.({
+        kind: "search-start",
+        searchId: p.search.id,
+        searchName: p.search.name,
+        index,
+        total: totalSearches,
+      });
+    });
+
+    // Průběžné součty per hledání (pro search-done události).
+    const searchTotals = new Map<string, number>();
+    const searchErrors = new Map<string, string[]>();
+
+    const results = await Promise.allSettled(
+      jobs.map(async (job) => {
+        const adapter = this.adapters.get(job.portal);
+        if (!adapter) return;
+
+        // Potřebují toto (portál, město) ještě nějaká hledání? Všechna už mají
+        // portál hotový → přeskoč crawl úplně.
+        const needed = job.searches.filter(
+          (p) => !(skipPortals[p.search.id] ?? []).includes(job.portal)
+        );
+        if (needed.length === 0) return;
+
+        const errors: string[] = [];
+        let listings: RawListing[] = [];
+        try {
+          if (job.cityKey && typeof adapter.crawlCityListings === "function") {
+            listings = await adapter.crawlCityListings(job.cityKey);
+          } else if (job.portal === "idnes-reality") {
+            listings = await adapter.crawlListings(
+              job.locationText ? { location: job.locationText } : undefined
+            );
+          } else {
+            listings = await adapter.crawlListings(
+              job.cityKey ? { location: job.cityKey } : undefined
+            );
+          }
+        } catch (err) {
+          errors.push(`Crawl error (${job.portal}): ${err}`);
         }
 
-        try {
-          const result = await this.crawlSearch(search.id, filters, {
-            onPortalProgress: (portal, found, errors) => {
-              opts?.onProgress?.({
-                kind: "portal",
-                searchId: search.id,
-                searchName: search.name,
-                portal,
-                found,
-                errors,
-              });
-            },
-          });
-          total += result.total;
-          runCount++;
+        // Dedup URL v rámci jednoho crawlu (paginace vrací duplicity).
+        const seen = new Set<string>();
+        const unique = listings.filter((l) => {
+          if (seen.has(l.url)) return false;
+          seen.add(l.url);
+          return true;
+        });
+
+        // Distribuuj výsledky hledáním, která tenhle (portál, město) potřebují.
+        for (const { search, filters } of needed) {
+          if ((skipPortals[search.id] ?? []).includes(job.portal)) continue;
+
+          const portalErrors = [...errors];
+          const matched = filters
+            ? unique.filter(
+                (l) =>
+                  matchFilters(l, filters) && isCzechListing(l) && isSaleListing(l) && isValidPrice(l.price)
+              )
+            : [];
+
+          let found = 0;
+          for (const listing of matched) {
+            try {
+              const propertyId = await this.saveListing(listing, search.id);
+              if (propertyId) {
+                found++;
+                total++;
+                searchTotals.set(search.id, (searchTotals.get(search.id) ?? 0) + 1);
+              }
+            } catch (err) {
+              portalErrors.push(`Failed to save listing ${listing.url}: ${err}`);
+            }
+          }
+
+          searchErrors.set(search.id, [...(searchErrors.get(search.id) ?? []), ...portalErrors]);
           opts?.onProgress?.({
-            kind: "search-done",
+            kind: "portal",
             searchId: search.id,
             searchName: search.name,
-            total: result.total,
-            errors: result.errors,
-          });
-        } catch (err) {
-          failed.push(`Search ${search.id} (${search.name}) failed: ${err}`);
-          opts?.onProgress?.({
-            kind: "search-done",
-            searchId: search.id,
-            searchName: search.name,
-            total: 0,
-            errors: [String(err)],
+            portal: job.portal,
+            found,
+            errors: portalErrors,
           });
         }
       })
     );
 
     for (const result of results) {
-      if (result.status === "rejected") failed.push(`Hledání selhalo: ${result.reason}`);
+      if (result.status === "rejected") failed.push(`Crawl selhal: ${result.reason}`);
+    }
+
+    // search-done pro každé hledání.
+    for (const { search, filters } of parsed) {
+      runCount++;
+      if (!filters) {
+        failed.push(`Search ${search.id} (${search.name}): invalid filters`);
+      }
+      opts?.onProgress?.({
+        kind: "search-done",
+        searchId: search.id,
+        searchName: search.name,
+        total: searchTotals.get(search.id) ?? 0,
+        errors: searchErrors.get(search.id) ?? [],
+      });
     }
 
     refreshAllMarketData().catch(() => {});

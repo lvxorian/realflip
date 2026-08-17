@@ -23,17 +23,7 @@ export class RealityMixAdapter extends PortalAdapter {
       results.push(...items);
     }
 
-    const enriched: RawListing[] = [];
-    const concurrency = 3;
-    for (let i = 0; i < results.length; i += concurrency) {
-      const batch = results.slice(i, i + concurrency);
-      const batchResults = await Promise.all(
-        batch.map((l) => this.enrichListing(l).catch(() => l))
-      );
-      enriched.push(...batchResults);
-    }
-
-    return enriched;
+    return this.enrichBatch(results, (l) => this.enrichListing(l), 3);
   }
 
   private parseSearchResults(html: string): RawListing[] {
