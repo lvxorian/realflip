@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (641 tests, 46 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (692 tests, 54 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -442,6 +442,26 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **„Způsob spolupráce" restrukturalizován**: hodnota = typ investice (**FLIP**/**NAJEM**), pod ním řádek **Model** = „50/50" / „Sourcing fee" / „50/50 nebo Sourcing fee" (velké S, `white-space:nowrap` na buňce hodnoty = jeden řádek). Štítky zisků „Váš zisk při Sourcing fee" s velkým S. Nájem ukazuje typ NAJEM bez Modelu (nájem modely spolupráce nemá); flip bez snapshotu blok spolupráce nezobrazuje. Label modelů z `COOPERATION_STRATEGIES` (`cooperation-models.ts`).
 - **Patička**: smazáno „Chcete-li odhlášení, odpovězte na tento e-mail." — zůstává jen „Tento e-mail zasíláme investorům, kteří mají aktivované notifikace v portálu Brickon."
 
+### Phase 66 — E-mail: logo jako rastr (Gmail a Seznam vyřezávají inline SVG) (Done)
+- **Příčina**: inline `<svg>` loga v notifikačních e-mailech Gmail a Seznam.cz z HTML **vyřezávají** (tuta.com ho renderovalo — vypadalo to jako „u někoho funguje, u někoho ne").
+- **Fix** (`36081a2`): `brickLogoImg(size, baseUrl)` v `src/lib/investor-brick.ts` vrací `<img src="{baseUrl}/brickon.png">` — bílá značka 319×293 s průhledným pozadím (ověřeno vzorkováním pixelů přes System.Drawing), alt „Brickon", `display:block`. `offer-template.ts` používá `<img>` + nový text hlavičky: „Právě jsme pro vás vyjednali novou příležitost! Přihlašte se do portálu pro rezervaci a více informací."
+- **Omezení**: Gmail externí obrázky blokuje do kliknutí „Zobrazit obrázky" (zobrazí se alt text) — nevyhnutelné.
+- Testy aktualizovány (offer-template + investor-brick), 682/682 zelené.
+
+### Phase 67 — Kalkulačka: „Celková investice" = součet nákladů akvizice (Done)
+- **Bug vnímání**: s hypotékou 3,4 M Kč na nemovitost 1 989 440 Kč se úvěr capne na kupní cenu → vklad 0 → „Celková investice" = 962 500 Kč (jen akviziční náklady) — vypadalo to, jako by kalkulačka **odečítala rekonstrukci**. Engine byl matematicky správný (`totalInvested = (cena − úvěr) + právní + posudek + sourcing + reko`), šlo o sémantiku zobrazení.
+- **Rozhodnutí uživatele**: „Celková investice" = **součet řádků** (Kupní cena + právní + posudek + sourcing + reko) **všude** (kalkulačka, Brickon portál, PDF); výnosové metriky (CoC, IRR, návratnost) **beze změny** — počítají se z vlastního vkladu.
+- **Při hypotéce** sekce „Z toho financováno": řádek „− Hypotéka (úvěr)" (capnutý na kupní cenu) + „Vlastní vklad".
+- **Pomocné funkce** (`investor-portal-view.ts`): `rentalTotalAcquisitionCost`, `rentalLoanCapped`, `rentalInvestedValue`; `CalcSnapshotRental` + volitelné `hasMortgage`/`mortgageAmount` (staré snapshoty bez nich fungují).
+- **Změněné soubory**: `interactive-analysis.tsx`, `investor-portal-view.ts`, `(portal)/page.tsx`, `property-report.tsx` (PDF), `calc-preset` route. Testy 682 → 685.
+
+### Phase 68 — Kalkulačka: LTV, citlivost na úrokovou sazbu, kumulativní návratnost, benchmark (Done)
+- **Návrh „mastermind"** po nastudování konkurence (calkoo, pronajemkalkulacka.cz, KIWI Reality, investicnikalkulacky.cz): přidány 4 doplňky; **vědomě nepřidáno**: flipping/komerční režimy, NPV (IRR stačí), 3 scénáře (pokryje citlivost), odpisy (paušál 30 % §9 je standard), SVJ/utility pole, přepínač cena vs. hodnota.
+- **Engine** (`rental-calc.ts`): `ltv` (úvěr ÷ cena, cap 100 %), `cumulativePaybackYear` (první rok, kdy kumulativní CF ≥ celková investice), `mortgageRateSensitivity` + `MORTGAGE_SENSITIVITY_RATES` (3,5–7,5 % po 1 p.b. → splátka/CF měsíčně/CoC).
+- **UI** (`interactive-analysis.tsx`): LTV řádek v sekci hypotéky; tabulka „Citlivost na úrokovou sazbu" (jen při hypotéce, zvýrazněný aktuální řádek); benchmark „Dobrý výnos v ČR: hrubý 4–6 %, čistý 2–4 % (v Praze 2,5–4 %)"; InfoBox „Návratnost (kumulativní): rok X".
+- **Brickon**: `ltv` v snapshotu (`calc-preset` route + `CalcSnapshotRental` volitelné pole) → **karta i detail** nabídky (LTV vedle „− Hypotéka"/„Vlastní vklad").
+- Testy 685 → 692 (54 souborů), typecheck čistý, lint bez nových chyb.
+
 ## Key Files
 
 ### Core
@@ -458,7 +478,9 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 
 ### Analysis / Calculator
 - `src/lib/analysis/flip-costs.ts`
+- `src/lib/analysis/rental-calc.ts` — výnosový engine (LTV, citlivost na sazbu, kumulativní návratnost, IRR, verdikt) + `src/lib/analysis/__tests__/rental-calc.test.ts`
 - `src/lib/analysis/types.ts`
+- `src/lib/investor-portal-view.ts` — snapshot ↔ Brickon view (Celková investice, LTV, financování, spolupráce)
 - `src/components/calculator/interactive-analysis.tsx`
 - `src/components/report/property-report.tsx`
 - `src/components/calculator/property-detail-analysis.tsx`
