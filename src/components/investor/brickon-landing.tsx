@@ -223,12 +223,12 @@ export default function BrickonLanding() {
                   {
                     title: "50/50",
                     icon: <Handshake size={20} weight="bold" />,
-                    text: "Investor financuje nákup a náklady, my zajišťujeme sourcing, jednání i realizaci projektu. Zisk si dělíme rovným dílem.",
+                    text: "Investor financuje nákup a náklady, my zajišťujeme vyjednávání, zprostředkování i realizaci projektu. Zisk si dělíme rovným dílem.",
                   },
                   {
                     title: "Sourcing fee",
                     icon: <Coins size={20} weight="bold" />,
-                    text: "Najdeme a vyjednáme slevu pro vaší potencionální nemovitost. O následnou rekonstrukci, prodej, či pronájem se postaráte sami. Za zprostředkování příležitosti nám platíte předem domluvenou marži.",
+                    text: "Najdeme vhodnou nemovitost a vyjednáme slevu. O následnou rekonstrukci, prodej či pronájem se stará investor. Za zprostředkování nám plátíte předem domluvenou sazbu.",
                   },
                 ].map((plan) => (
                   <motion.div
