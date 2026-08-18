@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
   return {
-    title: "Brickon - portál investorů",
+    title: "Brickon - realitní portál investorů",
     description:
       "Soukromé off-market nabídky nemovitostí s vyjednanou slevou a kompletní analýzou zisku a návratnosti.",
     icons: {
