@@ -255,8 +255,17 @@ export default function BrickonLanding() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
               >
-                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-accent/15 border border-accent/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
-                  <BrickonLogo size={52} tone="light" />
+                <div className="brick-cube-wrap mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+                  <div className="brick-cube">
+                    <div className="brick-face brick-front">
+                      <BrickonLogo size={40} tone="light" />
+                    </div>
+                    <div className="brick-face brick-back" />
+                    <div className="brick-face brick-left" />
+                    <div className="brick-face brick-right" />
+                    <div className="brick-face brick-top" />
+                    <div className="brick-face brick-bottom" />
+                  </div>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Připraveni investovat s námi?</h2>
                 <p className="mt-3 text-sm text-muted">
