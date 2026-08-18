@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrickonLogo } from "@/components/investor/brickon-logo";
-import { Eye, EyeSlash, ArrowRight, LockSimple, CheckCircle } from "@phosphor-icons/react";
+import { Eye, EyeSlash, ArrowRight, LockSimple } from "@phosphor-icons/react";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 export default function InvestorLoginPage() {
@@ -42,23 +42,10 @@ export default function InvestorLoginPage() {
     <div className="relative flex min-h-[100dvh] w-full">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-accent/20 via-background to-emerald-500/10 items-center justify-center">
         <div className="absolute inset-0 property-image-shimmer opacity-40" />
-        <div className="relative text-center max-w-md px-8">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-accent/20 border border-accent/30">
-            <BrickonLogo size={48} tone="light" className="logo-spin" />
+        <div className="relative flex items-center justify-center">
+          <div className="flex h-64 w-64 items-center justify-center rounded-3xl bg-accent/20 border border-accent/30">
+            <BrickonLogo size={192} tone="light" className="logo-spin" />
           </div>
-          <p className="text-muted text-sm leading-relaxed">
-            Soukromý přístup k prověřeným nabídkám z více než 10 realitních portálů i off-market zdrojů.
-            Vyjednané slevy za vás a analýza zisku — bez hluku veřejné inzerce.
-          </p>
-          <div className="mt-6 space-y-2.5 text-left">
-            {["Prověřené nabídky z portálů, dražeb i off-market zdrojů", "Vyjednaná sleva u každé nabídky", "Odhadovaný zisk a návratnost u každé nabídky"].map((text) => (
-              <p key={text} className="flex items-center gap-2 text-xs text-muted">
-                <CheckCircle size={14} weight="bold" className="text-emerald-400 shrink-0" />
-                {text}
-              </p>
-            ))}
-          </div>
-          <p className="mt-6 text-xs text-muted">Přístupové údaje obdržíte od našeho týmu.</p>
         </div>
       </div>
 
