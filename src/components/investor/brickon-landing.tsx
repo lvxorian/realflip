@@ -11,8 +11,11 @@ import {
   Gavel,
   CalendarCheck,
   LockSimple,
+  Divide,
 } from "@phosphor-icons/react";
 import { BrickonLogo } from "@/components/investor/brickon-logo";
+import { PropertyImage } from "@/components/ui/property-image";
+import { Badge } from "@/components/ui/badge";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 const item = {
@@ -91,42 +94,63 @@ export default function BrickonLanding() {
               >
                 <div className="absolute -inset-6 rounded-3xl bg-gradient-to-br from-accent/15 via-transparent to-emerald-500/10 blur-2xl" />
                 <div className="glass-strong relative rounded-2xl border border-border/50 p-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold tracking-tight">Praha 3 · Žižkov</p>
-                      <p className="text-xs text-muted mt-0.5">2+1 · 89 m² · velmi dobrý stav</p>
-                    </div>
-                    <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 text-[10px] font-medium text-accent">
-                      Dostupná
+                  <div className="relative overflow-hidden rounded-xl border border-border/50">
+                    <PropertyImage
+                      src="https://st.realitymix.cz/i/66675202/8545101/nab_485877793.jpg"
+                      alt="Byt 2+1 před rekonstrukcí, Praha 3 · Žižkov"
+                      containerClassName="aspect-[8/5]"
+                    />
+                    <span className="absolute top-2 left-2 rounded-md bg-accent px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                      Flip
                     </span>
+                    <div className="absolute top-2 right-2">
+                      <Badge variant="secondary" size="sm">Dostupná</Badge>
+                    </div>
                   </div>
-                  <div className="mt-4 divide-y divide-border/30">
-                    {[
-                      { label: "Inzerovaná cena", value: "13,69 mil. Kč", muted: true },
-                      { label: "Cena po vyjednání", value: "11,5 mil. Kč", strong: true },
-                      { label: "Sleva oproti inzerci", value: "−16,0 %", accent: true },
-                      { label: "Odhadovaný zisk", value: "1,25 mil. Kč", accent: true },
-                      { label: "ROI", value: "+10,8 %", accent: true },
-                    ].map((row) => (
-                      <div key={row.label} className="flex items-center justify-between py-2">
-                        <span className="text-xs text-muted">{row.label}</span>
-                        <span
-                          className={`font-mono text-sm font-semibold ${
-                            row.accent ? "text-emerald-400" : row.strong ? "text-foreground" : "text-muted"
-                          }`}
-                        >
-                          {row.value}
-                        </span>
+
+                  <div className="mt-4">
+                    <p className="font-semibold leading-tight">Praha 3 · Žižkov</p>
+                    <p className="text-xs text-muted mt-1">2+1 · 89 m² · Stav: Před rekonstrukcí</p>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-1.5">
+                    <PriceRow label="Inzerovaná cena" value="10 990 000 Kč" perSqm="113 299 Kč/m²" />
+                    <PriceRow label="Cena po vyjednání" value="4 500 000 Kč" perSqm="46 392 Kč/m²" big />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[11px] text-muted">Úspora oproti inzerci</span>
+                      <span className="text-xs font-mono text-emerald-400 tabular-nums font-semibold">−59,1 %</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model 50/50</p>
+                      <p className="text-[10px] text-muted mt-0.5">váš zisk · polovina obchodu</p>
+                      <div className="mt-1 flex items-end justify-between gap-2">
+                        <p className="font-mono text-base font-semibold tabular-nums text-emerald-400">674 895 Kč</p>
+                        <Divide size={24} weight="bold" className="text-accent/20 shrink-0 mb-0.5" />
                       </div>
-                    ))}
+                    </div>
+                    <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model Sourcing fee</p>
+                      <p className="text-[10px] text-muted mt-0.5">váš zisk · po rekonstrukci</p>
+                      <div className="mt-1 flex items-end justify-between gap-2">
+                        <p className="font-mono text-base font-semibold tabular-nums text-emerald-400">1 270 790 Kč</p>
+                        <MagnifyingGlass size={24} weight="bold" className="text-accent/20 shrink-0 mb-0.5" />
+                      </div>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white"
-                  >
-                    <SealCheck size={15} weight="bold" />
-                    Rezervovat
-                  </button>
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <span className="text-xs text-emerald-400">Dostupná k rezervaci</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white"
+                    >
+                      <SealCheck size={15} weight="bold" />
+                      Rezervovat
+                    </button>
+                  </div>
                   <p className="mt-3 text-center text-[10px] text-muted">Ilustrativní náhled portálu</p>
                 </div>
               </motion.div>
@@ -291,5 +315,33 @@ function CheckDot() {
     <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400">
       <SealCheck size={11} weight="bold" />
     </span>
+  );
+}
+
+function PriceRow({
+  label,
+  value,
+  perSqm,
+  big,
+}: {
+  label: string;
+  value: string;
+  perSqm: string;
+  big?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-[11px] text-muted leading-snug">{label}</span>
+      <span className="text-right">
+        <span
+          className={`block font-mono tabular-nums whitespace-nowrap ${
+            big ? "text-lg font-semibold text-amber-400" : "text-xs text-muted"
+          }`}
+        >
+          {value}
+        </span>
+        <span className="block text-[10px] font-mono text-muted/50 tabular-nums whitespace-nowrap">{perSqm}</span>
+      </span>
+    </div>
   );
 }
