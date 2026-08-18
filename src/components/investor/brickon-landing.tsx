@@ -11,7 +11,8 @@ import {
   Gavel,
   CalendarCheck,
   LockSimple,
-  Divide,
+  Handshake,
+  Coins,
 } from "@phosphor-icons/react";
 import { BrickonLogo } from "@/components/investor/brickon-logo";
 import { PropertyImage } from "@/components/ui/property-image";
@@ -128,7 +129,7 @@ export default function BrickonLanding() {
                       <p className="text-[10px] text-muted mt-0.5">váš zisk · polovina obchodu</p>
                       <div className="mt-1 flex items-end justify-between gap-2">
                         <p className="font-mono text-base font-semibold tabular-nums text-emerald-400">674 895 Kč</p>
-                        <Divide size={24} weight="bold" className="text-accent/20 shrink-0 mb-0.5" />
+                        <Handshake size={24} weight="bold" className="text-accent/20 shrink-0 mb-0.5" />
                       </div>
                     </div>
                     <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3">
@@ -136,7 +137,7 @@ export default function BrickonLanding() {
                       <p className="text-[10px] text-muted mt-0.5">váš zisk · po rekonstrukci</p>
                       <div className="mt-1 flex items-end justify-between gap-2">
                         <p className="font-mono text-base font-semibold tabular-nums text-emerald-400">1 270 790 Kč</p>
-                        <MagnifyingGlass size={24} weight="bold" className="text-accent/20 shrink-0 mb-0.5" />
+                        <Coins size={24} weight="bold" className="text-accent/20 shrink-0 mb-0.5" />
                       </div>
                     </div>
                   </div>
@@ -244,13 +245,13 @@ export default function BrickonLanding() {
                 {[
                   {
                     title: "50/50",
-                    icon: <HandCoins size={20} weight="bold" />,
+                    icon: <Handshake size={20} weight="bold" />,
                     text: "Investor financuje nákup a náklady, my zajišťujeme sourcing, jednání i realizaci projektu. Zisk si dělíme rovným dílem.",
                   },
                   {
                     title: "Sourcing fee",
-                    icon: <ChartLineUp size={20} weight="bold" />,
-                    text: "Najdeme a vyjednáme pro vás obchod s reálnou slevou. Rekonstrukci i pronájem si řešíte sami — model pro samostatné investory.",
+                    icon: <Coins size={20} weight="bold" />,
+                    text: "Najdeme a vyjednáme pro vás obchod s reálnou slevou. Rekonstrukci i pronájem si řešíte sami. Model pro samostatné investory.",
                   },
                 ].map((plan) => (
                   <motion.div

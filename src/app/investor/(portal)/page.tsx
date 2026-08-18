@@ -27,8 +27,6 @@ import {
   Handshake,
   HouseLine,
   LightbulbFilament,
-  Divide,
-  MagnifyingGlass,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { recalcFlipAtPrice, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
@@ -900,9 +898,9 @@ function ModelProfitCard({
           </p>
         </div>
         {strategy === "fifty-fifty" ? (
-          <Divide size={30} weight="bold" className="text-accent/20 shrink-0 mt-1" />
+          <Handshake size={30} weight="bold" className="text-accent/20 shrink-0 mt-1" />
         ) : (
-          <MagnifyingGlass size={30} weight="bold" className="text-accent/20 shrink-0 mt-1" />
+          <Coins size={30} weight="bold" className="text-accent/20 shrink-0 mt-1" />
         )}
       </div>
     </button>
