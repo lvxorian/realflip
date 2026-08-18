@@ -43,7 +43,7 @@ export default function InvestorLoginPage() {
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-accent/20 via-background to-emerald-500/10 items-center justify-center">
         <div className="absolute inset-0 property-image-shimmer opacity-40" />
         <div className="relative flex items-center justify-center">
-          <BrickonLogo size={192} tone="light" className="logo-spin" />
+          <BrickonLogo size={160} tone="light" className="logo-spin" />
         </div>
       </div>
 
