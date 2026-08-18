@@ -29,7 +29,7 @@ import {
   LightbulbFilament,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
-import { recalcFlipAtPrice, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
+import { recalcFlipAtPrice, rentalLoanCapped, rentalTotalAcquisitionCost, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
 import { COOPERATION_STRATEGIES, type CooperationStrategy } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
@@ -507,8 +507,8 @@ export default function InvestorPortalPage() {
                                   value={item.snapshot?.mode === "rental" && item.snapshot.monthlyRent != null ? formatPrice(item.snapshot.monthlyRent) : "—"}
                                 />
                                 <Metric
-                                  label="Investice celkem"
-                                  value={item.snapshot?.mode === "rental" && item.snapshot.totalInvested != null ? formatPrice(item.snapshot.totalInvested) : "—"}
+                                  label="Celková investice"
+                                  value={rentalInvestedValue(item)}
                                 />
                               </div>
                             ) : coop && coop.availableStrategies.length > 0 ? (
@@ -680,10 +680,18 @@ function PhotoGallery({
   );
 }
 
+function rentalInvestedValue(item: InvestorPortalItem): string {
+  if (item.snapshot?.mode !== "rental") return "—";
+  const cost = rentalTotalAcquisitionCost(item.snapshot);
+  return cost != null ? formatPrice(cost) : "—";
+}
+
 function DealDetail({ item }: { item: InvestorPortalItem }) {
   if (item.calcMode === "rental") {
     const deal = item.deal.type === "rental" ? item.deal : null;
     const snap = item.snapshot?.mode === "rental" ? item.snapshot : null;
+    const rentalTotalCost = rentalTotalAcquisitionCost(snap);
+    const rentalLoan = rentalLoanCapped(snap);
     return (
       <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-3">
         <div className="flex items-center justify-between gap-3">
@@ -696,7 +704,17 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
           {snap?.appraisalFee != null && snap.appraisalFee > 0 && <DetailRow label="Znalecký posudek" value={formatPrice(snap.appraisalFee)} />}
           {snap?.sourcingFee != null && snap.sourcingFee > 0 && <DetailRow label="Sourcing fee" value={formatPrice(snap.sourcingFee)} />}
           {snap?.renovationCost != null && snap.renovationCost > 0 && <DetailRow label="Rekonstrukce" value={formatPrice(snap.renovationCost)} />}
-          {snap?.totalInvested != null && <DetailRow label="Celková investice" value={formatPrice(snap.totalInvested)} accent />}
+          {rentalTotalCost != null && (
+            <>
+              <DetailRow label="Celková investice" value={formatPrice(rentalTotalCost)} accent />
+              {rentalLoan > 0 && (
+                <>
+                  <DetailRow label="− Hypotéka (úvěr)" value={`−${formatPrice(rentalLoan)}`} />
+                  <DetailRow label="Vlastní vklad" value={formatPrice(rentalTotalCost - rentalLoan)} />
+                </>
+              )}
+            </>
+          )}
           {snap?.noiAnnual != null && <DetailRow label="NOI ročně" value={formatPrice(snap.noiAnnual)} />}
           <DetailRow label="Hrubý výnos" value={deal?.grossYield != null ? `${deal.grossYield.toFixed(1)} %` : "—"} />
           <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent={deal?.netYield != null && deal.netYield >= 0} />

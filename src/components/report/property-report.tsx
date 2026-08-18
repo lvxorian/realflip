@@ -326,7 +326,13 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
                     <tr><td className="py-1.5 pr-4 text-gray-600">DSCR (NOI / splátka)</td><td className="py-1.5 text-right font-mono text-gray-700">{rentalTarget.dscr.toFixed(2)} ×</td></tr>
                   )}
                   <tr><td className="py-1.5 pr-4 text-gray-600">Max. splátka (NOI − daň)</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rentalTarget.maxAffordableDebtMonthly)} / měs</td></tr>
-                  <tr><td className="py-1.5 pr-4 text-gray-600">Celková investice</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(rentalTarget.totalInvested)}</td></tr>
+                  <tr><td className="py-1.5 pr-4 text-gray-600">Celková investice</td><td className="py-1.5 text-right font-mono font-medium text-gray-900">{fmtPrice(rentalTarget.targetPurchasePrice + rentalTarget.acquisitionCosts)}</td></tr>
+                  {rentalCfg.hasMortgage && rentalTarget.targetPurchasePrice - rentalTarget.downPayment > 0 && (
+                    <>
+                      <tr><td className="py-1.5 pr-4 text-gray-600">− Hypotéka (úvěr)</td><td className="py-1.5 text-right font-mono text-gray-700">−{fmtPrice(rentalTarget.targetPurchasePrice - rentalTarget.downPayment)}</td></tr>
+                      <tr><td className="py-1.5 pr-4 text-gray-600">Vlastní vklad</td><td className="py-1.5 text-right font-mono text-gray-700">{fmtPrice(rentalTarget.downPayment + rentalTarget.acquisitionCosts)}</td></tr>
+                    </>
+                  )}
                 </tbody>
               </table>
 

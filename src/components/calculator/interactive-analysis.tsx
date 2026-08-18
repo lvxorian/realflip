@@ -364,6 +364,15 @@ function InteractiveCard({
     return calculateRentalResults(tp, area, rentalRenovationCost, cfg);
   }, [rentalResults.targetPurchasePrice, area, rentalRenovationCost, rentalConfig, a.location?.city, a.location?.category]);
 
+  // Celkové náklady akvizice (kupní cena + vedlejší náklady, bez odečtu úvěru)
+  // a úvěr omezený na kupní cenu — používají se v tabulce „Výpočet při cílové ceně".
+  const rentalTotalCost = targetRentalResults
+    ? targetRentalResults.targetPurchasePrice + targetRentalResults.acquisitionCosts
+    : null;
+  const rentalLoanCappedAtTarget = rentalConfig.hasMortgage
+    ? Math.min(rentalConfig.mortgageAmount, rentalResults.targetPurchasePrice)
+    : 0;
+
   const propertyId = l.id ?? dbSavedId;
   useEffect(() => {
     if (!propertyId) return;
@@ -469,6 +478,8 @@ function InteractiveCard({
           rentalAppraisalFee: mode === "rental" && rentalConfig.appraisal ? RENTAL_CONSTANTS.appraisalFee : null,
           rentalSourcingFee: mode === "rental" ? resolveSourcingFee(targetRental.targetPurchasePrice, rentalConfig) : null,
           rentalRenovationCost: mode === "rental" && rentalConfig.renovationBeforeRent ? rentalRenovationCost : null,
+          rentalHasMortgage: mode === "rental" ? rentalConfig.hasMortgage : null,
+          rentalMortgageAmount: mode === "rental" ? rentalConfig.mortgageAmount : null,
           flipNetProfit: mode === "flip" ? targetFlip.netProfit : null,
           flipRoi: mode === "flip" ? targetFlip.roi : null,
           flipAnnualizedRoi: mode === "flip" ? targetFlip.annualizedRoi : null,
@@ -1429,8 +1440,23 @@ function InteractiveCard({
                         ))}
                         <tr className="bg-emerald-500/10">
                           <td className="px-3 py-2 font-semibold text-emerald-400">Celková investice</td>
-                          <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(targetRentalResults.totalInvested)}</td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold text-emerald-400">{formatPrice(rentalTotalCost ?? 0)}</td>
                         </tr>
+                        {rentalConfig.hasMortgage && rentalLoanCappedAtTarget > 0 && (
+                          <>
+                            <tr>
+                              <td colSpan={2} className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-emerald-400/70">Z toho financováno</td>
+                            </tr>
+                            <tr className="border-b border-emerald-500/10">
+                              <td className="px-3 py-1.5 text-foreground/80">− Hypotéka (úvěr)</td>
+                              <td className="px-3 py-1.5 text-right font-mono text-foreground">−{formatPrice(rentalLoanCappedAtTarget)}</td>
+                            </tr>
+                            <tr className="border-b border-emerald-500/10">
+                              <td className="px-3 py-1.5 text-foreground/80">Vlastní vklad</td>
+                              <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice((rentalTotalCost ?? 0) - rentalLoanCappedAtTarget)}</td>
+                            </tr>
+                          </>
+                        )}
                       </tbody>
                     </table>
                     <div className="border-t border-emerald-500/20 px-3 py-2 text-xs space-y-1 bg-emerald-500/5">

@@ -98,6 +98,9 @@ export interface CalcSnapshotRental {
   renovationCost: number | null;
   noiAnnual: number | null;
   cashOnCash: number | null;
+  /** Financování hypotékou — novější snapshoty; staré nemají → undefined. */
+  hasMortgage?: boolean | null;
+  mortgageAmount?: number | null;
 }
 
 export type CalcSnapshot = CalcSnapshotFlip | CalcSnapshotRental;
@@ -110,6 +113,25 @@ export function parseCalcSnapshot(raw: string | null | undefined): CalcSnapshot 
   } catch {
     return null;
   }
+}
+
+/** Celkové náklady akvizice = kupní cena + vedlejší náklady (bez odečtu úvěru).
+ *  Stejná sémantika jako „Celková investice" v kalkulačce a PDF reportu. */
+export function rentalTotalAcquisitionCost(snap: CalcSnapshotRental | null | undefined): number | null {
+  if (!snap || snap.targetPurchasePrice == null) return null;
+  return (
+    snap.targetPurchasePrice +
+    (snap.legalFee ?? 0) +
+    (snap.appraisalFee ?? 0) +
+    (snap.sourcingFee ?? 0) +
+    (snap.renovationCost ?? 0)
+  );
+}
+
+/** Úvěr omezený na kupní cenu — stejné pravidlo jako engine (rental-calc). */
+export function rentalLoanCapped(snap: CalcSnapshotRental | null | undefined): number {
+  if (!snap || !snap.hasMortgage || snap.mortgageAmount == null || snap.targetPurchasePrice == null) return 0;
+  return Math.min(snap.mortgageAmount, snap.targetPurchasePrice);
 }
 
 /** Čísla spolupráce (50/50 vs. sourcing fee) z flip snapshotu.

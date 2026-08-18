@@ -8,8 +8,11 @@ import {
   shiftFlipAtPrice,
   shiftFlipDealAtPrice,
   recalcFlipAtPrice,
+  rentalTotalAcquisitionCost,
+  rentalLoanCapped,
   type PortalRow,
   type CalcSnapshotFlip,
+  type CalcSnapshotRental,
   type CooperationView,
   type FlipDealView,
 } from "@/lib/investor-portal-view";
@@ -578,5 +581,45 @@ describe("toPortalView", () => {
     expect(view.cooperation?.investorRoiSourcing).toBe(14.4);
     expect(view.deal.type === "flip" && view.deal.netProfit).toBe(855_000);
     expect(view.deal.type === "flip" && view.deal.roi).toBe(14.4);
+  });
+});
+
+describe("rentalTotalAcquisitionCost / rentalLoanCapped", () => {
+  const snap = (over: Partial<CalcSnapshotRental> = {}): CalcSnapshotRental =>
+    ({
+      mode: "rental",
+      purchasePriceUsed: null,
+      monthlyRent: null,
+      netYield: null,
+      grossYield: null,
+      netYieldAfterTax: null,
+      capRate: null,
+      cashFlowMonthly: null,
+      totalInvested: null,
+      noiAnnual: null,
+      cashOnCash: null,
+      targetPurchasePrice: 1_989_440,
+      legalFee: 25_000,
+      appraisalFee: null,
+      sourcingFee: null,
+      renovationCost: 937_500,
+      ...over,
+    });
+
+  it("sums purchase price + optional costs (Celková investice)", () => {
+    expect(rentalTotalAcquisitionCost(snap())).toBe(2_951_940);
+  });
+
+  it("ignores missing parts and returns null without target price", () => {
+    expect(rentalTotalAcquisitionCost(snap({ legalFee: null, renovationCost: null }))).toBe(1_989_440);
+    expect(rentalTotalAcquisitionCost(null)).toBeNull();
+    expect(rentalTotalAcquisitionCost(snap({ targetPurchasePrice: null }))).toBeNull();
+  });
+
+  it("caps loan at target purchase price", () => {
+    expect(rentalLoanCapped(snap({ hasMortgage: true, mortgageAmount: 3_400_000 }))).toBe(1_989_440);
+    expect(rentalLoanCapped(snap({ hasMortgage: true, mortgageAmount: 800_000 }))).toBe(800_000);
+    expect(rentalLoanCapped(snap())).toBe(0);
+    expect(rentalLoanCapped(snap({ hasMortgage: false, mortgageAmount: 3_400_000 }))).toBe(0);
   });
 });
