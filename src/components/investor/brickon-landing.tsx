@@ -228,7 +228,7 @@ export default function BrickonLanding() {
                   {
                     title: "Sourcing fee",
                     icon: <Coins size={20} weight="bold" />,
-                    text: "Najdeme a vyjednáme pro vás obchod s reálnou slevou. Rekonstrukci i pronájem si řešíte sami. Model pro samostatné investory.",
+                    text: "Najdeme a vyjednáme pro vás obchod se slevou. O následnou rekonstrukci, prodej, či pronájem se postaráte sami. Model pro samostatné investory.",
                   },
                 ].map((plan) => (
                   <motion.div
