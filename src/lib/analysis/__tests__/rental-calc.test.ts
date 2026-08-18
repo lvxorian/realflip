@@ -3,8 +3,10 @@ import {
   calculateRentalResults,
   computeIrr,
   estimateMonthlyRent,
+  mortgageRateSensitivity,
   rentalVerdict,
   RENTAL_DEFAULTS,
+  MORTGAGE_SENSITIVITY_RATES,
 } from "../rental-calc";
 import { rentPerSqm } from "../market-data";
 
@@ -320,5 +322,98 @@ describe("calculateRentalResults — professional validation metrics", () => {
     });
     expect(r.annualizedRoi).toBeNull();
     expect(r.totalRoi).toBeLessThan(-100);
+  });
+});
+
+describe("calculateRentalResults — LTV and cumulative payback", () => {
+  const base = {
+    ...RENTAL_DEFAULTS,
+    monthlyRent: 24_500,
+  };
+
+  it("LTV = loan ÷ purchase price, capped loan at price", () => {
+    const r = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      hasMortgage: true,
+      mortgageAmount: 3_000_000,
+      mortgageRate: 5,
+      mortgageTermYears: 30,
+    });
+    expect(r.ltv).toBe(Math.round((3_000_000 / 4_000_000) * 100));
+    const rCapped = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      hasMortgage: true,
+      mortgageAmount: 5_000_000,
+      mortgageRate: 5,
+      mortgageTermYears: 30,
+    });
+    expect(rCapped.ltv).toBe(100);
+  });
+
+  it("LTV is 0 without mortgage", () => {
+    const r = calculateRentalResults(4_000_000, 70, 0, base);
+    expect(r.ltv).toBe(0);
+  });
+
+  it("cumulative payback year = first year cumulative CF covers invested capital", () => {
+    const r = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      sourcingEnabled: true,
+      sourcingFee: 100_000,
+      sourcingFeeIsPct: false,
+    });
+    const expected = r.rows.find((row) => row.cumulativeCashFlow >= r.totalInvested)?.year ?? null;
+    expect(r.cumulativePaybackYear).toBe(expected);
+    if (r.cumulativePaybackYear !== null) {
+      expect(r.rows[r.cumulativePaybackYear - 1].cumulativeCashFlow).toBeGreaterThanOrEqual(r.totalInvested);
+      if (r.cumulativePaybackYear > 1) {
+        expect(r.rows[r.cumulativePaybackYear - 2].cumulativeCashFlow).toBeLessThan(r.totalInvested);
+      }
+    }
+  });
+
+  it("cumulative payback is null when cash flow never covers the investment", () => {
+    const r = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      monthlyRent: 5_000,
+      hasMortgage: true,
+      mortgageAmount: 3_500_000,
+      mortgageRate: 6,
+      mortgageTermYears: 30,
+    });
+    expect(r.cumulativePaybackYear).toBeNull();
+  });
+});
+
+describe("mortgageRateSensitivity", () => {
+  const base = {
+    ...RENTAL_DEFAULTS,
+    monthlyRent: 24_500,
+  };
+
+  it("returns rows for standard rates with payment, cash flow and CoC", () => {
+    const r = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      hasMortgage: true,
+      mortgageAmount: 3_000_000,
+      mortgageRate: 5,
+      mortgageTermYears: 30,
+    });
+    const rows = mortgageRateSensitivity(3_000_000, r.noiAnnual - r.incomeTaxAnnual, 30, r.totalInvested);
+    expect(rows.length).toBe(MORTGAGE_SENSITIVITY_RATES.length);
+    expect(rows.map((row) => row.rate)).toEqual(MORTGAGE_SENSITIVITY_RATES);
+    rows.forEach((row) => {
+      expect(row.paymentMonthly).toBeGreaterThan(0);
+      expect(row.cashOnCash).not.toBeNull();
+      if (row.rate > rows[0].rate) {
+        const prev = rows[rows.indexOf(row) - 1];
+        expect(row.paymentMonthly).toBeGreaterThan(prev.paymentMonthly);
+      }
+    });
+  });
+
+  it("returns empty array without loan or income", () => {
+    expect(mortgageRateSensitivity(0, 100_000, 30, 1_000_000)).toEqual([]);
+    expect(mortgageRateSensitivity(1_000_000, 0, 30, 1_000_000)).toEqual([]);
   });
 });

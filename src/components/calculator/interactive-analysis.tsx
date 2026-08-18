@@ -16,7 +16,7 @@ import {
   DEFAULT_RENOVATION_PER_SQM,
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
-import { calculateRentalResults, estimateMonthlyRent, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
+import { calculateRentalResults, estimateMonthlyRent, mortgageRateSensitivity, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { strategiesFromAvailability, type CooperationAvailability } from "@/lib/cooperation-models";
 import type { CooperationView } from "@/lib/investor-portal-view";
 import { cityDisplayName } from "@/lib/analysis/location";
@@ -373,6 +373,18 @@ function InteractiveCard({
     ? Math.min(rentalConfig.mortgageAmount, rentalResults.targetPurchasePrice)
     : 0;
 
+  // Citlivost na úrokovou sazbu (splátka / CF / CoC) při aktuální ceně a úvěru.
+  const rentalSensitivity = useMemo(() => {
+    if (!rentalConfig.hasMortgage) return [];
+    const loan = Math.min(rentalConfig.mortgageAmount, l.price);
+    return mortgageRateSensitivity(
+      loan,
+      rentalResults.noiAnnual - rentalResults.incomeTaxAnnual,
+      rentalConfig.mortgageTermYears,
+      rentalResults.totalInvested
+    );
+  }, [rentalConfig.hasMortgage, rentalConfig.mortgageAmount, rentalConfig.mortgageTermYears, rentalResults.noiAnnual, rentalResults.incomeTaxAnnual, rentalResults.totalInvested, l.price]);
+
   const propertyId = l.id ?? dbSavedId;
   useEffect(() => {
     if (!propertyId) return;
@@ -480,6 +492,7 @@ function InteractiveCard({
           rentalRenovationCost: mode === "rental" && rentalConfig.renovationBeforeRent ? rentalRenovationCost : null,
           rentalHasMortgage: mode === "rental" ? rentalConfig.hasMortgage : null,
           rentalMortgageAmount: mode === "rental" ? rentalConfig.mortgageAmount : null,
+          rentalLtv: mode === "rental" ? targetRental.ltv : null,
           flipNetProfit: mode === "flip" ? targetFlip.netProfit : null,
           flipRoi: mode === "flip" ? targetFlip.roi : null,
           flipAnnualizedRoi: mode === "flip" ? targetFlip.annualizedRoi : null,
@@ -1388,6 +1401,12 @@ function InteractiveCard({
                       </div>
                     </div>
                   )}
+                  {rentalConfig.hasMortgage && (
+                    <div className="flex items-center justify-between pl-1 text-xs">
+                      <span className="text-muted">LTV (úvěr / cena)</span>
+                      <span className="font-mono text-foreground">{rentalResults.ltv} %</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Rental metric boxes */}
@@ -1400,12 +1419,41 @@ function InteractiveCard({
                   <InfoBox label="Cash-flow / měsíc" value={formatPrice(rentalResults.cashFlowMonthly)} highlight={rentalResults.cashFlowMonthly >= 0 ? "text-price" : "text-red-400"} />
                   <InfoBox label="Cash-on-cash" value={rentalResults.cashOnCash.toFixed(1) + "%"} highlight={rentalResults.cashOnCash >= 6 ? "text-emerald-400" : rentalResults.cashOnCash >= 4 ? "text-amber-400" : "text-red-400"} />
                   <InfoBox label="Návratnost investice" value={rentalResults.paybackYears !== null ? `${rentalResults.paybackYears.toFixed(1)} let` : "—"} highlight={rentalResults.paybackYears !== null && rentalResults.paybackYears <= 15 ? "text-emerald-400" : "text-red-400"} />
+                  <InfoBox label="Návratnost (kumulativní)" value={rentalResults.cumulativePaybackYear !== null ? `rok ${rentalResults.cumulativePaybackYear}` : "—"} highlight={rentalResults.cumulativePaybackYear !== null && rentalResults.cumulativePaybackYear <= 15 ? "text-emerald-400" : "text-red-400"} />
                   <InfoBox label="Break-even nájem" value={formatPrice(rentalResults.breakEvenRent) + " /měs"} highlight={rentalResults.breakEvenRent <= rentalConfig.monthlyRent ? "text-emerald-400" : "text-amber-400"} />
                   <InfoBox label="IRR" value={rentalResults.irr !== null ? rentalResults.irr.toFixed(1) + "%" : "—"} highlight={rentalResults.irr !== null ? (rentalResults.irr >= 8 ? "text-emerald-400" : rentalResults.irr >= 6 ? "text-amber-400" : "text-red-400") : "text-muted"} />
                   <InfoBox label="DSCR" value={rentalResults.dscr !== null ? rentalResults.dscr.toFixed(2) + "×" : "—"} highlight={rentalResults.dscr !== null ? (rentalResults.dscr >= 1.25 ? "text-emerald-400" : rentalResults.dscr >= 1 ? "text-amber-400" : "text-red-400") : "text-muted"} />
                   <InfoBox label="Unese splátku" value={formatPrice(rentalResults.maxAffordableDebtMonthly) + " /měs"} highlight={rentalConfig.hasMortgage && rentalResults.mortgageAnnual > 0 ? (rentalResults.maxAffordableDebtMonthly >= rentalResults.mortgageAnnual / 12 ? "text-emerald-400" : "text-red-400") : "text-foreground"} />
                   <InfoBox label="Nájem / plocha" value={area > 0 ? formatPrice(Math.round(rentalConfig.monthlyRent / area)) + "/m²" : "—"} />
                 </div>
+
+                <p className="text-[10px] text-muted leading-relaxed">Dobrý výnos v ČR: hrubý 4–6 %, čistý 2–4 % (v Praze hrubý 2,5–4 %).</p>
+
+                {rentalSensitivity.length > 0 && (
+                  <div className="rounded-xl bg-card border border-border/50 overflow-hidden">
+                    <div className="border-b border-border/50 px-3 py-2 text-xs font-semibold text-foreground/80">Citlivost na úrokovou sazbu</div>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-[10px] uppercase tracking-wide text-muted">
+                          <th className="px-3 py-1.5 text-left font-medium">Sazba</th>
+                          <th className="px-3 py-1.5 text-right font-medium">Splátka / měs</th>
+                          <th className="px-3 py-1.5 text-right font-medium">CF / měs</th>
+                          <th className="px-3 py-1.5 text-right font-medium">CoC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rentalSensitivity.map((row) => (
+                          <tr key={row.rate} className={`border-t border-border/30 ${Math.abs(row.rate - rentalConfig.mortgageRate) < 0.01 ? "bg-accent/10" : ""}`}>
+                            <td className="px-3 py-1.5 text-muted">{row.rate.toFixed(1)} %{Math.abs(row.rate - rentalConfig.mortgageRate) < 0.01 ? " ← aktuální" : ""}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-foreground">{formatPrice(row.paymentMonthly)}</td>
+                            <td className={`px-3 py-1.5 text-right font-mono ${row.cashFlowMonthly >= 0 ? "text-price" : "text-red-400"}`}>{formatPrice(row.cashFlowMonthly)}</td>
+                            <td className="px-3 py-1.5 text-right font-mono text-foreground">{row.cashOnCash !== null ? row.cashOnCash.toFixed(1) + "%" : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
                 {/* Target price highlight */}
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-center">

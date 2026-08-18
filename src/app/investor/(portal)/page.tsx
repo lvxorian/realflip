@@ -510,6 +510,10 @@ export default function InvestorPortalPage() {
                                   label="Celková investice"
                                   value={rentalInvestedValue(item)}
                                 />
+                                <Metric
+                                  label="LTV"
+                                  value={item.snapshot?.mode === "rental" && item.snapshot.ltv != null ? `${item.snapshot.ltv} %` : "—"}
+                                />
                               </div>
                             ) : coop && coop.availableStrategies.length > 0 ? (
                               <div className={`grid gap-2 ${coop.availableStrategies.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
@@ -710,6 +714,7 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
               {rentalLoan > 0 && (
                 <>
                   <DetailRow label="− Hypotéka (úvěr)" value={`−${formatPrice(rentalLoan)}`} />
+                  {snap?.ltv != null && <DetailRow label="LTV" value={`${snap.ltv} %`} />}
                   <DetailRow label="Vlastní vklad" value={formatPrice(rentalTotalCost - rentalLoan)} />
                 </>
               )}

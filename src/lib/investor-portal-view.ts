@@ -101,6 +101,8 @@ export interface CalcSnapshotRental {
   /** Financování hypotékou — novější snapshoty; staré nemají → undefined. */
   hasMortgage?: boolean | null;
   mortgageAmount?: number | null;
+  /** LTV (úvěr / kupní cena v %) — novější snapshoty; staré nemají → undefined. */
+  ltv?: number | null;
 }
 
 export type CalcSnapshot = CalcSnapshotFlip | CalcSnapshotRental;

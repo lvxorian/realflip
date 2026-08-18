@@ -10,6 +10,7 @@ import {
   recalcFlipAtPrice,
   rentalTotalAcquisitionCost,
   rentalLoanCapped,
+  parseCalcSnapshot,
   type PortalRow,
   type CalcSnapshotFlip,
   type CalcSnapshotRental,
@@ -621,5 +622,14 @@ describe("rentalTotalAcquisitionCost / rentalLoanCapped", () => {
     expect(rentalLoanCapped(snap({ hasMortgage: true, mortgageAmount: 800_000 }))).toBe(800_000);
     expect(rentalLoanCapped(snap())).toBe(0);
     expect(rentalLoanCapped(snap({ hasMortgage: false, mortgageAmount: 3_400_000 }))).toBe(0);
+  });
+
+  it("carries LTV through snapshot (optional, legacy safe)", () => {
+    const withLtv = snap({ hasMortgage: true, mortgageAmount: 1_400_000, ltv: 70 });
+    expect(withLtv.ltv).toBe(70);
+    const legacy = snap();
+    expect(legacy.ltv).toBeUndefined();
+    const parsed = parseCalcSnapshot(JSON.stringify(withLtv)) as CalcSnapshotRental;
+    expect(parsed.ltv).toBe(70);
   });
 });

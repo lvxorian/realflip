@@ -121,6 +121,7 @@ export async function POST(
         renovationCost: typeof body.rentalRenovationCost === "number" ? Math.round(body.rentalRenovationCost) : null,
         hasMortgage: typeof body.rentalHasMortgage === "boolean" ? body.rentalHasMortgage : null,
         mortgageAmount: typeof body.rentalMortgageAmount === "number" ? Math.round(body.rentalMortgageAmount) : null,
+        ltv: typeof body.rentalLtv === "number" ? Math.round(body.rentalLtv) : null,
         noiAnnual: typeof body.rentalNoiAnnual === "number" ? Math.round(body.rentalNoiAnnual) : null,
         cashOnCash: typeof body.rentalCashOnCash === "number" ? body.rentalCashOnCash : null,
       };

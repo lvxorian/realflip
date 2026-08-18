@@ -136,6 +136,8 @@ export interface RentalResults {
   maxAffordableLoan: number;
   cashOnCash: number;
   paybackYears: number | null;
+  ltv: number;
+  cumulativePaybackYear: number | null;
   acquisitionCosts: number;
   downPayment: number;
   totalInvested: number;
@@ -189,6 +191,34 @@ export function resolveSourcingFee(purchasePrice: number, cfg: Pick<RentalConfig
   return cfg.sourcingFeeIsPct ? Math.round(purchasePrice * (cfg.sourcingFee / 100)) : cfg.sourcingFee;
 }
 
+export interface MortgageSensitivityRow {
+  rate: number;
+  paymentMonthly: number;
+  cashFlowMonthly: number;
+  cashOnCash: number | null;
+}
+
+export const MORTGAGE_SENSITIVITY_RATES = [3.5, 4.5, 5.5, 6.5, 7.5];
+
+export function mortgageRateSensitivity(
+  loan: number,
+  netAnnualBeforeDebt: number,
+  termYears: number,
+  totalInvested: number
+): MortgageSensitivityRow[] {
+  if (loan <= 0 || netAnnualBeforeDebt <= 0) return [];
+  return MORTGAGE_SENSITIVITY_RATES.map((rate) => {
+    const paymentMonthly = Math.round(monthlyPayment(loan, rate, termYears));
+    const cashFlowMonthly = Math.round((netAnnualBeforeDebt - paymentMonthly * 12) / 12);
+    return {
+      rate,
+      paymentMonthly,
+      cashFlowMonthly,
+      cashOnCash: totalInvested > 0 ? Math.round(((cashFlowMonthly * 12) / totalInvested) * 100 * 10) / 10 : null,
+    };
+  });
+}
+
 export function calculateRentalResults(
   purchasePrice: number,
   area: number,
@@ -232,6 +262,7 @@ export function calculateRentalResults(
   const maxAffordableLoan = Math.round(loanForPayment(maxAffordableDebtMonthly, cfg.mortgageRate, cfg.mortgageTermYears));
   const cashOnCash = totalInvested > 0 ? (cashFlowAnnual / totalInvested) * 100 : 0;
   const paybackYears = cashFlowAnnual > 0 ? totalInvested / cashFlowAnnual : null;
+  const ltv = cfg.hasMortgage && purchasePrice > 0 ? Math.round((loan / purchasePrice) * 100) : 0;
 
   const breakEvenDenominator = 1 - pctOpex - incomeTaxFactor;
   const breakEvenRent = vacancyFactor > 0 && breakEvenDenominator > 0
@@ -307,6 +338,8 @@ export function calculateRentalResults(
     maxAffordableLoan,
     cashOnCash: Math.round(cashOnCash * 10) / 10,
     paybackYears: paybackYears !== null ? Math.round(paybackYears * 10) / 10 : null,
+    ltv,
+    cumulativePaybackYear: rows.find((r) => r.cumulativeCashFlow >= totalInvested)?.year ?? null,
     acquisitionCosts,
     downPayment: Math.round(downPayment),
     totalInvested: Math.round(totalInvested),
