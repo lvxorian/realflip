@@ -143,9 +143,9 @@ export default function BrickonLanding() {
               className="mt-16 grid gap-2 sm:grid-cols-3"
             >
               {[
-                "Denní monitoring 10+ portálů, dražeb i off-market zdrojů",
-                "Vyjednané slevy u každé nabídky",
-                "U každé nabídky analýza zisku, ROI a dalšího kroku",
+                "Denní monitoring inzerce, dražeb i off-market zdrojů",
+                "U každé nabídky vyjednaná sleva včetně finančního odhadu",
+                "Dva modely spolupráce",
               ].map((text) => (
                 <div
                   key={text}
