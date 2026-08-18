@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   SealCheck,
-  HandCoins,
+  DoorOpen,
   MagnifyingGlass,
   ChartLineUp,
   Gavel,
@@ -258,7 +258,7 @@ export default function BrickonLanding() {
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-accent/15 border border-accent/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
                   <BrickonLogo size={52} tone="light" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Připraveni investovat?</h2>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Připraveni investovat s námi?</h2>
                 <p className="mt-3 text-sm text-muted">
                   Vstupte do portálu {INVESTOR_BRAND} a prohlédněte si aktuální nabídky s vyjednanou slevou.
                 </p>
@@ -267,7 +267,7 @@ export default function BrickonLanding() {
                     href="/investor/login"
                     className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent-hover transition-colors"
                   >
-                    <HandCoins size={16} weight="bold" />
+                    <DoorOpen size={16} weight="bold" />
                     Vstoupit do portálu
                   </Link>
                   <span className="text-xs text-muted">Přístupové údaje obdržíte od našeho týmu.</span>
