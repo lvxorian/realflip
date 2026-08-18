@@ -27,6 +27,8 @@ import {
   Handshake,
   HouseLine,
   LightbulbFilament,
+  Divide,
+  MagnifyingGlass,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { recalcFlipAtPrice, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
@@ -884,16 +886,25 @@ function ModelProfitCard({
         active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-subtle/60 hover:border-accent/30"
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
-        <span className={`text-muted transition-transform ${active ? "rotate-180" : ""}`}>
-          <CaretDown size={12} weight="bold" />
-        </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
+            <span className={`text-muted transition-transform ${active ? "rotate-180" : ""}`}>
+              <CaretDown size={12} weight="bold" />
+            </span>
+          </div>
+          <p className="text-[10px] text-muted mt-0.5">{sub}</p>
+          <p className={`font-mono text-lg font-semibold tabular-nums mt-1 break-words ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
+            {profit != null ? formatPrice(profit) : "—"}
+          </p>
+        </div>
+        {strategy === "fifty-fifty" ? (
+          <Divide size={30} weight="bold" className="text-accent/20 shrink-0 mt-1" />
+        ) : (
+          <MagnifyingGlass size={30} weight="bold" className="text-accent/20 shrink-0 mt-1" />
+        )}
       </div>
-      <p className="text-[10px] text-muted mt-0.5">{sub}</p>
-      <p className={`font-mono text-lg font-semibold tabular-nums mt-1 break-words ${profit != null && profit >= 0 ? "text-emerald-400" : "text-muted"}`}>
-        {profit != null ? formatPrice(profit) : "—"}
-      </p>
     </button>
   );
 }
