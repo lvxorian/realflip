@@ -230,7 +230,7 @@ html.dark .noise-overlay::after {
 
 /* Roztáčené logo Brickon — plynulá rotace v ploše (bez 3D) */
 .logo-spin {
-  animation: logo-spin 8s linear infinite;
+  animation: logo-spin 16s linear infinite;
 }
 @keyframes logo-spin {
   from { transform: rotate(0deg); }
