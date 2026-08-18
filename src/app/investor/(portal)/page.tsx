@@ -397,22 +397,6 @@ export default function InvestorPortalPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {[
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Nepřetržitý monitoring trhu s prioritními upozorněními" },
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Vyjednané ceny ještě před veřejným zveřejněním" },
-                  { icon: <CheckCircle size={14} weight="bold" />, text: "Každá nabídka obsahuje analýzu zisku, ROI i další postup" },
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-border/40 bg-card/60 px-3 py-2.5 flex items-center gap-2 text-[11px] text-muted"
-                  >
-                    <span className="text-emerald-400 shrink-0">{item.icon}</span>
-                    {item.text}
-                  </div>
-                ))}
-              </div>
-
               {error && (
                 <motion.p
                   initial={{ opacity: 0, y: -4 }}
