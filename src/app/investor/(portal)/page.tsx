@@ -351,7 +351,7 @@ export default function InvestorPortalPage() {
                 >
                   <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
                     <LightbulbFilament size={14} weight="bold" className="text-accent shrink-0" />
-                    Jak to funguje — typy investic a modely spolupráce
+                    Jak to funguje? (typy investic a modely spolupráce)
                   </span>
                   <CaretDown size={14} weight="bold" className={`shrink-0 text-muted transition-transform ${legendOpen ? "rotate-180" : ""}`} />
                 </button>
