@@ -369,12 +369,12 @@ export default function InvestorPortalPage() {
                         {
                           icon: <Handshake size={13} weight="bold" />,
                           title: "50/50",
-                          desc: "My najdeme a vyjednáme nemovitost a zajistíme rekonstrukci — vy financujete nákup. Po prodeji se zisk dělí napůl.",
+                          desc: "My najdeme a vyjednáme nemovitost, zajistíme rekonstrukci a následný prodej, vy financujete. Po prodeji se zisk dělí napůl.",
                         },
                         {
                           icon: <Coins size={13} weight="bold" />,
                           title: "Sourcing fee",
-                          desc: "Nemovitost kupujete a rekonstruujete sami — my vám ji najdeme a vyjednáme. Platíte nám poplatek za sourcing, zisk z prodeje jde celý k vám.",
+                          desc: "Nemovitost kupujete a rekonstruujete sami, my vám ji najdeme a vyjednáme. Platíte nám poplatek za zprostředkování (sourcing), zisk z prodeje jde celý k vám.",
                         },
                       ]}
                     />
