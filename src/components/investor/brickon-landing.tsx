@@ -62,9 +62,9 @@ export default function BrickonLanding() {
                   variants={item}
                   className="mt-5 text-4xl sm:text-5xl font-semibold tracking-tight leading-[1.1]"
                 >
-                  Nemovitosti s vyjednanou slevou,
+                  Váš portál do světa
                   <br />
-                  <span className="text-accent">které na veřejných portálech nenajdete.</span>
+                  <span className="text-accent">realitního investování.</span>
                 </motion.h1>
                 <motion.p variants={item} className="mt-5 max-w-lg text-muted leading-relaxed">
                   Denně sledujeme více než 10 realitních portálů, dražby i nabídky mimo veřejnou inzerci. Každou zajímavou
