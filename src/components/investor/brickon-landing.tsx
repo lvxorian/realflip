@@ -145,7 +145,7 @@ export default function BrickonLanding() {
               {[
                 "Denní monitoring inzerce, dražeb i off-market zdrojů",
                 "U každé nabídky vyjednaná sleva včetně finančního odhadu",
-                "Dva modely spolupráce",
+                "Dva modely spolupráce dle vašeho výběru",
               ].map((text) => (
                 <div
                   key={text}
