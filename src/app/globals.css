@@ -228,79 +228,17 @@ html.dark .noise-overlay::after {
   100% { background-position: 200% 0; }
 }
 
-/* 3D cihla Brickon — rotující kvádrové logo (CTA na landing page) */
-.brick-cube-wrap {
-  perspective: 600px;
-  width: 72px;
-  height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Roztáčené logo Brickon — plynulá rotace v ploše (bez 3D) */
+.logo-spin {
+  animation: logo-spin 8s linear infinite;
 }
-.brick-cube {
-  position: relative;
-  width: 64px;
-  height: 44px;
-  transform-style: preserve-3d;
-  animation: brick-spin 10s linear infinite;
-}
-.brick-face {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  backface-visibility: hidden;
-}
-.brick-front,
-.brick-back {
-  width: 64px;
-  height: 44px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  box-shadow: inset 0 1px 0 rgba(16, 185, 129, 0.15);
-}
-.brick-front {
-  transform: rotateY(0deg) translateZ(15px);
-}
-.brick-back {
-  transform: rotateY(180deg) translateZ(15px);
-}
-.brick-left,
-.brick-right {
-  width: 30px;
-  height: 44px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.22);
-}
-.brick-left {
-  transform: rotateY(-90deg) translateZ(15px);
-}
-.brick-right {
-  transform: rotateY(90deg) translateZ(15px);
-}
-.brick-top,
-.brick-bottom {
-  width: 64px;
-  height: 30px;
-  border: 1px solid rgba(16, 185, 129, 0.25);
-}
-.brick-top {
-  background: rgba(16, 185, 129, 0.2);
-  transform: rotateX(90deg) translateZ(22px);
-}
-.brick-bottom {
-  background: rgba(16, 185, 129, 0.06);
-  transform: rotateX(-90deg) translateZ(22px);
-}
-@keyframes brick-spin {
-  from { transform: rotateX(-18deg) rotateY(0deg); }
-  to { transform: rotateX(-18deg) rotateY(360deg); }
+@keyframes logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .brick-cube {
+  .logo-spin {
     animation: none;
-    transform: rotateX(-18deg) rotateY(-30deg);
   }
 }
 
