@@ -391,7 +391,7 @@ export default function InvestorPortalPage() {
                         {
                           icon: <Coins size={13} weight="bold" />,
                           title: "Sourcing fee",
-                          desc: "Nemovitost kupujete a držíte sami — my vám ji najdeme a vyjednáme. Bez rekonstrukce a prodeje, platíte nám poplatek za sourcing.",
+                          desc: "Nemovitost kupujete a držíte sami, my vám ji najdeme a vyjednáme. Bez rekonstrukce a prodeje, platíte nám poplatek za zprostředkování (sourcing).",
                         },
                       ]}
                     />
