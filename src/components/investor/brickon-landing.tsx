@@ -181,7 +181,7 @@ export default function BrickonLanding() {
                   { icon: <MagnifyingGlass size={20} weight="bold" />, title: "Sledujeme trh nepřetržitě", text: "Procházíme realitní portály, dražby i off-market zdroje a identifikujeme nabídky se ziskovým potenciálem." },
                   { icon: <Gavel size={20} weight="bold" />, title: "Vyjednáváme za vás", text: "Osobně jednáme s prodávajícími tak, aby pro vás zůstala dostatečná rezerva na zisk." },
                   { icon: <ChartLineUp size={20} weight="bold" />, title: "Dodáváme analýzu a odhad", text: "Ke každé nabídce připravíme přehled s odhadem zisku, návratnosti a doporučeným dalším krokem." },
-                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Postaráme se o realizaci", text: "Zajistíme koupi, rekonstrukci i další prodej nebo pronájem — od podpisu až po předání klíčů." },
+                  { icon: <CalendarCheck size={20} weight="bold" />, title: "Postaráme se o realizaci", text: "Zajistíme zprostředkování či koupi, rekonstrukci a následný prodej nemovitosti. Od podpisu až po předání klíčů." },
                 ].map((step, i) => (
                   <motion.div
                     key={step.title}
