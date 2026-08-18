@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { brickLogoSvg } from "../investor-brick";
+import { brickLogoSvg, brickLogoImg } from "../investor-brick";
 
 describe("brickLogoSvg", () => {
   it("builds an SVG with logo markers and correct size", () => {
@@ -25,5 +25,22 @@ describe("brickLogoSvg", () => {
     expect(rects.length).toBe(0);
     expect(svg).toContain('transform="translate(223,184)"');
     expect(svg).not.toContain("M7.5 20 L31.5 20 L40.5 15 L16.5 15 Z");
+  });
+});
+
+describe("brickLogoImg", () => {
+  it("builds a raster <img> with correct size and alt", () => {
+    const img = brickLogoImg(34, "https://realflip.app");
+    expect(img).toContain('<img src="https://realflip.app/brickon.png"');
+    expect(img).toContain('width="34"');
+    expect(img).toContain('height="31"');
+    expect(img).toContain('alt="Brickon"');
+    expect(img).toContain('data-logo="brickon"');
+    expect(img).not.toContain("<svg");
+  });
+
+  it("normalizes a trailing slash in baseUrl", () => {
+    const img = brickLogoImg(34, "https://realflip.app/");
+    expect(img).toContain('src="https://realflip.app/brickon.png"');
   });
 });

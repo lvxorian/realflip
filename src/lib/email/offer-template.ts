@@ -2,7 +2,7 @@ import type { CooperationView, InvestorPortalItem } from "@/lib/investor-portal-
 import { formatPrice } from "@/lib/utils";
 import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
-import { brickLogoSvg } from "@/lib/investor-brick";
+import { brickLogoImg } from "@/lib/investor-brick";
 
 // Tokeny zrcadlící design system RealFlipu (globals.css) — jeden zdroj
 // pravdy, aby e-mail vycházel ze stejného schématu jako aplikace.
@@ -114,10 +114,10 @@ export function buildOfferEmailHtml(offer: InvestorPortalItem, baseUrl: string):
             <td style="padding:24px 28px;background:linear-gradient(135deg,${T.accent} 0%,${T.accentHover} 100%);">
               <table role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="vertical-align:middle;padding-right:12px;">${brickLogoSvg(34)}</td>
+                  <td style="vertical-align:middle;padding-right:12px;">${brickLogoImg(34, baseUrl)}</td>
                   <td style="vertical-align:middle;">
                     <p style="margin:0;font-size:18px;font-weight:600;color:#ffffff;">${escapeHtml(INVESTOR_BRAND).toUpperCase()} · Nová nabídka</p>
-                    <p style="margin:6px 0 0;font-size:12px;color:${T.accentSoft};">Soukromá nabídka — prověřená příležitost s vyjednanou cenou</p>
+                    <p style="margin:6px 0 0;font-size:12px;color:${T.accentSoft};">Právě jsme pro vás vyjednali novou příležitost! Přihlašte se do portálu pro rezervaci a více informací.</p>
                   </td>
                 </tr>
               </table>

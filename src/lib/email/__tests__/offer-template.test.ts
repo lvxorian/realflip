@@ -43,9 +43,12 @@ describe("buildOfferEmailHtml", () => {
     expect(html).toContain("−16.0 %");
     expect(html).toContain("https://realflip.app/investor");
     expect(html).toContain("BRICKON · Nová nabídka");
-    expect(html).toContain("aria-label=\"Brickon\"");
-    expect(html).toContain("role=\"img\"");
-    expect(html).toContain("data-logo=\"brickon\"");
+    expect(html).toContain("Právě jsme pro vás vyjednali novou příležitost! Přihlašte se do portálu pro rezervaci a více informací.");
+    expect(html).not.toContain("Soukromá nabídka — prověřená příležitost s vyjednanou cenou");
+    expect(html).toContain('<img src="https://realflip.app/brickon.png"');
+    expect(html).toContain('alt="Brickon"');
+    expect(html).toContain('data-logo="brickon"');
+    expect(html).not.toContain("<svg");
     expect(html).toContain("#10b981");
     expect(html).not.toContain("#7c3aed");
     expect(html).toContain("fonts.googleapis.com/css2?family=Geist");
