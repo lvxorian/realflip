@@ -1179,12 +1179,14 @@ function ReservationConfirmedModal({
               </div>
 
               {/* Property info */}
-              <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-1">
+              <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-2">
                 <p className="text-sm font-semibold">{location}</p>
                 {reservation.strategyLabel && (
                   <p className="text-xs text-muted">Model: {reservation.strategyLabel}</p>
                 )}
-                <p className="text-[11px] text-muted mt-1">Rezervace je nezávazná až do podpisu kupní smlouvy.</p>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Rezervace je platná <span className="font-medium text-foreground/80">po dobu 3 dnů</span>. Během této doby se vám ozveme a domluvíme další postup — ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
+                </p>
               </div>
 
               {/* Email section */}
