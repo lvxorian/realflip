@@ -24,7 +24,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Částkové vstupy**: všude používat `AmountInput` (`src/components/ui/amount-input.tsx`) nebo `Input type="amount"` — `type="text"` + `inputMode="numeric"`, živě formátuje mezery („5000000" → „5 000 000"), `onChange` předává jen číslice (stávající `Number`/`parseInt` parsování funguje beze změny). Sdílené formátování: `formatAmountInput()` v `src/lib/utils.ts`. Procenta/m²/plochy/roky = obyčejná číselná pole bez formátování.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **692 tests across 54 files**.
+Vitest v4 + jsdom + @testing-library/react. **698 tests across 54 files**.
 `npm test` or `npx vitest run`.
 
 ## Portals (10 adapters, 6 url-scrapers)
@@ -91,7 +91,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 
 ## Key Files
 - `src/lib/analysis/flip-costs.ts` — flip calculator (no VAT, tax fixed 21%)
-- `src/lib/analysis/rental-calc.ts` — rental calculator (cap rate = NOI ÷ price, yield on investment = NOI ÷ (price+acq), daň 15 % s paušálem 30 % cap 600k, geometric annualized ROI, DSCR, verdict relativní k `targetYield`: +1.5/+0/−1; **LTV** (úvěr ÷ cena, cap), **`cumulativePaybackYear`** (první rok, kdy kumulativní CF ≥ celková investice), **`mortgageRateSensitivity`** 3,5–7,5 % → splátka/CF/CoC; **„Celková investice" = součet nákladů akvizice** (kupní + právní + posudek + sourcing + reko), úvěr capnutý na kupní cenu, vlastní vklad = rozdíl — metriky CoC/IRR/návratnost se počítají z vlastního vkladu)
+- `src/lib/analysis/rental-calc.ts` — rental calculator (cap rate = NOI ÷ price, yield on investment = NOI ÷ (price+acq), daň 15 % s paušálem 30 % cap 600k, geometric annualized ROI, DSCR, verdict relativní k `targetYield`: +1.5/+0/−1; **LTV** (úvěr ÷ cena, cap), **`cumulativePaybackYear`** (první rok, kdy kumulativní CF ≥ celková investice), **`mortgageRateSensitivity`** 3,5–7,5 % → splátka/CF/CoC; **„Celková investice" = součet nákladů akvizice** (kupní + právní + posudek + sourcing + reko), úvěr capnutý na kupní cenu, vlastní vklad = rozdíl — metriky CoC/IRR/návratnost se počítají z vlastního vkladu; **fond oprav SVJ**: `svjFeeMonthly` Kč/měs (null = odhad z plochy × `svjEstimatePerSqm` dle `buildingType` — novostavba 20, panel 40, smíšená 45, cihla 50, fallback 35 Kč/m²; 0 = žádný) → OPEX/fixedCosts (s růstem)/break-even; `svjMonthly`/`svjIsEstimate` ve výsledcích, v snapshotu i PDF)
 - `src/components/calculator/interactive-analysis.tsx` — main calculator (editable target price, ROI slider step 0.1)
 - `src/components/report/property-report.tsx` — PDF report (scoring box removed, sourcing fee matched with calc)
 - `src/lib/scraping/orchestrator.ts` — scraping engine

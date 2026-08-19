@@ -12,7 +12,7 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (692 tests, 54 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (698 tests, 54 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
@@ -462,6 +462,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Brickon**: `ltv` v snapshotu (`calc-preset` route + `CalcSnapshotRental` volitelné pole) → **karta i detail** nabídky (LTV vedle „− Hypotéka"/„Vlastní vklad").
 - Testy 685 → 692 (54 souborů), typecheck čistý, lint bez nových chyb.
 
+### Phase 69 — Kalkulačka: fond oprav (SVJ) s odhadem dle konstrukce (Done)
+- **Problém**: fond oprav (SVJ) chyběl v OPEX — kalkulačka nadhodnocovala výnosy (demo 4 M, 70 m², nájem 24 500: bez FO NOI 235 991/čistý 5,9 %; s FO 2 450/měs NOI 206 591/5,2 %, cílová cena −653 tis.).
+- **Engine** (`rental-calc.ts`): `RentalConfig.svjFeeMonthly` (Kč/měs; `null` = odhad, `0` = žádný FO, číslo = vlastní hodnota) + `buildingType`; `svjEstimatePerSqm`/`svjEstimateMonthly` s koeficienty dle konstrukce: **novostavba 20, panel 40, smíšená 45, cihla 50, fallback 35 Kč/m²**; FO v `operatingCostsAnnual`, `fixedCosts` s růstem (`expenseGrowthPct`), `breakEvenRent`; výsledky + `svjMonthly`/`svjIsEstimate`. FO je **provozní náklad — není v „Celkové investici"** (ta = akviziční).
+- **UI**: řádek „Fond oprav (SVJ)" ve „Volitelné náklady" — prázdné pole = odhad (zobrazí sazbu dle konstrukce z inzerátu), vlastní číslo přepíše; `savePreset` + `rentalSvjFeeMonthly`/`rentalSvjIsEstimate`.
+- **Brickon**: volitelné `svjFeeMonthly`/`svjIsEstimate` v snapshotu → řádek „Fond oprav (SVJ)" v detailu nabídky (nad NOI) + PDF report.
+- Testy 692 → 698 (54 souborů), typecheck čistý, lint bez nových chyb; commit `de7761d`.
+
 ## Key Files
 
 ### Core
@@ -478,7 +485,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 
 ### Analysis / Calculator
 - `src/lib/analysis/flip-costs.ts`
-- `src/lib/analysis/rental-calc.ts` — výnosový engine (LTV, citlivost na sazbu, kumulativní návratnost, IRR, verdikt) + `src/lib/analysis/__tests__/rental-calc.test.ts`
+- `src/lib/analysis/rental-calc.ts` — výnosový engine (LTV, citlivost na sazbu, kumulativní návratnost, fond oprav SVJ dle konstrukce, IRR, verdikt) + `src/lib/analysis/__tests__/rental-calc.test.ts`
 - `src/lib/analysis/types.ts`
 - `src/lib/investor-portal-view.ts` — snapshot ↔ Brickon view (Celková investice, LTV, financování, spolupráce)
 - `src/components/calculator/interactive-analysis.tsx`
