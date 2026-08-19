@@ -8,7 +8,9 @@ import { formatInvestorBudget } from "@/lib/investors";
 import { formatRelative } from "@/lib/utils";
 import { isInvestorActive } from "@/lib/investor-activity";
 import { EditInvestorButton } from "@/components/investors/edit-investor-button";
-import { ArrowLeft, Phone, Envelope, MapPin, Infinity as InfinityIcon, Folder, LockSimple } from "@phosphor-icons/react/dist/ssr";
+import { InvestorReservations, type ReservationRow } from "@/components/investors/investor-reservations";
+
+import { ArrowLeft, Phone, Envelope, MapPin, Infinity as InfinityIcon, Folder, LockSimple, SealCheck } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,34 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
     .select({ c: sql<number>`cast(count(*) as integer)` })
     .from(leads)
     .where(eq(leads.portalReservedInvestorId, id));
+
+  const rawReservations = await db
+    .select({
+      leadId: leads.id,
+      propertyId: properties.id,
+      propertyTitle: properties.title,
+      propertyAddress: properties.address,
+      propertyUrl: properties.url,
+      calcMode: leads.portalReservedModel,
+      strategy: leads.portalReservedStrategy,
+      reservedAt: leads.portalReservedAt,
+      expiresAt: leads.portalExpiresAt,
+    })
+    .from(leads)
+    .leftJoin(properties, eq(leads.propertyId, properties.id))
+    .where(eq(leads.portalReservedInvestorId, id));
+
+  const reservations: ReservationRow[] = rawReservations.map((r) => ({
+    leadId: r.leadId,
+    propertyId: r.propertyId ?? "",
+    propertyTitle: r.propertyTitle,
+    propertyAddress: r.propertyAddress,
+    propertyUrl: r.propertyUrl,
+    calcMode: r.calcMode,
+    strategy: r.strategy,
+    reservedAt: r.reservedAt,
+    expiresAt: r.expiresAt,
+  }));
 
   const [offerEmailCount] = await db
     .select({ c: sql<number>`cast(count(*) as integer)` })
@@ -164,6 +194,20 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
             </p>
           </div>
         </div>
+      </div>
+
+      <div>
+        <h2 className="font-semibold tracking-tight mb-4 flex items-center gap-2">
+          <SealCheck size={16} weight="duotone" className="text-accent" />
+          Rezervace ({reservations.length})
+        </h2>
+        {reservations.length === 0 ? (
+          <div className="rounded-2xl border border-border/50 bg-card p-8 text-center">
+            <p className="text-sm text-muted">Tento investor zatím nemá žádné aktivní rezervace.</p>
+          </div>
+        ) : (
+          <InvestorReservations reservations={reservations} />
+        )}
       </div>
 
       <div>
