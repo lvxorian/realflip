@@ -54,7 +54,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "relative inline-flex items-center justify-center whitespace-nowrap rounded-lg font-medium",
+          "relative inline-flex items-center justify-center whitespace-nowrap rounded-lg font-medium cursor-pointer",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:pointer-events-none disabled:opacity-50",
           variants[variant],
