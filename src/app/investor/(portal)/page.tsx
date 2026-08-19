@@ -102,8 +102,8 @@ function modelFundingOf(strategy: CooperationStrategy, coop: CooperationView): n
 /** Krátký popis modelu pro detail i rezervační dialog. */
 function modelDesc(strategy: CooperationStrategy, coop: CooperationView): string {
   return strategy === "fifty-fifty"
-    ? "My zajišťujeme rekonstrukci, vy financujete. Zisk se dělí napůl."
-    : `Kupujete a realizujete sami — platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
+    ? "My vyjednáme cenu, zajistíme akvizici, rekonstrukci a následný prodej, vy financujete. Zisk se dělí napůl."
+    : `Kupujete a realizujete sami, platíte nám sourcing fee${coop.sourcingFee != null && coop.sourcingFee > 0 ? ` ${formatPrice(coop.sourcingFee)}` : ""}.`;
 }
 
 /** Karta legendy pro investora: typ investice (flip/rent). Klik na kartu rozbalí
