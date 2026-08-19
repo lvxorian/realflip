@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LockSimple, Eye, EyeSlash, Prohibit } from "@phosphor-icons/react";
-import { COOPERATION_MODELS, COOPERATION_AVAILABILITY, COOPERATION_AVAILABILITY_LABELS } from "@/lib/cooperation-models";
+import { COOPERATION_MODELS, COOPERATION_AVAILABILITY, COOPERATION_AVAILABILITY_LABELS, COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 
 function formatCountdown(expiresAt: number | null): string | null {
   if (!expiresAt) return null;
@@ -26,6 +26,7 @@ interface PortalPanelProps {
   initialVisible: boolean;
   initialReservedInvestorId: string | null;
   initialReservedModel: string | null;
+  initialReservedStrategy: string | null;
   initialReservedExpiresAt: number | null;
   calcMode?: "flip" | "rental" | null;
   initialCooperationAvailability?: string | null;
@@ -37,6 +38,7 @@ export function PortalPanel({
   initialVisible,
   initialReservedInvestorId,
   initialReservedModel,
+  initialReservedStrategy,
   initialReservedExpiresAt,
   calcMode = null,
   initialCooperationAvailability = null,
@@ -45,6 +47,7 @@ export function PortalPanel({
   const [visible, setVisible] = useState(initialVisible);
   const [reservedInvestorId, setReservedInvestorId] = useState(initialReservedInvestorId);
   const [reservedModel, setReservedModel] = useState(initialReservedModel);
+  const [reservedStrategy, setReservedStrategy] = useState(initialReservedStrategy);
   const [cooperation, setCooperation] = useState(initialCooperationAvailability);
   const [fiftyFiftyBlocked, setFiftyFiftyBlocked] = useState(false);
   const [investors, setInvestors] = useState<InvestorOption[]>([]);
@@ -197,6 +200,15 @@ export function PortalPanel({
 
             {reservedInvestorId && (
               <>
+                {reservedStrategy && reservedStrategy in COOPERATION_STRATEGIES && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted shrink-0 w-24">Investor zvolil</label>
+                    <span className="text-sm font-medium">
+                      {COOPERATION_STRATEGIES[reservedStrategy as keyof typeof COOPERATION_STRATEGIES]}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-muted shrink-0 w-24">Model spolupráce</label>
                   <select

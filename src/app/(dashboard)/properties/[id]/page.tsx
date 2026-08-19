@@ -450,6 +450,7 @@ export default async function PropertyDetailPage({
               initialVisible={(pipelineLead.portalVisible ?? 1) === 1}
               initialReservedInvestorId={pipelineLead.portalReservedInvestorId}
               initialReservedModel={pipelineLead.portalReservedModel}
+              initialReservedStrategy={pipelineLead.portalReservedStrategy}
               initialReservedExpiresAt={pipelineLead.portalExpiresAt}
               calcMode={calcMode}
               initialCooperationAvailability={cooperationAvailability}
