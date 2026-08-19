@@ -1039,7 +1039,7 @@ function ReserveModal({
             <div className="p-5 sm:p-6">
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/15 border border-accent/25">
-                  <HandCoins size={20} weight="bold" className="text-accent" />
+                  <BrickonLogo size={24} tone="brand" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="font-semibold tracking-tight leading-tight">Vyberte způsob spolupráce</h2>
@@ -1180,7 +1180,7 @@ function ReservationConfirmedModal({
               {/* Header */}
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400/15 border border-emerald-400/25">
-                  <BrickonLogo size={24} tone="brand" />
+                  <SealCheck size={20} weight="bold" className="text-emerald-400" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="font-semibold tracking-tight leading-tight">Rezervace proběhla úspěšně!</h2>
