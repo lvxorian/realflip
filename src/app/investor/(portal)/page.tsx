@@ -1299,7 +1299,7 @@ function ActionButton({
         size={size}
         loading={busy}
         onClick={onClick}
-        className="bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 hover:border-danger/40"
+        className="bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 hover:border-danger/40 cursor-pointer"
       >
         <ArrowCounterClockwise size={14} weight="bold" />
         Uvolnit
