@@ -126,7 +126,7 @@ function LegendTypeCard({
         open ? "border-accent/50 bg-accent/5" : "border-border/40 bg-card/60 hover:border-accent/30"
       }`}
     >
-      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full p-4 text-left space-y-3">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full p-4 text-left space-y-3 cursor-pointer">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span
