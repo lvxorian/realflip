@@ -1203,7 +1203,7 @@ function ReservationConfirmedModal({
                   <p className="text-xs text-muted">Model: {reservation.strategyLabel}</p>
                 )}
                 <p className="text-[11px] text-muted leading-relaxed">
-                  Rezervace je platná <span className="font-medium text-foreground/80">po dobu 3 dnů</span>. Během této doby se vám ozveme a domluvíme další postup — ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
+                  Rezervace je platná <span className="font-medium text-foreground/80">po dobu 3 dnů</span>. Během této doby se vám ozveme a domluvíme další postup, ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
                 </p>
               </div>
 

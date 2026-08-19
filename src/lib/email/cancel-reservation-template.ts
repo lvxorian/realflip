@@ -79,7 +79,7 @@ export function buildCancelReservationInvestorHtml(
               </table>
 
               <p style="margin:20px 0 0;font-size:11px;color:${T.mutedForeground};line-height:1.5;">
-                Pokud máte jakékoliv otázky, neváhejte nás kontaktovat na ${escapeHtml("cakmak@tuta.com")}.
+                Pokud máte jakékoliv otázky, neváhejte nás kontaktovat.
               </p>
             </td>
           </tr>

@@ -70,7 +70,7 @@ export function buildReservationEmailHtml(
               </table>
 
               <p style="margin:16px 0 0;font-size:13px;color:${T.muted};line-height:1.6;">
-                Rezervace je platná <strong style="color:${T.foreground};">po dobu 3 dnů</strong>. Během této doby se vám ozveme a domluvíme další postup — ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
+                Rezervace je platná <strong style="color:${T.foreground};">po dobu 3 dnů</strong>. Během této doby se vám ozveme a domluvíme další postup, ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
               </p>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
@@ -82,7 +82,7 @@ export function buildReservationEmailHtml(
               </table>
 
               <p style="margin:20px 0 0;font-size:11px;color:${T.mutedForeground};line-height:1.5;">
-                Pokud máte jakékoliv otázky, neváhejte nás kontaktovat na ${escapeHtml("cakmak@tuta.com")}.
+                Pokud máte jakékoliv otázky, neváhejte nás kontaktovat.
               </p>
             </td>
           </tr>
