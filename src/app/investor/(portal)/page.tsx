@@ -931,7 +931,7 @@ function ModelProfitCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-xl border px-3.5 py-3 transition-colors ${
+      className={`w-full text-left rounded-xl border px-3.5 py-3 transition-colors cursor-pointer ${
         active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-subtle/60 hover:border-accent/30"
       }`}
     >
