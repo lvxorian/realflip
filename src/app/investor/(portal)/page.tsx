@@ -352,7 +352,7 @@ export default function InvestorPortalPage() {
                 <button
                   type="button"
                   onClick={() => setLegendOpen((o) => !o)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-card-subtle/60"
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-card-subtle/60 cursor-pointer"
                 >
                   <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider">
                     <LightbulbFilament size={14} weight="bold" className="text-accent shrink-0" />
