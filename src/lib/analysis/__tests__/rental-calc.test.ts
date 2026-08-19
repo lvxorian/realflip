@@ -7,6 +7,8 @@ import {
   rentalVerdict,
   RENTAL_DEFAULTS,
   MORTGAGE_SENSITIVITY_RATES,
+  svjEstimatePerSqm,
+  svjEstimateMonthly,
 } from "../rental-calc";
 import { rentPerSqm } from "../market-data";
 
@@ -35,6 +37,7 @@ describe("calculateRentalResults — base case", () => {
   const base = {
     ...RENTAL_DEFAULTS,
     monthlyRent: 24_500,
+    svjFeeMonthly: 0,
   };
 
   it("computes gross and net yield correctly", () => {
@@ -90,6 +93,7 @@ describe("calculateRentalResults — CZ realism (expenses, tax)", () => {
   const base = {
     ...RENTAL_DEFAULTS,
     monthlyRent: 24_500,
+    svjFeeMonthly: 0,
   };
 
   it("income tax (15 % with 30 % paušál) reduces yearly cash flow", () => {
@@ -142,6 +146,7 @@ describe("calculateRentalResults — financing and costs", () => {
   const base = {
     ...RENTAL_DEFAULTS,
     monthlyRent: 24_500,
+    svjFeeMonthly: 0,
   };
 
   it("mortgage reduces cash flow", () => {
@@ -215,6 +220,7 @@ describe("calculateRentalResults — professional validation metrics", () => {
   const base = {
     ...RENTAL_DEFAULTS,
     monthlyRent: 24_500,
+    svjFeeMonthly: 0,
   };
 
   it("cap rate = NOI ÷ purchase price (no acquisition in denominator)", () => {
@@ -329,6 +335,7 @@ describe("calculateRentalResults — LTV and cumulative payback", () => {
   const base = {
     ...RENTAL_DEFAULTS,
     monthlyRent: 24_500,
+    svjFeeMonthly: 0,
   };
 
   it("LTV = loan ÷ purchase price, capped loan at price", () => {
@@ -389,6 +396,7 @@ describe("mortgageRateSensitivity", () => {
   const base = {
     ...RENTAL_DEFAULTS,
     monthlyRent: 24_500,
+    svjFeeMonthly: 0,
   };
 
   it("returns rows for standard rates with payment, cash flow and CoC", () => {
@@ -415,5 +423,74 @@ describe("mortgageRateSensitivity", () => {
   it("returns empty array without loan or income", () => {
     expect(mortgageRateSensitivity(0, 100_000, 30, 1_000_000)).toEqual([]);
     expect(mortgageRateSensitivity(1_000_000, 0, 30, 1_000_000)).toEqual([]);
+  });
+});
+
+describe("fond oprav SVJ (svjFeeMonthly)", () => {
+  const base = {
+    ...RENTAL_DEFAULTS,
+    monthlyRent: 24_500,
+    svjFeeMonthly: 0,
+  };
+
+  it("svjEstimatePerSqm follows building type with fallback", () => {
+    expect(svjEstimatePerSqm("new")).toBe(20);
+    expect(svjEstimatePerSqm("panel")).toBe(40);
+    expect(svjEstimatePerSqm("mixed")).toBe(45);
+    expect(svjEstimatePerSqm("brick")).toBe(50);
+    expect(svjEstimatePerSqm(null)).toBe(35);
+    expect(svjEstimatePerSqm("unknown")).toBe(35);
+    expect(svjEstimateMonthly(70, "panel")).toBe(2_800);
+  });
+
+  it("auto-estimate (null) flows into OPEX and lowers yield — panel 70 m²", () => {
+    const r0 = calculateRentalResults(4_000_000, 70, 0, base);
+    const rAuto = calculateRentalResults(4_000_000, 70, 0, { ...base, svjFeeMonthly: null, buildingType: "panel" });
+    expect(rAuto.svjMonthly).toBe(2_800);
+    expect(rAuto.svjIsEstimate).toBe(true);
+    expect(rAuto.operatingCostsAnnual).toBe(r0.operatingCostsAnnual + 2_800 * 12);
+    expect(rAuto.noiAnnual).toBeLessThan(r0.noiAnnual);
+    expect(rAuto.netYield).toBeLessThan(r0.netYield);
+    expect(rAuto.targetPurchasePrice).toBeLessThan(r0.targetPurchasePrice);
+  });
+
+  it("exact value overrides the estimate; 0 disables it", () => {
+    const rManual = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      svjFeeMonthly: 3_000,
+      buildingType: "panel",
+    });
+    expect(rManual.svjMonthly).toBe(3_000);
+    expect(rManual.svjIsEstimate).toBe(false);
+    const rZero = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      svjFeeMonthly: 0,
+      buildingType: "panel",
+    });
+    expect(rZero.svjMonthly).toBe(0);
+    expect(rZero.svjIsEstimate).toBe(false);
+  });
+
+  it("break-even rent covers the fond oprav", () => {
+    const r0 = calculateRentalResults(4_000_000, 70, 0, base);
+    const r1 = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      svjFeeMonthly: 2_450,
+    });
+    const atBreakEven = calculateRentalResults(4_000_000, 70, 0, { ...base, svjFeeMonthly: 2_450, monthlyRent: r1.breakEvenRent });
+    expect(atBreakEven.cashFlowMonthly).toBeLessThanOrEqual(2);
+    expect(atBreakEven.cashFlowMonthly).toBeGreaterThanOrEqual(-2);
+    expect(r1.breakEvenRent).toBeGreaterThan(r0.breakEvenRent);
+  });
+
+  it("fond oprav grows with expense growth in later years", () => {
+    const r = calculateRentalResults(4_000_000, 70, 0, {
+      ...base,
+      svjFeeMonthly: 2_450,
+      expenseGrowthPct: 2,
+    });
+    const y2 = r.rows[1];
+    const fixedYear2 = Math.round(4_000 * 1.02) + Math.round(3_000 * 1.02) + Math.round(2_450 * 12 * 1.02);
+    expect(y2.operatingCosts).toBe(Math.round(y2.effectiveRent * 0.13) + fixedYear2);
   });
 });

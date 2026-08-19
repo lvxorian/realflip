@@ -632,4 +632,16 @@ describe("rentalTotalAcquisitionCost / rentalLoanCapped", () => {
     const parsed = parseCalcSnapshot(JSON.stringify(withLtv)) as CalcSnapshotRental;
     expect(parsed.ltv).toBe(70);
   });
+
+  it("carries fond oprav (SVJ) through snapshot (optional, legacy safe)", () => {
+    const withSvj = snap({ svjFeeMonthly: 2_800, svjIsEstimate: true });
+    expect(withSvj.svjFeeMonthly).toBe(2_800);
+    expect(withSvj.svjIsEstimate).toBe(true);
+    const legacy = snap();
+    expect(legacy.svjFeeMonthly).toBeUndefined();
+    expect(legacy.svjIsEstimate).toBeUndefined();
+    const parsed = parseCalcSnapshot(JSON.stringify(withSvj)) as CalcSnapshotRental;
+    expect(parsed.svjFeeMonthly).toBe(2_800);
+    expect(parsed.svjIsEstimate).toBe(true);
+  });
 });

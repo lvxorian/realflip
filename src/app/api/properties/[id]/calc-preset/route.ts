@@ -122,6 +122,8 @@ export async function POST(
         hasMortgage: typeof body.rentalHasMortgage === "boolean" ? body.rentalHasMortgage : null,
         mortgageAmount: typeof body.rentalMortgageAmount === "number" ? Math.round(body.rentalMortgageAmount) : null,
         ltv: typeof body.rentalLtv === "number" ? Math.round(body.rentalLtv) : null,
+        svjFeeMonthly: typeof body.rentalSvjFeeMonthly === "number" ? Math.round(body.rentalSvjFeeMonthly) : null,
+        svjIsEstimate: typeof body.rentalSvjIsEstimate === "boolean" ? body.rentalSvjIsEstimate : null,
         noiAnnual: typeof body.rentalNoiAnnual === "number" ? Math.round(body.rentalNoiAnnual) : null,
         cashOnCash: typeof body.rentalCashOnCash === "number" ? body.rentalCashOnCash : null,
       };

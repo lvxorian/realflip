@@ -7,6 +7,10 @@ export interface RentalConfig {
   repairsPct: number;
   insuranceAnnual: number;
   propertyTaxAnnual: number;
+  /** Fond oprav SVJ (Kč/měs). null = automatický odhad dle plochy a konstrukce. */
+  svjFeeMonthly: number | null;
+  /** Konstrukce budovy (brick/panel/new/mixed) pro odhad fondu oprav. */
+  buildingType: string | null;
   rentGrowthPct: number;
   appreciationPct: number;
   holdingYears: number;
@@ -68,7 +72,24 @@ export const RENTAL_CONSTANTS = {
   rentalIncomeTaxRate: 0.15,
   rentalExpensePausalsPct: 0.3,
   rentalExpensePausalsCap: 600000,
+  /** Fond oprav (Kč/m² měsíčně) dle konstrukce — odhad pro screening, přesné číslo přepíše uživatel. */
+  svjRatePerSqm: {
+    new: 20,
+    panel: 40,
+    mixed: 45,
+    brick: 50,
+    default: 35,
+  } as const,
 };
+
+export function svjEstimatePerSqm(buildingType: string | null | undefined): number {
+  const rates = RENTAL_CONSTANTS.svjRatePerSqm;
+  return rates[buildingType as keyof typeof rates] ?? rates.default;
+}
+
+export function svjEstimateMonthly(area: number, buildingType: string | null | undefined): number {
+  return area > 0 ? Math.round(area * svjEstimatePerSqm(buildingType)) : 0;
+}
 
 export const RENTAL_DEFAULTS: RentalConfig = {
   monthlyRent: 0,
@@ -77,6 +98,8 @@ export const RENTAL_DEFAULTS: RentalConfig = {
   repairsPct: 8,
   insuranceAnnual: 4000,
   propertyTaxAnnual: 3000,
+  svjFeeMonthly: null,
+  buildingType: null,
   rentGrowthPct: 2,
   appreciationPct: 3,
   holdingYears: 10,
@@ -126,6 +149,9 @@ export interface RentalResults {
   mortgageAnnual: number;
   cashFlowAnnual: number;
   cashFlowMonthly: number;
+  /** Fond oprav SVJ — použitá měsíční hodnota (odhad nebo vlastní) a zda je to odhad. */
+  svjMonthly: number;
+  svjIsEstimate: boolean;
   grossYield: number;
   netYield: number;
   netYieldAfterTax: number;
@@ -230,6 +256,9 @@ export function calculateRentalResults(
 
   const vacancyFactor = 1 - cfg.vacancyPct / 100;
   const pctOpex = (cfg.managementPct + cfg.repairsPct) / 100;
+  const svjIsEstimate = cfg.svjFeeMonthly == null;
+  const svjMonthly = svjIsEstimate ? svjEstimateMonthly(area, cfg.buildingType) : cfg.svjFeeMonthly!;
+  const svjAnnual = svjMonthly * 12;
   const annualGrossRent = cfg.monthlyRent * 12;
   const effectiveRentAnnual = annualGrossRent * vacancyFactor;
   const pausalsPct = cfg.rentalIncomeTax
@@ -237,7 +266,7 @@ export function calculateRentalResults(
     : 0;
   const incomeTaxFactor = cfg.rentalIncomeTax ? c.rentalIncomeTaxRate * (1 - pausalsPct) : 0;
   const operatingCostsAnnual = Math.round(
-    effectiveRentAnnual * pctOpex + cfg.insuranceAnnual + cfg.propertyTaxAnnual
+    effectiveRentAnnual * pctOpex + cfg.insuranceAnnual + cfg.propertyTaxAnnual + svjAnnual
   );
   const noiAnnual = effectiveRentAnnual - operatingCostsAnnual;
   const incomeTaxAnnual = Math.round(effectiveRentAnnual * incomeTaxFactor);
@@ -266,7 +295,7 @@ export function calculateRentalResults(
 
   const breakEvenDenominator = 1 - pctOpex - incomeTaxFactor;
   const breakEvenRent = vacancyFactor > 0 && breakEvenDenominator > 0
-    ? (cfg.insuranceAnnual + cfg.propertyTaxAnnual + mortgageAnnual) / (12 * vacancyFactor * breakEvenDenominator)
+    ? (cfg.insuranceAnnual + cfg.propertyTaxAnnual + svjAnnual + mortgageAnnual) / (12 * vacancyFactor * breakEvenDenominator)
     : 0;
 
   const targetPurchasePrice = cfg.targetYield > 0 ? noiAnnual / (cfg.targetYield / 100) : 0;
@@ -285,7 +314,7 @@ export function calculateRentalResults(
     const costGrowth = Math.pow(1 + cfg.expenseGrowthPct / 100, y - 1);
     const grossRent = Math.round(annualGrossRent * growth);
     const effectiveRent = Math.round(grossRent * vacancyFactor);
-    const fixedCosts = Math.round(cfg.insuranceAnnual * costGrowth) + Math.round(cfg.propertyTaxAnnual * costGrowth);
+    const fixedCosts = Math.round(cfg.insuranceAnnual * costGrowth) + Math.round(cfg.propertyTaxAnnual * costGrowth) + Math.round(svjAnnual * costGrowth);
     const operatingCosts = Math.round(effectiveRent * pctOpex) + fixedCosts;
     const noi = effectiveRent - operatingCosts;
     const tax = Math.round(effectiveRent * incomeTaxFactor);
@@ -328,6 +357,8 @@ export function calculateRentalResults(
     mortgageAnnual: Math.round(mortgageAnnual),
     cashFlowAnnual,
     cashFlowMonthly: Math.round(cashFlowAnnual / 12),
+    svjMonthly,
+    svjIsEstimate,
     grossYield: Math.round(grossYield * 10) / 10,
     netYield: Math.round(netYield * 10) / 10,
     netYieldAfterTax: Math.round(netYieldAfterTax * 10) / 10,

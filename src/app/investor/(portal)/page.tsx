@@ -721,6 +721,9 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
             </>
           )}
           {snap?.noiAnnual != null && <DetailRow label="NOI ročně" value={formatPrice(snap.noiAnnual)} />}
+          {snap?.svjFeeMonthly != null && snap.svjFeeMonthly > 0 && (
+            <DetailRow label="Fond oprav (SVJ)" value={`${formatPrice(snap.svjFeeMonthly)} /měs${snap.svjIsEstimate ? " · odhad" : ""}`} />
+          )}
           <DetailRow label="Hrubý výnos" value={deal?.grossYield != null ? `${deal.grossYield.toFixed(1)} %` : "—"} />
           <DetailRow label="Čistý výnos (p.a.)" value={deal?.netYield != null ? `${deal.netYield.toFixed(1)} %` : "—"} accent={deal?.netYield != null && deal.netYield >= 0} />
           <DetailRow label="Výnos po dani" value={deal?.netYieldAfterTax != null ? `${deal.netYieldAfterTax.toFixed(1)} %` : "—"} />

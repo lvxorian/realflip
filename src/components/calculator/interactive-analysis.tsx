@@ -16,7 +16,7 @@ import {
   DEFAULT_RENOVATION_PER_SQM,
   resolveRenovationCost,
 } from "@/lib/analysis/flip-costs";
-import { calculateRentalResults, estimateMonthlyRent, mortgageRateSensitivity, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, type RentalConfig } from "@/lib/analysis/rental-calc";
+import { calculateRentalResults, estimateMonthlyRent, mortgageRateSensitivity, RENTAL_DEFAULTS, RENTAL_CONSTANTS, resolveSourcingFee, svjEstimateMonthly, svjEstimatePerSqm, type RentalConfig } from "@/lib/analysis/rental-calc";
 import { strategiesFromAvailability, type CooperationAvailability } from "@/lib/cooperation-models";
 import type { CooperationView } from "@/lib/investor-portal-view";
 import { cityDisplayName } from "@/lib/analysis/location";
@@ -328,9 +328,10 @@ function InteractiveCard({
   const [rentalConfig, setRentalConfig] = useState<RentalConfig>(() => ({
     ...RENTAL_DEFAULTS,
     monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null),
+    buildingType: a.buildingType ?? null,
   }));
 
-  const updateRental = (key: keyof RentalConfig, value: number | boolean) =>
+  const updateRental = (key: keyof RentalConfig, value: number | boolean | null) =>
     setRentalConfig((prev) => ({ ...prev, [key]: value }));
 
   const toggleRental = (key: keyof RentalConfig) =>
@@ -439,7 +440,7 @@ function InteractiveCard({
               setCostConfig((prev) => ({ ...prev, sourcingEnabled: true }));
             }
           }
-          if (cfg.rental) setRentalConfig({ ...RENTAL_DEFAULTS, ...cfg.rental });
+          if (cfg.rental) setRentalConfig((prev) => ({ ...RENTAL_DEFAULTS, ...prev, ...cfg.rental, buildingType: cfg.rental.buildingType ?? prev.buildingType }));
           if (cfg.renovationMode) setRenovationMode(cfg.renovationMode);
           if (cfg.renovationLevel) setRenovationLevel(cfg.renovationLevel);
           if (cfg.renovationPerSqm) setRenovationPerSqm(cfg.renovationPerSqm);
@@ -493,6 +494,8 @@ function InteractiveCard({
           rentalHasMortgage: mode === "rental" ? rentalConfig.hasMortgage : null,
           rentalMortgageAmount: mode === "rental" ? rentalConfig.mortgageAmount : null,
           rentalLtv: mode === "rental" ? targetRental.ltv : null,
+          rentalSvjFeeMonthly: mode === "rental" ? targetRental.svjMonthly : null,
+          rentalSvjIsEstimate: mode === "rental" ? targetRental.svjIsEstimate : null,
           flipNetProfit: mode === "flip" ? targetFlip.netProfit : null,
           flipRoi: mode === "flip" ? targetFlip.roi : null,
           flipAnnualizedRoi: mode === "flip" ? targetFlip.annualizedRoi : null,
@@ -533,7 +536,7 @@ function InteractiveCard({
     setTargetRoi(15);
     setManualFlipPrice(null);
     setMode("flip");
-    setRentalConfig({ ...RENTAL_DEFAULTS, monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null) });
+    setRentalConfig({ ...RENTAL_DEFAULTS, monthlyRent: estimateMonthlyRent(area, a.location?.city ?? null, a.location?.category ?? null), buildingType: a.buildingType ?? null });
     setRentalRenovationMode("perSqm");
     setRentalRenovationLevel("medium");
     setRentalRenovationPerSqm(DEFAULT_RENOVATION_PER_SQM);
@@ -1407,6 +1410,27 @@ function InteractiveCard({
                       <span className="font-mono text-foreground">{rentalResults.ltv} %</span>
                     </div>
                   )}
+                  {(() => {
+                    const svjEst = svjEstimateMonthly(area, rentalConfig.buildingType);
+                    return (
+                      <div className="flex items-center justify-between gap-2 pl-1 pt-2 border-t border-border/30">
+                        <div className="text-xs">
+                          <span className="text-foreground/80">Fond oprav (SVJ)</span>
+                          <span className="block text-[10px] text-muted">
+                            {rentalConfig.svjFeeMonthly == null
+                              ? `odhad ${svjEstimatePerSqm(rentalConfig.buildingType)} Kč/m² · ${formatPrice(svjEst)} /měs (dle konstrukce)`
+                              : "vlastní hodnota"}
+                          </span>
+                        </div>
+                        <AmountInput
+                          value={rentalConfig.svjFeeMonthly ?? ""}
+                          onChange={(e) => updateRental("svjFeeMonthly", e.target.value ? parseInt(e.target.value) || 0 : null)}
+                          placeholder={svjEst > 0 ? String(svjEst) : ""}
+                          className="w-24 rounded-lg border border-border/50 bg-card px-2 py-1 text-xs font-mono text-right focus:outline-none focus:ring-1 focus:ring-accent/40"
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Rental metric boxes */}

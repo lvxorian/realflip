@@ -103,6 +103,9 @@ export interface CalcSnapshotRental {
   mortgageAmount?: number | null;
   /** LTV (úvěr / kupní cena v %) — novější snapshoty; staré nemají → undefined. */
   ltv?: number | null;
+  /** Fond oprav SVJ (Kč/měs) a zda jde o odhad — novější snapshoty; staré nemají → undefined. */
+  svjFeeMonthly?: number | null;
+  svjIsEstimate?: boolean | null;
 }
 
 export type CalcSnapshot = CalcSnapshotFlip | CalcSnapshotRental;
