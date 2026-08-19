@@ -7,6 +7,8 @@ import { Providers } from "@/components/shared/providers";
 export const viewport: Viewport = {
   themeColor: "#0c0c0f",
   interactiveWidget: "resizes-visual",
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export async function generateMetadata(): Promise<Metadata> {

@@ -17,10 +17,10 @@ import {
   type DragOverEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { WarningCircle, Kanban } from "@phosphor-icons/react";
+import { WarningCircle, Kanban, Star } from "@phosphor-icons/react";
 import { LEAD_STAGES, LEAD_STAGE_KEYS, resolveDropTarget } from "@/lib/leads";
 import { moveLeadToStage, reorderLeadInStage } from "@/lib/pipeline-board";
-import { cn, formatCompactPrice } from "@/lib/utils";
+import { cn, formatCompactPrice, splitAddress } from "@/lib/utils";
 import { currentTime } from "@/lib/clock";
 import { toast } from "sonner";
 import { LeadCard, LeadCardView } from "./lead-card";
@@ -154,9 +154,18 @@ export function LeadsBoard() {
   const [openSeq, setOpenSeq] = useState(0);
   const [latestOver, setLatestOver] = useState<DragTarget | null>(null);
   const [investorNames, setInvestorNames] = useState<Record<string, string>>({});
+  const [isMobileList, setIsMobileList] = useState(false);
   const wasDragging = useRef(false);
   const requestSeq = useRef(0);
   const leadsRef = useRef<LeadItem[] | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => setIsMobileList(window.innerWidth < 1024);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     leadsRef.current = leads;
@@ -622,6 +631,19 @@ export function LeadsBoard() {
     <div className="space-y-4">
       <LeadsToolbar leads={leads} visible={filtered.length} filters={filters} onChange={setFilters} />
 
+      {/* Mobilní zobrazení: vertikální seznam leadů (nativní vzor) */}
+      {isMobileList && (
+        <div className="lg:hidden">
+          <MobileLeadList
+            byStage={byStage}
+            investorNames={investorNames}
+            onOpen={setSelectedLead}
+            onTogglePriority={handlePriorityToggle}
+          />
+        </div>
+      )}
+
+      <div className="hidden lg:block">
       <DndContext
         sensors={sensors}
         collisionDetection={boardCollision}
@@ -720,6 +742,7 @@ export function LeadsBoard() {
           )}
         </DragOverlay>
       </DndContext>
+      </div>
 
       <LeadDrawer
         lead={selectedLead}
@@ -746,6 +769,140 @@ export function LeadsBoard() {
         onCloseOnly={confirmCloseOnly}
         onReopen={confirmReopen}
       />
+    </div>
+  );
+}
+
+/** Mobilní zobrazení pipeline — vertikální seznam leadů seskupený podle fází. */
+function MobileLeadList({
+  byStage,
+  investorNames,
+  onOpen,
+  onTogglePriority,
+}: {
+  byStage: Map<string, LeadItem[]>;
+  investorNames: Record<string, string>;
+  onOpen: (lead: LeadItem) => void;
+  onTogglePriority: (lead: LeadItem) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      {LEAD_STAGES.map((stage) => {
+        const items = byStage.get(stage.key) ?? [];
+        if (items.length === 0) return null;
+        return (
+          <div key={stage.key}>
+            <div className="flex items-center gap-2 px-1 mb-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${stage.dot}`} />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">{stage.label}</h2>
+              <span className="ml-auto shrink-0 rounded-md bg-border/20 px-1.5 py-0.5 text-[10px] font-mono text-muted">
+                {items.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {items.map((lead) => (
+                <MobileLeadRow
+                  key={lead.id}
+                  lead={lead}
+                  investorName={lead.portalReservedInvestorId ? investorNames[lead.portalReservedInvestorId] ?? null : null}
+                  onOpen={onOpen}
+                  onTogglePriority={onTogglePriority}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileLeadRow({
+  lead,
+  investorName,
+  onOpen,
+  onTogglePriority,
+}: {
+  lead: LeadItem;
+  investorName: string | null;
+  onOpen: (lead: LeadItem) => void;
+  onTogglePriority: (lead: LeadItem) => void;
+}) {
+  const { street, city } = splitAddress(lead.propertyAddress);
+  const stage = LEAD_STAGES.find((s) => s.key === lead.stage);
+  const priority = lead.priority ?? 0;
+  const overdue =
+    lead.stage !== "closed" && lead.stage !== "lost" && lead.nextStepDueAt != null && lead.nextStepDueAt > 0 && lead.nextStepDueAt < currentTime();
+  const reserved = lead.stage === "negotiation" && lead.portalStatus === "reserved";
+  const isDeal = lead.stage === "closed" && !!lead.dealId;
+  const price = lead.propertyPrice ?? 0;
+
+  return (
+    <div
+      onClick={() => onOpen(lead)}
+      className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 cursor-pointer hover:bg-card-hover active:bg-card-hover transition-colors"
+    >
+      {lead.propertyImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={lead.propertyImageUrl}
+          alt=""
+          className="h-12 w-16 shrink-0 rounded-lg object-cover border border-border/30"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <div className="h-12 w-16 shrink-0 rounded-lg bg-accent/10 flex items-center justify-center text-[10px] text-muted">
+          foto
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium leading-snug line-clamp-1 text-foreground">
+          {lead.propertyTitle ?? "Neznámá nemovitost"}
+        </p>
+        {(street || city) && (
+          <p className="text-xs text-muted truncate mt-0.5">
+            {[street || investorName, city].filter(Boolean).join(", ")}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          {stage && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-border/20 px-1.5 py-0.5 text-[10px] font-medium text-muted">
+              <span className={`h-1.5 w-1.5 rounded-full ${stage.dot}`} />
+              {stage.label}
+            </span>
+          )}
+          {price > 0 && (
+            <span className="rounded-md px-1.5 py-0.5 text-[10px] font-mono font-semibold text-foreground">
+              {formatCompactPrice(price)}
+            </span>
+          )}
+          <span className="rounded-md bg-accent/10 text-accent px-1.5 py-0.5 text-[10px] font-mono font-semibold">
+            {lead.analysisScore ?? 0}/100
+          </span>
+          {isDeal && <span className="rounded-md bg-accent/15 text-accent px-1.5 py-0.5 text-[10px] font-semibold">Deal</span>}
+          {reserved && <span className="rounded-md bg-amber-500/10 text-amber-400 px-1.5 py-0.5 text-[10px] font-semibold">Rezervováno</span>}
+          {overdue && <span className="rounded-md bg-red-500/10 text-red-400 px-1.5 py-0.5 text-[10px] font-semibold">Propadl krok</span>}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePriority(lead);
+        }}
+        aria-label="Změnit prioritu"
+        className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors"
+      >
+        <Star
+          size={16}
+          weight={priority > 0 ? "fill" : "regular"}
+          className={priority > 0 ? "text-amber-400" : "text-muted/40"}
+        />
+      </button>
     </div>
   );
 }
