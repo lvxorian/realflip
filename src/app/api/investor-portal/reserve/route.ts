@@ -193,5 +193,52 @@ export async function POST(req: NextRequest) {
     .update(leads)
     .set({ portalStatus: "available", portalReservedInvestorId: null, portalReservedStrategy: null, updatedAt: Date.now() })
     .where(and(eq(leads.id, leadId), eq(leads.portalReservedInvestorId, session.sub)));
+
+  // --- Cancellation emails ---
+  const cancelBaseUrl = (
+    process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "") ??
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+    "http://localhost:3000"
+  );
+  const cancelLocation = [lead.propertyTitle, lead.propertyAddress].filter(Boolean).join(" · ") || "nemovitost";
+
+  // Email to investor
+  try {
+    const investorRow = await db
+      .select({ email: investors.email, name: investors.name })
+      .from(investors)
+      .where(eq(investors.id, session.sub))
+      .limit(1);
+    const investorEmail = investorRow[0]?.email;
+    if (investorEmail) {
+      const { buildCancelReservationInvestorHtml } = await import("@/lib/email/cancel-reservation-template");
+      const html = buildCancelReservationInvestorHtml({
+        investorName: session.name,
+        propertyTitle: lead.propertyTitle ?? null,
+        propertyAddress: lead.propertyAddress ?? null,
+        baseUrl: cancelBaseUrl,
+      });
+      const subject = `${INVESTOR_BRAND} · Rezervace zrušena — ${cancelLocation}`;
+      await sendEmail({ to: investorEmail, subject, html });
+    }
+  } catch {
+    // Do not block cancellation on email failure
+  }
+
+  // Email to admin
+  try {
+    const { buildCancelReservationAdminHtml } = await import("@/lib/email/cancel-reservation-template");
+    const adminHtml = buildCancelReservationAdminHtml({
+      investorName: session.name,
+      propertyTitle: lead.propertyTitle ?? null,
+      propertyAddress: lead.propertyAddress ?? null,
+      baseUrl: cancelBaseUrl,
+    });
+    const adminSubject = `${INVESTOR_BRAND} · Zrušení rezervace — ${session.name} · ${cancelLocation}`;
+    await sendEmail({ to: "cakmak@tuta.com", subject: adminSubject, html: adminHtml });
+  } catch {
+    // Do not block cancellation on admin email failure
+  }
+
   return NextResponse.json({ ok: true, status: "available" });
 }

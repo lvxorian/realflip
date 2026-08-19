@@ -187,6 +187,10 @@ export default function InvestorPortalPage() {
     strategy: string | null;
     strategyLabel: string | null;
   } | null>(null);
+  const [cancelledReservation, setCancelledReservation] = useState<{
+    propertyTitle: string | null;
+    propertyAddress: string | null;
+  } | null>(null);
   const dismissedEmailPrompt = useRef(false);
 
   const maybePromptEmail = useCallback((json: PortalData) => {
@@ -268,7 +272,12 @@ export default function InvestorPortalPage() {
       }
       setReserveItem(null);
       const json = await res.json().catch(() => ({}));
-      if (json.reservation) {
+      if (action === "cancel") {
+        setCancelledReservation({
+          propertyTitle: [item.city, item.district].filter(Boolean).join(" · ") || null,
+          propertyAddress: null,
+        });
+      } else if (json.reservation) {
         setConfirmedReservation(json.reservation);
       }
       await refresh();
@@ -589,7 +598,7 @@ export default function InvestorPortalPage() {
                                   <span className="text-xs text-emerald-400">Dostupná k rezervaci</span>
                                 )}
                               </div>
-                              <ActionButton item={item} busy={actionId === item.id} size="sm" onClick={() => handleReserveClick(item)} />
+                              <ActionButton item={item} busy={actionId === item.id} size="sm" onClick={() => handleReserveClick(item)} onCancel={() => performReserve(item, null)} />
                             </div>
                           </div>
                         </motion.div>
@@ -645,6 +654,12 @@ export default function InvestorPortalPage() {
         onEmailSaved={(email) => {
           setData((prev) => (prev ? { ...prev, investorEmail: email } : prev));
         }}
+      />
+
+      <CancelledReservationModal
+        open={cancelledReservation != null}
+        reservation={cancelledReservation}
+        onClose={() => setCancelledReservation(null)}
       />
     </div>
   );
@@ -1252,6 +1267,72 @@ function ReservationConfirmedModal({
   );
 }
 
+/** Modal po zrušení rezervace */
+function CancelledReservationModal({
+  open,
+  reservation,
+  onClose,
+}: {
+  open: boolean;
+  reservation: { propertyTitle: string | null; propertyAddress: string | null } | null;
+  onClose: () => void;
+}) {
+  const location = reservation ? [reservation.propertyTitle, reservation.propertyAddress].filter(Boolean).join(" · ") || "Nemovitost" : "";
+
+  return (
+    <AnimatePresence>
+      {open && reservation && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+          >
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-danger/15 border border-danger/25">
+                  <X size={20} weight="bold" className="text-danger" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold tracking-tight leading-tight">Rezervace zrušena</h2>
+                  <p className="text-sm text-muted mt-1">Vaše rezervace byla úspěšně zrušena.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors text-muted"
+                  aria-label="Zavřít"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+
+              <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-2">
+                <p className="text-sm font-semibold">{location}</p>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Nabídka se vrací zpět do portálu a je opět dostupná pro ostatní investory.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button type="button" className="flex-1" onClick={onClose}>
+                  Rozumím
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function StatCard({ label, value, tone, icon }: { label: string; value: string; tone: string; icon: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-4 flex items-center gap-3">
@@ -1280,11 +1361,13 @@ function ActionButton({
   item,
   busy,
   onClick,
+  onCancel,
   size = "md",
 }: {
   item: InvestorPortalItem;
   busy: boolean;
   onClick: () => void;
+  onCancel?: () => void;
   size?: "sm" | "md";
 }) {
   const isMine = item.status === "reserved" && item.reservedByMe;
@@ -1300,7 +1383,7 @@ function ActionButton({
       <Button
         size={size}
         loading={busy}
-        onClick={onClick}
+        onClick={onCancel ?? onClick}
         className="bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 hover:border-danger/40 cursor-pointer"
       >
         <ArrowCounterClockwise size={14} weight="bold" />
