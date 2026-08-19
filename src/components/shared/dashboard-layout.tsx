@@ -30,6 +30,7 @@ import {
   ChartLineUp,
   List,
   X,
+  GridFour,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -104,7 +105,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-[100dvh]">
       {/* ===== Mobilní top bar ===== */}
-      <header className="lg:hidden sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3">
+      <header className="lg:hidden sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3">
         <button
           onClick={() => setMobileOpen(true)}
           aria-label="Otevřít menu"
@@ -135,9 +136,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         initial={false}
         animate={{ x: mobileOpen ? 0 : "-100%" }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="lg:hidden fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-card/95 backdrop-blur-xl border-r border-border/50"
+        className="lg:hidden fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col bg-card/95 backdrop-blur-xl border-r border-border/50"
       >
-        <div className="flex h-14 items-center justify-between border-b border-border/50 px-3">
+        <div className="flex h-12 items-center justify-between border-b border-border/50 px-3">
           {brand}
           <button
             onClick={() => setMobileOpen(false)}
@@ -175,7 +176,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* ===== Desktop sidebar ===== */}
       <aside
         className={cn(
-          "hidden lg:flex fixed left-0 top-0 z-30 flex-col bg-card/80 backdrop-blur-xl border-r border-border/50 transition-[width] duration-300",
+          "hidden lg:flex fixed left-0 top-0 z-30 h-full flex-col bg-card/80 backdrop-blur-xl border-r border-border/50 transition-[width] duration-300",
           collapsed ? "w-[68px]" : "w-[240px]"
         )}
       >
@@ -285,11 +286,54 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           collapsed ? "lg:ml-[68px]" : "lg:ml-[240px]"
         )}
       >
-        <div className="max-w-[1400px] mx-auto p-4 lg:p-8">{children}</div>
+        <div className="max-w-[1400px] mx-auto p-3 sm:p-4 lg:p-8 pb-24 lg:pb-8">{children}</div>
       </main>
+
+      {/* ===== Mobilní bottom nav ===== */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border/50 bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5 h-16">
+          {bottomNavItems.map((item) => {
+            const isActive = item.href === "/more" ? mobileOpen : pathname === item.href || pathname.startsWith(item.href + "/");
+            return item.href === "/more" ? (
+              <button
+                key={item.href}
+                onClick={() => setMobileOpen(true)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+                  isActive ? "text-accent" : "text-muted hover:text-foreground"
+                )}
+              >
+                <item.icon size={22} weight={isActive ? "fill" : "regular"} />
+                {item.label}
+              </button>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+                  isActive ? "text-accent" : "text-muted hover:text-foreground"
+                )}
+              >
+                <item.icon size={22} weight={isActive ? "fill" : "regular"} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
+
+const bottomNavItems: NavItem[] = [
+  { href: "/dashboard", label: "Domů", icon: House },
+  { href: "/properties", label: "Nemovitosti", icon: Buildings },
+  { href: "/searches", label: "Hledání", icon: Funnel },
+  { href: "/leads", label: "Pipeline", icon: GitBranch },
+  { href: "/more", label: "Více", icon: GridFour },
+];
 
 function MobileNavLinks({
   navItems,
@@ -308,7 +352,7 @@ function MobileNavLinks({
           <Link key={item.href} href={item.href}>
             <div
               className={cn(
-                "relative flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors",
+                "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
                 isActive
                   ? "bg-accent-soft text-accent"
                   : "text-muted hover:text-foreground hover:bg-card-hover"
@@ -318,7 +362,7 @@ function MobileNavLinks({
                 <div className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/20 pointer-events-none" />
               )}
               <div className="relative z-10">
-                <item.icon size={20} weight={isActive ? "fill" : "regular"} />
+                <item.icon size={18} weight={isActive ? "fill" : "regular"} />
                 {item.href === "/investors" && investorBadge > 0 && (
                   <span className="absolute -top-1.5 -right-2 h-4 min-w-[16px] flex items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white px-1">
                     {investorBadge > 9 ? "9+" : investorBadge}

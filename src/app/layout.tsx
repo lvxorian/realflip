@@ -1,8 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { Providers } from "@/components/shared/providers";
+
+export const viewport: Viewport = {
+  themeColor: "#0c0c0f",
+  interactiveWidget: "resizes-visual",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   if (process.env.INVESTOR_ONLY === "1") {
