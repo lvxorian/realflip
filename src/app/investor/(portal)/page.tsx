@@ -580,11 +580,11 @@ export default function InvestorPortalPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 {isMine && item.reservationExpiresAt ? (
-                                  <span className="text-xs text-muted tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span>
+                                  <span className="text-xs text-muted">Vaše rezervace vyprší za <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
+                                ) : item.status === "reserved" && !item.reservedByMe && item.reservationExpiresAt ? (
+                                  <span className="text-xs text-muted">Rezervace vyprší za <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
                                 ) : item.status === "reserved" && !item.reservedByMe ? (
-                                  <span className="text-xs text-muted">
-                                    {item.reservedByName ? `Rezervováno od ${item.reservedByName}` : "Rezervováno jiným investorem"}
-                                  </span>
+                                  <span className="text-xs text-muted">Rezervováno jiným investorem</span>
                                 ) : (
                                   <span className="text-xs text-emerald-400">Dostupná k rezervaci</span>
                                 )}
@@ -1288,28 +1288,28 @@ function ActionButton({
   if (item.status === "reserved" && !item.reservedByMe) {
     return (
       <span className="text-xs text-muted text-right block whitespace-nowrap">
-        {item.reservedByName ? `od ${item.reservedByName}` : "jiný investor"}
+        {item.reservedByName ? `Rezervováno investorem ${item.reservedByName}` : "Rezervováno jiným investorem"}
       </span>
     );
   }
-  const countdown = isMine && item.reservationExpiresAt ? reservationCountdown(item.reservationExpiresAt) : null;
-  return (
-    <div className="flex flex-col items-end gap-1.5">
-      <Button variant={isMine ? "secondary" : "default"} size={size} loading={busy} onClick={onClick}>
-        {isMine ? (
-          <>
-            <ArrowCounterClockwise size={14} weight="bold" />
-            Uvolnit
-          </>
-        ) : (
-          <>
-            <SealCheck size={14} weight="bold" />
-            Rezervovat
-          </>
-        )}
+  if (isMine) {
+    return (
+      <Button
+        size={size}
+        loading={busy}
+        onClick={onClick}
+        className="bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 hover:border-danger/40"
+      >
+        <ArrowCounterClockwise size={14} weight="bold" />
+        Uvolnit
       </Button>
-      {countdown && <span className="text-[10px] text-muted tabular-nums">{countdown}</span>}
-    </div>
+    );
+  }
+  return (
+    <Button variant="default" size={size} loading={busy} onClick={onClick}>
+      <SealCheck size={14} weight="bold" />
+      Rezervovat
+    </Button>
   );
 }
 
