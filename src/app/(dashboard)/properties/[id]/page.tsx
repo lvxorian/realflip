@@ -198,7 +198,7 @@ export default async function PropertyDetailPage({
   const removedNeutral = pipelineLead != null && (pipelineLead.stage === "closed" || pipelineLead.stage === "lost");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Link
         href="/properties"
         className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
@@ -229,8 +229,8 @@ export default async function PropertyDetailPage({
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Hero with gallery */}
           <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="relative">
@@ -239,28 +239,28 @@ export default async function PropertyDetailPage({
                 alt={property.title}
                 score={analysis?.investmentScore}
               />
-              <div className="absolute top-4 right-4 flex gap-2 z-10">
+              <div className="absolute top-3 right-3 flex gap-2 z-10">
                 {property.contactPhone && (
                   <a
                     href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
-                    className="glass h-8 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-medium hover:bg-card-hover transition-colors"
+                    className="glass h-10 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-medium hover:bg-card-hover transition-colors"
                   >
                     <Phone size={14} weight="fill" />
                     Zavolat
                   </a>
                 )}
-                <button className="glass h-8 w-8 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
+                <button className="glass h-10 w-10 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
                   <ShareNetwork size={14} weight="bold" />
                 </button>
                 <FavoriteButton
                   propertyId={id}
                   initialFavorited={isFavorited}
                   size={14}
-                  className="glass h-8 w-8"
+                  className="glass h-10 w-10"
                 />
               </div>
               {analysis?.investmentScore !== undefined && (
-                <div className="absolute top-4 left-4 z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">
+                <div className="absolute top-3 left-3 z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">
                   <ScoreGauge score={analysis.investmentScore} size={36} strokeWidth={3} />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-muted font-mono">skóre</span>
@@ -270,7 +270,7 @@ export default async function PropertyDetailPage({
               )}
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
               <div>
                 <h1 className="text-xl font-semibold tracking-tight">{property.title}</h1>
                 <div className="flex items-center gap-2 mt-1 text-sm text-muted flex-wrap">
@@ -313,7 +313,7 @@ export default async function PropertyDetailPage({
                 return null;
               })()}
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 {[
                   { label: "dispozice", value: property.rooms ?? "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
@@ -377,7 +377,7 @@ export default async function PropertyDetailPage({
 
           {/* Description */}
           {property.description && (
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6">
               <h2 className="font-semibold tracking-tight text-sm mb-3">Popis</h2>
               <p className="text-sm text-muted leading-relaxed whitespace-pre-wrap">{property.description}</p>
             </div>
@@ -385,7 +385,7 @@ export default async function PropertyDetailPage({
 
           {/* Price History */}
           {history.length > 1 && (
-            <div className="rounded-2xl border border-border/50 bg-card p-6">
+            <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6">
               <h2 className="font-semibold tracking-tight text-sm mb-4">Historie ceny</h2>
               <div className="space-y-3">
                 {history.map((h) => (
@@ -400,7 +400,7 @@ export default async function PropertyDetailPage({
 
           {/* Map */}
           <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
-            <div className="p-6 pb-3">
+            <div className="p-4 pb-3 sm:p-6 sm:pb-3">
               <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2">
                 <MapPin size={14} className="text-accent" weight="duotone" />
                 Lokalita
@@ -419,7 +419,7 @@ export default async function PropertyDetailPage({
         <div className="space-y-4">
           {/* Pipeline status / Zahájit jednání */}
           {pipelineLead ? (
-            <div className="rounded-2xl border border-accent/30 bg-card p-5">
+            <div className="rounded-2xl border border-accent/30 bg-card p-4 sm:p-5">
               <div className="flex items-center gap-2 text-sm mb-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                   <GitBranch size={16} weight="duotone" />
@@ -467,7 +467,7 @@ export default async function PropertyDetailPage({
 
           {/* Dražba – výkup před dražbou */}
           {isAuction && auctionData && (
-            <div className="rounded-2xl border border-red-500/20 bg-card p-5">
+            <div className="rounded-2xl border border-red-500/20 bg-card p-4 sm:p-5">
               <div className="flex items-center gap-2 text-sm mb-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-400 text-base">⚖️</span>
                 <span className="font-medium">Výkup před dražbou</span>
@@ -540,7 +540,7 @@ export default async function PropertyDetailPage({
 
           {/* Contact */}
           {(property.contactName || property.contactPhone || property.contactEmail) && (
-            <div className="rounded-2xl border border-border/50 bg-card p-5">
+            <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5">
               <div className="flex items-center gap-2 text-sm mb-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent text-base">📞</span>
                 <span className="font-medium">{property.contactName ?? "Kontakt"}</span>
@@ -632,7 +632,7 @@ export default async function PropertyDetailPage({
           {hasRealUrl && (
             <Link
               href={`/odhad?url=${encodeURIComponent(property.url)}`}
-              className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover hover:border-accent/20 transition-all block"
+              className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5 hover:bg-card-hover hover:border-accent/20 transition-all block"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -651,7 +651,7 @@ export default async function PropertyDetailPage({
           {/* PDF Report */}
           <Link
             href={`/report/${property.id}`}
-            className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover hover:border-accent/20 transition-all block"
+            className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5 hover:bg-card-hover hover:border-accent/20 transition-all block"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">

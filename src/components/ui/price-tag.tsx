@@ -18,7 +18,7 @@ export function PriceTag({ price, size = "md", perSqm, className, locale = "cs-C
   const sizeClasses = {
     sm: "text-sm font-semibold",
     md: "text-xl font-bold",
-    lg: "text-3xl font-bold",
+    lg: "text-2xl sm:text-3xl font-bold",
   };
 
   return (

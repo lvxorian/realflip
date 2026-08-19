@@ -835,7 +835,7 @@ function InteractiveCard({
           )}
 
           {/* Key Info Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <InfoBox label="Cena" value={formatPrice(l.price)} />
             <InfoBox label="ARV" value={formatPrice(arv)} highlight="text-price" />
             <InfoBox label="Cena za m²" value={formatPrice(a.pricePerSqm > 0 ? a.pricePerSqm : Math.round(l.price / area)) + "/m²"} />
@@ -868,11 +868,11 @@ function InteractiveCard({
               <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
                 <button
                   onClick={() => setMode("flip")}
-                  className={`px-3 py-1.5 transition-colors ${mode === "flip" ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
+                  className={`px-3 py-2 transition-colors ${mode === "flip" ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
                 >Flip</button>
                 <button
                   onClick={() => setMode("rental")}
-                  className={`px-3 py-1.5 transition-colors ${mode === "rental" ? "bg-info text-white" : "bg-card text-muted hover:text-foreground"}`}
+                  className={`px-3 py-2 transition-colors ${mode === "rental" ? "bg-info text-white" : "bg-card text-muted hover:text-foreground"}`}
                 >Nájem</button>
               </div>
             </div>
@@ -940,8 +940,8 @@ function InteractiveCard({
             </div>
 
             {/* Target ROI — při ručně zadané ceně ukazuje dosažené ROI; pohyb se vrátí k plánování z ROI */}
-            <div className="flex items-center gap-3">
-              <label className="text-xs text-muted shrink-0">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <label className="text-xs text-muted sm:shrink-0">
                 {manualFlipPrice != null ? "ROI při ceně:" : "Cílové ROI:"}
               </label>
               <input
@@ -956,16 +956,18 @@ function InteractiveCard({
                 }}
                 className="flex-1 accent-accent h-1.5"
               />
-              <PctStepper
-                value={manualFlipPrice != null && flipDisplay ? flipDisplay.roi : targetRoi}
-                onChange={(v) => {
-                  setManualFlipPrice(null);
-                  setTargetRoi(v);
-                }}
-                min={5}
-                max={100}
-              />
-              <span className="text-sm font-mono text-foreground shrink-0">%</span>
+              <div className="flex items-center gap-1.5">
+                <PctStepper
+                  value={manualFlipPrice != null && flipDisplay ? flipDisplay.roi : targetRoi}
+                  onChange={(v) => {
+                    setManualFlipPrice(null);
+                    setTargetRoi(v);
+                  }}
+                  min={5}
+                  max={100}
+                />
+                <span className="text-sm font-mono text-foreground shrink-0">%</span>
+              </div>
             </div>
 
             {/* Způsob spolupráce */}
@@ -1251,7 +1253,7 @@ function InteractiveCard({
                 </div>
 
 {/* Assumptions */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <NumberField label="Růst nájmu (%/rok)" value={rentalConfig.rentGrowthPct} onChange={(v) => updateRental("rentGrowthPct", v)} suffix="%" />
                   <NumberField label="Růst ceny (%/rok)" value={rentalConfig.appreciationPct} onChange={(v) => updateRental("appreciationPct", v)} suffix="%" />
                   <NumberField label="Obsazenost (% / rok)" value={rentalConfig.vacancyPct} onChange={(v) => updateRental("vacancyPct", v)} suffix="%" />
@@ -1264,8 +1266,8 @@ function InteractiveCard({
                 </div>
 
                 {/* Target yield */}
-                <div className="flex items-center gap-3">
-                  <label className="text-xs text-muted shrink-0">Cílový výnos:</label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <label className="text-xs text-muted sm:shrink-0">Cílový výnos:</label>
                   <input
                     type="range"
                     min={3}
@@ -1275,13 +1277,15 @@ function InteractiveCard({
                     onChange={(e) => updateRental("targetYield", parseFloat(e.target.value))}
                     className="flex-1 accent-accent h-1.5"
                   />
-                  <PctStepper
-                    value={rentalConfig.targetYield}
-                    onChange={(v) => updateRental("targetYield", v)}
-                    min={3}
-                    max={20}
-                  />
-                  <span className="text-sm font-mono text-foreground shrink-0">%</span>
+                  <div className="flex items-center gap-1.5">
+                    <PctStepper
+                      value={rentalConfig.targetYield}
+                      onChange={(v) => updateRental("targetYield", v)}
+                      min={3}
+                      max={20}
+                    />
+                    <span className="text-sm font-mono text-foreground shrink-0">%</span>
+                  </div>
                 </div>
 
                 {/* Renovation (dedicated rental input) */}
