@@ -480,6 +480,49 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Náznaky z dat**: priceMap vrací 13 krajů (1 v SSR chybí — netřeba řešit); `stazene` inzeráty řídké (removedAt od 2026-08); cityKey = lowercase slug („praha").
 - Testy 698 → 714 (56 souborů), typecheck čistý, lint bez nových chyb.
 
+### Phase 71 — Brickon: logo v popupech, e-maily adminovi, investorem zvolený model (Done)
+- **Brickon logo v popupu výběru modelu** místo ikony ruky s mincemi; do popupu potvrzení rezervace se vrátila **fajfka** (`SealCheck`).
+- **Admin e-maily** (nová rezervace + zrušení): button „Otevřít investory" → **natvrdo** `realflip.vercel.app/investors` (dřív `{baseUrl}/investors` = portál); částka u „Podíl z obchodu"/„Sourcing fee" na **jednom řádku** (`white-space:nowrap`) a **bez duplicitního „Kč Kč"** (`formatPrice` už měnu obsahuje).
+- **Patička e-mailů investorům**: „…nás kontaktovat na cakmak@tuta.com" → „…nás kontaktovat." (bez adresy); „postup — ať už" → „postup, ať už" (e-mail potvrzení + Brickon modal).
+- **`portalReservedStrategy`** (investorem zvolený model) se propsuje do karty **„Portál investorů"** na detailu nemovitosti — read-only řádek „Investor zvolil: 50/50 / Sourcing fee" (`PortalPanel` prop `initialReservedStrategy`).
+
+### Phase 72 — Notifikace: mark-read + konzistence badge (Done)
+- **`POST /api/investors/unread-reservations`** (`{ investorId }`) označí nečtené `portal_reservation` notifikace jako přečtené (jen ty, jejichž lead je aktuálně rezervovaný daným investorem; bez `investorId` = všechny pro admina).
+- **`total` = součet `byInvestor`** — uvolněné/vypršelé rezervace už nedrží menu badge (dřív `total` počítal všechny nečtené bez ohledu na stav → badge visel na čísle).
+- **`MarkReservationsRead`** (`src/components/investors/mark-reservations-read.tsx`) na detailu investora → otevření investora = přečtení jeho rezervací.
+- Dashboard layout **refetchuje badge na navigaci** (`pathname` dep) → číslo zmizí hned po návratu z detailu.
+- Dropdown zvonečku zobrazuje **plný text** notifikace (`line-clamp-2` odstraněn).
+
+### Phase 73 — Investoři: klikací karty (Done)
+- **Celá karta investora otevírá detail** (`router.push`, `cursor-pointer`, `role="link"`, Enter/mezerník); odkaz „Detail" smazán; „Upravit"/„Portál zapnout/vypnout" mají `stopPropagation`.
+
+### Phase 74 — Mobilní responzivita dashboardu (Done)
+- **Breakpoint `lg` (1024px)** odděluje desktop od mobilu:
+  - **Desktop** (`hidden lg:flex`): sidebar 240/68px, width animace převedena na CSS `transition-[width]` (framer `animate={{width}}` pryč), **`h-full` vráceno** (regrese — bez něj zůstala dole mezera).
+  - **Mobil** (`lg:hidden`): 
+    - **Bottom nav** (Domů, Nemovitosti, Hledání, Pipeline, Více) + `pb-[env(safe-area-inset-bottom)]`; obsah `pb-24 lg:pb-8`.
+    - **iOS bottom sheet** („Více"): grabber lišta, `rounded-t-3xl`, slide-up spring, hlavička (RealFlip + **zvoneček** + **theme toggle** + X), scrollovatelný seznam nav, user footer se safe-area. Top bar zcela odstraněn.
+  - `NotificationBell` prop **`dropdownAlign`** (right v sheetu) + dropdown `max-w-[calc(100vw-2rem)]`.
+- **Globální mobilní polish** (`globals.css`): **iOS zoom fix** (`input/select/textarea { font-size: 16px }` ≤640px — jinak Safari autozoom při fokusu), `main h1` na mobilu 24→20px (`!important`, scoping jen dashboard), `-webkit-tap-highlight-color: transparent`, `overscroll-behavior-y: contain`, `text-size-adjust: 100%`.
+- **Viewport** (`layout.tsx`): `themeColor`, `interactiveWidget: "resizes-visual"`, **`maximumScale: 1, userScalable: false`** — **uzamčení zoomu** (fixní jako nativní app, ověřeno v buildu: `width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no`).
+
+### Phase 75 — Mobilní pass stránek (Done)
+- **Odstraněn duplicitní root padding `p-6`** u searches (list/detail/new/edit) — layout už padding dává (`p-3 sm:p-4 lg:p-8`); responzivní hlavičky (`flex-col sm:flex-row` + `flex-wrap`), tap cíle na kartách hledání.
+- **Tap cíle ≥40px**: `PctStepper` (h-6→h-10), carousel šipky + favorite na kartách, paginace, toolbar selecty (`h-9`→`h-10`), close buttony modálů, holé ikon-buttony v Alerty/Úkoly (`h-9 w-9`).
+- **Kalkulačka/aukce**: „Volitelné náklady" 1 sloupec na mobilu, hypotéka/comps `sm:grid-cols-3`, citlivostní tabulka `overflow-x-auto`, **slidery (ROI/výnos) stack na mobilu** (label nad sliderem, stepper pod, na `sm:` vedle sebe).
+- Portfolio detail (fáze stack, metriky `grid-cols-3` zmenšené), vykupy (analyzer form `flex-col sm:flex-row`), market price-index hodnoty viditelné na mobilu, radar XAxis `preserveStartEnd` + report header `flex-wrap`, dashboard hover šipky viditelné, odhad steps `flex-wrap`, `PriceTag` `lg` → `text-2xl sm:text-3xl`.
+
+### Phase 76 — Detail nemovitosti: mobilní redesign (Done)
+- **Full-bleed galerie** na mobilu: hero karta `-mx-3 sm:-mx-4 max-lg:rounded-none max-lg:border-x-0 lg:rounded-2xl` (galerie přes celý displej bez rámečku, jako Airbnb/Realto).
+- **Spec chips** jako `grid grid-cols-3` (6 boxů, 2 řádky).
+- **Sbalitelná kalkulačka**: `InteractiveAnalysis` prop **`collapsibleOnMobile`** (jen detail přes `PropertyDetailAnalysis`) — na mobilu (`window.innerWidth < 1024`, hydratace-safe přes `useEffect`) je kalkulačka **sbalená** s hlavičkou „Kalkulačka · Sbalit/Rozbalit" + chevron; klíčová čísla zůstávají v metrikách nad ní. Desktop/analyzátor vždy rozbalené.
+- **Nastavení**: taby na mobilu → **iOS segmented control** (bílá pilulka v zaobleném kontejneru, `lg:` zachová desktop accent-border styl); obsah `space-y-3`, řádky `p-3 sm:p-4`, avatár profilu menší.
+
+### Phase 77 — Uzamčení zoomu + Pipeline mobilní seznam (Done)
+- **Zoom lock** viz Phase 74 (viewport `maximum-scale=1, user-scalable=no`).
+- **Pipeline → nativní mobilní seznam**: na mobilu (<1024px) nahrazuje kanban **vertikální seznam leadů seskupený podle fází** (`MobileLeadList`/`MobileLeadRow` v `leads-board.tsx`): miniatura, název, adresa, chip fáze (tečka), cena, skóre, Deal/Rezervováno/Propadl krok, hvězdička priority; klepnutí → LeadDrawer. Kanban board `hidden lg:block`. Detekce `window.innerWidth < 1024` + `resize` listener (jsdom testy pass — default innerWidth 1024px).
+- Testy zůstávají **714/714**, typecheck čistý, build OK.
+
 ## Key Files
 
 ### Core
