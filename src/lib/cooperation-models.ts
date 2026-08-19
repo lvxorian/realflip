@@ -3,8 +3,8 @@
 // Jediné místo, kde se modely/labely mění.
 
 export const COOPERATION_MODELS = {
-  flip: "Flip a prodej",
-  rent: "Nákup a držení",
+  flip: "Flip",
+  rent: "Nájem",
 } as const;
 
 export type CooperationModel = keyof typeof COOPERATION_MODELS;
