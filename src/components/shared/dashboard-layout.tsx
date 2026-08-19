@@ -28,7 +28,6 @@ import {
   ListChecks,
   Scales,
   ChartLineUp,
-  List,
   X,
   GridFour,
   type Icon,
@@ -104,74 +103,69 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh]">
-      {/* ===== Mobilní top bar ===== */}
-      <header className="lg:hidden sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3">
-        <button
-          onClick={() => setMobileOpen(true)}
-          aria-label="Otevřít menu"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
-        >
-          <List size={20} weight="bold" />
-        </button>
-        <span className="flex-1 min-w-0 truncate">{brand}</span>
-        <NotificationBell dropdownAlign="right" />
-        <ThemeToggle collapsed className="h-10 w-10 px-0 py-0 justify-center" />
-      </header>
-
-      {/* ===== Mobilní backdrop ===== */}
+      {/* ===== Mobilní iOS sheet ===== */}
       <AnimatePresence>
         {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setMobileOpen(false)}
-            className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ===== Mobilní drawer ===== */}
-      <motion.aside
-        initial={false}
-        animate={{ x: mobileOpen ? 0 : "-100%" }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="lg:hidden fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col bg-card/95 backdrop-blur-xl border-r border-border/50"
-      >
-        <div className="flex h-12 items-center justify-between border-b border-border/50 px-3">
-          {brand}
-          <button
-            onClick={() => setMobileOpen(false)}
-            aria-label="Zavřít menu"
-            className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
-          >
-            <X size={18} weight="bold" />
-          </button>
-        </div>
-        <MobileNavLinks navItems={navItems} pathname={pathname} investorBadge={investorBadge} />
-        <div className="border-t border-border/50 p-3 space-y-1">
-          <ThemeToggle collapsed={false} />
-          {session?.user && (
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent text-xs font-mono font-medium">
-                {getInitials(session.user.name || session.user.email || "?")}
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileOpen(false)}
+              className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 320, damping: 34 }}
+              className="lg:hidden fixed bottom-0 inset-x-0 z-50 flex max-h-[85vh] flex-col overflow-hidden rounded-t-3xl border-t border-border/50 bg-card/95 backdrop-blur-xl"
+            >
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="h-1 w-10 rounded-full bg-border" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {session.user.name || session.user.email}
-                </p>
+
+              {/* Hlavička + utility (zvoneček, theme toggle) — mimo scroll */}
+              <div className="flex items-center gap-1.5 border-b border-border/40 px-4 py-2">
+                {brand}
+                <NotificationBell dropdownAlign="right" />
+                <ThemeToggle collapsed className="h-10 w-10 px-0 py-0 justify-center" />
                 <button
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="text-xs text-muted hover:text-danger transition-colors flex items-center gap-1"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label="Zavřít menu"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
                 >
-                  <SignOut size={12} weight="bold" />
-                  Odhlásit
+                  <X size={18} weight="bold" />
                 </button>
               </div>
-            </div>
-          )}
-        </div>
-      </motion.aside>
+
+              <MobileNavLinks navItems={navItems} pathname={pathname} investorBadge={investorBadge} />
+
+              <div className="border-t border-border/50 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                {session?.user && (
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent text-xs font-mono font-medium">
+                      {getInitials(session.user.name || session.user.email || "?")}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {session.user.name || session.user.email}
+                      </p>
+                      <button
+                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        className="text-xs text-muted hover:text-danger transition-colors flex items-center gap-1"
+                      >
+                        <SignOut size={12} weight="bold" />
+                        Odhlásit
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ===== Desktop sidebar ===== */}
       <aside
@@ -345,14 +339,14 @@ function MobileNavLinks({
   investorBadge: number;
 }) {
   return (
-    <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+    <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
       {navItems.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         return (
           <Link key={item.href} href={item.href}>
             <div
               className={cn(
-                "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
+                "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors",
                 isActive
                   ? "bg-accent-soft text-accent"
                   : "text-muted hover:text-foreground hover:bg-card-hover"
