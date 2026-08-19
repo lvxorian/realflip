@@ -70,7 +70,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     load();
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
-  }, [session?.user]);
+  }, [session?.user, pathname]);
 
   return (
     <div className="flex min-h-[100dvh]">

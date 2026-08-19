@@ -9,6 +9,7 @@ import { formatRelative } from "@/lib/utils";
 import { isInvestorActive } from "@/lib/investor-activity";
 import { EditInvestorButton } from "@/components/investors/edit-investor-button";
 import { InvestorReservations, type ReservationRow } from "@/components/investors/investor-reservations";
+import { MarkReservationsRead } from "@/components/investors/mark-reservations-read";
 
 import { ArrowLeft, Phone, Envelope, MapPin, Infinity as InfinityIcon, Folder, LockSimple, SealCheck } from "@phosphor-icons/react/dist/ssr";
 
@@ -90,6 +91,7 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-6">
+      <MarkReservationsRead investorId={id} />
       <Link href="/investors" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors">
         <ArrowLeft size={14} weight="bold" />
         Zpět na investory
