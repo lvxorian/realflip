@@ -10,6 +10,9 @@ import { generateId, ts } from "@/lib/utils";
 import { flipCooperationFromSnapshot, parseCalcSnapshot } from "@/lib/investor-portal-view";
 import { getPortalConfig } from "@/lib/portal-config";
 import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
+import { INVESTOR_BRAND } from "@/lib/investor-brand";
+import { sendEmail } from "@/lib/email/send-email";
+import { buildReservationEmailHtml } from "@/lib/email/reservation-template";
 
 export async function POST(req: NextRequest) {
   const session = await getInvestorSession();
@@ -115,7 +118,48 @@ export async function POST(req: NextRequest) {
       // Do not block reservation on notification failure
     }
 
-    return NextResponse.json({ ok: true, status: "reserved" });
+    // --- Reservation confirmation email to investor ---
+    try {
+      const investorRow = await db
+        .select({ email: investors.email, name: investors.name })
+        .from(investors)
+        .where(eq(investors.id, session.sub))
+        .limit(1);
+      const investorEmail = investorRow[0]?.email;
+      if (investorEmail) {
+        const baseUrl = (
+          process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "") ??
+          process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+          "http://localhost:3000"
+        );
+        const html = buildReservationEmailHtml({
+          investorName: session.name,
+          propertyTitle: lead.propertyTitle ?? null,
+          propertyAddress: lead.propertyAddress ?? null,
+          strategy: strategy as "fifty-fifty" | "sourcing-fee" | null,
+          baseUrl,
+        });
+        const location = [lead.propertyTitle, lead.propertyAddress].filter(Boolean).join(" · ") || "nemovitost";
+        const subject = `${INVESTOR_BRAND} · Potvrzení rezervace — ${location}`;
+        await sendEmail({ to: investorEmail, subject, html });
+      }
+    } catch {
+      // Do not block reservation on email failure
+    }
+
+    return NextResponse.json({
+      ok: true,
+      status: "reserved",
+      reservation: {
+        propertyTitle: lead.propertyTitle ?? null,
+        propertyAddress: lead.propertyAddress ?? null,
+        strategy: strategy as string | null,
+        strategyLabel:
+          strategy && strategy in COOPERATION_STRATEGIES
+            ? COOPERATION_STRATEGIES[strategy as keyof typeof COOPERATION_STRATEGIES]
+            : null,
+      },
+    });
   }
 
   if (lead.reservedById !== session.sub) {

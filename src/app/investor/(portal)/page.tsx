@@ -181,6 +181,12 @@ export default function InvestorPortalPage() {
   const [reserveStrategy, setReserveStrategy] = useState<CooperationStrategy | null>(null);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [confirmedReservation, setConfirmedReservation] = useState<{
+    propertyTitle: string | null;
+    propertyAddress: string | null;
+    strategy: string | null;
+    strategyLabel: string | null;
+  } | null>(null);
   const dismissedEmailPrompt = useRef(false);
 
   const maybePromptEmail = useCallback((json: PortalData) => {
@@ -261,6 +267,10 @@ export default function InvestorPortalPage() {
         return;
       }
       setReserveItem(null);
+      const json = await res.json().catch(() => ({}));
+      if (json.reservation) {
+        setConfirmedReservation(json.reservation);
+      }
       await refresh();
     } finally {
       setActionId(null);
@@ -623,6 +633,17 @@ export default function InvestorPortalPage() {
         onSaved={(email) => {
           dismissedEmailPrompt.current = true;
           setEmailModalOpen(false);
+          setData((prev) => (prev ? { ...prev, investorEmail: email } : prev));
+        }}
+      />
+
+      <ReservationConfirmedModal
+        key={confirmedReservation?.strategy ?? "none"}
+        open={confirmedReservation != null}
+        reservation={confirmedReservation}
+        investorEmail={data?.investorEmail ?? null}
+        onClose={() => setConfirmedReservation(null)}
+        onEmailSaved={(email) => {
           setData((prev) => (prev ? { ...prev, investorEmail: email } : prev));
         }}
       />
@@ -1060,6 +1081,166 @@ function ReserveModal({
               <p className="text-[11px] text-muted mt-3 leading-relaxed">
                 Způsob spolupráce určí, jak se u obchodu rozdělí zisk a investice. Potvrzením si nabídku rezervujete.
               </p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/** Potvrzovací modal po úspěšné rezervaci — investor nemá email → nabídne vyplnění. */
+function ReservationConfirmedModal({
+  open,
+  reservation,
+  investorEmail,
+  onClose,
+  onEmailSaved,
+}: {
+  open: boolean;
+  reservation: {
+    propertyTitle: string | null;
+    propertyAddress: string | null;
+    strategy: string | null;
+    strategyLabel: string | null;
+  } | null;
+  investorEmail: string | null;
+  onClose: () => void;
+  onEmailSaved: (email: string) => void;
+}) {
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState("");
+
+  const hasEmail = investorEmail != null;
+  const location = reservation ? [reservation.propertyTitle, reservation.propertyAddress].filter(Boolean).join(" · ") || "Nemovitost" : "";
+
+  // Note: state resets via key prop on the modal (line ~640)
+
+  async function saveEmail() {
+    const email = emailDraft.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Zadejte platnou e-mailovou adresu.");
+      return;
+    }
+    setEmailSaving(true);
+    setEmailError("");
+    try {
+      const res = await fetch("/api/investor-portal/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setEmailError(json.error ?? "Nepodařilo se uložit e-mail.");
+        return;
+      }
+      setEmailSent(true);
+      onEmailSaved(email);
+    } finally {
+      setEmailSaving(false);
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {open && reservation && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+          >
+            <div className="p-5 sm:p-6 space-y-4">
+              {/* Header */}
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400/15 border border-emerald-400/25">
+                  <SealCheck size={20} weight="bold" className="text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold tracking-tight leading-tight">Rezervace proběhla úspěšně!</h2>
+                  <p className="text-sm text-muted mt-1">Vaše rezervace byla zaznamenána.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors text-muted"
+                  aria-label="Zavřít"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+
+              {/* Property info */}
+              <div className="rounded-xl border border-border/40 bg-card-subtle/60 px-3.5 py-3 space-y-1">
+                <p className="text-sm font-semibold">{location}</p>
+                {reservation.strategyLabel && (
+                  <p className="text-xs text-muted">Model: {reservation.strategyLabel}</p>
+                )}
+                <p className="text-[11px] text-muted mt-1">Rezervace je nezávazná až do podpisu kupní smlouvy.</p>
+              </div>
+
+              {/* Email section */}
+              {!hasEmail && !emailSent && (
+                <div className="rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-3 space-y-2">
+                  <p className="text-xs text-muted">Pro odeslání potvrzení zadejte svůj e-mail.</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="email"
+                      value={emailDraft}
+                      onChange={(e) => setEmailDraft(e.target.value)}
+                      placeholder="vas@email.cz"
+                      className="flex-1 rounded-lg border border-border/40 bg-card px-3 py-1.5 text-xs text-foreground placeholder:text-muted/50 focus:outline-none focus:border-accent/50"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void saveEmail();
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      loading={emailSaving}
+                      onClick={saveEmail}
+                    >
+                      Odeslat
+                    </Button>
+                  </div>
+                  {emailError && <p className="text-[11px] text-danger">{emailError}</p>}
+                </div>
+              )}
+
+              {emailSent && (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3.5 py-2.5">
+                  <CheckCircle size={14} weight="bold" className="text-emerald-400 shrink-0" />
+                  <span className="text-xs text-emerald-400">Potvrzení odesláno na váš e-mail.</span>
+                </div>
+              )}
+
+              {hasEmail && (
+                <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3.5 py-2.5">
+                  <CheckCircle size={14} weight="bold" className="text-accent shrink-0" />
+                  <span className="text-xs text-muted">Potvrzující e-mail byl odeslán na {investorEmail}.</span>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex gap-2">
+                {!hasEmail && !emailSent && (
+                  <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+                    Přeskočit
+                  </Button>
+                )}
+                <Button type="button" className="flex-1" onClick={onClose}>
+                  Rozumím
+                </Button>
+              </div>
             </div>
           </motion.div>
         </motion.div>
