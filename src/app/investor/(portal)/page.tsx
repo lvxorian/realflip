@@ -1050,7 +1050,7 @@ function ReserveModal({
                       type="button"
                       onClick={() => onSelect(s)}
                       className={cn(
-                        "w-full text-left rounded-xl border p-3.5 transition-colors",
+                        "w-full text-left rounded-xl border p-3.5 transition-colors cursor-pointer",
                         active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-hover/40 hover:border-accent/30"
                       )}
                     >
@@ -1307,7 +1307,7 @@ function ActionButton({
     );
   }
   return (
-    <Button variant="default" size={size} loading={busy} onClick={onClick}>
+    <Button variant="default" size={size} loading={busy} onClick={onClick} className="cursor-pointer">
       <SealCheck size={14} weight="bold" />
       Rezervovat
     </Button>
