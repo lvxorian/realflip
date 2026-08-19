@@ -931,11 +931,13 @@ function ModelProfitCard({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left rounded-xl border px-3.5 py-3 transition-colors cursor-pointer ${
-        active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-subtle/60 hover:border-accent/30"
+      className={`group relative w-full text-left rounded-xl border px-3.5 py-3 transition-all duration-300 cursor-pointer overflow-hidden ${
+        active ? "border-accent/50 bg-accent/10 shadow-[0_0_20px_rgba(16,185,129,0.08)]" : "border-border/40 bg-card-subtle/60 hover:border-accent/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.1)] hover:backdrop-blur-sm"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
+      {/* Glass gradient overlay on hover */}
+      <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-accent/[0.04] via-transparent to-accent/[0.02]" />
+      <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Model {COOPERATION_STRATEGIES[strategy]}</p>
