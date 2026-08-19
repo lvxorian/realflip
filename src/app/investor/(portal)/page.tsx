@@ -728,6 +728,7 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
           <DetailRow label="Měsíční nájem" value={snap?.monthlyRent != null ? formatPrice(snap.monthlyRent) : "—"} />
           {snap?.cashOnCash != null && <DetailRow label="Cash-on-cash" value={`${snap.cashOnCash.toFixed(1)} %`} accent={snap.cashOnCash >= 0} />}
         </div>
+        <Disclaimer />
       </div>
     );
   }
