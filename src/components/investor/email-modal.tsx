@@ -10,12 +10,11 @@ import { INVESTOR_BRAND } from "@/lib/investor-brand";
 
 interface EmailModalProps {
   open: boolean;
-  investorName?: string | null;
   onClose: () => void;
   onSaved: (email: string) => void;
 }
 
-export function EmailModal({ open, investorName, onClose, onSaved }: EmailModalProps) {
+export function EmailModal({ open, onClose, onSaved }: EmailModalProps) {
   const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -67,7 +66,7 @@ export function EmailModal({ open, investorName, onClose, onSaved }: EmailModalP
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="font-semibold tracking-tight leading-tight">
-                    {investorName ? `Vítejte v portálu ${INVESTOR_BRAND}, ${investorName}!` : `Vítejte v portálu ${INVESTOR_BRAND}!`}
+                    Vítejte v portálu {INVESTOR_BRAND}!
                   </h2>
                   <p className="text-sm text-muted mt-1 leading-relaxed">
                     Přihlaste se k upozorněním na nové nabídky. Jakmile zpřístupníme novou příležitost, dáme vám vědět.

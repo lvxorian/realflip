@@ -625,7 +625,6 @@ export default function InvestorPortalPage() {
 
       <EmailModal
         open={emailModalOpen}
-        investorName={data?.investorName}
         onClose={() => {
           dismissedEmailPrompt.current = true;
           setEmailModalOpen(false);
