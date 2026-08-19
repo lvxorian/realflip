@@ -872,8 +872,8 @@ function InteractiveCard({
                 >Flip</button>
                 <button
                   onClick={() => setMode("rental")}
-                  className={`px-3 py-1.5 transition-colors ${mode === "rental" ? "bg-accent text-white" : "bg-card text-muted hover:text-foreground"}`}
-                >Výnosová</button>
+                  className={`px-3 py-1.5 transition-colors ${mode === "rental" ? "bg-info text-white" : "bg-card text-muted hover:text-foreground"}`}
+                >Nájem</button>
               </div>
             </div>
 

@@ -695,7 +695,7 @@ function DealDetail({ item }: { item: InvestorPortalItem }) {
     return (
       <div className="rounded-xl border border-accent/20 bg-card-subtle/60 p-5 text-[13px] space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Výnosová analýza</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">Nájemní analýza</p>
           <Badge variant="secondary" size="sm">výpočet z kalkulačky</Badge>
         </div>
         <div className="space-y-2 text-[12px]">

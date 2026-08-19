@@ -187,7 +187,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
           </div>
           <p className="text-sm text-gray-500 mt-1">{property.address || "—"}</p>
           {property.portalName === "offline" && <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-600 px-2.5 py-0.5 text-xs font-medium mt-2">Offline inzerát</span>}
-          {rentalMode && <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-medium mt-2 ml-2">Výnosová strategie</span>}
+          {rentalMode && <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-medium mt-2 ml-2">Nájemní strategie</span>}
           <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
             <span>{property.rooms || "—"}</span>
             <span className="w-px h-3 bg-gray-300" />
@@ -293,7 +293,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
         {rentalMode && rentalTarget && (
           <div className="rp-card border border-gray-200 rounded-xl overflow-hidden">
             <div className="bg-emerald-50 px-6 py-3 border-b border-emerald-200">
-              <h2 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">Výnosová analýza</h2>
+              <h2 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide">Nájemní analýza</h2>
             </div>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4 text-sm">
