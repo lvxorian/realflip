@@ -958,11 +958,9 @@ function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; c
 /** Jemná poznámka pod detailem výpočtu modelu — finanční odhad, ne garantovaný výnos. */
 function Disclaimer() {
   return (
-    <div className="flex items-start gap-1.5 text-[9px] text-muted/35">
-      <Info size={10} weight="bold" className="shrink-0 mt-[3px]" />
-      <span className="leading-snug">
-        Modelový odhad. Nejedná se o garanci výnosu ani investiční doporučení.
-      </span>
+    <div className="flex items-center gap-1.5 text-[11px] text-muted/40">
+      <Info size={13} weight="bold" className="shrink-0" />
+      <span>Modelový odhad. Nejedná se o garanci výnosu ani investiční doporučení.</span>
     </div>
   );
 }
