@@ -21,6 +21,7 @@ interface LocalityProfileProps {
   cityKey: string | null;
   district: string | null;
   aiVerdict?: string | null;
+  className?: string;
 }
 
 function scoreColor(score: number) {
@@ -62,7 +63,7 @@ function Dim({
   );
 }
 
-export function LocalityProfile({ cityKey, district, aiVerdict }: LocalityProfileProps) {
+export function LocalityProfile({ cityKey, district, aiVerdict, className }: LocalityProfileProps) {
   const [data, setData] = useState<LocalityResponse["locality"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -96,7 +97,7 @@ export function LocalityProfile({ cityKey, district, aiVerdict }: LocalityProfil
 
   if (!cityKey || loading) {
     return (
-      <div className="rounded-2xl border border-border/50 bg-card p-5">
+      <div className={cn("rounded-2xl border border-border/50 bg-card p-5", className)}>
         <div className="h-5 w-48 rounded bg-border/20 animate-pulse mb-3" />
         <div className="h-24 rounded-xl bg-border/10 animate-pulse" />
       </div>
@@ -116,7 +117,7 @@ export function LocalityProfile({ cityKey, district, aiVerdict }: LocalityProfil
     : cityLabel;
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-5">
+    <div className={cn("rounded-2xl border border-border/50 bg-card p-5", className)}>
       <div className="flex items-center gap-2 text-sm mb-4">
         <MapPin size={16} className="text-accent shrink-0" weight="duotone" />
         <span className="font-medium">Socio-ekonomický profil lokality</span>

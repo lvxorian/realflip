@@ -168,11 +168,21 @@ export default function PropertyDetailAnalysis({
   property,
   analysis,
   negotiatedPrice = null,
+  className,
 }: {
   property: PropertyData;
   analysis: AnalysisData | null;
   negotiatedPrice?: number | null;
+  className?: string;
 }) {
   const result = buildAnalysisResult(property, analysis);
-  return <InteractiveAnalysis result={result} index={0} negotiatedPrice={negotiatedPrice} collapsibleOnMobile />;
+  return (
+    <InteractiveAnalysis
+      result={result}
+      index={0}
+      negotiatedPrice={negotiatedPrice}
+      collapsibleOnMobile
+      className={className}
+    />
+  );
 }

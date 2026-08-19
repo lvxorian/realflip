@@ -138,16 +138,18 @@ export default function InteractiveAnalysis({
   index,
   negotiatedPrice = null,
   collapsibleOnMobile = false,
+  className,
 }: {
   result: AnalysisResult;
   index: number;
   negotiatedPrice?: number | null;
   collapsibleOnMobile?: boolean;
+  className?: string;
 }) {
   if (!result.success) {
     return (
       <motion.div variants={itemVariants}>
-        <Card>
+        <Card className={className}>
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
               <XCircle size={20} className="text-red-400 shrink-0 mt-0.5" />
@@ -163,7 +165,7 @@ export default function InteractiveAnalysis({
     );
   }
 
-  return <InteractiveCard result={result} index={index} negotiatedPrice={negotiatedPrice} collapsibleOnMobile={collapsibleOnMobile} />;
+  return <InteractiveCard result={result} index={index} negotiatedPrice={negotiatedPrice} collapsibleOnMobile={collapsibleOnMobile} className={className} />;
 }
 
 function InteractiveCard({
@@ -171,11 +173,13 @@ function InteractiveCard({
   index,
   negotiatedPrice = null,
   collapsibleOnMobile = false,
+  className,
 }: {
   result: AnalysisResult;
   index: number;
   negotiatedPrice?: number | null;
   collapsibleOnMobile?: boolean;
+  className?: string;
 }) {
   const a = result.analysis!;
   const l = result.listing!;
@@ -809,8 +813,8 @@ function InteractiveCard({
 
   return (
     <motion.div variants={itemVariants}>
-      <Card>
-        <CardContent className="p-4 sm:p-5 space-y-4 sm:space-y-5">
+      <Card className={className}>
+        <CardContent className="p-4 sm:p-5 space-y-4 sm:space-y-5 max-lg:px-3">
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">

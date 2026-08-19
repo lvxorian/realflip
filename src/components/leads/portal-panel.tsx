@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LockSimple, Eye, EyeSlash, Prohibit } from "@phosphor-icons/react";
 import { COOPERATION_MODELS, COOPERATION_AVAILABILITY, COOPERATION_AVAILABILITY_LABELS, COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
+import { cn } from "@/lib/utils";
 
 function formatCountdown(expiresAt: number | null): string | null {
   if (!expiresAt) return null;
@@ -31,6 +32,7 @@ interface PortalPanelProps {
   calcMode?: "flip" | "rental" | null;
   initialCooperationAvailability?: string | null;
   removed?: boolean;
+  className?: string;
 }
 
 export function PortalPanel({
@@ -43,6 +45,7 @@ export function PortalPanel({
   calcMode = null,
   initialCooperationAvailability = null,
   removed = false,
+  className,
 }: PortalPanelProps) {
   const [visible, setVisible] = useState(initialVisible);
   const [reservedInvestorId, setReservedInvestorId] = useState(initialReservedInvestorId);
@@ -101,7 +104,7 @@ export function PortalPanel({
   const reservedName = investors.find((i) => i.id === reservedInvestorId)?.name ?? null;
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-card p-5">
+    <div className={cn("rounded-2xl border border-border/50 bg-card p-5", className)}>
       <div className="flex items-center gap-2 text-sm mb-4">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
           <LockSimple size={16} weight="duotone" />

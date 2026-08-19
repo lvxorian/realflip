@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { MotionConfig } from "framer-motion";
 import { Toaster } from "sonner";
 import { useState } from "react";
+import { ZoomLock } from "@/components/shared/zoom-lock";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -24,6 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
         <MotionConfig reducedMotion="user">
+          <ZoomLock />
           {children}
           <Toaster
             position="bottom-right"

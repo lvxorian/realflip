@@ -89,7 +89,7 @@ describe("ImageGallery — pevný box 8:5, fit podle poměru stran", () => {
     render(<ImageGallery images={["/a.jpg"]} alt="Byt" />);
 
     const main = screen.getByAltText("Byt - foto 1");
-    const container = main.closest("div");
+    const container = main.closest('div[class*="aspect-[8/5]"]');
     expect(container?.className).toContain("aspect-[8/5]");
 
     // simuluj načtení extrémně široké fotky (4000x1000) — box zůstává 8:5
@@ -97,6 +97,34 @@ describe("ImageGallery — pevný box 8:5, fit podle poměru stran", () => {
     Object.defineProperty(main, "naturalHeight", { value: 1000 });
     fireEvent.load(main);
     expect(container?.className).toContain("aspect-[8/5]");
+  });
+
+  it("immersiveOnMobile přidá mobilní imerzivní výšku (52dvh), desktop zůstává 8:5", () => {
+    const { container } = render(<ImageGallery images={["/a.jpg"]} alt="Byt" immersiveOnMobile />);
+    const box = container.querySelector('div[class*="aspect-[8/5]"]');
+    expect(box?.className).toContain("max-lg:h-[52dvh]");
+  });
+
+  it("swipe doleva listuje na další fotku (nativní gesto)", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+    const img = screen.getByAltText("Byt - foto 1");
+
+    fireEvent.pointerDown(img, { pointerType: "touch", clientX: 300, clientY: 100 });
+    fireEvent.pointerMove(img, { pointerType: "touch", clientX: 150, clientY: 100 });
+    fireEvent.pointerUp(img, { pointerType: "touch", clientX: 150, clientY: 100 });
+
+    expect(screen.getByAltText("Byt - foto 2").getAttribute("src")).toBe("/b.jpg");
+  });
+
+  it("malý swipe (pod prahem) fotku nezmění", () => {
+    render(<ImageGallery images={["/a.jpg", "/b.jpg"]} alt="Byt" />);
+    const img = screen.getByAltText("Byt - foto 1");
+
+    fireEvent.pointerDown(img, { pointerType: "touch", clientX: 200, clientY: 100 });
+    fireEvent.pointerMove(img, { pointerType: "touch", clientX: 180, clientY: 100 });
+    fireEvent.pointerUp(img, { pointerType: "touch", clientX: 180, clientY: 100 });
+
+    expect(screen.getByAltText("Byt - foto 1").getAttribute("src")).toBe("/a.jpg");
   });
 
   it("šipky listují mezi fotkami", () => {

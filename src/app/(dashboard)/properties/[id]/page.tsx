@@ -12,7 +12,6 @@ import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
 import { PropertyMap } from "@/components/ui/property-map";
 import { ImageGallery } from "@/components/ui/image-gallery";
-import { FavoriteButton } from "@/components/ui/favorite-button";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import { InitiateButton } from "@/components/properties/initiate-button";
 import { EditableArea } from "@/components/properties/editable-area";
@@ -22,11 +21,10 @@ import { DeletePropertyButton } from "@/components/properties/delete-property-bu
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
 import { PortalPanel } from "@/components/leads/portal-panel";
+import { PropertyActionBar } from "@/components/properties/property-action-bar";
 import {
   ArrowLeft,
   ArrowUpRight,
-  Phone,
-  ShareNetwork,
   MapPin,
   Clock,
   GitBranch,
@@ -82,6 +80,11 @@ const PORTAL_LABELS: Record<string, string> = {
   realitymat: "Realitymat.cz",
   realitymix: "RealityMIX",
 };
+
+/** Na mobilu (<lg) se sekce detailu slijí do jednoho souvislého grouped-listu
+ *  (bez rámečků, jen dělicí linky) — nativní mobilní vzor místo "karty na sobě". */
+const flatOnMobile =
+  "max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:border-t max-lg:border-border/50 max-lg:shadow-none";
 
 export default async function PropertyDetailPage({
   params,
@@ -198,10 +201,25 @@ export default async function PropertyDetailPage({
   const removedNeutral = pipelineLead != null && (pipelineLead.stage === "closed" || pipelineLead.stage === "lost");
 
   return (
-    <div className="space-y-3 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-6 pb-16 lg:pb-0">
+      {/* Sticky top bar — mobil: šipka zpět + název (nativní vzor). Na desktopu
+          se nezobrazuje (nahrazuje ho textový odkaz pod tímto). */}
+      <div className="lg:hidden sticky top-0 z-30 -mx-3 sm:-mx-4 -mt-3 sm:-mt-4 glass border-b border-border/50">
+        <div className="flex items-center gap-1 h-12 px-2">
+          <Link
+            href="/properties"
+            aria-label="Zpět na nemovitosti"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-foreground"
+          >
+            <ArrowLeft size={20} weight="bold" />
+          </Link>
+          <p className="flex-1 min-w-0 text-sm font-medium truncate">{property.title}</p>
+        </div>
+      </div>
+
       <Link
         href="/properties"
-        className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
+        className="hidden lg:inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
       >
         <ArrowLeft size={14} weight="bold" />
         Zpět na přehled
@@ -229,8 +247,8 @@ export default async function PropertyDetailPage({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="lg:col-span-2 space-y-3 sm:space-y-6">
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6 max-lg:gap-0">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-6 max-lg:space-y-0">
           {/* Hero with gallery */}
           <div className="-mx-3 sm:-mx-4 lg:mx-0 max-lg:rounded-none max-lg:border-x-0 lg:rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="relative">
@@ -238,29 +256,10 @@ export default async function PropertyDetailPage({
                 images={imageUrls}
                 alt={property.title}
                 score={analysis?.investmentScore}
+                immersiveOnMobile
               />
-              <div className="absolute top-3 right-3 flex gap-2 z-10">
-                {property.contactPhone && (
-                  <a
-                    href={`tel:${property.contactPhone.replace(/\s/g, "")}`}
-                    className="glass h-10 px-3 inline-flex items-center gap-1.5 rounded-lg text-xs font-medium hover:bg-card-hover transition-colors"
-                  >
-                    <Phone size={14} weight="fill" />
-                    Zavolat
-                  </a>
-                )}
-                <button className="glass h-10 w-10 inline-flex items-center justify-center rounded-lg hover:bg-card-hover transition-colors">
-                  <ShareNetwork size={14} weight="bold" />
-                </button>
-                <FavoriteButton
-                  propertyId={id}
-                  initialFavorited={isFavorited}
-                  size={14}
-                  className="glass h-10 w-10"
-                />
-              </div>
               {analysis?.investmentScore !== undefined && (
-                <div className="absolute top-3 left-3 z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">
+                <div className="absolute top-3 left-3 max-lg:bottom-3 max-lg:top-auto z-10 glass rounded-xl px-3 py-2 flex items-center gap-2">
                   <ScoreGauge score={analysis.investmentScore} size={36} strokeWidth={3} />
                   <div className="flex flex-col">
                     <span className="text-[10px] text-muted font-mono">skóre</span>
@@ -377,7 +376,7 @@ export default async function PropertyDetailPage({
 
           {/* Description */}
           {property.description && (
-            <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6">
+            <div className={`rounded-2xl border border-border/50 bg-card p-4 sm:p-6 ${flatOnMobile}`}>
               <h2 className="font-semibold tracking-tight text-sm mb-3">Popis</h2>
               <p className="text-sm text-muted leading-relaxed whitespace-pre-wrap">{property.description}</p>
             </div>
@@ -385,7 +384,7 @@ export default async function PropertyDetailPage({
 
           {/* Price History */}
           {history.length > 1 && (
-            <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6">
+            <div className={`rounded-2xl border border-border/50 bg-card p-4 sm:p-6 ${flatOnMobile}`}>
               <h2 className="font-semibold tracking-tight text-sm mb-4">Historie ceny</h2>
               <div className="space-y-3">
                 {history.map((h) => (
@@ -399,7 +398,7 @@ export default async function PropertyDetailPage({
           )}
 
           {/* Map */}
-          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+          <div className={`rounded-2xl border border-border/50 bg-card overflow-hidden ${flatOnMobile}`}>
             <div className="p-4 pb-3 sm:p-6 sm:pb-3">
               <h2 className="font-semibold tracking-tight text-sm flex items-center gap-2">
                 <MapPin size={14} className="text-accent" weight="duotone" />
@@ -416,10 +415,10 @@ export default async function PropertyDetailPage({
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-4">
+        <div className="space-y-4 max-lg:space-y-0">
           {/* Pipeline status / Zahájit jednání */}
           {pipelineLead ? (
-            <div className="rounded-2xl border border-accent/30 bg-card p-4 sm:p-5">
+            <div className={`rounded-2xl border border-accent/30 bg-card p-4 sm:p-5 ${flatOnMobile}`}>
               <div className="flex items-center gap-2 text-sm mb-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                   <GitBranch size={16} weight="duotone" />
@@ -440,7 +439,9 @@ export default async function PropertyDetailPage({
               </Link>
             </div>
           ) : (
-            <InitiateButton propertyId={id} />
+            <div className="max-lg:px-3 max-lg:pt-1">
+              <InitiateButton propertyId={id} />
+            </div>
           )}
 
           {/* Investorský portál */}
@@ -455,6 +456,7 @@ export default async function PropertyDetailPage({
               calcMode={calcMode}
               initialCooperationAvailability={cooperationAvailability}
               removed={isRemoved}
+              className={flatOnMobile}
             />
           )}
 
@@ -463,11 +465,12 @@ export default async function PropertyDetailPage({
             cityKey={analysis?.locationCity ?? null}
             district={analysis?.locationDistrict ?? null}
             aiVerdict={analysis?.aiLocalityVerdict ?? null}
+            className={flatOnMobile}
           />
 
           {/* Dražba – výkup před dražbou */}
           {isAuction && auctionData && (
-            <div className="rounded-2xl border border-red-500/20 bg-card p-4 sm:p-5">
+            <div className={`rounded-2xl border border-red-500/20 bg-card p-4 sm:p-5 ${flatOnMobile}`}>
               <div className="flex items-center gap-2 text-sm mb-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-400 text-base">⚖️</span>
                 <span className="font-medium">Výkup před dražbou</span>
@@ -540,7 +543,7 @@ export default async function PropertyDetailPage({
 
           {/* Contact */}
           {(property.contactName || property.contactPhone || property.contactEmail) && (
-            <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5">
+            <div className={`rounded-2xl border border-border/50 bg-card p-4 sm:p-5 ${flatOnMobile}`}>
               <div className="flex items-center gap-2 text-sm mb-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent text-base">📞</span>
                 <span className="font-medium">{property.contactName ?? "Kontakt"}</span>
@@ -590,6 +593,7 @@ export default async function PropertyDetailPage({
               portalName: property.portalName,
             }}
             negotiatedPrice={negotiatedPrice}
+            className={flatOnMobile}
             analysis={analysis ? {
               id: analysis.id,
               marketValue: analysis.marketValue,
@@ -632,7 +636,7 @@ export default async function PropertyDetailPage({
           {hasRealUrl && (
             <Link
               href={`/odhad?url=${encodeURIComponent(property.url)}`}
-              className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5 hover:bg-card-hover hover:border-accent/20 transition-all block"
+              className={`rounded-2xl border border-border/50 bg-card p-4 sm:p-5 hover:bg-card-hover hover:border-accent/20 transition-all block ${flatOnMobile}`}
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -651,7 +655,7 @@ export default async function PropertyDetailPage({
           {/* PDF Report */}
           <Link
             href={`/report/${property.id}`}
-            className="rounded-2xl border border-border/50 bg-card p-4 sm:p-5 hover:bg-card-hover hover:border-accent/20 transition-all block"
+            className={`rounded-2xl border border-border/50 bg-card p-4 sm:p-5 hover:bg-card-hover hover:border-accent/20 transition-all block ${flatOnMobile}`}
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -669,6 +673,15 @@ export default async function PropertyDetailPage({
           <DeletePropertyButton propertyId={id} />
         </div>
       </div>
+
+      {/* Mobilní spodní akční bar: Zavolat / Sdílet / Oblíbené */}
+      <PropertyActionBar
+        propertyId={id}
+        title={property.title}
+        url={hasRealUrl ? property.url : null}
+        phone={property.contactPhone}
+        initialFavorited={isFavorited}
+      />
     </div>
   );
 }

@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
 
 interface ImageGalleryProps {
   images: string[];
   alt: string;
   score?: number;
+  /** Na mobilu (<lg) se box natáhne na výšku 52dvh (imerzivní, plné prohlížení),
+   *  na desktopu zůstává pevný poměr 8:5. */
+  immersiveOnMobile?: boolean;
 }
 
-export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
+export function ImageGallery({ images, alt, score, immersiveOnMobile = false }: ImageGalleryProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [errored, setErrored] = useState<Set<number>>(new Set());
   const [fullscreen, setFullscreen] = useState(false);
@@ -17,6 +21,56 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
   // jestli fotka vyplní celý box (na šířku, object-cover) nebo zůstanou blur
   // pruhy po stranách (na výšku, object-contain — aby se neořezala budova).
   const [aspectRatios, setAspectRatios] = useState<Record<number, number>>({});
+
+  // Stav swipe gesta (touch): offset + zámky pro rozeznání vodorovného swipe
+  // od vertikálního scrollu stránky.
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragXRef = useRef(0);
+  const dragState = useRef({ startX: 0, startY: 0, active: false, moved: false });
+
+  const goPrev = () =>
+    setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
+  const goNext = () =>
+    setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "touch" || !images || images.length <= 1) return;
+    dragState.current = { startX: e.clientX, startY: e.clientY, active: true, moved: false };
+    setDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = dragState.current;
+    if (!s.active) return;
+    const dx = e.clientX - s.startX;
+    const dy = e.clientY - s.startY;
+    if (!s.moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+    // Vertikální záměr → necháme stránku scrollovat, swipe rušíme.
+    if (Math.abs(dy) > Math.abs(dx)) {
+      s.active = false;
+      setDragging(false);
+      return;
+    }
+    s.moved = true;
+    dragXRef.current = dx;
+    setDragX(dx);
+  };
+
+  const onPointerEnd = () => {
+    const s = dragState.current;
+    s.active = false;
+    setDragging(false);
+    if (s.moved) {
+      if (dragXRef.current <= -60) goNext();
+      else if (dragXRef.current >= 60) goPrev();
+    }
+    dragXRef.current = 0;
+    setDragX(0);
+  };
 
   // Šipky ← → na klávesnici listují mezi fotkami (používá se na detailu
   // nemovitosti). Při psaní do polí (editace rozměrů, kalkulačka…) se nezasahuje.
@@ -93,56 +147,83 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
     );
   }
 
-  const goPrev = () =>
-    setActiveIndex((i) => (i === 0 ? images.length - 1 : i - 1));
-  const goNext = () =>
-    setActiveIndex((i) => (i === images.length - 1 ? 0 : i + 1));
-
   return (
     <div className="relative">
-      {/* Pevný poměr 8:5 — velikost boxu se nikdy nemění podle fotky,
-          takže se layout stránky nedeformuje. Fotky na šířku vyplní celý box
-          (object-cover), fotky na výšku zůstanou celé (object-contain) a prostor
-          kolem vyplňuje rozmazaná kopie téže fotky (blur pruhy). */}
-      <div className="relative w-full bg-card overflow-hidden aspect-[8/5]">
-        {errored.has(activeIndex) ? (
-          <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
-            <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
-          </div>
-        ) : (
-          <>
-            {/* Rozmazaná kopie fotky vyplňuje prostor kolem (blur pruhy jako na
-                profi portálech) — fotka se nikdy neprotáhne a layout se nemění. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={`bg-${activeIndex}`}
-              src={images[activeIndex]}
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              decoding="async"
-              onError={() => handleImgError(activeIndex)}
-            />
-            {/* Fotka: na šířku vyplní celý box (object-cover), na výšku zůstane
-                celá s blur pruhy po stranách. Klik doprostřed otevře fullscreen
-                (boční zóny patří šipkám ← →). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={activeIndex}
-              src={images[activeIndex]}
-              alt={`${alt} - foto ${activeIndex + 1}`}
-              className={`absolute inset-0 h-full w-full ${isPortrait ? "object-contain" : "object-cover"} cursor-zoom-in`}
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              decoding="async"
-              onClick={() => setFullscreen(true)}
-              onLoad={handleImgLoad(activeIndex)}
-              onError={() => handleImgError(activeIndex)}
-            />
-          </>
+      {/* Imerzivní na mobilu (52dvh), jinak pevný poměr 8:5 — velikost boxu se
+          nikdy nemění podle fotky, takže se layout stránky nedeformuje. Fotky na
+          šířku vyplní celý box (object-cover), fotky na výšku zůstanou celé
+          (object-contain) a prostor kolem vyplňuje rozmazaná kopie téže fotky
+          (blur pruhy). `touch-pan-y` — svislý scroll zůstává prohlížeči,
+          vodorovný swipe listuje fotky. */}
+      <div
+        className={cn(
+          "relative w-full bg-card overflow-hidden touch-pan-y",
+          immersiveOnMobile
+            ? "aspect-[8/5] max-lg:aspect-auto max-lg:h-[52dvh]"
+            : "aspect-[8/5]"
         )}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: `translateX(${dragX}px)`,
+            transition: dragging ? "none" : "transform 300ms cubic-bezier(0.16,1,0.3,1)",
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+        >
+          {errored.has(activeIndex) ? (
+            <div className="absolute inset-0 property-image-shimmer flex items-center justify-center">
+              <span className="text-3xl font-mono text-muted/40">{score ?? ""}</span>
+            </div>
+          ) : (
+            <>
+              {/* Rozmazaná kopie fotky vyplňuje prostor kolem (blur pruhy jako na
+                  profi portálech) — fotka se nikdy neprotáhne a layout se nemění. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={`bg-${activeIndex}`}
+                src={images[activeIndex]}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
+                onError={() => handleImgError(activeIndex)}
+              />
+              {/* Fotka: na šířku vyplní celý box (object-cover), na výšku zůstane
+                  celá s blur pruhy po stranách. Klik doprostřed otevře fullscreen
+                  (boční zóny patří šipkám ← →), touch swipe listuje fotky. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={activeIndex}
+                src={images[activeIndex]}
+                alt={`${alt} - foto ${activeIndex + 1}`}
+                className={cn(
+                  "absolute inset-0 h-full w-full",
+                  isPortrait ? "object-contain" : "object-cover",
+                  dragging ? "cursor-grabbing" : "cursor-grab cursor-zoom-in"
+                )}
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
+                onClick={() => {
+                  // Swipe po sobě nesmí otevřít fullscreen (klik navazuje na drag).
+                  if (dragState.current.moved) {
+                    dragState.current.moved = false;
+                    return;
+                  }
+                  setFullscreen(true);
+                }}
+                onLoad={handleImgLoad(activeIndex)}
+                onError={() => handleImgError(activeIndex)}
+              />
+            </>
+          )}
+        </div>
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
 
@@ -172,7 +253,21 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
               </span>
             </button>
 
-            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 glass px-2.5 py-1 rounded-full text-[11px] font-mono z-10">
+            {/* Tečky stránek — mobilní nativní vzor */}
+            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 lg:hidden">
+              {images.map((_, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all duration-300",
+                    i === activeIndex ? "w-5 bg-white" : "w-1.5 bg-white/60"
+                  )}
+                />
+              ))}
+            </div>
+
+            {/* Počítadlo — desktop */}
+            <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 hidden lg:flex glass px-2.5 py-1 rounded-full text-[11px] font-mono z-10">
               {activeIndex + 1} / {images.length}
             </div>
           </>
@@ -248,7 +343,7 @@ export function ImageGallery({ images, alt, score }: ImageGalleryProps) {
       )}
 
       {images.length > 1 && (
-        <div className="flex gap-2 p-3 overflow-x-auto snap-x snap-mandatory">
+        <div className={cn("flex gap-2 p-3 overflow-x-auto snap-x snap-mandatory", immersiveOnMobile && "max-lg:hidden")}>
           {images.map((src, i) => (
             <button
               key={i}
