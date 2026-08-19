@@ -27,6 +27,7 @@ import {
   Handshake,
   HouseLine,
   LightbulbFilament,
+  Info,
 } from "@phosphor-icons/react";
 import type { InvestorPortalItem } from "@/lib/investor-portal";
 import { recalcFlipAtPrice, rentalLoanCapped, rentalTotalAcquisitionCost, type CalcSnapshotFlip, type CooperationView, type FlipDealView } from "@/lib/investor-portal-view";
@@ -802,6 +803,7 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
         <FlipCostRows snap={snap} deal={deal} coop={coop} kupniCena={kupniCena} area={item.area} strategy={strategy} showProfit profitLabel="Zisk" />
       </div>
       <ModelDetailBlock strategy={strategy} coop={coop} />
+      <Disclaimer />
     </div>
   );
 }
@@ -948,6 +950,18 @@ function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; c
         value={profit != null ? formatPrice(profit) : "—"}
         accent={profit != null && profit >= 0}
       />
+    </div>
+  );
+}
+
+/** Jemná poznámka pod detailem výpočtu modelu — finanční odhad, ne garantovaný výnos. */
+function Disclaimer() {
+  return (
+    <div className="flex items-start gap-1.5 text-[10px] text-muted/80 leading-snug">
+      <Info size={12} weight="bold" className="shrink-0 mt-0.5" />
+      <span>
+        Čísla jsou finančním odhadem na základě naší analýzy trhu a interních výpočtů. Počítáme konzervativně a započítáváme veškeré náklady — nejedná se o garantovaný výnos.
+      </span>
     </div>
   );
 }
