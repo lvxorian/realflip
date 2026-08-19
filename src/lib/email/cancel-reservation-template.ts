@@ -142,7 +142,7 @@ export function buildCancelReservationAdminHtml(
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
                 <tr>
                   <td align="center">
-                    <a href="${escapeHtml(opts.baseUrl)}/investors" style="display:inline-block;padding:12px 28px;background-color:${T.accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px;">Otevřít investory</a>
+                    <a href="https://realflip.vercel.app/investors" style="display:inline-block;padding:12px 28px;background-color:${T.accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px;">Otevřít investory</a>
                   </td>
                 </tr>
               </table>

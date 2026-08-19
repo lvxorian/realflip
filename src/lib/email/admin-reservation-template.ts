@@ -78,7 +78,7 @@ export function buildAdminReservationNotificationHtml(
                 </tr>` : ""}
                 ${profitLabel && profitFormatted ? `<tr>
                   <td style="padding:8px 0;font-size:13px;color:${T.muted};">${escapeHtml(profitLabel)}</td>
-                  <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;color:${T.accent};font-family:'Geist Mono',ui-monospace,monospace;">${profitFormatted} Kč</td>
+                  <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;color:${T.accent};font-family:'Geist Mono',ui-monospace,monospace;white-space:nowrap;">${profitFormatted}</td>
                 </tr>` : ""}
                 <tr>
                   <td style="padding:8px 0;font-size:13px;color:${T.muted};">Rezervace platná do</td>
@@ -89,7 +89,7 @@ export function buildAdminReservationNotificationHtml(
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
                 <tr>
                   <td align="center">
-                    <a href="${escapeHtml(opts.baseUrl)}/investors" style="display:inline-block;padding:12px 28px;background-color:${T.accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px;">Otevřít investory</a>
+                    <a href="https://realflip.vercel.app/investors" style="display:inline-block;padding:12px 28px;background-color:${T.accent};color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;border-radius:10px;">Otevřít investory</a>
                   </td>
                 </tr>
               </table>
