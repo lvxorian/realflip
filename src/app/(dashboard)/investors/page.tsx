@@ -39,10 +39,27 @@ export default function InvestorsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<InvestorFormValue | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [unreadByInvestor, setUnreadByInvestor] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/investors/unread-reservations");
+        if (res.ok) {
+          const d = await res.json();
+          setUnreadByInvestor(d.byInvestor ?? {});
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+  }, [status]);
 
   const loadInvestors = useCallback(() => {
     fetch("/api/investors")
@@ -163,6 +180,7 @@ export default function InvestorsPage() {
           {filtered.map((inv, idx) => {
             const initials = (inv.name ?? "??").split(" ").map((n) => n[0]).join("").slice(0, 2);
             const active = isInvestorActive(inv.lastActiveAt);
+            const unreadCount = unreadByInvestor[inv.id] ?? 0;
             return (
               <motion.div
                 key={inv.id}
@@ -172,8 +190,15 @@ export default function InvestorsPage() {
                 className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover transition-all"
               >
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent text-sm font-mono font-medium">
-                    {initials}
+                  <div className="relative shrink-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent text-sm font-mono font-medium">
+                      {initials}
+                    </div>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-4 min-w-[16px] flex items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white px-1">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium text-sm truncate">{inv.name ?? "Neznámý"}</h3>

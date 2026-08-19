@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, getInitials } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/notification-bell";
@@ -54,6 +54,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [investorBadge, setInvestorBadge] = useState(0);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/investors/unread-reservations");
+        if (res.ok) {
+          const d = await res.json();
+          setInvestorBadge(d.total ?? 0);
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+  }, [session?.user]);
 
   return (
     <div className="flex min-h-[100dvh]">
@@ -109,11 +126,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       transition={{ type: "spring", stiffness: 200, damping: 25 }}
                     />
                   )}
-                  <item.icon
-                    size={20}
-                    weight={isActive ? "fill" : "regular"}
-                    className="relative z-10"
-                  />
+                  <div className="relative z-10">
+                    <item.icon
+                      size={20}
+                      weight={isActive ? "fill" : "regular"}
+                    />
+                    {item.href === "/investors" && investorBadge > 0 && (
+                      <span className="absolute -top-1.5 -right-2 h-4 min-w-[16px] flex items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white px-1">
+                        {investorBadge > 9 ? "9+" : investorBadge}
+                      </span>
+                    )}
+                  </div>
                   <AnimatePresence mode="wait">
                     {!collapsed && (
                       <motion.span

@@ -13,6 +13,7 @@ import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 import { sendEmail } from "@/lib/email/send-email";
 import { buildReservationEmailHtml } from "@/lib/email/reservation-template";
+import { buildAdminReservationNotificationHtml } from "@/lib/email/admin-reservation-template";
 
 export async function POST(req: NextRequest) {
   const session = await getInvestorSession();
@@ -145,6 +146,29 @@ export async function POST(req: NextRequest) {
       }
     } catch {
       // Do not block reservation on email failure
+    }
+
+    // --- Admin email notification ---
+    try {
+      const adminEmail = "cakmak@tuta.com";
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "") ??
+        process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
+        "http://localhost:3000"
+      );
+      const adminHtml = buildAdminReservationNotificationHtml({
+        investorName: session.name,
+        propertyTitle: lead.propertyTitle ?? null,
+        propertyAddress: lead.propertyAddress ?? null,
+        strategy: strategy as "fifty-fifty" | "sourcing-fee" | null,
+        calcMode: lead.calcMode,
+        baseUrl,
+      });
+      const location = [lead.propertyTitle, lead.propertyAddress].filter(Boolean).join(" · ") || "nemovitost";
+      const adminSubject = `${INVESTOR_BRAND} · Nová rezervace — ${session.name} · ${location}`;
+      await sendEmail({ to: adminEmail, subject: adminSubject, html: adminHtml });
+    } catch {
+      // Do not block reservation on admin email failure
     }
 
     return NextResponse.json({
