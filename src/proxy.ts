@@ -29,7 +29,7 @@ export default auth((req) => {
   // Slouží výhradně investorům: povoleny landing (`/`), investorské cesty
   // a nic jiného (admin, API, atd.) zde nesmí být dostupné.
   if (INVESTOR_ONLY) {
-    if (isInvestorPath(pathname) || pathname === "/") return;
+    if (isInvestorPath(pathname) || pathname === "/" || pathname === "/vop") return;
     if (pathname.startsWith("/api")) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
