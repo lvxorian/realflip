@@ -143,7 +143,7 @@ const reloadSearches = async () => {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-2xl" />
         ))}
@@ -153,19 +153,19 @@ const reloadSearches = async () => {
 
   return (
     <motion.div
-      className="p-6 space-y-6"
+      className="space-y-6"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Hledání</h1>
           <p className="text-muted text-sm mt-1">
             Vytvářejte cílená hledání nemovitostí
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {searches.length > 0 && (
             <Button
               variant="secondary"
@@ -227,6 +227,7 @@ const reloadSearches = async () => {
                         <Button
                           variant="secondary"
                           size="icon-sm"
+                          className="h-10 w-10"
                           loading={running === s.id}
                           disabled={showBulkLog}
                           onClick={(e) => {
@@ -239,23 +240,23 @@ const reloadSearches = async () => {
                         <Button
                           variant="secondary"
                           size="icon-sm"
+                          className="h-10 w-10 text-muted hover:text-accent"
                           onClick={(e) => {
                             e.preventDefault();
                             router.push(`/searches/${s.id}/edit`);
                           }}
-                          className="text-muted hover:text-accent"
                         >
                           <PencilSimple weight="bold" />
                         </Button>
                         <Button
                           variant="secondary"
                           size="icon-sm"
+                          className="h-10 w-10 text-muted hover:text-red-400"
                           loading={deleting === s.id}
                           onClick={(e) => {
                             e.preventDefault();
                             deleteSearch(s.id, s.name);
                           }}
-                          className="text-muted hover:text-red-400"
                         >
                           <Trash weight="bold" />
                         </Button>

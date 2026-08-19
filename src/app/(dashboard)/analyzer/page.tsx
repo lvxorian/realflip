@@ -175,7 +175,7 @@ export default function AnalyzerPage() {
 
   return (
     <motion.div
-      className="space-y-8"
+      className="space-y-6"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -208,7 +208,7 @@ export default function AnalyzerPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button
                 onClick={handleSubmit}
                 disabled={urls.length === 0 || loading}

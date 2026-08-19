@@ -155,7 +155,7 @@ export default function SearchDetailPage() {
 
   if (loading || !data) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         <Skeleton className="h-8 w-48 rounded-lg" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -181,20 +181,20 @@ export default function SearchDetailPage() {
 
   return (
     <motion.div
-      className="p-6 space-y-6"
+      className="space-y-6"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
           <Link href="/searches">
-            <Button variant="ghost" size="icon-sm">
+            <Button variant="ghost" size="icon-sm" className="h-10 w-10 shrink-0">
               <ArrowLeft weight="bold" />
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold">{data.name}</h1>
               <Badge>{data.total} inzerátů</Badge>
               <Badge variant="secondary">{SCHEDULE_LABELS[data.schedule] ?? data.schedule}</Badge>
@@ -208,7 +208,7 @@ export default function SearchDetailPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button onClick={runSearch} disabled={showLog}>
             <Play weight="fill" />
             Spustit skenování
