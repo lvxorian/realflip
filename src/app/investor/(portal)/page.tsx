@@ -998,7 +998,7 @@ function ReserveModal({
                 <div className="flex-1 min-w-0">
                   <h2 className="font-semibold tracking-tight leading-tight">Vyberte způsob spolupráce</h2>
                   <p className="text-sm text-muted mt-1 leading-relaxed">
-                    {[item.city, item.district].filter(Boolean).join(" · ") || "Nabídka"} — jak chcete obchod realizovat?
+                    {[item.city, item.district].filter(Boolean).join(" · ") || "Nabídka"} - jak chcete obchod realizovat?
                   </p>
                 </div>
                 <button
