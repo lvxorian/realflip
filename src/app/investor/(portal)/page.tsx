@@ -86,13 +86,9 @@ function availableStrategiesOf(item: InvestorPortalItem): CooperationStrategy[] 
   return item.cooperation.availableStrategies;
 }
 
-/** Čísla modelu spolupráce (zisk investora / ROI / investice) z cooperation bloku. */
+/** Čísla modelu spolupráce (zisk investora / investice) z cooperation bloku. */
 function modelProfitOf(strategy: CooperationStrategy, coop: CooperationView): number | null {
   return strategy === "fifty-fifty" ? coop.investorProfitFiftyFifty : coop.investorProfitSourcing;
-}
-
-function modelRoiOf(strategy: CooperationStrategy, coop: CooperationView): number | null {
-  return strategy === "fifty-fifty" ? coop.investorRoiFiftyFifty : coop.investorRoiSourcing;
 }
 
 function modelFundingOf(strategy: CooperationStrategy, coop: CooperationView): number | null {
@@ -803,7 +799,7 @@ function ModelDetail({ item, strategy }: { item: InvestorPortalItem; strategy: C
       </div>
       <div className="space-y-2 text-[12px]">
         <div className="text-[10px] font-semibold text-emerald-400 mb-1">Rozpočet při kupní ceně {kupniCena != null ? formatPrice(kupniCena) : "—"}</div>
-        <FlipCostRows snap={snap} deal={deal} coop={coop} kupniCena={kupniCena} area={item.area} strategy={strategy} />
+        <FlipCostRows snap={snap} deal={deal} coop={coop} kupniCena={kupniCena} area={item.area} strategy={strategy} showProfit profitLabel="Zisk" />
       </div>
       <ModelDetailBlock strategy={strategy} coop={coop} />
     </div>
@@ -822,6 +818,7 @@ function FlipCostRows({
   area,
   strategy,
   showProfit,
+  profitLabel,
 }: {
   snap: CalcSnapshotFlip | null;
   deal: FlipDealView | null;
@@ -830,6 +827,7 @@ function FlipCostRows({
   area: number | null;
   strategy?: CooperationStrategy;
   showProfit?: boolean;
+  profitLabel?: string;
 }) {
   const isFifty = strategy === "fifty-fifty";
   const sourcingFee = coop?.sourcingFee ?? snap?.sourcingFee ?? null;
@@ -843,6 +841,10 @@ function FlipCostRows({
   // (stejně jako v kalkulačce), jinak se použije hodnota ze snapshotu.
   const recalc = snap && kupniCena != null ? recalcFlipAtPrice(snap, kupniCena) : null;
   const incomeTax = recalc?.incomeTax ?? snap?.incomeTax ?? null;
+  // Zisk musí souznít se zobrazenými Náklady celkem (jako v kalkulačce):
+  // u 50/50 (náklady bez sourcing fee) je to celkový zisk bez fee,
+  // u sourcing fee (náklady s fee) je to zisk po odečtení fee.
+  const profit = isFifty ? (coop?.netProfitTotal ?? deal?.netProfit) : deal?.netProfit;
   return (
     <>
       <DetailRow label="Kupní cena" value={kupniCena != null ? formatPrice(kupniCena) : "—"} />
@@ -866,9 +868,9 @@ function FlipCostRows({
       />
       {showProfit && (
         <DetailRow
-          label="Odhadovaný zisk"
-          value={deal?.netProfit != null ? formatPrice(deal.netProfit) : "—"}
-          accent={deal?.netProfit != null && deal.netProfit >= 0}
+          label={profitLabel ?? "Odhadovaný zisk"}
+          value={profit != null ? formatPrice(profit) : "—"}
+          accent={profit != null && profit >= 0}
         />
       )}
       <DetailRow label="ROI projektu" value={deal?.roi != null ? `${deal.roi.toFixed(1)} %` : "—"} accent={deal?.roi != null && deal.roi >= 0} />
@@ -933,12 +935,11 @@ function ModelProfitCard({
   );
 }
 
-/** Rozpis jednoho modelu spolupráce v detailu výpočtu: investice, zisk, ROI. */
+/** Rozpis jednoho modelu spolupráce v detailu výpočtu: investice, zisk. */
 function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; coop: CooperationView }) {
   const isFifty = strategy === "fifty-fifty";
   const funding = modelFundingOf(strategy, coop);
   const profit = modelProfitOf(strategy, coop);
-  const roi = modelRoiOf(strategy, coop);
   return (
     <div className="rounded-xl border border-border/40 bg-card/60 p-3.5 space-y-2">
       <DetailRow label="Vaše investice" value={funding != null ? formatPrice(funding) : "—"} />
@@ -946,11 +947,6 @@ function ModelDetailBlock({ strategy, coop }: { strategy: CooperationStrategy; c
         label={isFifty ? "Váš zisk (polovina obchodu)" : "Váš zisk (po rekonstrukci)"}
         value={profit != null ? formatPrice(profit) : "—"}
         accent={profit != null && profit >= 0}
-      />
-      <DetailRow
-        label="ROI vaší investice"
-        value={roi != null ? `${roi.toFixed(1)} %` : "—"}
-        accent={roi != null && roi >= 0}
       />
     </div>
   );
@@ -1015,7 +1011,6 @@ function ReserveModal({
                 {coop.availableStrategies.map((s) => {
                   const active = strategy === s;
                   const profit = modelProfitOf(s, coop);
-                  const roi = modelRoiOf(s, coop);
                   return (
                     <button
                       key={s}
@@ -1035,12 +1030,6 @@ function ReserveModal({
                         </span>
                       </div>
                       <p className="text-[11px] text-muted mt-1">{modelDesc(s, coop)}</p>
-                      <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-border/20 text-[11px]">
-                        <span className="text-muted">ROI vaší investice</span>
-                        <span className={`font-mono tabular-nums ${roi != null && roi >= 0 ? "text-emerald-400" : "text-foreground"}`}>
-                          {roi != null ? `${roi.toFixed(1)} %` : "—"}
-                        </span>
-                      </div>
                     </button>
                   );
                 })}
