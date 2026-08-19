@@ -1067,11 +1067,12 @@ function ReserveModal({
                       type="button"
                       onClick={() => onSelect(s)}
                       className={cn(
-                        "w-full text-left rounded-xl border p-3.5 transition-colors cursor-pointer",
-                        active ? "border-accent/50 bg-accent/10" : "border-border/40 bg-card-hover/40 hover:border-accent/30"
+                        "group relative w-full text-left rounded-xl border p-3.5 transition-all duration-300 cursor-pointer overflow-hidden",
+                        active ? "border-accent/50 bg-accent/10 shadow-[0_0_20px_rgba(16,185,129,0.08)]" : "border-border/40 bg-card-hover/40 hover:border-accent/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.1)] hover:backdrop-blur-sm"
                       )}
                     >
-                      <div className="flex items-baseline justify-between gap-2">
+                      <div className="pointer-events-none absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-accent/[0.04] via-transparent to-accent/[0.02]" />
+                      <div className="relative flex items-baseline justify-between gap-2">
                         <span className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>
                           Model {COOPERATION_STRATEGIES[s]}
                         </span>
@@ -1079,7 +1080,7 @@ function ReserveModal({
                           {profit != null ? formatPrice(profit) : "—"}
                         </span>
                       </div>
-                      <p className="text-[11px] text-muted mt-1">{modelDesc(s, coop)}</p>
+                      <p className="relative text-[11px] text-muted mt-1">{modelDesc(s, coop)}</p>
                     </button>
                   );
                 })}
