@@ -235,7 +235,7 @@ export function PortalPanel({
 
             {reservedInvestorId && reservedName && countdown && (
               <p className="text-xs text-muted">
-                Vyprší {countdown}
+                {countdown}
               </p>
             )}
           </div>
