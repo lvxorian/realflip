@@ -82,7 +82,7 @@ export function InvestorReservations({ reservations }: { reservations: Reservati
                 <tr key={r.leadId} className="hover:bg-card-hover transition-colors">
                   <td className="p-4">
                     <Link
-                      href={r.propertyUrl ?? `/properties/${r.propertyId}`}
+                      href={`/properties/${r.propertyId}`}
                       className="font-medium hover:underline truncate max-w-[280px] block"
                     >
                       {r.propertyTitle ?? "Neznámá nemovitost"}
