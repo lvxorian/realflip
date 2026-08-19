@@ -469,6 +469,17 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Brickon**: volitelné `svjFeeMonthly`/`svjIsEstimate` v snapshotu → řádek „Fond oprav (SVJ)" v detailu nabídky (nad NOI) + PDF report.
 - Testy 692 → 698 (54 souborů), typecheck čistý, lint bez nových chyb; commit `de7761d`.
 
+### Phase 70 — Radar: makro přehled trhu + AI Market Report (Done)
+- **Cíl**: stránka `/radar` (taby Trh/Regiony/Města) s makro daty (repo ČNB, hypotéky ČBA, inflace ČSÚ), cenovou mapou katastru, vlastním sledováním inzerátů, heatmapou měst a AI zprávou (Gemini, cache).
+- **DB**: `radar_series` (key + period, PK) + `radar_reports` (region_key + range, PK) v PG i SQLite (`src/db/schema/radar.ts`, `src/db/pg/radar.ts`, migrace 0011/0005). DDL migrace nutná přes tagged template: `sql\`${sql.unsafe(ddl)}\`` — samotné `sql.unsafe()` na aktuálním `@neondatabase/serverless` tichounce nic neprovede.
+- **Zdroje**: ČNB repo TXT (`vyvoj_repo_historie.txt`, cesta `.galleries`), ČBA (cbamonitor.cz — sazba nových hypoték, objem, inflace; y hodnoty v graph_data jsou **stringy** → `Number()` koerce), ČSÚ opendata CSV: STA09B (zahájené byty, okresy→kraje), STA09A1 (obyvatelstvo), WPRACECRQ (kvartální mzdy: cr=ZJIST 0, kraje=ZJIST 2, 2011+; MZDR vyhozen jako redundantní), PORKR01 (indexy) → inflace z ČSÚ, ne z blade.
+- **Engine** (`src/lib/market/`): `radar-store.ts` (fetch+upsert, delta-only), `macro.ts` (ČNB+ČBA), `czso-radar.ts`, `radar-shared.ts` (`REGION_LABELS`, blade parsování), `snapshots.ts` (čisté transformace), `radar-query.ts` (`getRadarData(range)`: KPI, gaps, priceMap řazená sestupně, listingFlow z `firstSeen`/`removedAt`, supplyVsPopulation, cityHeatmap s price-to-rent a 65+), `report.ts` (Gemini + retry + fallback modely `gemini-2.5-flash`, `gemini-3.5-flash-lite` při 503 — `gemini-2.0-flash-lite` je deprecated 404).
+- **API**: `/api/market/radar` (GET, range 1q/1y/3y/5y), `/api/market/report` (GET cache / POST force, auth), `/api/market/radar-refresh` (cron x-cron-secret → obnova řad + CPI z DB).
+- **Cron**: `vercel.json` 2. cron `/api/market/radar-refresh` (0 6 * * *); `daily-scraper.yml` step odvozuje URL z `SCRAPER_API_URL` (bez nového secretu).
+- **UI**: `src/components/radar/` — `macro-charts.tsx` (KPI + Grafy A/B/C recharts), `regions-tab.tsx` (cenová mapa bar + tabulka krajů), `cities-tab.tsx` (listing flow + heatmapa měst), `report-card.tsx` (markdown + „Obnovit"), `radar-page.tsx`; nav `/radar` v `dashboard-layout.tsx`.
+- **Náznaky z dat**: priceMap vrací 13 krajů (1 v SSR chybí — netřeba řešit); `stazene` inzeráty řídké (removedAt od 2026-08); cityKey = lowercase slug („praha").
+- Testy 698 → 714 (56 souborů), typecheck čistý, lint bez nových chyb.
+
 ## Key Files
 
 ### Core

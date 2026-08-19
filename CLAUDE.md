@@ -24,8 +24,16 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Částkové vstupy**: všude používat `AmountInput` (`src/components/ui/amount-input.tsx`) nebo `Input type="amount"` — `type="text"` + `inputMode="numeric"`, živě formátuje mezery („5000000" → „5 000 000"), `onChange` předává jen číslice (stávající `Number`/`parseInt` parsování funguje beze změny). Sdílené formátování: `formatAmountInput()` v `src/lib/utils.ts`. Procenta/m²/plochy/roky = obyčejná číselná pole bez formátování.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **698 tests across 54 files**.
+Vitest v4 + jsdom + @testing-library/react. **714 tests across 56 files**.
 `npm test` or `npx vitest run`.
+
+## Radar (`/radar`, Phase 70)
+- Datová vrstva: `src/lib/market/` — `radar-store.ts` (fetch+upsert, delta-only), `macro.ts` (ČNB repo TXT + ČBA cbamonitor blade graph_data — y jsou **stringy**, koerce `Number()`), `czso-radar.ts` (opendata CSV: STA09B/STA09A1/WPRACECRQ/PORKR01), `radar-shared.ts` (`REGION_LABELS`, `extractBladeGraphData`, `bladeSeriesToPoints`, `usDateToPeriod`), `snapshots.ts` (čisté transformace → testy), `radar-query.ts` (`getRadarData(range)`), `report.ts` (Gemini AI zpráva).
+- **Migrace DDL na Neonu**: samotné `sql.unsafe(ddl)` je tichý no-op — musí být tagged template: `sql\`${sql.unsafe(ddl)}\`` (viz `scripts/migrate-radar.ts`).
+- **Gemini 503**: report má retry + fallback modely `gemini-2.5-flash` → `gemini-3.5-flash-lite` (`gemini-2.0-flash-lite` = 404 deprecated). Pro ruční regeneraci: POST `/api/market/report?region=cr&range=1y&force=1`.
+- API: `/api/market/radar` (GET range 1q/1y/3y/5y), `/api/market/report`, `/api/market/radar-refresh` (cron, `x-cron-secret`).
+- Regiony: `cr` = národ, `CZ0xx` klíče → `REGION_LABELS`; perioda `YYYY-MM`, kvartál → poslední měsíc, roční → `YYYY-12`.
+- Smoke/verify: `scripts/verify-radar.ts` (řady), `scripts/migrate-radar.ts` (DDL).
 
 ## Portals (10 adapters, 6 url-scrapers)
 sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality, realitymat, remax (+ hyperreality, century21 disabled — hyperreality.cz je teď GitLab login, century21 má 429 bot protection)
