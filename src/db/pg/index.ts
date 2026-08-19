@@ -10,6 +10,7 @@ export { portalConfig } from "./portal-config";
 export { investorOfferEmails } from "./investor-offer-emails";
 export { alerts, notifications } from "./alerts";
 export { marketData, marketCache, scrapingJobs, localityMetrics, poiMetrics, rents } from "./market";
+export { radarSeries, radarReports } from "./radar";
 export { activityLog } from "./activity";
 export { searches, searchProperties } from "./searches";
 export { crawlProgress } from "./crawl-progress";
