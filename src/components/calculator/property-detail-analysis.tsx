@@ -174,5 +174,5 @@ export default function PropertyDetailAnalysis({
   negotiatedPrice?: number | null;
 }) {
   const result = buildAnalysisResult(property, analysis);
-  return <InteractiveAnalysis result={result} index={0} negotiatedPrice={negotiatedPrice} />;
+  return <InteractiveAnalysis result={result} index={0} negotiatedPrice={negotiatedPrice} collapsibleOnMobile />;
 }

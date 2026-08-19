@@ -137,10 +137,12 @@ export default function InteractiveAnalysis({
   result,
   index,
   negotiatedPrice = null,
+  collapsibleOnMobile = false,
 }: {
   result: AnalysisResult;
   index: number;
   negotiatedPrice?: number | null;
+  collapsibleOnMobile?: boolean;
 }) {
   if (!result.success) {
     return (
@@ -161,17 +163,19 @@ export default function InteractiveAnalysis({
     );
   }
 
-  return <InteractiveCard result={result} index={index} negotiatedPrice={negotiatedPrice} />;
+  return <InteractiveCard result={result} index={index} negotiatedPrice={negotiatedPrice} collapsibleOnMobile={collapsibleOnMobile} />;
 }
 
 function InteractiveCard({
   result,
   index,
   negotiatedPrice = null,
+  collapsibleOnMobile = false,
 }: {
   result: AnalysisResult;
   index: number;
   negotiatedPrice?: number | null;
+  collapsibleOnMobile?: boolean;
 }) {
   const a = result.analysis!;
   const l = result.listing!;
@@ -185,6 +189,14 @@ function InteractiveCard({
   const [targetRoi, setTargetRoi] = useState(15);
   /** Ručně zadaná přesná kupní cena (např. 2 500 000) — null = řešená z ROI. */
   const [manualFlipPrice, setManualFlipPrice] = useState<number | null>(null);
+
+  /** Na mobilu (collapsibleOnMobile) je kalkulačka sbalená — stránka se otevře
+   *  kompaktní, klíčová čísla zůstávají v metrikách nad ní. Desktop vždy rozbalený. */
+  const [calcOpen, setCalcOpen] = useState(true);
+  useEffect(() => {
+    if (!collapsibleOnMobile) return;
+    setCalcOpen(typeof window !== "undefined" ? window.innerWidth >= 768 : true);
+  }, [collapsibleOnMobile]);
 
   const [flipStrategy, setFlipStrategy] = useState<CooperationAvailability>("both");
 
@@ -861,7 +873,21 @@ function InteractiveCard({
           </div>
 
           {/* ===== FEATURE 1: FLIP / RENTAL CALCULATOR ===== */}
-          <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 sm:p-4 space-y-3 sm:space-y-4">
+          <div className={`rounded-xl border border-accent/20 bg-accent/5 ${collapsibleOnMobile ? "overflow-hidden" : "p-3 sm:p-4 space-y-3 sm:space-y-4"}`}>
+            {collapsibleOnMobile && (
+              <button
+                type="button"
+                onClick={() => setCalcOpen((o) => !o)}
+                aria-expanded={calcOpen}
+                className="w-full flex items-center gap-2 p-3 sm:p-4 cursor-pointer"
+              >
+                <CurrencyCircleDollar size={16} className="text-accent" />
+                <span className="font-semibold tracking-tight text-sm flex-1 text-left">Kalkulačka</span>
+                <span className="text-xs text-muted">{calcOpen ? "Sbalit" : "Rozbalit"}</span>
+                {calcOpen ? <CaretUp size={14} weight="bold" className="text-muted" /> : <CaretDown size={14} weight="bold" className="text-muted" />}
+              </button>
+            )}
+            <div className={`${collapsibleOnMobile ? "px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4" : "space-y-3 sm:space-y-4"} ${collapsibleOnMobile && !calcOpen ? "hidden" : ""}`}>
             <div className="flex items-center gap-2">
               <CurrencyCircleDollar size={16} className="text-accent" />
               <h2 className="font-semibold tracking-tight text-sm flex-1">Kalkulačka</h2>
@@ -1595,7 +1621,8 @@ function InteractiveCard({
                 </div>
               </div>
             )}
-          </div>
+              </div>
+            </div>
 
           {/* ===== SAVE / RESET PRESET ===== */}
           {propertyId && (

@@ -197,24 +197,24 @@ export default function SettingsPage() {
     .slice(0, 2);
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Nastavení</h1>
         <p className="text-sm text-muted mt-1">Spravujte svůj účet a preference</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-        <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 overflow-x-auto pb-1">
+        <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 p-1 lg:p-0 rounded-xl lg:rounded-none bg-card-hover/70 lg:bg-transparent overflow-x-auto">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 h-10 rounded-lg text-sm whitespace-nowrap transition-all ${
+                className={`flex shrink-0 items-center gap-2.5 px-3 py-2 h-10 rounded-lg text-sm whitespace-nowrap transition-all ${
                   isActive
-                    ? "bg-accent/10 text-accent border border-accent/20"
-                    : "text-muted hover:text-foreground hover:bg-card"
+                    ? "bg-card text-foreground shadow-sm lg:bg-accent/10 lg:text-accent lg:shadow-none lg:border lg:border-accent/20"
+                    : "text-muted hover:text-foreground lg:hover:bg-card"
                 }`}
               >
                 <tab.icon size={16} weight={isActive ? "fill" : "regular"} />
@@ -230,13 +230,13 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6 space-y-4 sm:space-y-6"
+            className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6 space-y-3 sm:space-y-6"
           >
             {activeTab === "profile" && (
               <>
                 <h2 className="font-semibold tracking-tight">Profil</h2>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent text-lg font-mono font-medium">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-accent/10 text-accent text-base sm:text-lg font-mono font-medium">
                     {initials}
                   </div>
                   <div>
@@ -340,7 +340,7 @@ export default function SettingsPage() {
                     { label: "OpenAI API klíč", key: "OPENAI_API_KEY", hint: "Volitelný — aktuálně se používá Gemini" },
                     { label: "Mapbox token", key: "MAPBOX_TOKEN", hint: "Volitelný — mapy běží na OpenStreetMap" },
                   ].map((k) => (
-                    <div key={k.key} className="rounded-lg border border-border/50 p-4">
+                    <div key={k.key} className="rounded-lg border border-border/50 p-3 sm:p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium">{k.label}</p>
                         <code className="text-[10px] text-muted font-mono break-all">{k.key}</code>
@@ -362,7 +362,7 @@ export default function SettingsPage() {
                     { label: "Dokončení scrapování", desc: "Po každém scrapování portálů" },
                     { label: "Týdenní report", desc: "Souhrn aktivit za týden" },
                   ].map((n) => (
-                    <div key={n.label} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border/50 p-4">
+                    <div key={n.label} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border/50 p-3 sm:p-4">
                       <div>
                         <p className="text-sm font-medium">{n.label}</p>
                         <p className="text-xs text-muted">{n.desc}</p>
@@ -395,7 +395,7 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-start justify-between gap-4 rounded-xl border border-border/50 p-4">
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-border/50 p-3 sm:p-4">
                       <div>
                         <p className="text-sm font-medium">Model 50/50 je k dispozici</p>
                         <p className="text-xs text-muted mt-1">

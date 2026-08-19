@@ -232,7 +232,7 @@ export default async function PropertyDetailPage({
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <div className="lg:col-span-2 space-y-3 sm:space-y-6">
           {/* Hero with gallery */}
-          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+          <div className="-mx-3 sm:-mx-4 lg:mx-0 max-lg:rounded-none max-lg:border-x-0 lg:rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="relative">
               <ImageGallery
                 images={imageUrls}
@@ -313,7 +313,7 @@ export default async function PropertyDetailPage({
                 return null;
               })()}
 
-              <div className="flex flex-wrap gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: "dispozice", value: property.rooms ?? "—" },
                   { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
@@ -321,21 +321,21 @@ export default async function PropertyDetailPage({
                 ].map((s) => (
                   <div
                     key={s.label}
-                    className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs"
+                    className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center"
                   >
                     <span className="text-muted">{s.label}</span>
                     <p className="font-semibold text-foreground font-mono mt-0.5">{s.value}</p>
                   </div>
                 ))}
-                <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center">
                   <span className="text-muted">konstrukce</span>
                   <EditableBuildingType propertyId={id} buildingType={property.buildingType} />
                 </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center">
                   <span className="text-muted">stav</span>
                   <EditableCondition propertyId={id} condition={property.condition} />
                 </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-3 py-2 text-xs">
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center">
                   <span className="text-muted">velikost</span>
                   <EditableArea
                     propertyId={id}
