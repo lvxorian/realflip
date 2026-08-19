@@ -13,6 +13,7 @@ export type ReservationRow = {
   propertyTitle: string | null;
   propertyAddress: string | null;
   propertyUrl: string | null;
+  imageUrls: string[];
   calcMode: string | null;
   strategy: string | null;
   reservedAt: number | null;
@@ -81,17 +82,36 @@ export function InvestorReservations({ reservations }: { reservations: Reservati
               return (
                 <tr key={r.leadId} className="hover:bg-card-hover transition-colors">
                   <td className="p-4">
-                    <Link
-                      href={`/properties/${r.propertyId}`}
-                      className="font-medium hover:underline truncate max-w-[280px] block"
-                    >
-                      {r.propertyTitle ?? "Neznámá nemovitost"}
-                    </Link>
-                    {r.propertyAddress && (
-                      <p className="text-xs text-muted truncate max-w-[280px]">
-                        {r.propertyAddress}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {r.imageUrls.length > 0 ? (
+                        <Link href={`/properties/${r.propertyId}`} className="shrink-0">
+                          <img
+                            src={r.imageUrls[0]}
+                            alt=""
+                            className="h-10 w-14 rounded-md object-cover border border-border/30"
+                          />
+                        </Link>
+                      ) : (
+                        <Link href={`/properties/${r.propertyId}`} className="shrink-0">
+                          <div className="h-10 w-14 rounded-md bg-accent/10 flex items-center justify-center">
+                            <span className="text-[10px] text-muted"> foto </span>
+                          </div>
+                        </Link>
+                      )}
+                      <div className="min-w-0">
+                        <Link
+                          href={`/properties/${r.propertyId}`}
+                          className="font-medium hover:underline truncate block"
+                        >
+                          {r.propertyTitle ?? "Neznámá nemovitost"}
+                        </Link>
+                        {r.propertyAddress && (
+                          <p className="text-xs text-muted truncate">
+                            {r.propertyAddress}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="p-4">
                     <Badge variant="secondary" size="sm">
