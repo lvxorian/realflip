@@ -197,21 +197,21 @@ export default function SettingsPage() {
     .slice(0, 2);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Nastavení</h1>
         <p className="text-sm text-muted mt-1">Spravujte svůj účet a preference</p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 overflow-x-auto">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+        <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 overflow-x-auto pb-1">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm whitespace-nowrap transition-all ${
+                className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 h-10 rounded-lg text-sm whitespace-nowrap transition-all ${
                   isActive
                     ? "bg-accent/10 text-accent border border-accent/20"
                     : "text-muted hover:text-foreground hover:bg-card"
@@ -230,7 +230,7 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
-            className="rounded-2xl border border-border/50 bg-card p-6 space-y-6"
+            className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6 space-y-4 sm:space-y-6"
           >
             {activeTab === "profile" && (
               <>
@@ -279,14 +279,14 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted">Každé hledání může mít vlastní plán při vytváření. Toto je výchozí hodnota.</p>
                 </div>
                 <hr className="border-border/50" />
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h3 className="font-semibold tracking-tight text-sm">Vaše hledání</h3>
                     <p className="text-xs text-muted mt-0.5">Spravujte jednotlivá hledání a jejich plánování.</p>
                   </div>
                   <Link
                     href="/searches"
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
                   >
                     Spravovat hledání
                   </Link>
@@ -341,9 +341,9 @@ export default function SettingsPage() {
                     { label: "Mapbox token", key: "MAPBOX_TOKEN", hint: "Volitelný — mapy běží na OpenStreetMap" },
                   ].map((k) => (
                     <div key={k.key} className="rounded-lg border border-border/50 p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium">{k.label}</p>
-                        <code className="text-[10px] text-muted font-mono">{k.key}</code>
+                        <code className="text-[10px] text-muted font-mono break-all">{k.key}</code>
                       </div>
                       <p className="text-xs text-muted mt-1">{k.hint}</p>
                     </div>
@@ -362,15 +362,15 @@ export default function SettingsPage() {
                     { label: "Dokončení scrapování", desc: "Po každém scrapování portálů" },
                     { label: "Týdenní report", desc: "Souhrn aktivit za týden" },
                   ].map((n) => (
-                    <div key={n.label} className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                    <div key={n.label} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border/50 p-4">
                       <div>
                         <p className="text-sm font-medium">{n.label}</p>
                         <p className="text-xs text-muted">{n.desc}</p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                         {["Email", "Push", "SMS"].map((ch) => (
                           <label key={ch} className="flex items-center gap-1.5 text-xs text-muted">
-                            <input type="checkbox" defaultChecked={ch === "Push"} className="rounded border-border text-accent" />
+                            <input type="checkbox" defaultChecked={ch === "Push"} className="rounded border-border text-accent h-4 w-4" />
                             {ch}
                           </label>
                         ))}
@@ -440,7 +440,7 @@ export default function SettingsPage() {
             {activeTab === "billing" && (
               <>
                 <h2 className="font-semibold tracking-tight">Předplatné</h2>
-                <div className="rounded-2xl border border-border/50 bg-card p-6">
+                <div className="rounded-2xl border border-border/50 bg-card p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-lg font-semibold">Free</p>
