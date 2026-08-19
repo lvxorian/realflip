@@ -399,7 +399,7 @@ function LeadDrawerContent({
           <ScoreGauge score={lead.analysisScore ?? 0} size={30} strokeWidth={2.5} />
           <span className="text-sm font-medium truncate">{lead.propertyTitle ?? "Neznámá nemovitost"}</span>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-card text-muted transition-colors">
+        <button onClick={onClose} className="h-10 w-10 rounded-lg hover:bg-card text-muted transition-colors flex items-center justify-center">
           <X size={18} />
         </button>
       </div>

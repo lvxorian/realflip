@@ -57,7 +57,7 @@ export function EmailModal({ open, onClose, onSaved }: EmailModalProps) {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md max-h-[85vh] overflow-y-auto"
           >
             <div className="p-5 sm:p-6">
               <div className="flex items-start gap-4">
@@ -75,7 +75,7 @@ export function EmailModal({ open, onClose, onSaved }: EmailModalProps) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors text-muted"
+                  className="h-10 w-10 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors text-muted"
                   aria-label="Zavřít"
                 >
                   <X size={16} weight="bold" />

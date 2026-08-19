@@ -1034,7 +1034,7 @@ function ReserveModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md max-h-[85vh] overflow-y-auto"
           >
             <div className="p-5 sm:p-6">
               <div className="flex items-start gap-4">
@@ -1174,7 +1174,7 @@ function ReservationConfirmedModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md max-h-[85vh] overflow-y-auto"
           >
             <div className="p-5 sm:p-6 space-y-4">
               {/* Header */}
@@ -1293,7 +1293,7 @@ function CancelledReservationModal({
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-card rounded-2xl border border-border/50 w-full max-w-md overflow-hidden"
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md max-h-[85vh] overflow-y-auto"
           >
             <div className="p-5 sm:p-6 space-y-4">
               <div className="flex items-start gap-4">

@@ -384,7 +384,7 @@ export default function TasksPage() {
                     <div className="flex items-start gap-3 min-w-0">
                       <button
                         onClick={() => toggle(task)}
-                        className="mt-0.5 shrink-0 text-muted hover:text-accent transition-colors"
+                        className="mt-0.5 shrink-0 flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-accent hover:bg-card-hover transition-colors"
                         title={task.done ? "Označit jako nedokončené" : "Dokončit"}
                       >
                         <CheckSquare
@@ -434,20 +434,20 @@ export default function TasksPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => startEdit(task)}
-                        className="text-muted hover:text-accent transition-colors"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-accent hover:bg-card-hover transition-colors"
                         title="Upravit"
                       >
-                        <PencilSimple size={14} weight="bold" />
+                        <PencilSimple size={15} weight="bold" />
                       </button>
                       <button
                         onClick={() => remove(task)}
-                        className="text-muted hover:text-danger transition-colors"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors"
                         title="Smazat"
                       >
-                        <Trash size={14} weight="bold" />
+                        <Trash size={15} weight="bold" />
                       </button>
                     </div>
                   </div>

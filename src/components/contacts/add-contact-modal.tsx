@@ -101,7 +101,7 @@ export function AddContactModal({ open, onClose, onCreated }: AddContactModalPro
             <form onSubmit={handleSubmit}>
               <div className="flex items-center justify-between p-5 border-b border-border/30">
                 <h2 className="font-semibold tracking-tight">Nový kontakt</h2>
-                <button type="button" onClick={onClose} className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors">
+                <button type="button" onClick={onClose} className="h-10 w-10 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors">
                   <X size={16} weight="bold" />
                 </button>
               </div>

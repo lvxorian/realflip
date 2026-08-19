@@ -283,13 +283,13 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
               placeholder="Hledat..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              className="h-9 pl-9 w-56"
+              className="h-10 pl-9 w-full sm:w-56"
             />
           </div>
           <select
             value={sort}
             onChange={(e) => { setSort(e.target.value as SortMode); setPage(0); }}
-            className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 cursor-pointer"
+            className="h-10 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 cursor-pointer"
           >
             <option value="newest">Nejnovější</option>
             <option value="priceDesc">Nejdražší</option>
@@ -303,7 +303,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
           </select>
           <button
             onClick={() => { setUndervaluedOnly(!undervaluedOnly); setPage(0); }}
-          className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+          className={`inline-flex h-10 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
             undervaluedOnly
               ? "bg-success/10 text-success border-success/30"
               : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
@@ -315,7 +315,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
         {favoritedIds.length > 0 && (
           <button
             onClick={() => { setFavoritesOnly(!favoritesOnly); setPage(0); }}
-            className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+            className={`inline-flex h-10 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
               favoritesOnly
                 ? "bg-accent/10 text-accent border-accent/30"
                 : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
@@ -328,7 +328,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
           <div className="flex items-center rounded-lg border border-border/50 p-0.5 bg-card">
             <button
               onClick={() => setView("grid")}
-              className={`p-1.5 rounded-md transition-colors ${
+              className={`p-2 rounded-md transition-colors ${
                 view === "grid" ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"
               }`}
             >
@@ -336,7 +336,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
             </button>
             <button
               onClick={() => setView("list")}
-              className={`p-1.5 rounded-md transition-colors ${
+              className={`p-2 rounded-md transition-colors ${
                 view === "list" ? "bg-accent/10 text-accent" : "text-muted hover:text-foreground"
               }`}
             >
@@ -345,7 +345,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`inline-flex h-9 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
+            className={`inline-flex h-10 items-center gap-1.5 px-3 rounded-lg border text-xs font-medium transition-colors ${
               hasActiveFilters
                 ? "bg-accent/10 text-accent border-accent/30"
                 : "border-border/50 bg-card text-muted hover:text-foreground hover:bg-card-hover"
@@ -385,7 +385,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                 <select
                   value={filters.city}
                   onChange={(e) => setFilter("city", e.target.value)}
-                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                  className="h-10 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                 >
                   <option value="">Všechna města</option>
                   {cities.map((c) => (
@@ -395,7 +395,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                 <select
                   value={filters.portal}
                   onChange={(e) => setFilter("portal", e.target.value)}
-                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                  className="h-10 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                 >
                   <option value="">Všechny portály</option>
                   {portals.map((p) => (
@@ -405,7 +405,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                 <select
                   value={filters.verdict}
                   onChange={(e) => setFilter("verdict", e.target.value)}
-                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                  className="h-10 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                 >
                   <option value="">Všechny verdikty</option>
                   <option value="strongBuy">Silně doporučit</option>
@@ -417,7 +417,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                 <select
                   value={filters.condition}
                   onChange={(e) => setFilter("condition", e.target.value)}
-                  className="h-9 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                  className="h-10 rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                 >
                   <option value="">Všechny stavy</option>
                   <option value="original">Původní</option>
@@ -434,7 +434,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     type="number"
                     min={0}
                     max={100}
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-10 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="text-xs text-muted">–</span>
                   <input
@@ -444,7 +444,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     type="number"
                     min={0}
                     max={100}
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-10 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
@@ -454,7 +454,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     placeholder="Cena od"
                     value={filters.priceMin}
                     onChange={(e) => setFilter("priceMin", e.target.value)}
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                    className="h-10 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                   />
                   <span className="text-[10px] text-muted">Kč</span>
                 </div>
@@ -463,7 +463,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     placeholder="Cena do"
                     value={filters.priceMax}
                     onChange={(e) => setFilter("priceMax", e.target.value)}
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
+                    className="h-10 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50"
                   />
                   <span className="text-[10px] text-muted">Kč</span>
                 </div>
@@ -473,7 +473,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     value={filters.areaMin}
                     onChange={(e) => setFilter("areaMin", e.target.value)}
                     type="number"
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-10 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="text-[10px] text-muted">m²</span>
                 </div>
@@ -483,7 +483,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     value={filters.areaMax}
                     onChange={(e) => setFilter("areaMax", e.target.value)}
                     type="number"
-                    className="h-9 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="h-10 w-full rounded-lg border border-border/50 bg-card px-3 text-xs text-muted focus:outline-none focus:border-accent/50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="text-[10px] text-muted">m²</span>
                 </div>
@@ -517,7 +517,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
             <button
               onClick={() => setPage(Math.max(0, page - 1))}
               disabled={page === 0}
-              className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="h-10 w-10 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <CaretLeft size={14} weight="bold" />
             </button>
@@ -527,7 +527,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
             <button
               onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
               disabled={page >= totalPages - 1}
-              className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="h-10 w-10 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <CaretRight size={14} weight="bold" />
             </button>
@@ -675,7 +675,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                 <button
                   onClick={() => setPage(Math.max(0, page - 1))}
                   disabled={page === 0}
-                  className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="h-10 w-10 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <CaretLeft size={14} weight="bold" />
                 </button>
@@ -685,7 +685,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                 <button
                   onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                   disabled={page >= totalPages - 1}
-                  className="h-8 w-8 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="h-10 w-10 rounded-lg border border-border/50 bg-card flex items-center justify-center hover:bg-card-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <CaretRight size={14} weight="bold" />
                 </button>

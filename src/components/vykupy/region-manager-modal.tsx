@@ -77,7 +77,7 @@ export function RegionManagerModal({ open, onClose }: RegionManagerModalProps) {
           >
             <div className="flex items-center justify-between p-5 border-b border-border/30">
               <h2 className="font-semibold tracking-tight">Spravovat lokality</h2>
-              <button onClick={onClose} className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors">
+              <button onClick={onClose} className="h-10 w-10 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors">
                 <X size={16} weight="bold" />
               </button>
             </div>

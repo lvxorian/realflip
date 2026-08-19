@@ -521,7 +521,7 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
 
           <div className="rounded-xl bg-card border border-border/50 p-3 space-y-2">
             <p className="text-[11px] font-semibold text-muted uppercase tracking-wide">Volitelné náklady</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.sellCommission} onChange={() => toggleConfig("sellCommission")} className="accent-accent" />
                 <span className="text-foreground/80 whitespace-nowrap">Provize RK prodejní (5 %)</span>

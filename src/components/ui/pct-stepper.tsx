@@ -27,7 +27,7 @@ export function PctStepper({ value, onChange, min, max, step = 0.1, className }:
   const atMax = value >= max;
 
   const btnCls =
-    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-card-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground/80";
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-card-hover hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground/80";
 
   return (
     <div
@@ -61,7 +61,7 @@ export function PctStepper({ value, onChange, min, max, step = 0.1, className }:
           const raw = parseFloat(e.target.value);
           onChange(clamp(Number.isNaN(raw) ? min : raw));
         }}
-        className="h-6 w-[5ch] shrink-0 border-none bg-transparent p-0 text-right font-mono text-sm tabular-nums text-foreground focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="h-10 w-[5ch] shrink-0 border-none bg-transparent p-0 text-right font-mono text-sm tabular-nums text-foreground focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button
         type="button"

@@ -74,7 +74,7 @@ export default function ContactsPage() {
               placeholder="Hledat..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 pl-9 w-56"
+              className="h-10 pl-9 w-full sm:w-56"
             />
           </div>
           <Button size="sm" variant="default" className="gap-1.5" onClick={() => setShowAdd(true)}>

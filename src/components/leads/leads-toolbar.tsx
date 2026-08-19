@@ -46,7 +46,7 @@ function Select({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={cn(
-        "h-9 rounded-lg border border-border/50 bg-card px-2.5 text-xs text-foreground cursor-pointer",
+        "h-10 rounded-lg border border-border/50 bg-card px-2.5 text-xs text-foreground cursor-pointer",
         "focus:outline-none focus:border-accent/50 transition-colors",
         !value && "text-muted/60",
         className
@@ -86,7 +86,7 @@ export function LeadsToolbar({
             value={filters.query}
             onChange={(e) => onChange({ ...filters, query: e.target.value })}
             placeholder="Hledat název, adresu, kontakt, telefon..."
-            className="h-9 w-full rounded-lg border border-border/50 bg-background/50 pl-9 pr-8 text-xs placeholder:text-muted/40 focus:outline-none focus:border-accent/50 transition-colors"
+            className="h-10 w-full rounded-lg border border-border/50 bg-background/50 pl-9 pr-8 text-xs placeholder:text-muted/40 focus:outline-none focus:border-accent/50 transition-colors"
           />
           {filters.query && (
             <button

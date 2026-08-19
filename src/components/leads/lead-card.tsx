@@ -143,8 +143,8 @@ export function LeadCardView({
             }}
             title={`Priorita: ${priority === 0 ? "žádná" : priority === 1 ? "nízká" : priority === 2 ? "střední" : "vysoká"} (klik pro změnu)`}
             className={cn(
-              "rounded-md p-0.5 transition-colors",
-              priority > 0 ? "text-amber-400" : "text-muted/30 opacity-0 group-hover:opacity-100 hover:text-amber-400"
+              "rounded-md p-1.5 transition-colors",
+              priority > 0 ? "text-amber-400" : "text-muted/30 opacity-0 group-hover:opacity-100 max-lg:opacity-100 hover:text-amber-400"
             )}
           >
             <Star size={13} weight={priority > 0 ? "fill" : "regular"} />
@@ -347,7 +347,7 @@ export function LeadCardView({
         )}
         <span className="ml-auto flex items-center gap-1.5 shrink-0">
           {((!isTerminal && (onAdvance || onMarkLost)) || onDelete) && (
-            <span className="flex items-center gap-1.5 w-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:w-auto group-hover:opacity-100">
+            <span className="flex items-center gap-1.5 w-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:w-auto group-hover:opacity-100 max-lg:w-auto max-lg:overflow-visible max-lg:opacity-100">
               {!isTerminal && onAdvance && (
                 <button
                   type="button"
@@ -356,9 +356,9 @@ export function LeadCardView({
                     onAdvance(lead);
                   }}
                   title="Posunout do další fáze"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-accent hover:bg-accent/10 transition-all"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-accent hover:bg-accent/10 transition-all"
                 >
-                  <ArrowRight size={12} weight="bold" />
+                  <ArrowRight size={13} weight="bold" />
                 </button>
               )}
               {!isTerminal && onMarkLost && (
@@ -369,9 +369,9 @@ export function LeadCardView({
                     onMarkLost(lead);
                   }}
                   title="Označit jako ztraceno"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
                 >
-                  <XCircle size={12} weight="bold" />
+                  <XCircle size={13} weight="bold" />
                 </button>
               )}
               {onDelete && (
@@ -382,9 +382,9 @@ export function LeadCardView({
                     onDelete(lead);
                   }}
                   title="Odstranit z pipeline"
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted/40 hover:text-red-400 hover:bg-red-500/10 transition-all"
                 >
-                  <Trash size={12} weight="bold" />
+                  <Trash size={13} weight="bold" />
                 </button>
               )}
             </span>

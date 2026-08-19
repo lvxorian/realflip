@@ -49,7 +49,7 @@ export function InvestorModal({ open, investor, onClose, onSaved, onDeleted }: I
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-card rounded-2xl border border-border/50 w-full max-w-md"
+            className="bg-card rounded-2xl border border-border/50 w-full max-w-md max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <InvestorModalForm
@@ -177,7 +177,7 @@ function InvestorModalForm({
     <form onSubmit={handleSubmit}>
       <div className="flex items-center justify-between p-5 border-b border-border/30">
         <h2 className="font-semibold tracking-tight">{isEdit ? "Upravit investora" : "Nový investor"}</h2>
-        <button type="button" onClick={onClose} className="h-8 w-8 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors">
+        <button type="button" onClick={onClose} className="h-10 w-10 rounded-lg hover:bg-card-hover flex items-center justify-center transition-colors">
           <X size={16} weight="bold" />
         </button>
       </div>

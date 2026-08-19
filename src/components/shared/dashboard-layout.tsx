@@ -28,6 +28,9 @@ import {
   ListChecks,
   Scales,
   ChartLineUp,
+  List,
+  X,
+  type Icon,
 } from "@phosphor-icons/react";
 
 const navItems = [
@@ -48,10 +51,17 @@ const navItems = [
   { href: "/alerts", label: "Alerty", icon: Bell },
   { href: "/tasks", label: "Úkoly", icon: ListChecks },
   { href: "/settings", label: "Nastavení", icon: GearSix },
-];
+] satisfies NavItem[];
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: Icon;
+}
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
   const [investorBadge, setInvestorBadge] = useState(0);
@@ -72,36 +82,116 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return () => clearInterval(t);
   }, [session?.user, pathname]);
 
+  // Zavřít mobilní drawer po navigaci
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Zámek scrollu při otevřeném mobilním draweru
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
+  const brand = (
+    <span className="font-semibold tracking-tight text-sm flex-1 min-w-0 truncate">RealFlip</span>
+  );
+
   return (
     <div className="flex min-h-[100dvh]">
-      <motion.aside
-        layout
-        className={cn(
-          "fixed left-0 top-0 z-30 flex h-full flex-col bg-card/80 backdrop-blur-xl border-r border-border/50",
-          "transition-colors duration-300"
+      {/* ===== Mobilní top bar ===== */}
+      <header className="lg:hidden sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-border/50 bg-card/80 backdrop-blur-xl px-3">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Otevřít menu"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
+        >
+          <List size={20} weight="bold" />
+        </button>
+        <span className="flex-1 min-w-0 truncate">{brand}</span>
+        <NotificationBell dropdownAlign="right" />
+        <ThemeToggle collapsed className="h-10 w-10 px-0 py-0 justify-center" />
+      </header>
+
+      {/* ===== Mobilní backdrop ===== */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          />
         )}
-        animate={{ width: collapsed ? 68 : 240 }}
-        transition={{ type: "spring", stiffness: 200, damping: 25 }}
+      </AnimatePresence>
+
+      {/* ===== Mobilní drawer ===== */}
+      <motion.aside
+        initial={false}
+        animate={{ x: mobileOpen ? 0 : "-100%" }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="lg:hidden fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-card/95 backdrop-blur-xl border-r border-border/50"
+      >
+        <div className="flex h-14 items-center justify-between border-b border-border/50 px-3">
+          {brand}
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Zavřít menu"
+            className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
+          >
+            <X size={18} weight="bold" />
+          </button>
+        </div>
+        <MobileNavLinks navItems={navItems} pathname={pathname} investorBadge={investorBadge} />
+        <div className="border-t border-border/50 p-3 space-y-1">
+          <ThemeToggle collapsed={false} />
+          {session?.user && (
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent text-xs font-mono font-medium">
+                {getInitials(session.user.name || session.user.email || "?")}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {session.user.name || session.user.email}
+                </p>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="text-xs text-muted hover:text-danger transition-colors flex items-center gap-1"
+                >
+                  <SignOut size={12} weight="bold" />
+                  Odhlásit
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.aside>
+
+      {/* ===== Desktop sidebar ===== */}
+      <aside
+        className={cn(
+          "hidden lg:flex fixed left-0 top-0 z-30 flex-col bg-card/80 backdrop-blur-xl border-r border-border/50 transition-[width] duration-300",
+          collapsed ? "w-[68px]" : "w-[240px]"
+        )}
       >
         <div className={cn("flex h-14 items-center border-b border-border/50", collapsed ? "justify-center" : "gap-1 px-3")}>
           {!collapsed && (
             <>
               <NotificationBell />
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="font-semibold tracking-tight text-sm flex-1"
-              >
-                RealFlip
-              </motion.span>
+              {brand}
             </>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
+            aria-label={collapsed ? "Rozbalit menu" : "Zabalit menu"}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
           >
-            <Sidebar size={16} weight="duotone" />
+            <Sidebar size={18} weight="duotone" />
           </button>
         </div>
 
@@ -116,7 +206,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     isActive
                       ? "bg-accent-soft text-accent"
-                      : "text-muted hover:text-foreground hover:bg-card-hover"
+                      : "text-muted hover:text-foreground hover:bg-card-hover",
+                    collapsed && "justify-center px-0"
                   )}
                 >
                   {isActive && (
@@ -186,16 +277,59 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
-      </motion.aside>
+      </aside>
 
       <main
         className={cn(
           "flex-1 min-h-[100dvh] bg-grid transition-all duration-300",
-          collapsed ? "ml-[68px]" : "ml-[240px]"
+          collapsed ? "lg:ml-[68px]" : "lg:ml-[240px]"
         )}
       >
-        <div className="max-w-[1400px] mx-auto p-6 lg:p-8">{children}</div>
+        <div className="max-w-[1400px] mx-auto p-4 lg:p-8">{children}</div>
       </main>
     </div>
+  );
+}
+
+function MobileNavLinks({
+  navItems,
+  pathname,
+  investorBadge,
+}: {
+  navItems: NavItem[];
+  pathname: string;
+  investorBadge: number;
+}) {
+  return (
+    <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+      {navItems.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        return (
+          <Link key={item.href} href={item.href}>
+            <div
+              className={cn(
+                "relative flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors",
+                isActive
+                  ? "bg-accent-soft text-accent"
+                  : "text-muted hover:text-foreground hover:bg-card-hover"
+              )}
+            >
+              {isActive && (
+                <div className="absolute inset-0 rounded-lg bg-accent/10 border border-accent/20 pointer-events-none" />
+              )}
+              <div className="relative z-10">
+                <item.icon size={20} weight={isActive ? "fill" : "regular"} />
+                {item.href === "/investors" && investorBadge > 0 && (
+                  <span className="absolute -top-1.5 -right-2 h-4 min-w-[16px] flex items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white px-1">
+                    {investorBadge > 9 ? "9+" : investorBadge}
+                  </span>
+                )}
+              </div>
+              <span className="relative z-10">{item.label}</span>
+            </div>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

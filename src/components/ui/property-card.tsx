@@ -99,7 +99,7 @@ export function PropertyCard({
           />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent pointer-events-none" />
           <div className="absolute top-3 right-3 flex items-center gap-1.5">
-            <FavoriteButton propertyId={id} initialFavorited={isFavorited} size={14} className="h-6 w-6 bg-card/50 backdrop-blur-sm rounded-full" />
+            <FavoriteButton propertyId={id} initialFavorited={isFavorited} size={14} className="h-9 w-9 bg-card/50 backdrop-blur-sm rounded-full" />
             <ScoreGauge score={score} size={36} strokeWidth={2.5} />
           </div>
           <div className="absolute top-3 left-3 flex flex-col gap-1">
@@ -119,7 +119,7 @@ export function PropertyCard({
                 type="button"
                 onClick={(e) => cyclePhoto(e, -1)}
                 aria-label="Předchozí foto"
-                className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/70 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/70 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <CaretLeft size={14} weight="bold" />
               </button>
@@ -127,7 +127,7 @@ export function PropertyCard({
                 type="button"
                 onClick={(e) => cyclePhoto(e, 1)}
                 aria-label="Další foto"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/70 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/70 hover:scale-110 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <CaretRight size={14} weight="bold" />
               </button>

@@ -16,7 +16,11 @@ interface NotificationItem {
   createdAt: Date;
 }
 
-export function NotificationBell() {
+export function NotificationBell({
+  dropdownAlign = "left",
+}: {
+  dropdownAlign?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -71,7 +75,7 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
+        className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg hover:bg-card-hover transition-colors text-muted hover:text-foreground"
       >
         <Bell size={16} weight={open ? "fill" : "regular"} />
         {unreadCount > 0 && (
@@ -88,7 +92,10 @@ export function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="absolute left-0 top-full mt-2 w-80 rounded-2xl border border-border/50 bg-card shadow-xl overflow-hidden z-50"
+            className={cn(
+              "absolute top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border/50 bg-card shadow-xl overflow-hidden z-50",
+              dropdownAlign === "right" ? "right-0" : "left-0"
+            )}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
               <h3 className="text-xs font-semibold tracking-tight uppercase text-muted">

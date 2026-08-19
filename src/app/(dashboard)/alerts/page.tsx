@@ -165,15 +165,15 @@ export default function AlertsPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button onClick={() => startEdit(a)} className="text-muted hover:text-accent transition-colors">
-                      <PencilSimple size={14} weight="bold" />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => startEdit(a)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-accent hover:bg-card-hover transition-colors">
+                      <PencilSimple size={15} weight="bold" />
                     </button>
-                    <button onClick={() => toggle(a.id)} className="text-muted hover:text-accent transition-colors">
+                    <button onClick={() => toggle(a.id)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-accent hover:bg-card-hover transition-colors">
                       {a.isActive ? <ToggleRight size={18} weight="fill" className="text-accent" /> : <ToggleLeft size={18} weight="fill" />}
                     </button>
-                    <button onClick={() => remove(a.id)} className="text-muted hover:text-danger transition-colors">
-                      <Trash size={14} weight="bold" />
+                    <button onClick={() => remove(a.id)} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors">
+                      <Trash size={15} weight="bold" />
                     </button>
                   </div>
                 </div>
