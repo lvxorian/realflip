@@ -125,7 +125,7 @@ export function NotificationBell() {
                       <p className="text-xs font-semibold tracking-tight">
                         {item.title}
                       </p>
-                      <p className="text-[10px] text-muted mt-0.5 line-clamp-2">
+                      <p className="text-[10px] text-muted mt-0.5">
                         {item.message}
                       </p>
                     </div>
