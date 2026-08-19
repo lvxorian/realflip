@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       .set({
         portalStatus: "reserved",
         portalReservedInvestorId: session.sub,
-        portalReservedModel: lead.preferredModel ?? null,
+        portalReservedModel: lead.calcMode ?? null,
         portalReservedStrategy: strategy,
         portalReservedAt: now,
         portalExpiresAt: now + PORTAL_RESERVATION_MS,

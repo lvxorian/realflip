@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LockSimple, Eye, EyeSlash, Prohibit } from "@phosphor-icons/react";
-import { COOPERATION_MODELS, COOPERATION_STRATEGIES, COOPERATION_AVAILABILITY, COOPERATION_AVAILABILITY_LABELS, modelLabel } from "@/lib/cooperation-models";
+import { COOPERATION_MODELS, COOPERATION_AVAILABILITY, COOPERATION_AVAILABILITY_LABELS } from "@/lib/cooperation-models";
 
 function formatCountdown(expiresAt: number | null): string | null {
   if (!expiresAt) return null;
@@ -26,7 +26,6 @@ interface PortalPanelProps {
   initialVisible: boolean;
   initialReservedInvestorId: string | null;
   initialReservedModel: string | null;
-  initialReservedStrategy: string | null;
   initialReservedExpiresAt: number | null;
   calcMode?: "flip" | "rental" | null;
   initialCooperationAvailability?: string | null;
@@ -38,7 +37,6 @@ export function PortalPanel({
   initialVisible,
   initialReservedInvestorId,
   initialReservedModel,
-  initialReservedStrategy,
   initialReservedExpiresAt,
   calcMode = null,
   initialCooperationAvailability = null,
@@ -221,14 +219,13 @@ export function PortalPanel({
                 </div>
 
                 <Button
-                  variant="secondary"
                   size="sm"
                   disabled={saving}
                   onClick={() => {
                     setReservedInvestorId(null);
                     save({ portalReservedInvestorId: null });
                   }}
-                  className="w-full gap-1.5"
+                  className="w-full gap-1.5 bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 hover:border-danger/40"
                 >
                   <EyeSlash size={13} weight="bold" />
                   Uvolnit rezervaci
@@ -236,13 +233,9 @@ export function PortalPanel({
               </>
             )}
 
-            {reservedInvestorId && reservedName && (
+            {reservedInvestorId && reservedName && countdown && (
               <p className="text-xs text-muted">
-                Rezervováno: <span className="text-foreground/80">{reservedName}</span> · {modelLabel(reservedModel)}
-                {initialReservedStrategy && initialReservedStrategy in COOPERATION_STRATEGIES
-                  ? ` · ${COOPERATION_STRATEGIES[initialReservedStrategy as keyof typeof COOPERATION_STRATEGIES]}`
-                  : ""}{" "}
-                · {countdown ?? "—"}
+                Vyprší {countdown}
               </p>
             )}
           </div>
