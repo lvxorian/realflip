@@ -16,3 +16,11 @@ jobs:
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -H "User-Agent: github-actions-cron" \
             --fail
+      - name: Trigger radar refresh
+        run: |
+          BASE="${{ secrets.SCRAPER_API_URL }}"
+          URL="${BASE%/api/scraping/trigger}/api/market/radar-refresh"
+          curl -s "$URL" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "User-Agent: github-actions-cron" \
+            --fail
