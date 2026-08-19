@@ -961,8 +961,7 @@ function Disclaimer() {
     <div className="flex items-start gap-1.5 text-[9px] text-muted/35">
       <Info size={10} weight="bold" className="shrink-0 mt-[3px]" />
       <span className="leading-snug">
-        Výpočet je finančním odhadem na základě analýzy trhu a interních výpočtů.<br />
-        Nejedná se o garantovaný výnos ani investiční doporučení.
+        Modelový odhad. Nejedná se o garanci výnosu ani investiční doporučení.
       </span>
     </div>
   );
