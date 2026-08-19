@@ -131,10 +131,10 @@ export default function OffMarketDetailPage() {
         Zpět na přehled
       </Link>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           <Card>
-            <CardContent className="p-6 space-y-5">
+            <CardContent className="p-4 sm:p-6 space-y-5">
               <div className="flex items-start justify-between">
                 <div>
                   <h1 className="text-xl font-semibold tracking-tight">{lead.debtorName}</h1>
@@ -189,7 +189,7 @@ export default function OffMarketDetailPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-6 space-y-4">
+            <CardContent className="p-4 sm:p-6 space-y-4">
               <h2 className="font-semibold tracking-tight text-sm">Poznámky</h2>
               <textarea
                 value={notes}

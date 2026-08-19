@@ -52,7 +52,7 @@ export function AuctionAnalyzer({ onParsed }: AuctionAnalyzerProps) {
           </div>
         </div>
         <form
-          className="flex gap-2"
+          className="flex flex-col sm:flex-row gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             handleAnalyze();

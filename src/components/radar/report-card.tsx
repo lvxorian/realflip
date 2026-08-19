@@ -52,7 +52,7 @@ export function ReportCard({ regionKey, range }: Props) {
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-5">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         <Sparkle size={16} className="text-accent" weight="duotone" />
         <span className="font-medium">AI Market Report</span>
         <span className="text-xs text-muted ml-auto">
@@ -61,7 +61,7 @@ export function ReportCard({ regionKey, range }: Props) {
         <button
           onClick={reload}
           disabled={regenerating}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors disabled:opacity-50"
         >
           <ArrowsClockwise size={13} className={cn(regenerating && "animate-spin")} />
           Obnovit

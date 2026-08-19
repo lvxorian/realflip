@@ -81,7 +81,7 @@ export function PriceIndexCard() {
           <div className="flex items-end gap-1 h-24">
             {data.points.map((p) => (
               <div key={p.period} className="flex-1 flex flex-col items-center gap-1 group">
-                <span className="text-[10px] font-mono text-muted/50 opacity-0 group-hover:opacity-100 transition-opacity">{p.value}</span>
+                <span className="text-[10px] font-mono text-muted/50 opacity-0 group-hover:opacity-100 transition-opacity max-lg:opacity-100">{p.value}</span>
                 <div
                   className="w-full rounded-t bg-accent/20 hover:bg-accent/40 transition-colors"
                   style={{ height: `${((p.value - min) / range) * 100}%` }}

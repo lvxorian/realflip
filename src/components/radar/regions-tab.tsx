@@ -44,7 +44,7 @@ export function RegionsTab({ priceMap, supply }: { priceMap: PriceMapRegionRow[]
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={priceMap} margin={{ top: 4, right: 8, left: -8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" />
-                <XAxis dataKey="name" tickFormatter={axisTick} tick={{ fontSize: 10 }} stroke="rgba(128,128,128,0.4)" interval={0} angle={-35} textAnchor="end" height={60} />
+                <XAxis dataKey="name" tickFormatter={axisTick} tick={{ fontSize: 10 }} stroke="rgba(128,128,128,0.4)" interval="preserveStartEnd" angle={-35} textAnchor="end" height={60} />
                 <YAxis tickFormatter={(v: number) => `${Math.round(v / 1000)}k`} tick={{ fontSize: 10 }} stroke="rgba(128,128,128,0.4)" />
                 <Tooltip
                   formatter={(value, name) => [`${fmtKc(Number(value))} Kč/m²`, name === "pricePerSqm" ? "Cena" : "Transakce"]}

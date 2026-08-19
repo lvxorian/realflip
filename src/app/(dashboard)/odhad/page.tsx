@@ -148,7 +148,7 @@ function OdhadPageContent() {
       </div>
 
       {/* Steps */}
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-2 text-xs flex-wrap">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             <span

@@ -267,7 +267,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted mt-0.5">Vytvořte cílené hledání podle lokality, ceny a plochy</p>
               </div>
             </div>
-            <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity max-lg:opacity-100">
               Vytvořit →
             </span>
           </div>
@@ -295,7 +295,7 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
-            <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-xs text-accent opacity-0 group-hover:opacity-100 transition-opacity max-lg:opacity-100">
               Spravovat →
             </span>
           </div>

@@ -58,8 +58,8 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
         <DeleteDealButton dealId={d.id} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           <div className="rounded-[2.5rem] border border-border/50 bg-card overflow-hidden">
             <div className="relative h-48 property-image-shimmer flex items-center justify-center">
               <ScoreGauge score={analysis?.investmentScore ?? 50} size={48} strokeWidth={3.5} />
@@ -80,7 +80,7 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 py-4 mb-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 py-4 mb-4">
                 {[
                   // Neon vrací bigint jako string — Number() zajistí validní Date
                   { label: "Koupeno", date: new Date(Number(d.purchaseDate)).toLocaleDateString("cs-CZ"), done: true },
@@ -93,29 +93,29 @@ export default async function PortfolioDetailPage({ params }: { params: Promise<
                     }`}>
                       {phase.done ? <CheckCircle size={16} weight="fill" /> : <Clock size={16} weight="fill" />}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-medium">{phase.label}</p>
                       <p className="text-[10px] text-muted">{phase.date}</p>
                     </div>
-                    {i < 2 && <div className="flex-1 h-px bg-border/50 mx-1" />}
+                    {i < 2 && <div className="hidden sm:block flex-1 h-px bg-border/50 mx-1" />}
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
-                  <p className="text-xs text-muted">Kupní cena</p>
-                  <p className="text-lg font-semibold font-mono">{(d.purchasePrice / 1000000).toFixed(1)} mil.</p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
+                  <p className="text-[11px] sm:text-xs text-muted">Kupní cena</p>
+                  <p className="text-base sm:text-lg font-semibold font-mono">{(d.purchasePrice / 1000000).toFixed(1)} mil.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
-                  <p className="text-xs text-muted">ARV</p>
-                  <p className="text-lg font-semibold font-mono text-accent">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
+                  <p className="text-[11px] sm:text-xs text-muted">ARV</p>
+                  <p className="text-base sm:text-lg font-semibold font-mono text-accent">
                     {((analysis?.arv ?? d.sellPrice ?? 0) / 1000000).toFixed(1)} mil.
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
-                  <p className="text-xs text-muted">Očekávaný zisk</p>
-                  <p className={`text-lg font-semibold font-mono ${expectedProfit > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                <div className="p-2.5 sm:p-3 rounded-xl bg-foreground/[0.02] border border-foreground/5">
+                  <p className="text-[11px] sm:text-xs text-muted">Očekávaný zisk</p>
+                  <p className={`text-base sm:text-lg font-semibold font-mono ${expectedProfit > 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {(expectedProfit / 1000000).toFixed(1)} mil.
                   </p>
                 </div>
