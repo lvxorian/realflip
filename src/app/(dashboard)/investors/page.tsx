@@ -16,14 +16,12 @@ import {
   Infinity as InfinityIcon,
   LockSimple,
   PencilSimple,
-  ArrowRight,
   HandCoins,
   Pulse,
   SealCheck,
   EnvelopeSimple,
   SignIn,
 } from "@phosphor-icons/react";
-import Link from "next/link";
 import { InvestorModal, type InvestorFormValue } from "@/components/investors/investor-modal";
 import { formatInvestorBudget } from "@/lib/investors";
 import { formatRelative } from "@/lib/utils";
@@ -187,7 +185,16 @@ export default function InvestorsPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.03 }}
-                className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover transition-all"
+                role="link"
+                tabIndex={0}
+                onClick={() => router.push(`/investors/${inv.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    router.push(`/investors/${inv.id}`);
+                  }
+                }}
+                className="rounded-2xl border border-border/50 bg-card p-5 hover:bg-card-hover transition-all cursor-pointer"
               >
                 <div className="flex items-start gap-4 mb-4">
                   <div className="relative shrink-0">
@@ -259,27 +266,20 @@ export default function InvestorsPage() {
                 </div>
 
                 <div className="mt-5 flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="ghost" className="gap-2" onClick={() => setEditing(inv)}>
+                  <Button size="sm" variant="ghost" className="gap-2" onClick={(e) => { e.stopPropagation(); setEditing(inv); }}>
                     <PencilSimple size={14} weight="bold" />
                     Upravit
                   </Button>
                   <Button
                     size="sm"
                     variant={inv.portalEnabled ? "default" : "secondary"}
-                    onClick={() => togglePortal(inv)}
+                    onClick={(e) => { e.stopPropagation(); togglePortal(inv); }}
                     disabled={busyId === inv.id}
                     className="gap-2"
                   >
                     <LockSimple size={14} weight="bold" />
                     {inv.portalEnabled ? "Portál vypnout" : "Portál zapnout"}
                   </Button>
-                  <Link
-                    href={`/investors/${inv.id}`}
-                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                  >
-                    Detail
-                    <ArrowRight size={12} weight="bold" />
-                  </Link>
                 </div>
               </motion.div>
             );
