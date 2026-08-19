@@ -280,7 +280,13 @@ export default function BrickonLanding() {
         <footer className="border-t border-border/40 py-8">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 sm:flex-row sm:justify-between sm:px-6">
             <p className="text-sm font-semibold tracking-tight uppercase">{INVESTOR_BRAND}</p>
-            <p className="text-xs text-muted">{INVESTOR_BRAND} · Soukromý investorský portál · © {new Date().getFullYear()}</p>
+            <div className="flex items-center gap-3 text-xs text-muted">
+              <Link href="/vop" className="hover:text-foreground transition-colors">
+                VOP
+              </Link>
+              <span className="text-muted/30">·</span>
+              <span>{INVESTOR_BRAND} · Soukromý investorský portál · © {new Date().getFullYear()}</span>
+            </div>
           </div>
         </footer>
       </div>
