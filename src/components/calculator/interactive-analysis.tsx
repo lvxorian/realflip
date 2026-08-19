@@ -1191,9 +1191,6 @@ function InteractiveCard({
                     <span className="text-muted">Váš zisk · sourcing fee</span>
                     <span className="font-mono text-emerald-400">
                       {formatPrice(targetFlipResults.netProfit)}
-                      {targetFlipResults.costs.sourcingFee > 0 && (
-                        <span className="text-muted text-[10px]"> (po fee {formatPrice(targetFlipResults.costs.sourcingFee)})</span>
-                      )}
                     </span>
                   </div>
                 )}
