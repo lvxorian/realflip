@@ -1180,7 +1180,7 @@ function ReservationConfirmedModal({
               {/* Header */}
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-400/15 border border-emerald-400/25">
-                  <SealCheck size={20} weight="bold" className="text-emerald-400" />
+                  <BrickonLogo size={24} tone="brand" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="font-semibold tracking-tight leading-tight">Rezervace proběhla úspěšně!</h2>
