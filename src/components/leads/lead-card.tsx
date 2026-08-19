@@ -111,7 +111,7 @@ export function LeadCardView({
       {...listeners}
       onClick={() => onOpen(lead)}
       className={cn(
-        "group rounded-xl border bg-card p-2.5 cursor-grab active:cursor-grabbing transition-all",
+        "group rounded-xl border bg-card p-2 cursor-grab active:cursor-grabbing transition-all",
         overdue ? "border-red-500/40" : "border-border/50",
         "hover:bg-card-hover hover:border-accent/20 hover:shadow-lg hover:shadow-black/20",
         isDragging && "opacity-40"

@@ -798,7 +798,7 @@ function InteractiveCard({
   return (
     <motion.div variants={itemVariants}>
       <Card>
-        <CardContent className="p-5 space-y-5">
+        <CardContent className="p-4 sm:p-5 space-y-4 sm:space-y-5">
           {/* Header */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -829,7 +829,7 @@ function InteractiveCard({
                 src={l.imageUrls[0]}
                 alt={l.title}
                 score={a.investmentScore}
-                containerClassName="h-48 w-full"
+                containerClassName="h-36 sm:h-48 w-full"
               />
             </div>
           )}
@@ -861,7 +861,7 @@ function InteractiveCard({
           </div>
 
           {/* ===== FEATURE 1: FLIP / RENTAL CALCULATOR ===== */}
-          <div className="rounded-xl border border-accent/20 bg-accent/5 p-4 space-y-4">
+          <div className="rounded-xl border border-accent/20 bg-accent/5 p-3 sm:p-4 space-y-3 sm:space-y-4">
             <div className="flex items-center gap-2">
               <CurrencyCircleDollar size={16} className="text-accent" />
               <h2 className="font-semibold tracking-tight text-sm flex-1">Kalkulačka</h2>
@@ -1095,7 +1095,7 @@ function InteractiveCard({
                   const num = parseInt(e.target.value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
                   setManualFlipPrice(num > 0 ? num : null);
                 }}
-                className="w-full bg-transparent text-center text-2xl font-bold text-emerald-400 font-mono outline-none focus:ring-0"
+                className="w-full bg-transparent text-center text-xl sm:text-2xl font-bold text-emerald-400 font-mono outline-none focus:ring-0"
               />
               <p className="text-[10px] text-emerald-400/60 mt-0.5">{formatPrice(area > 0 ? Math.round(flipPriceUsed / area) : 0)} Kč/m²</p>
               {manualFlipPrice != null && flipDisplay && (
@@ -1912,9 +1912,9 @@ function InteractiveCard({
 
 function InfoBox({ label, value, highlight, subtext, subtextClass }: { label: string; value: string; highlight?: string; subtext?: string; subtextClass?: string }) {
   return (
-    <div className="flex flex-col justify-center rounded-xl bg-card-hover border border-border/50 p-3 min-w-0">
-      <p className="text-xs text-muted mb-1">{label}</p>
-      <p className={`text-xs font-semibold font-mono leading-snug break-words ${highlight ?? "text-foreground"}`}>{value}</p>
+    <div className="flex flex-col justify-center rounded-xl bg-card-hover border border-border/50 p-2.5 min-w-0">
+      <p className="text-[11px] sm:text-xs text-muted mb-1">{label}</p>
+      <p className={`text-[11px] sm:text-xs font-semibold font-mono leading-snug break-words ${highlight ?? "text-foreground"}`}>{value}</p>
       {subtext && <p className={`text-[10px] mt-0.5 truncate ${subtextClass ?? "text-muted"}`}>{subtext}</p>}
     </div>
   );

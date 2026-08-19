@@ -74,7 +74,7 @@ function StageColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-w-[160px] lg:min-w-0 max-w-[360px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
+        "flex min-w-[150px] lg:min-w-0 max-w-[340px] flex-1 basis-0 flex-col snap-start @container rounded-xl transition-all",
         (isOver || highlighted) && "bg-accent/5 ring-1 ring-accent/30"
       )}
     >
@@ -631,7 +631,7 @@ export function LeadsBoard() {
         onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-2.5 overflow-x-auto pb-4 snap-x">
+        <div className="flex gap-2 overflow-x-auto pb-3 snap-x">
           {LEAD_STAGES.map((stage) => {
             const items = byStage.get(stage.key) ?? [];
             const pct = items.length > 0 ? Math.round((items.length / maxCount) * 100) : 0;

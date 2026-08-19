@@ -198,7 +198,7 @@ export default async function PropertyDetailPage({
   const removedNeutral = pipelineLead != null && (pipelineLead.stage === "closed" || pipelineLead.stage === "lost");
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       <Link
         href="/properties"
         className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
@@ -230,7 +230,7 @@ export default async function PropertyDetailPage({
       )}
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-6">
           {/* Hero with gallery */}
           <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
             <div className="relative">
