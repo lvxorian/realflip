@@ -156,12 +156,26 @@ export async function POST(req: NextRequest) {
         process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
         "http://localhost:3000"
       );
+
+      // Compute our profit from the snapshot
+      let ourProfit: number | null = null;
+      const coop = flipCooperationFromSnapshot(flipSnapshot && flipSnapshot.mode === "flip" ? flipSnapshot : null);
+      if (coop && strategy) {
+        if (strategy === "sourcing-fee") {
+          ourProfit = coop.sourcingFee ?? null;
+        } else if (strategy === "fifty-fifty") {
+          // Our half of the total profit
+          ourProfit = coop.netProfitTotal != null ? Math.round(coop.netProfitTotal / 2) : null;
+        }
+      }
+
       const adminHtml = buildAdminReservationNotificationHtml({
         investorName: session.name,
         propertyTitle: lead.propertyTitle ?? null,
         propertyAddress: lead.propertyAddress ?? null,
         strategy: strategy as "fifty-fifty" | "sourcing-fee" | null,
         calcMode: lead.calcMode,
+        ourProfit,
         baseUrl,
       });
       const location = [lead.propertyTitle, lead.propertyAddress].filter(Boolean).join(" · ") || "nemovitost";

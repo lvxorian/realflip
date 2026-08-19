@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/lib/email/offer-template";
+import { formatPrice } from "@/lib/utils";
 import { INVESTOR_BRAND } from "@/lib/investor-brand";
 import { brickLogoImg } from "@/lib/investor-brick";
 import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
@@ -26,12 +27,15 @@ export function buildAdminReservationNotificationHtml(
     propertyAddress: string | null;
     strategy: CooperationStrategy | null;
     calcMode: string | null;
+    ourProfit: number | null;
     baseUrl: string;
   },
 ): string {
   const location = [opts.propertyTitle, opts.propertyAddress].filter(Boolean).join(" · ") || "Nemovitost";
   const strategyLabel = opts.strategy ? COOPERATION_STRATEGIES[opts.strategy] : null;
   const modelLabel = opts.calcMode === "flip" ? "Flip" : opts.calcMode === "rent" ? "Nájem" : "—";
+  const profitLabel = opts.strategy === "sourcing-fee" ? "Sourcing fee" : opts.strategy === "fifty-fifty" ? "Podíl z obchodu" : null;
+  const profitFormatted = opts.ourProfit != null ? escapeHtml(formatPrice(opts.ourProfit).replace(/\u00A0/g, " ")) : null;
 
   return `<!DOCTYPE html>
 <html lang="cs">
@@ -71,6 +75,10 @@ export function buildAdminReservationNotificationHtml(
                 ${strategyLabel ? `<tr>
                   <td style="padding:8px 0;font-size:13px;color:${T.muted};">Model spolupráce</td>
                   <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;color:${T.foreground};font-family:'Geist Mono',ui-monospace,monospace;">${escapeHtml(strategyLabel)}</td>
+                </tr>` : ""}
+                ${profitLabel && profitFormatted ? `<tr>
+                  <td style="padding:8px 0;font-size:13px;color:${T.muted};">${escapeHtml(profitLabel)}</td>
+                  <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;color:${T.accent};font-family:'Geist Mono',ui-monospace,monospace;">${profitFormatted} Kč</td>
                 </tr>` : ""}
                 <tr>
                   <td style="padding:8px 0;font-size:13px;color:${T.muted};">Rezervace platná do</td>
