@@ -100,32 +100,39 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
   }
 
   return (
-    <div className="flex items-center justify-center gap-1.5 flex-wrap">
-      <span className="font-semibold text-foreground font-mono">
-        {area ? `${area} m²` : "—"}
-      </span>
-      <button
-        onClick={startEdit}
-        title="Upravit plochu"
-        className="p-1 rounded-md text-muted/60 hover:text-accent hover:bg-card-hover transition-colors"
-      >
-        <PencilSimple size={13} weight="bold" />
-      </button>
-      {accessoryArea != null && accessoryArea > 0 && (
-        <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent font-medium" title="Odhad plochy příslušenství (terasa/balkon/lodžie/sklep) z rozdílu podlahové a užitné plochy">
-          +{accessoryArea} m² příslušenství
+    <div className="flex flex-col items-center gap-1">
+      <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+        <span aria-hidden="true" />
+        <span className="font-semibold text-foreground font-mono text-center">
+          {area ? `${area} m²` : "—"}
         </span>
-      )}
-      {areaLocked && (
-        <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400 font-medium" title="Plocha upravena ručně — scraper ji nepřepíše">
-          <LockSimple size={10} weight="fill" /> ručně
-        </span>
-      )}
-      {areaFlag && FLAG_META[areaFlag] && (
-        <span className={`inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${FLAG_META[areaFlag].className}`} title={FLAG_META[areaFlag].title}>
-          ⚠ {FLAG_META[areaFlag].label}
-        </span>
-      )}
+        <button
+          onClick={startEdit}
+          title="Upravit plochu"
+          className="p-1 rounded-md text-muted/60 hover:text-accent hover:bg-card-hover transition-colors"
+        >
+          <PencilSimple size={13} weight="bold" />
+        </button>
+      </div>
+      {(accessoryArea != null && accessoryArea > 0) || areaLocked || (areaFlag && FLAG_META[areaFlag]) ? (
+        <div className="flex flex-wrap items-center justify-center gap-1">
+          {accessoryArea != null && accessoryArea > 0 && (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/10 border border-accent/20 px-1.5 py-0.5 text-[10px] text-accent font-medium" title="Odhad plochy příslušenství (terasa/balkon/lodžie/sklep) z rozdílu podlahové a užitné plochy">
+              +{accessoryArea} m² příslušenství
+            </span>
+          )}
+          {areaLocked && (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-400 font-medium" title="Plocha upravena ručně — scraper ji nepřepíše">
+              <LockSimple size={10} weight="fill" /> ručně
+            </span>
+          )}
+          {areaFlag && FLAG_META[areaFlag] && (
+            <span className={`inline-flex items-center gap-0.5 rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${FLAG_META[areaFlag].className}`} title={FLAG_META[areaFlag].title}>
+              ⚠ {FLAG_META[areaFlag].label}
+            </span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

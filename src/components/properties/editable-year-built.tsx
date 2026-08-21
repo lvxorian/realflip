@@ -88,8 +88,9 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
   }
 
   return (
-    <div className="flex items-center justify-center gap-1.5 flex-wrap">
-      <span className="font-semibold text-foreground font-mono">
+    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5">
+      <span aria-hidden="true" />
+      <span className="font-semibold text-foreground font-mono text-center">
         {yearBuilt ?? "—"}
       </span>
       <button
