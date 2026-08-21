@@ -67,7 +67,7 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-center gap-1.5">
         <input
           autoFocus
           type="text"
@@ -100,8 +100,8 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="font-semibold text-foreground font-mono mt-0.5">
+    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+      <span className="font-semibold text-foreground font-mono">
         {area ? `${area} m²` : "—"}
       </span>
       <button

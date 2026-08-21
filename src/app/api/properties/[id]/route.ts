@@ -78,6 +78,18 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid area" }, { status: 400 });
     }
 
+    if (body.floor !== undefined && body.floor !== null && (!Number.isInteger(body.floor) || body.floor < 0)) {
+      return NextResponse.json({ error: "Invalid floor" }, { status: 400 });
+    }
+
+    if (
+      body.yearBuilt !== undefined &&
+      body.yearBuilt !== null &&
+      (!Number.isInteger(body.yearBuilt) || body.yearBuilt < 1800 || body.yearBuilt > 2030)
+    ) {
+      return NextResponse.json({ error: "Invalid year built" }, { status: 400 });
+    }
+
     const CONDITION_VALUES = ["new", "renovated", "good", "original", "dilapidated"];
     if (body.condition !== undefined && !CONDITION_VALUES.includes(body.condition)) {
       return NextResponse.json({ error: "Invalid condition" }, { status: 400 });
@@ -110,6 +122,8 @@ export async function PATCH(
     const newArea = body.area ?? property.area;
     const newCondition = body.condition ?? property.condition;
     const newBuildingType = body.buildingType ?? property.buildingType;
+    const newFloor = body.floor !== undefined ? body.floor : property.floor;
+    const newYearBuilt = body.yearBuilt !== undefined ? body.yearBuilt : property.yearBuilt;
     const areaLocked = body.area !== undefined ? 1 : 0;
     const pricePerSqm =
       newArea != null && newArea > 0 && property.price > 0
@@ -123,6 +137,8 @@ export async function PATCH(
         areaLocked,
         condition: newCondition,
         buildingType: newBuildingType,
+        floor: newFloor,
+        yearBuilt: newYearBuilt,
         pricePerSqm,
       })
       .where(eq(properties.id, id));
@@ -142,10 +158,10 @@ export async function PATCH(
       pricePerSqm,
       area: newArea,
       rooms: property.rooms ?? null,
-      floor: property.floor ?? null,
+      floor: newFloor,
       condition: newCondition,
       buildingType: newBuildingType ?? null,
-      yearBuilt: property.yearBuilt ?? null,
+      yearBuilt: newYearBuilt,
       address: property.address ?? null,
       lat: property.lat ?? null,
       lng: property.lng ?? null,
@@ -319,6 +335,8 @@ export async function PATCH(
         ...property,
         area: newArea,
         areaLocked,
+        floor: newFloor,
+        yearBuilt: newYearBuilt,
         pricePerSqm,
       },
       analysis: {

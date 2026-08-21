@@ -53,7 +53,7 @@ export function EditableCondition({ propertyId, condition }: EditableConditionPr
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center justify-center gap-1.5 flex-wrap">
         <select
           autoFocus
           value={value}
@@ -89,8 +89,8 @@ export function EditableCondition({ propertyId, condition }: EditableConditionPr
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="font-semibold text-foreground mt-0.5">{conditionLabel(condition)}</span>
+    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+      <span className="font-semibold text-foreground font-mono">{conditionLabel(condition)}</span>
       <button
         onClick={startEdit}
         title="Upravit stav"

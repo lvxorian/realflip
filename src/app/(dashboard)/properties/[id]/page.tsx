@@ -17,6 +17,8 @@ import { InitiateButton } from "@/components/properties/initiate-button";
 import { EditableArea } from "@/components/properties/editable-area";
 import { EditableBuildingType } from "@/components/properties/editable-building-type";
 import { EditableCondition } from "@/components/properties/editable-condition";
+import { EditableFloor } from "@/components/properties/editable-floor";
+import { EditableYearBuilt } from "@/components/properties/editable-year-built";
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
@@ -313,28 +315,27 @@ export default async function PropertyDetailPage({
               })()}
 
               <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "dispozice", value: property.rooms ?? "—" },
-                  { label: "patro", value: property.floor ? `${property.floor}.` : "—" },
-                  { label: "rok", value: property.yearBuilt ?? "—" },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center"
-                  >
-                    <span className="text-muted">{s.label}</span>
-                    <p className="font-semibold text-foreground font-mono mt-0.5">{s.value}</p>
-                  </div>
-                ))}
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center">
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
+                  <span className="text-muted">dispozice</span>
+                  <p className="font-semibold text-foreground font-mono">{property.rooms ?? "—"}</p>
+                </div>
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
+                  <span className="text-muted">patro</span>
+                  <EditableFloor propertyId={id} floor={property.floor} />
+                </div>
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
+                  <span className="text-muted">rok</span>
+                  <EditableYearBuilt propertyId={id} yearBuilt={property.yearBuilt} />
+                </div>
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
                   <span className="text-muted">konstrukce</span>
                   <EditableBuildingType propertyId={id} buildingType={property.buildingType} />
                 </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center">
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
                   <span className="text-muted">stav</span>
                   <EditableCondition propertyId={id} condition={property.condition} />
                 </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-1.5 text-xs text-center">
+                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
                   <span className="text-muted">velikost</span>
                   <EditableArea
                     propertyId={id}

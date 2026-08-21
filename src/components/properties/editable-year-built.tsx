@@ -4,39 +4,42 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PencilSimple, Check, X, Spinner } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { buildingTypeLabel } from "@/lib/utils";
 
-interface EditableBuildingTypeProps {
+interface EditableYearBuiltProps {
   propertyId: string;
-  buildingType: string | null;
+  yearBuilt: number | null;
 }
 
-const BUILDING_TYPE_OPTIONS = ["brick", "panel", "new", "mixed"] as const;
-
-export function EditableBuildingType({ propertyId, buildingType }: EditableBuildingTypeProps) {
+export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(buildingType ?? "");
+  const [value, setValue] = useState(yearBuilt?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save() {
-    if (!value) {
-      toast.error("Vyberte konstrukci nemovitosti");
-      return;
+    const trimmed = value.trim();
+    let next: number | null = null;
+    if (trimmed !== "") {
+      const num = Number(trimmed.replace(/\s/g, "").replace(/,/g, "."));
+      if (!Number.isInteger(num) || num < 1800 || num > 2030) {
+        toast.error("Zadejte platný rok výstavby");
+        return;
+      }
+      next = num;
     }
     setSaving(true);
     try {
       const res = await fetch(`/api/properties/${propertyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buildingType: value }),
+        body: JSON.stringify({ yearBuilt: next }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        toast.error(data?.error ?? "Uložení konstrukce se nezdařilo");
+        toast.error(data?.error ?? "Uložení roku se nezdařilo");
         return;
       }
-      toast.success("Konstrukce upravena — analýza přepočtena");
+      toast.success("Rok upraven — analýza přepočtena");
       setEditing(false);
       router.refresh();
     } catch {
@@ -47,29 +50,25 @@ export function EditableBuildingType({ propertyId, buildingType }: EditableBuild
   }
 
   function startEdit() {
-    setValue(buildingType ?? "");
+    setValue(yearBuilt?.toString() ?? "");
     setEditing(true);
   }
 
   if (editing) {
     return (
       <div className="flex items-center justify-center gap-1.5 flex-wrap">
-        <select
+        <input
           autoFocus
+          type="text"
+          inputMode="numeric"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") save();
             if (e.key === "Escape") setEditing(false);
           }}
-          className="rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20"
-        >
-          {BUILDING_TYPE_OPTIONS.map((t) => (
-            <option key={t} value={t}>
-              {buildingTypeLabel(t)}
-            </option>
-          ))}
-        </select>
+          className="w-16 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
+        />
         <button
           onClick={save}
           disabled={saving}
@@ -90,10 +89,12 @@ export function EditableBuildingType({ propertyId, buildingType }: EditableBuild
 
   return (
     <div className="flex items-center justify-center gap-1.5 flex-wrap">
-      <span className="font-semibold text-foreground font-mono">{buildingTypeLabel(buildingType)}</span>
+      <span className="font-semibold text-foreground font-mono">
+        {yearBuilt ?? "—"}
+      </span>
       <button
         onClick={startEdit}
-        title="Upravit konstrukci"
+        title="Upravit rok"
         className="p-1 rounded-md text-muted/60 hover:text-accent hover:bg-card-hover transition-colors"
       >
         <PencilSimple size={13} weight="bold" />
