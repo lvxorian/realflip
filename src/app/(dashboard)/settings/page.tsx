@@ -204,7 +204,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-        <div className="lg:w-48 shrink-0 flex lg:flex-col gap-1 p-1 lg:p-0 rounded-xl lg:rounded-none bg-card-hover/70 lg:bg-transparent overflow-x-auto">
+        <div className="lg:w-48 shrink-0 flex flex-wrap lg:flex-col gap-1 p-1 lg:p-0 rounded-xl lg:rounded-none bg-card-hover/70 lg:bg-transparent">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (

@@ -283,7 +283,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       <main
         className={cn(
-          "flex-1 min-h-[100dvh] bg-grid transition-all duration-300",
+          "flex-1 min-w-0 min-h-[100dvh] bg-grid transition-all duration-300",
           collapsed ? "lg:ml-[68px]" : "lg:ml-[240px]"
         )}
       >
