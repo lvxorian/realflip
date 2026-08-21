@@ -11,6 +11,9 @@ interface EditableAreaProps {
   areaLocked: boolean;
   areaFlag?: string | null;
   accessoryArea?: number | null;
+  editing: boolean;
+  onStartEdit: () => void;
+  onClose: () => void;
 }
 
 const FLAG_META: Record<string, { label: string; title: string; className: string }> = {
@@ -26,9 +29,8 @@ const FLAG_META: Record<string, { label: string; title: string; className: strin
   },
 };
 
-export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessoryArea }: EditableAreaProps) {
+export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessoryArea, editing, onStartEdit, onClose }: EditableAreaProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(area?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -51,7 +53,7 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
         return;
       }
       toast.success("Plocha upravena — analýza přepočtena");
-      setEditing(false);
+      onClose();
       router.refresh();
     } catch {
       toast.error("Chyba sítě");
@@ -62,7 +64,7 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
 
   function startEdit() {
     setValue(area?.toString() ?? "");
-    setEditing(true);
+    onStartEdit();
   }
 
   if (editing) {
@@ -77,7 +79,7 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") save();
-              if (e.key === "Escape") setEditing(false);
+              if (e.key === "Escape") onClose();
             }}
             className="w-full min-w-0 sm:w-20 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
@@ -92,7 +94,7 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
             {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
           </button>
           <button
-            onClick={() => setEditing(false)}
+            onClick={onClose}
             disabled={saving}
             className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
           >

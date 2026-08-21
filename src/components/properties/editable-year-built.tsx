@@ -8,11 +8,13 @@ import { toast } from "sonner";
 interface EditableYearBuiltProps {
   propertyId: string;
   yearBuilt: number | null;
+  editing: boolean;
+  onStartEdit: () => void;
+  onClose: () => void;
 }
 
-export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltProps) {
+export function EditableYearBuilt({ propertyId, yearBuilt, editing, onStartEdit, onClose }: EditableYearBuiltProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(yearBuilt?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -40,7 +42,7 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
         return;
       }
       toast.success("Rok upraven — analýza přepočtena");
-      setEditing(false);
+      onClose();
       router.refresh();
     } catch {
       toast.error("Chyba sítě");
@@ -51,7 +53,7 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
 
   function startEdit() {
     setValue(yearBuilt?.toString() ?? "");
-    setEditing(true);
+    onStartEdit();
   }
 
   if (editing) {
@@ -65,7 +67,7 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") save();
-            if (e.key === "Escape") setEditing(false);
+            if (e.key === "Escape") onClose();
           }}
           className="w-full min-w-0 sm:w-16 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
@@ -78,7 +80,7 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
             {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
           </button>
           <button
-            onClick={() => setEditing(false)}
+            onClick={onClose}
             disabled={saving}
             className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
           >

@@ -8,11 +8,13 @@ import { toast } from "sonner";
 interface EditableFloorProps {
   propertyId: string;
   floor: number | null;
+  editing: boolean;
+  onStartEdit: () => void;
+  onClose: () => void;
 }
 
-export function EditableFloor({ propertyId, floor }: EditableFloorProps) {
+export function EditableFloor({ propertyId, floor, editing, onStartEdit, onClose }: EditableFloorProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(floor?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -40,7 +42,7 @@ export function EditableFloor({ propertyId, floor }: EditableFloorProps) {
         return;
       }
       toast.success("Patro upraveno — analýza přepočtena");
-      setEditing(false);
+      onClose();
       router.refresh();
     } catch {
       toast.error("Chyba sítě");
@@ -51,7 +53,7 @@ export function EditableFloor({ propertyId, floor }: EditableFloorProps) {
 
   function startEdit() {
     setValue(floor?.toString() ?? "");
-    setEditing(true);
+    onStartEdit();
   }
 
   if (editing) {
@@ -65,7 +67,7 @@ export function EditableFloor({ propertyId, floor }: EditableFloorProps) {
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") save();
-            if (e.key === "Escape") setEditing(false);
+            if (e.key === "Escape") onClose();
           }}
           className="w-full min-w-0 sm:w-16 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
@@ -78,7 +80,7 @@ export function EditableFloor({ propertyId, floor }: EditableFloorProps) {
             {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
           </button>
           <button
-            onClick={() => setEditing(false)}
+            onClick={onClose}
             disabled={saving}
             className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
           >

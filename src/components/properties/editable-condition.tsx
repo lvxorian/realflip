@@ -9,13 +9,15 @@ import { conditionLabel } from "@/lib/utils";
 interface EditableConditionProps {
   propertyId: string;
   condition: string | null;
+  editing: boolean;
+  onStartEdit: () => void;
+  onClose: () => void;
 }
 
 const CONDITION_OPTIONS = ["dilapidated", "original", "good", "renovated", "new"] as const;
 
-export function EditableCondition({ propertyId, condition }: EditableConditionProps) {
+export function EditableCondition({ propertyId, condition, editing, onStartEdit, onClose }: EditableConditionProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(condition ?? "good");
   const [saving, setSaving] = useState(false);
 
@@ -37,7 +39,7 @@ export function EditableCondition({ propertyId, condition }: EditableConditionPr
         return;
       }
       toast.success("Stav upraven — analýza přepočtena");
-      setEditing(false);
+      onClose();
       router.refresh();
     } catch {
       toast.error("Chyba sítě");
@@ -48,7 +50,7 @@ export function EditableCondition({ propertyId, condition }: EditableConditionPr
 
   function startEdit() {
     setValue(condition ?? "good");
-    setEditing(true);
+    onStartEdit();
   }
 
   if (editing) {
@@ -60,7 +62,7 @@ export function EditableCondition({ propertyId, condition }: EditableConditionPr
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") save();
-            if (e.key === "Escape") setEditing(false);
+            if (e.key === "Escape") onClose();
           }}
           className="w-full min-w-0 max-w-full sm:w-auto rounded-md border border-accent/50 bg-card px-2 py-0.5 text-xs sm:text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-accent/20"
         >
@@ -79,7 +81,7 @@ export function EditableCondition({ propertyId, condition }: EditableConditionPr
             {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
           </button>
           <button
-            onClick={() => setEditing(false)}
+            onClick={onClose}
             disabled={saving}
             className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
           >

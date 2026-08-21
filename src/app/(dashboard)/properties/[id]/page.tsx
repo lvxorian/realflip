@@ -14,11 +14,7 @@ import { PropertyMap } from "@/components/ui/property-map";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import PropertyDetailAnalysis from "@/components/calculator/property-detail-analysis";
 import { InitiateButton } from "@/components/properties/initiate-button";
-import { EditableArea } from "@/components/properties/editable-area";
-import { EditableBuildingType } from "@/components/properties/editable-building-type";
-import { EditableCondition } from "@/components/properties/editable-condition";
-import { EditableFloor } from "@/components/properties/editable-floor";
-import { EditableYearBuilt } from "@/components/properties/editable-year-built";
+import { SpecCards } from "@/components/properties/spec-cards";
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
 import { LocalityProfile } from "@/components/properties/locality-profile";
 import { AuctionOwnerReportButton } from "@/components/properties/auction-owner-report-button";
@@ -314,38 +310,18 @@ export default async function PropertyDetailPage({
                 return null;
               })()}
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
-                  <span className="text-muted">dispozice</span>
-                  <p className="font-semibold text-foreground font-mono">{property.rooms ?? "—"}</p>
-                </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
-                  <span className="text-muted">patro</span>
-                  <EditableFloor propertyId={id} floor={property.floor} />
-                </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
-                  <span className="text-muted">rok</span>
-                  <EditableYearBuilt propertyId={id} yearBuilt={property.yearBuilt} />
-                </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
-                  <span className="text-muted">konstrukce</span>
-                  <EditableBuildingType propertyId={id} buildingType={property.buildingType} />
-                </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
-                  <span className="text-muted">stav</span>
-                  <EditableCondition propertyId={id} condition={property.condition} />
-                </div>
-                <div className="rounded-xl bg-card-hover border border-border/50 px-2 py-2 text-xs flex flex-col items-center justify-center gap-1 text-center">
-                  <span className="text-muted">velikost</span>
-                  <EditableArea
-                    propertyId={id}
-                    area={property.area}
-                    areaLocked={property.areaLocked === 1}
-                    areaFlag={property.areaFlag}
-                    accessoryArea={property.accessoryArea}
-                  />
-                </div>
-              </div>
+              <SpecCards
+                propertyId={id}
+                rooms={property.rooms}
+                floor={property.floor}
+                yearBuilt={property.yearBuilt}
+                buildingType={property.buildingType}
+                condition={property.condition}
+                area={property.area}
+                areaLocked={property.areaLocked === 1}
+                areaFlag={property.areaFlag}
+                accessoryArea={property.accessoryArea}
+              />
 
               <a
                 href={property.url}
