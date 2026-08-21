@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters } from "../types";
-import { parseRealityMatDetail } from "../realitymat-parser";
+import { parseRealityMatDetail, parseRealityMatContact } from "../realitymat-parser";
 
 export class RealityMatAdapter extends PortalAdapter {
   private maxPages = 5;
@@ -95,26 +95,7 @@ export class RealityMatAdapter extends PortalAdapter {
 
   extractContact(html: string): { phone: string | null; name: string | null; email: string | null } {
     const $ = cheerio.load(html);
-
-    let name: string | null = null;
-    const nameEl = $("a[href^='/realitni-makleri/']").first();
-    if (nameEl.length) {
-      name = this.cleanText(nameEl.text());
-    }
-    if (!name) {
-      name = this.cleanText($("#seller-modal .media-body p").first().text());
-    }
-
-    let phone: string | null = null;
-    const modalText = this.cleanText($("#seller-modal").text()) ?? "";
-    const phoneMatch = modalText.match(/\+?\d{3}\s*\d{3}\s*\d{3}\s*\d{3}/);
-    if (phoneMatch) phone = phoneMatch[0].replace(/\s+/g, "");
-
-    let email: string | null = null;
-    const mailMatch = modalText.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
-    if (mailMatch) email = mailMatch[0];
-
-    return { phone, name, email };
+    return parseRealityMatContact($);
   }
 
   async enrichListing(raw: RawListing): Promise<RawListing> {

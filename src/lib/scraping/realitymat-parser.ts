@@ -100,7 +100,12 @@ function parseParams($: cheerio.CheerioAPI): DetailParams {
   return { area, usableArea, floorArea, rooms, condition, buildingType, floor };
 }
 
-function parseContact($: cheerio.CheerioAPI): {
+/**
+ * Sdílená extrakce kontaktu z detailní stránky realitymat.cz.
+ * Plné telefonní číslo je v #seller-modal server-renderované (tlačítko
+ * "(zobrazit)" jen otevírá Bootstrap modal) — žádný AJAX/klik není potřeba.
+ */
+export function parseRealityMatContact($: cheerio.CheerioAPI): {
   name: string | null;
   phone: string | null;
   email: string | null;
@@ -114,14 +119,30 @@ function parseContact($: cheerio.CheerioAPI): {
     name = cleanText($("#seller-modal .media-body p").first().text());
   }
 
+  // Telefon: prioritně blok u ikony telefonu (makléř), fallback celý modal.
+  // Normalizace: 9 číslic (CZ) případně s předvolbou +420 / 00420 / 0 → +420{9}.
   let phone: string | null = null;
-  const modalText = cleanText($("#seller-modal").text()) ?? "";
-  const phoneMatch = modalText.match(/\+?\d{3}\s*\d{3}\s*\d{3}\s*\d{3}/);
-  if (phoneMatch) phone = phoneMatch[0].replace(/\s+/g, "");
+  const phoneEl = $("#seller-modal i.fa-phone").first().parent();
+  if (phoneEl.length) {
+    const digits = (cleanText(phoneEl.text()) ?? "").replace(/\D/g, "");
+    const m = digits.match(/^(?:00420|\+?420)?0?(\d{9})$/);
+    if (m) phone = `+420${m[1]}`;
+  }
+  if (!phone) {
+    const modalRaw = (cleanText($("#seller-modal").text()) ?? "").replace(/\s+/g, "");
+    const m = modalRaw.match(/(?:00420|\+?420)?0?(\d{9})(?!\d)/);
+    if (m) phone = `+420${m[1]}`;
+  }
 
+  // Realitymat nezveřejňuje e-mail makléře — v modalu je jen obecný
+  // info@realitymat.cz (GDPR text). Ten se jako kontakt neukládá.
   let email: string | null = null;
+  const modalText = cleanText($("#seller-modal").text()) ?? "";
   const mailMatch = modalText.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
-  if (mailMatch) email = mailMatch[0];
+  if (mailMatch) {
+    const candidate = mailMatch[0].replace(/\.+$/, "").toLowerCase();
+    if (!/^info@realitymat\.cz$/.test(candidate)) email = candidate;
+  }
 
   return { name, phone, email };
 }
@@ -152,7 +173,7 @@ export function parseRealityMatDetail(html: string, url: string): RawListing {
   });
   const imageUrls = filterImages(images, "realitymat");
 
-  const contact = parseContact($);
+  const contact = parseRealityMatContact($);
 
   const effectiveCondition = condition ?? inferConditionFromText(description, title) ?? null;
 

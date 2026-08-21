@@ -24,6 +24,9 @@ function detailHtml(
     params?: [string, string][];
     description?: string;
     withH1?: boolean;
+    contactPhone?: string;
+    contactPhoneIcon?: boolean;
+    contactEmail?: string | null;
   } = {}
 ): string {
   const title =
@@ -44,6 +47,12 @@ function detailHtml(
   const description =
     overrides.description ??
     "Nabízím k prodeji útulný byt o dispozici 3+1 a užitné ploše 72 m², nacházející se ve 2. patře menšího cihlového domu v Kašperských Horách.";
+  const contactPhone = overrides.contactPhone ?? "+420 734 134 826";
+  const phoneBlock = overrides.contactPhoneIcon
+    ? `<div><i class="fas fa-phone"></i> ${contactPhone}</div>`
+    : `<p>${contactPhone}</p>`;
+  const contactEmail =
+    overrides.contactEmail !== undefined ? overrides.contactEmail : "denisa@example.cz";
 
   return `<html><head>
     <meta property="og:title" content="Prodej bytu 3+1, Kašperské Hory (ID: 2244756)" />
@@ -77,8 +86,8 @@ function detailHtml(
     <div id="seller-modal">
       <p>Kontaktovat makléře</p>
       <div class="media-body"><p>Bc. Denisa Winterová</p></div>
-      <p>+420 734 134 826</p>
-      <a href="mailto:denisa@example.cz">denisa@example.cz</a>
+      ${phoneBlock}
+      ${contactEmail ? `<a href="mailto:${contactEmail}">${contactEmail}</a>` : ""}
     </div>
   </body></html>`;
 }
@@ -175,6 +184,26 @@ describe("parseRealityMatDetail", () => {
     expect(listing.contactEmail).toBeNull();
     expect(listing.price).toBe(4650000);
     expect(listing.area).toBe(72);
+  });
+
+  it("telefon 9 číslic bez předvolby (296 399 006) se uloží s +420, obecný portálový email ne", () => {
+    // Struktura věrně podle živé stránky Boris Musil (M&M reality):
+    // číslo je v bloku u ikony <i class="fa-phone"></i>, ne v <p>.
+    const html = detailHtml({
+      contactPhone: "296 399 006",
+      contactPhoneIcon: true,
+      contactEmail: "info@realitymat.cz.",
+    });
+    const listing = parseRealityMatDetail(html, "https://www.realitymat.cz/detail/x.html");
+    expect(listing.contactName).toBe("Bc. Denisa Winterová");
+    expect(listing.contactPhone).toBe("+420296399006");
+    expect(listing.contactEmail).toBeNull();
+  });
+
+  it("mobilní telefon s úvodní nulou (0777 123 456) → +420777123456", () => {
+    const html = detailHtml({ contactPhone: "0777 123 456", contactPhoneIcon: true });
+    const listing = parseRealityMatDetail(html, "https://www.realitymat.cz/detail/x.html");
+    expect(listing.contactPhone).toBe("+420777123456");
   });
 
   it("mapování staveb a stavů (panelová → panel, po rekonstrukci → renovated)", () => {
