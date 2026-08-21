@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkle, ArrowsClockwise } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { Sparkle, ArrowsClockwise, Play } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -16,11 +16,10 @@ interface Props {
   range: string;
 }
 
-/** AI Market Report — zobrazí cache, tlačítko Obnovit regeneruje. */
+/** AI Market Report — čte cache, generování pouze na vyžádání tlačítkem. */
 export function ReportCard({ regionKey, range }: Props) {
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [regenerating, setRegenerating] = useState(false);
 
   async function load(force: boolean) {
     setLoading(true);
@@ -36,7 +35,7 @@ export function ReportCard({ regionKey, range }: Props) {
       }
       const data = (await res.json()) as ReportData;
       setReport(data);
-      if (force) toast.success("Zpráva byla obnovena");
+      if (force) toast.success("Zpráva byla vygenerována");
     } catch {
       setReport(null);
       if (force) toast.error("Chyba sítě");
@@ -45,10 +44,12 @@ export function ReportCard({ regionKey, range }: Props) {
     }
   }
 
-  const reload = () => {
-    setRegenerating(true);
-    load(true).finally(() => setRegenerating(false));
-  };
+  useEffect(() => {
+    setReport(null);
+    load(false);
+  }, [regionKey, range]);
+
+  const generate = () => load(true);
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-5">
@@ -56,16 +57,20 @@ export function ReportCard({ regionKey, range }: Props) {
         <Sparkle size={16} className="text-accent" weight="duotone" />
         <span className="font-medium">AI Market Report</span>
         <span className="text-xs text-muted ml-auto">
-          {report ? `generováno ${new Date(report.generatedAt).toLocaleDateString("cs-CZ")}` : "Generováno na vyžádání (Gemini)"}
+          {report
+            ? `generováno ${new Date(report.generatedAt).toLocaleDateString("cs-CZ")}`
+            : "Generováno na vyžádání (Gemini)"}
         </span>
-        <button
-          onClick={reload}
-          disabled={regenerating}
-          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors disabled:opacity-50"
-        >
-          <ArrowsClockwise size={13} className={cn(regenerating && "animate-spin")} />
-          Obnovit
-        </button>
+        {report && (
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors disabled:opacity-50"
+          >
+            <ArrowsClockwise size={13} className={cn(loading && "animate-spin")} />
+            Obnovit
+          </button>
+        )}
       </div>
       {loading ? (
         <div className="space-y-3">
@@ -85,7 +90,17 @@ export function ReportCard({ regionKey, range }: Props) {
           })}
         </div>
       ) : (
-        <p className="text-sm text-muted">Zpráva není k dispozici — klikněte na „Obnovit“.</p>
+        <div className="flex flex-col items-center gap-3 py-6 text-center">
+          <p className="text-sm text-muted">Zpráva ještě nebyla vygenerována.</p>
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 transition-colors disabled:opacity-50"
+          >
+            <Play size={13} weight="fill" />
+            Vygenerovat zprávu
+          </button>
+        </div>
       )}
     </div>
   );

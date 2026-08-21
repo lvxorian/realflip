@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getOrGenerateReport } from "@/lib/market/report";
+import { getCachedReport, getOrGenerateReport } from "@/lib/market/report";
 
 const RANGES = ["1q", "1y", "3y", "5y"];
 const REGION_RE = /^(cr|praha|stredocesky|jihocesky|plzensky|karlovarsky|ustecky|liberecky|kralovehradecky|pardubicky|vysocina|jihomoravsky|olomoucky|zlinsky|moravskoslezsky)$/;
@@ -15,7 +15,7 @@ function parse(req: Request): { regionKey: string; range: string; force: boolean
 
 export async function GET(req: Request) {
   const { regionKey, range } = parse(req);
-  const report = await getOrGenerateReport(regionKey, range, false);
+  const report = await getCachedReport(regionKey, range);
   if (!report) {
     return NextResponse.json({ error: "Zpráva není k dispozici" }, { status: 404 });
   }
