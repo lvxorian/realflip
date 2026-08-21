@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PencilSimple, Check, X, Spinner } from "@phosphor-icons/react";
+import { Check, X, Spinner } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 interface EditableYearBuiltProps {
@@ -88,18 +88,13 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
   }
 
   return (
-    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-      <span aria-hidden="true" />
-      <span className="font-semibold text-foreground font-mono text-center">
-        {yearBuilt ?? "—"}
-      </span>
-      <button
-        onClick={startEdit}
-        title="Upravit rok"
-        className="p-1 rounded-md text-muted/60 hover:text-accent hover:bg-card-hover transition-colors"
-      >
-        <PencilSimple size={13} weight="bold" />
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={startEdit}
+      title="Kliknutím upravit rok"
+      className="font-semibold text-foreground font-mono rounded-lg px-1.5 py-0.5 bg-gradient-to-br from-accent/15 via-accent/5 to-transparent transition-colors hover:from-accent/25 hover:text-accent"
+    >
+      {yearBuilt ?? "—"}
+    </button>
   );
 }
