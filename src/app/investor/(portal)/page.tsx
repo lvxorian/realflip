@@ -593,7 +593,7 @@ export default function InvestorPortalPage() {
                                 ) : item.status === "reserved" && !item.reservedByMe && item.reservationExpiresAt ? (
                                   <span className="text-xs text-muted">Rezervace vyprší za <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
                                 ) : item.status === "reserved" && !item.reservedByMe ? (
-                                  <span className="text-xs text-muted">Rezervováno jiným investorem</span>
+                                  null
                                 ) : (
                                   <span className="text-xs text-emerald-400">Dostupná k rezervaci</span>
                                 )}
