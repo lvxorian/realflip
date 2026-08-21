@@ -96,7 +96,7 @@ export function EditableFloor({ propertyId, floor, editing, onStartEdit, onClose
       type="button"
       onClick={startEdit}
       title="Kliknutím upravit patro"
-      className="font-semibold text-foreground font-mono rounded-lg px-1.5 py-0.5 bg-gradient-to-br from-accent/15 via-accent/5 to-transparent transition-colors hover:from-accent/25 hover:text-accent"
+      className="cursor-pointer font-semibold text-foreground font-mono rounded-lg px-1.5 py-0.5 bg-gradient-to-br from-accent/15 via-accent/5 to-transparent transition-colors hover:from-accent/25 hover:text-accent"
     >
       {floor != null ? `${floor}.` : "—"}
     </button>
