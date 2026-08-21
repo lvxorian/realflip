@@ -56,7 +56,7 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
 
   if (editing) {
     return (
-      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+      <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-1.5">
         <input
           autoFocus
           type="text"
@@ -67,22 +67,24 @@ export function EditableYearBuilt({ propertyId, yearBuilt }: EditableYearBuiltPr
             if (e.key === "Enter") save();
             if (e.key === "Escape") setEditing(false);
           }}
-          className="w-16 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
+          className="w-full min-w-0 sm:w-16 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
         />
-        <button
-          onClick={save}
-          disabled={saving}
-          className="p-1 rounded-md text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-        >
-          {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
-        </button>
-        <button
-          onClick={() => setEditing(false)}
-          disabled={saving}
-          className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
-        >
-          <X size={14} weight="bold" />
-        </button>
+        <div className="flex items-center justify-center gap-1.5">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="p-1 rounded-md text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+          >
+            {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            disabled={saving}
+            className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
       </div>
     );
   }

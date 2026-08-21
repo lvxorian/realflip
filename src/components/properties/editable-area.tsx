@@ -67,34 +67,38 @@ export function EditableArea({ propertyId, area, areaLocked, areaFlag, accessory
 
   if (editing) {
     return (
-      <div className="flex items-center justify-center gap-1.5">
-        <input
-          autoFocus
-          type="text"
-          inputMode="decimal"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") save();
-            if (e.key === "Escape") setEditing(false);
-          }}
-          className="w-20 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
-        />
-        <span className="text-xs text-muted">m²</span>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="p-1 rounded-md text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-        >
-          {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
-        </button>
-        <button
-          onClick={() => setEditing(false)}
-          disabled={saving}
-          className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
-        >
-          <X size={14} weight="bold" />
-        </button>
+      <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-1.5">
+        <div className="w-full sm:w-auto flex items-center justify-center gap-1">
+          <input
+            autoFocus
+            type="text"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") setEditing(false);
+            }}
+            className="w-full min-w-0 sm:w-20 rounded-md border border-accent/50 bg-card px-2 py-0.5 text-sm font-semibold text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
+          />
+          <span className="text-xs text-muted">m²</span>
+        </div>
+        <div className="flex items-center justify-center gap-1.5">
+          <button
+            onClick={save}
+            disabled={saving}
+            className="p-1 rounded-md text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+          >
+            {saving ? <Spinner size={14} className="animate-spin" /> : <Check size={14} weight="bold" />}
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            disabled={saving}
+            className="p-1 rounded-md text-muted hover:bg-card-hover transition-colors"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
       </div>
     );
   }

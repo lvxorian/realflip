@@ -892,9 +892,13 @@ function InteractiveCard({
               </button>
             )}
             <div className={`${collapsibleOnMobile ? "px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4" : "space-y-3 sm:space-y-4"} ${collapsibleOnMobile && !calcOpen ? "hidden" : ""}`}>
-            <div className="flex items-center gap-2">
-              <CurrencyCircleDollar size={16} className="text-accent" />
-              <h2 className="font-semibold tracking-tight text-sm flex-1">Kalkulačka</h2>
+            <div className={`flex items-center gap-2 ${collapsibleOnMobile ? "justify-center" : ""}`}>
+              {!collapsibleOnMobile && (
+                <>
+                  <CurrencyCircleDollar size={16} className="text-accent" />
+                  <h2 className="font-semibold tracking-tight text-sm flex-1">Kalkulačka</h2>
+                </>
+              )}
               <div className="flex rounded-lg border border-border/50 overflow-hidden text-xs">
                 <button
                   onClick={() => setMode("flip")}
