@@ -30,15 +30,16 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Tax**: Income tax fixed at 21% in calculation (not editable in UI).
 - **Sell commission**: 5% default, configurable.
 - **Phone**: `formatPhone()` → `+420 608 033 397`.
-- **Cron**: 6:00 UTC daily via Vercel Cron (Hobby limit). Bypasses auth via `x-vercel-cron`.
+- **Cron**: scraping **1× denně** Vercel Cron 6:00 (`/api/scraping/trigger`), radar-refresh **1× denně** GH Actions (workflow „Radar Refresh", `0 6 * * *`). Oba bypassují auth přes `x-cron-secret`.
+- **Neon = plán Launch** (usage-based, egress 500 GB v ceně) — Free (5 GB egress + 100 CU-h) přetekl (402, Phase 79). Diagnostika DB: `npx tsx -` + `./_env` (Neon chyba v `e.cause.message`).
 - **Částkové vstupy**: všude používat `AmountInput` (`src/components/ui/amount-input.tsx`) nebo `Input type="amount"` — `type="text"` + `inputMode="numeric"`, živě formátuje mezery („5000000" → „5 000 000"), `onChange` předává jen číslice (stávající `Number`/`parseInt` parsování funguje beze změny). Sdílené formátování: `formatAmountInput()` v `src/lib/utils.ts`. Procenta/m²/plochy/roky = obyčejná číselná pole bez formátování.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **714 tests across 56 files**.
+Vitest v4 + jsdom + @testing-library/react. **727 tests across 59 files**.
 `npm test` or `npx vitest run`.
 
 ## Radar (`/radar`, Phase 70)
-- Datová vrstva: `src/lib/market/` — `radar-store.ts` (fetch+upsert, delta-only), `macro.ts` (ČNB repo TXT + ČBA cbamonitor blade graph_data — y jsou **stringy**, koerce `Number()`), `czso-radar.ts` (opendata CSV: STA09B/STA09A1/WPRACECRQ/PORKR01), `radar-shared.ts` (`REGION_LABELS`, `extractBladeGraphData`, `bladeSeriesToPoints`, `usDateToPeriod`), `snapshots.ts` (čisté transformace → testy), `radar-query.ts` (`getRadarData(range)`), `report.ts` (Gemini AI zpráva).
+- Datová vrstva: `src/lib/market/` — `radar-store.ts` (fetch+upsert, **delta 60 měsíců** — `upsertRadarSeries` zapisuje jen recentní okno, `radarWriteCutoff`/`filterToWriteWindow`), `macro.ts` (ČNB repo TXT + ČBA cbamonitor blade graph_data — y jsou **stringy**, koerce `Number()`), `czso-radar.ts` (opendata CSV: STA09B/STA09A1/WPRACECRQ/PORKR01), `radar-shared.ts` (`REGION_LABELS`, `extractBladeGraphData`, `bladeSeriesToPoints`, `usDateToPeriod`), `snapshots.ts` (čisté transformace → testy), `radar-query.ts` (`getRadarData(range)` — **cache 15 min**, `loadListingSnapshot()` sdílí 1 scan mezi `getListingFlow`+`getCityHeatmap`, `readSeriesMany` pro batch regionů), `report.ts` (Gemini AI zpráva).
 - **Migrace DDL na Neonu**: samotné `sql.unsafe(ddl)` je tichý no-op — musí být tagged template: `sql\`${sql.unsafe(ddl)}\`` (viz `scripts/migrate-radar.ts`).
 - **Gemini 503**: report má retry + fallback modely `gemini-2.5-flash` → `gemini-3.5-flash-lite` (`gemini-2.0-flash-lite` = 404 deprecated). Pro ruční regeneraci: POST `/api/market/report?region=cr&range=1y&force=1`.
 - API: `/api/market/radar` (GET range 1q/1y/3y/5y), `/api/market/report`, `/api/market/radar-refresh` (cron, `x-cron-secret`).
@@ -115,6 +116,11 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `src/lib/scraping/orchestrator.ts` — scraping engine
 - `src/lib/scraping/url-scraper.ts` — single URL scraper
 - `src/lib/scraping/market-price-service.ts` — market price cascade Tier 1-5
+- `src/lib/market/price-index.ts` — cenový index + `getPriceIndex()` cache (memory 15 min + `market_cache` `price_index_cr` 24 h)
+- `src/lib/market/market-summary.ts` — Tržní souhrn pro `/market` s cache 15 min
+- `src/lib/market/radar-query.ts` — radar čtení (cache 15 min, `loadListingSnapshot`, `readSeriesMany`)
+- `src/lib/market/radar-store.ts` — radar zápis (delta 60 měsíců)
+- `src/app/api/locality/route.ts` — batch lokality (`?cities=a,b,c`)
 - `src/lib/scraping/sreality-sitemap.ts` — sreality sitemap parsing + city sampling
 - `src/lib/scraping/realitymat-parser.ts` — sdílený detail parser realitymat.cz
 - `src/lib/scraping/bezrealitky-parser.ts` — sdílený parser bezrealitky (NEXT_DATA Apollo cache)
@@ -207,7 +213,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - Nominatim vyžaduje `User-Agent`; adresa "Lesní, Cheb" geokóduje správně (Pelhřimov = čtvrť Chebu). Reverse-geocode extrahuje čtvrť z display_name (přesnější než suburb).
 
 ## Trh (Market) — investiční nástroje
-- `src/app/(dashboard)/market/page.tsx` server komponenta: agregace nabídkových cen + `LocalityMarkets` (tabulka lokalit se skóre), `PriceIndexCard` (cenový index, `/api/market/price-index`), `BuyVsRentCalculator` (30letá simulace koupě vs nájem).
+- `src/app/(dashboard)/market/page.tsx` server komponenta: agregace přes `getMarketSummary()` (`src/lib/market/market-summary.ts`, cache 15 min) + `LocalityMarkets` (batch `/api/locality?cities=…`), `PriceIndexCard` (`/api/market/price-index` → `getPriceIndex()`, cache), `BuyVsRentCalculator` (30letá simulace koupě vs nájem).
 - `LocalityProfile` v detailu nemovitosti (`/properties/[id]` sidebar): 6 dimenzí (ekonomika, demografie, vybavenost, doprava, bezpečnost, rentový výnos) + AI badge.
 
 ## Scraper notes (nové)

@@ -531,6 +531,22 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Grouped-list na mobilu** (detail `/properties/[id]`): helper `flatOnMobile` = `max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:border-t max-lg:border-border/50 max-lg:shadow-none` — popis/historie/mapa/pipeline/portál/lokalita/dražba/kontakt/odhad/PDF/kalkulačka se slijí do jednoho souvislého seznamu s dělicími linkami (pryč „card sandwich"); `grid max-lg:gap-0`, sloupce `max-lg:space-y-0`. `PortalPanel`/`LocalityProfile`/`InteractiveAnalysis` (+`PropertyDetailAnalysis`) dostaly optional `className`. Skóre gauge na mobilu přesunut na fotku dolů (`max-lg:bottom-3 max-lg:top-auto`), plovoucí akce přes fotku zrušeny.
 - Testy +9 (zoom-lock pinch/scroll/mapa/gesture, gallery swipe práh + immersive výška, action bar render + clipboard fallback) → **723/723 (58 souborů)**, typecheck čistý, build OK, lint bez nových chyb (20 pre-existing v netknutém kódu zůstalo).
 
+### Phase 79 — Neon egress: vyčerpaný limit 402 + tuning spotřeby (Done)
+- **Problém**: Neon Free má 5 GB egress/měsíc — vyčerpáno → **HTTP 402** na všechny dotazy → login vždy „Neplatný email nebo heslo" (heslo i uživatel v DB byly v pořádku). App čte **Neon** (`DATABASE_URL` v `.env.local`), ne lokální `data.db` (ta je jen seed, 0,3 MB, 1 uživatel).
+- **Diagnostika**: `npx tsx -` (stdin) + `scripts/_env` (SELECT uživatele + bcrypt compare); Neon chyba sedí v `e.cause.message` (402 *"exceeded the data transfer quota"*).
+- **Řešení**: upgrade na **Launch** (usage-based, **500 GB egress v ceně**). Usage 8/2026: compute **74,97 CU-h**, storage 0,05 GB, egress 5,5 GB → odhad ~**$8/měs** (74,97 × $0,106; po tuningu ~$4–6). Vybrán preset **„Intermittent load / 1 GB"** (strop autoscalingu + storage, ceny per-unit stejné).
+- **Tuning egressu** (commit `09be2e0`, rozsah A+B+D, valuation beze změny):
+  - **A1 frekvence**: `vercel.json` jen `/api/scraping/trigger` 6:00; GH `daily-scraper.yml` → **„Radar Refresh"** (cron `0 6 * * *`, jen radar-refresh, `workflow_dispatch` zůstává) → **scraping 1×/den (Vercel) + radar 1×/den (GH)**.
+  - **A2 radar delta**: `radar-store.ts` `upsertRadarSeries` zapisuje jen posledních **60 měsíců** (= max. range 5y v UI; starší zůstávají) — čisté fce `radarWriteCutoff`/`filterToWriteWindow` (+4 testy). ~75 % méně zápisů, s 1×/den ~94 %.
+  - **B3 price index**: `getPriceIndex()` — memory 15 min + `market_cache` (segment `price_index_cr`, TTL 24 h, payload JSON); route volá wrapper, `computePriceIndex` zůstává exportovaný.
+  - **B4 radar čtení**: `getRadarData` **cache 15 min** (per range); `loadListingSnapshot()` sdílí **jeden scan** properties+analysis mezi `getListingFlow` a `getCityHeatmap` (dřív 2×); `readSeriesMany` (IN regionKeys) pro `getSupplyVsPopulation` — 30 → 2 dotazy.
+  - **B5 lokality**: nový `src/app/api/locality/route.ts` (batch `GET ?cities=a,b,c` → `results`, reuse `getLocalityForProperty`, Promise.all) + `LocalityMarkets.load()` volá 1× místo N sekvenčních requestů. (Vliv hlavně na HTTP/latenci; DB dotazy malé.)
+  - **B6 market**: nový `src/lib/market/market-summary.ts` (`getMarketSummary()` — KPIs, cityRows, trend, priceDrops, topByScore, **cache 15 min**) + `market/page.tsx`; `cityKeys` (surové slugs) pro batch lokality.
+  - **D11**: `unread-reservations` GET → `WHERE id IN (leadIds)` místo full scanu všech rezervovaných leads (při prázdných leadIds žádný dotaz).
+  - **D12 polling**: `dashboard-layout.tsx`, `notification-bell.tsx`, `investors/page.tsx` → interval **30 s → 60 s** + pauza při `document.hidden` (`visibilitychange`).
+- Testy 714 → **727 / 59 souborů** (+4 radar delta), typecheck čistý, build OK, žádné nové lint chyby. Odhad dopadu: scraping+radar ~75–94 % méně zápisů, market/radar stránky bez full scanů, polling neodsává na pozadí.
+- Po upgradu je login ověřen (DB OK, `password match: true`).
+
 ## Key Files
 
 ### Core
