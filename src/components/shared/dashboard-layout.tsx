@@ -77,9 +77,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         }
       } catch { /* ignore */ }
     };
+    // Polling jen pro viditelnou záložku (snižuje DB egress na pozadí).
+    const poll = () => { if (!document.hidden) load(); };
+    const onVisibility = () => { if (!document.hidden) load(); };
     load();
-    const t = setInterval(load, 30_000);
-    return () => clearInterval(t);
+    const t = setInterval(poll, 60_000);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [session?.user, pathname]);
 
   // Zavřít mobilní drawer po navigaci

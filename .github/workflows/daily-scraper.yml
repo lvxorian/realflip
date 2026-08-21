@@ -1,21 +1,14 @@
-name: Daily Scraper
+name: Radar Refresh
 
 on:
   schedule:
-    - cron: '0 6,14,22 * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
-  scrape:
+  refresh:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger scraping
-        run: |
-          curl -s -X POST "${{ secrets.SCRAPER_API_URL }}" \
-            -H "Content-Type: application/json" \
-            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -H "User-Agent: github-actions-cron" \
-            --fail
       - name: Trigger radar refresh
         run: |
           BASE="${{ secrets.SCRAPER_API_URL }}"

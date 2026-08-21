@@ -40,16 +40,25 @@ export function NotificationBell({
 
   useEffect(() => {
     loadNotifications();
-    const interval = window.setInterval(loadNotifications, 30_000);
+    const interval = window.setInterval(() => {
+      // Polling jen pro viditelnou záložku — pozadí neodsává DB data.
+      if (!document.hidden) loadNotifications();
+    }, 60_000);
 
     function handleFocus() {
       loadNotifications();
     }
 
+    function handleVisibility() {
+      if (!document.hidden) loadNotifications();
+    }
+
     window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 

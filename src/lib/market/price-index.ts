@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { properties, propertyAnalysis, priceHistory } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { properties, propertyAnalysis, priceHistory, marketCache } from "@/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IndexPoint {
   period: string;
@@ -183,4 +183,77 @@ function buildSegments(samplesBySegment: Record<SegmentKey, number[]>, base: num
       changePct: null,
     };
   });
+}
+
+// ---------- Cache (memory 15 min + market_cache 24 h) ----------
+
+const MEM_TTL_MS = 15 * 60 * 1000;
+const DB_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_SEGMENT = "price_index_cr";
+
+let memCache: { data: PriceIndexResult; fetchedAt: number } | null = null;
+
+/** Načte cache z market_cache (best-effort). */
+async function readDbCache(): Promise<PriceIndexResult | null> {
+  try {
+    const row = await db
+      .select({ payload: marketCache.payload, fetchedAt: marketCache.fetchedAt })
+      .from(marketCache)
+      .where(and(eq(marketCache.city, "cr"), eq(marketCache.segment, CACHE_SEGMENT)))
+      .orderBy(desc(marketCache.fetchedAt))
+      .limit(1)
+      .then((r) => r[0]);
+    if (!row || !row.payload) return null;
+    if (Date.now() - Number(row.fetchedAt) > DB_TTL_MS) return null;
+    const d = JSON.parse(row.payload) as PriceIndexResult;
+    if (!d || !Array.isArray(d.segments)) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+/** Uloží výsledek do market_cache (best-effort). */
+async function persistDbCache(data: PriceIndexResult): Promise<void> {
+  try {
+    await db
+      .insert(marketCache)
+      .values({
+        city: "cr",
+        segment: CACHE_SEGMENT,
+        low: 0,
+        high: 0,
+        median: 0,
+        sampleSize: data.segments.reduce((s, x) => s + x.sampleSize, 0),
+        source: "price_index",
+        fetchedAt: Date.now(),
+        payload: JSON.stringify(data),
+      })
+      .onConflictDoUpdate({
+        target: [marketCache.city, marketCache.segment],
+        set: { sampleSize: 0, source: "price_index", fetchedAt: Date.now(), payload: JSON.stringify(data) },
+      });
+  } catch {
+    // cache je best-effort
+  }
+}
+
+/**
+ * Cenový index s cache (memory 15 min → DB 24 h → výpočet). Výsledek se mění jen
+ * s přílivem nových inzerátů, proto je dlouhý TTL bez dopadu na UX a ušetří
+ * dva full scany (properties + price_history) při každém načtení Trhu.
+ */
+export async function getPriceIndex(): Promise<PriceIndexResult> {
+  if (memCache && Date.now() - memCache.fetchedAt < MEM_TTL_MS) {
+    return memCache.data;
+  }
+  const cached = await readDbCache();
+  if (cached) {
+    memCache = { data: cached, fetchedAt: Date.now() };
+    return cached;
+  }
+  const data = await computePriceIndex();
+  memCache = { data, fetchedAt: Date.now() };
+  await persistDbCache(data);
+  return data;
 }

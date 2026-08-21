@@ -54,9 +54,16 @@ export default function InvestorsPage() {
         }
       } catch { /* ignore */ }
     };
+    // Polling jen pro viditelnou záložku — pozadí neodsává DB data.
+    const poll = () => { if (!document.hidden) load(); };
+    const onVisibility = () => { if (!document.hidden) load(); };
     load();
-    const t = setInterval(load, 30_000);
-    return () => clearInterval(t);
+    const t = setInterval(poll, 60_000);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [status]);
 
   const loadInvestors = useCallback(() => {
@@ -74,8 +81,15 @@ export default function InvestorsPage() {
   }, [loadInvestors]);
 
   useEffect(() => {
-    const t = setInterval(loadInvestors, 60_000);
-    return () => clearInterval(t);
+    const t = setInterval(() => {
+      if (!document.hidden) loadInvestors();
+    }, 60_000);
+    const onVisibility = () => { if (!document.hidden) loadInvestors(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [loadInvestors]);
 
   async function togglePortal(inv: InvestorFormValue) {

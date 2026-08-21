@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { computePriceIndex } from "@/lib/market/price-index";
+import { getPriceIndex } from "@/lib/market/price-index";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export async function GET(_req: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const index = await computePriceIndex();
+    const index = await getPriceIndex();
     return NextResponse.json(index);
   } catch (error) {
     console.error("Price index error:", error);

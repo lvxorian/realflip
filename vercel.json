@@ -3,10 +3,6 @@
     {
       "path": "/api/scraping/trigger",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/market/radar-refresh",
-      "schedule": "0 6 * * *"
     }
   ]
 }

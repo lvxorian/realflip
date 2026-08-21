@@ -5,7 +5,7 @@
  */
 
 import { db } from "@/db";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, inArray } from "drizzle-orm";
 import { localityMetrics, properties, propertyAnalysis, rents, radarSeries } from "@/db/schema";
 import { fetchPriceMap } from "@/lib/valuation/price-map";
 import { KRAJ_KEYS, rangeMonths } from "./radar-shared";
@@ -46,6 +46,32 @@ export async function readSeries(
     )
     .orderBy(radarSeries.period);
   return rows.map((r) => [r.period, r.value] as SeriesPoint);
+}
+
+/** Načte řadu pro více regionů jedním dotazem (IN) → mapa regionKey → body. */
+export async function readSeriesMany(
+  indicator: string,
+  regionKeys: string[],
+  months: number
+): Promise<Record<string, SeriesPoint[]>> {
+  if (regionKeys.length === 0) return {};
+  const rows = await db
+    .select({ regionKey: radarSeries.regionKey, period: radarSeries.period, value: radarSeries.value })
+    .from(radarSeries)
+    .where(
+      and(
+        eq(radarSeries.indicator, indicator),
+        inArray(radarSeries.regionKey, regionKeys),
+        gte(radarSeries.period, cutoff(months))
+      )
+    )
+    .orderBy(radarSeries.period);
+  const out: Record<string, SeriesPoint[]> = {};
+  for (const r of rows) {
+    if (!out[r.regionKey]) out[r.regionKey] = [];
+    out[r.regionKey].push([r.period, r.value] as SeriesPoint);
+  }
+  return out;
 }
 
 // ---------- Makro (Graf A/B/C + KPI) ----------
@@ -128,15 +154,37 @@ export interface ListingFlowPoint {
   stazene: number;
 }
 
-/** Nové vs stažené inzeráty z vlastní databáze (posledních `months` měsíců). */
-export async function getListingFlow(months: number = 12): Promise<ListingFlowPoint[]> {
+interface ListingSnapshot {
+  firstSeen: number | null;
+  removedAt: number | null;
+  isActive: number | null;
+  price: number | null;
+  area: number | null;
+  city: string | null;
+}
+
+/**
+ * Jeden scan vlastních inzerátů (properties LEFT JOIN propertyAnalysis) sdílený
+ * mezi `getListingFlow` a `getCityHeatmap` — dřív se tabulka projížděla 2×.
+ */
+async function loadListingSnapshot(): Promise<ListingSnapshot[]> {
   const rows = await db
     .select({
       firstSeen: properties.firstSeen,
       removedAt: properties.removedAt,
       isActive: properties.isActive,
+      price: properties.price,
+      area: properties.area,
+      city: propertyAnalysis.locationCity,
     })
-    .from(properties);
+    .from(properties)
+    .leftJoin(propertyAnalysis, eq(properties.id, propertyAnalysis.propertyId));
+  return rows as ListingSnapshot[];
+}
+
+/** Nové vs stažené inzeráty z vlastní databáze (posledních `months` měsíců). */
+export async function getListingFlow(months: number = 12): Promise<ListingFlowPoint[]> {
+  const rows = await loadListingSnapshot();
 
   const fromTs = Date.now() - months * 31 * 86400000;
   const nove = new Map<string, number>();
@@ -174,12 +222,10 @@ export interface SupplyRegionRow {
 export async function getSupplyVsPopulation(): Promise<SupplyRegionRow[]> {
   const months = 24 * 13; // stačí pokrýt všechny roky
   const regionKeys = ["cr", ...KRAJ_KEYS];
-  const [flatsByRegion, popByRegion] = await Promise.all([
-    Promise.all(regionKeys.map((k) => readSeries(IND.started, k, months).then((p) => [k, p] as const))),
-    Promise.all(regionKeys.map((k) => readSeries(IND.pop, k, months).then((p) => [k, p] as const))),
+  const [flats, pop] = await Promise.all([
+    readSeriesMany(IND.started, regionKeys, months),
+    readSeriesMany(IND.pop, regionKeys, months),
   ]);
-  const flats = Object.fromEntries(flatsByRegion);
-  const pop = Object.fromEntries(popByRegion);
   return supplyVsPopulation(flats, pop).sort((a, b) => b.started - a.started);
 }
 
@@ -200,15 +246,7 @@ export interface CityHeatmapRow {
  * price-to-rent a podíl 65+ (czso-sldb). Seřazeno podle počtu inzerátů.
  */
 export async function getCityHeatmap(limit: number = 25): Promise<CityHeatmapRow[]> {
-  const props = await db
-    .select({
-      city: propertyAnalysis.locationCity,
-      price: properties.price,
-      area: properties.area,
-      isActive: properties.isActive,
-    })
-    .from(properties)
-    .leftJoin(propertyAnalysis, eq(properties.id, propertyAnalysis.propertyId));
+  const props = await loadListingSnapshot();
 
   const byCity = new Map<string, { priceSqm: number[]; count: number }>();
   for (const p of props) {
@@ -217,7 +255,7 @@ export async function getCityHeatmap(limit: number = 25): Promise<CityHeatmapRow
     if (!byCity.has(city)) byCity.set(city, { priceSqm: [], count: 0 });
     const row = byCity.get(city)!;
     row.count++;
-    if (p.area && p.area > 0 && p.price > 0) row.priceSqm.push(p.price / p.area);
+    if (p.area && p.area > 0 && p.price && p.price > 0) row.priceSqm.push(p.price / p.area);
   }
 
   const cityKeys = [...byCity.keys()];
@@ -279,8 +317,17 @@ export interface RadarData {
   cities: CityHeatmapRow[];
 }
 
-/** Vše pro /radar najednou. */
+// Paměťová cache stránky (15 min) — data radaru se mění jen s denním crawlenním,
+// cache ušetří 4 full scany + 30 série-dotazů při každém načtení/přepnutí rozsahu.
+const RADAR_MEM_TTL_MS = 15 * 60 * 1000;
+const radarMemCache = new Map<string, { data: RadarData; fetchedAt: number }>();
+
+/** Vše pro /radar najednou (s krátkou paměťovou cache per range). */
 export async function getRadarData(range: string = "1y"): Promise<RadarData> {
+  const hit = radarMemCache.get(range);
+  if (hit && Date.now() - hit.fetchedAt < RADAR_MEM_TTL_MS) {
+    return hit.data;
+  }
   const [macro, priceMap, listingFlow, supply, cities] = await Promise.all([
     getMacroData(range),
     getPriceMapRegions(),
@@ -288,5 +335,7 @@ export async function getRadarData(range: string = "1y"): Promise<RadarData> {
     getSupplyVsPopulation(),
     getCityHeatmap(25),
   ]);
-  return { macro, priceMap, listingFlow, supply, cities };
+  const data = { macro, priceMap, listingFlow, supply, cities };
+  radarMemCache.set(range, { data, fetchedAt: Date.now() });
+  return data;
 }

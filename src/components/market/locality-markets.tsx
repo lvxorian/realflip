@@ -17,11 +17,14 @@ interface LocalityRow {
 }
 
 interface ApiRow {
-  locality: {
+  results: {
     cityKey: string;
-    score: number;
-    factors: LocalityFactors;
-  } | null;
+    locality: {
+      cityKey: string;
+      score: number;
+      factors: LocalityFactors;
+    } | null;
+  }[];
 }
 
 export function LocalityMarkets({ cities }: { cities: string[] }) {
@@ -31,28 +34,35 @@ export function LocalityMarkets({ cities }: { cities: string[] }) {
 
   async function load() {
     setLoading(true);
-    const results: LocalityRow[] = [];
     const valid = [...new Set(cities.filter((c) => c && c !== "Neznámá" && c !== "unknown"))];
-    for (const cityKey of valid) {
-      try {
-        const res = await fetch(`/api/locality/${encodeURIComponent(cityKey)}`, { cache: "no-store" });
-        const d: ApiRow = await res.json();
-        if (d.locality) {
-          results.push({
-            cityKey: d.locality.cityKey,
-            score: d.locality.score,
-            unemployment: d.locality.factors.economic.unemploymentPct ?? null,
-            migrationPer1000: d.locality.factors.demographic.migrationNet ?? null,
-            walkability: d.locality.factors.walkability.score,
-            crimeIndex: d.locality.factors.safety.crimeIndex ?? null,
-          });
-        }
-      } catch {
-        // skip
-      }
+    if (valid.length === 0) {
+      setRows([]);
+      setLoading(false);
+      return;
     }
-    setRows(results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)));
-    setLoading(false);
+    try {
+      // Jeden batch request místo N sekvenčních /api/locality/{city}
+      const res = await fetch(`/api/locality?cities=${encodeURIComponent(valid.join(","))}`, { cache: "no-store" });
+      const d: ApiRow = await res.json();
+      const results: LocalityRow[] = [];
+      for (const item of d.results ?? []) {
+        const s = item.locality;
+        if (!s) continue;
+        results.push({
+          cityKey: s.cityKey,
+          score: s.score,
+          unemployment: s.factors.economic.unemploymentPct ?? null,
+          migrationPer1000: s.factors.demographic.migrationNet ?? null,
+          walkability: s.factors.walkability.score,
+          crimeIndex: s.factors.safety.crimeIndex ?? null,
+        });
+      }
+      setRows(results.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)));
+    } catch {
+      // skip
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

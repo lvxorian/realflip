@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { notifications, leads } from "@/db/schema";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { safeJsonParse } from "@/lib/utils";
 
@@ -43,13 +43,14 @@ export async function GET() {
     const byInvestor: Record<string, number> = {};
 
     if (leadIds.length > 0) {
+      // Jen konkrétní leady z notifikací — ne full scan všech rezervovaných.
       const reservedLeads = await db
         .select({
           leadId: leads.id,
           investorId: leads.portalReservedInvestorId,
         })
         .from(leads)
-        .where(isNotNull(leads.portalReservedInvestorId));
+        .where(inArray(leads.id, leadIds));
 
       const leadToInvestor = new Map(reservedLeads.map((r) => [r.leadId, r.investorId!]));
       for (const leadId of leadIds) {
