@@ -450,6 +450,7 @@ export default function InvestorPortalPage() {
                       const expanded = expandedId === item.id;
                       const coop = item.cooperation;
                       const isMine = item.status === "reserved" && item.reservedByMe;
+                      const reservedOther = item.status === "reserved" && !item.reservedByMe;
                       return (
                         <motion.div
                           key={item.id}
@@ -465,6 +466,7 @@ export default function InvestorPortalPage() {
                           <PhotoGallery
                             photos={item.photos}
                             alt={[item.city, item.district].filter(Boolean).join(" · ") || "Nemovitost"}
+                            imageClassName={reservedOther ? "grayscale opacity-60" : undefined}
                           >
                             <div className="absolute top-2 left-2">
                               <ModeBadge item={item} />
@@ -474,7 +476,7 @@ export default function InvestorPortalPage() {
                             </div>
                           </PhotoGallery>
 
-                          <div className="p-4 space-y-3">
+                          <div className={cn("p-4 space-y-3", reservedOther && "grayscale opacity-60")}>
                             {/* Lokalita + parametry */}
                             <div>
                               <p className="font-semibold leading-tight min-w-0 truncate">
@@ -671,10 +673,12 @@ function PhotoGallery({
   photos,
   alt,
   children,
+  imageClassName,
 }: {
   photos: string[];
   alt: string;
   children?: React.ReactNode;
+  imageClassName?: string;
 }) {
   const [index, setIndex] = useState(0);
   const safeIndex = photos.length > 0 ? Math.min(index, photos.length - 1) : 0;
@@ -687,7 +691,7 @@ function PhotoGallery({
 
   return (
     <div className="relative aspect-[8/5] w-full">
-      <PropertyImage key={current ?? "no-photo"} src={current} alt={alt} containerClassName="h-full w-full" />
+      <PropertyImage key={current ?? "no-photo"} src={current} alt={alt} containerClassName={cn("h-full w-full", imageClassName)} />
       {canCycle && (
         <>
           <button
