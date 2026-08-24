@@ -458,8 +458,10 @@ export default function InvestorPortalPage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.03, duration: 0.25 }}
                           className={cn(
-                            "rounded-2xl border bg-card overflow-hidden transition-colors",
-                            isMine ? "border-accent/60" : "border-border/50"
+                            "rounded-2xl border bg-card overflow-hidden transition-all",
+                            isMine
+                              ? "border-accent/70 shadow-[0_0_24px_rgba(16,185,129,0.25)]"
+                              : "border-border/50"
                           )}
                         >
                           {/* Foto + galerie */}
