@@ -593,9 +593,9 @@ export default function InvestorPortalPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 {isMine && item.reservationExpiresAt ? (
-                                  <span className="text-xs text-muted">Vaše rezervace vyprší za <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
+                                  <span className="text-xs text-muted">Vaše rezervace <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
                                 ) : item.status === "reserved" && !item.reservedByMe && item.reservationExpiresAt ? (
-                                  <span className="text-xs text-muted">Rezervace vyprší za <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
+                                  <span className="text-xs text-muted">Rezervace <span className="tabular-nums">{reservationCountdown(item.reservationExpiresAt)}</span></span>
                                 ) : item.status === "reserved" && !item.reservedByMe ? (
                                   null
                                 ) : (
@@ -1408,7 +1408,7 @@ function ActionButton({
 
 function reservationCountdown(expiresAt: number): string {
   const left = expiresAt - Date.now();
-  if (left <= 0) return "rezervace vypršela";
+  if (left <= 0) return "vypršela";
   const h = Math.floor(left / 3_600_000);
   const m = Math.floor((left % 3_600_000) / 60_000);
   return `vyprší za ${h}h ${m}m`;
