@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Funnel, ArrowClockwise, Scale } from "@phosphor-icons/react";
+import { Funnel, ArrowClockwise, Scales } from "@phosphor-icons/react";
 import { InsolvencyCard } from "@/components/isir/insolvency-card";
 import { cn } from "@/lib/utils";
 import type { InsolvencyEvent } from "@/lib/isir/types";
@@ -84,7 +84,7 @@ export default function InsolvencePage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-zinc-100">
-            <Scale className="h-6 w-6 text-amber-400" />
+            <Scales className="h-6 w-6 text-amber-400" />
             Insolvence
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -169,7 +169,7 @@ export default function InsolvencePage() {
         </div>
       ) : events.length === 0 ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-12 text-center">
-          <Scale className="mx-auto mb-3 h-8 w-8 text-zinc-700" />
+          <Scales className="mx-auto mb-3 h-8 w-8 text-zinc-700" />
           <p className="text-sm text-zinc-500">Žádné insolvence nenalezeny</p>
           <p className="mt-1 text-xs text-zinc-600">
             Spusťte cron job nebo počkejte na další data

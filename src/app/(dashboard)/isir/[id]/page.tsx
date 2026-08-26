@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowSquareOut, Scale } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowSquareOut, Scales } from "@phosphor-icons/react";
 import { ScoreBadge } from "@/components/isir/score-badge";
 import { SectionBadge } from "@/components/isir/section-badge";
 import { cn, formatDate, formatRelative, safeJsonParse, investmentScoreColor } from "@/lib/utils";
@@ -115,7 +115,7 @@ export default function InsolvencyDetailPage() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700"
         >
-          <Scale className="h-3.5 w-3.5" />
+          <Scales className="h-3.5 w-3.5" />
           ISIR
         </a>
       </div>

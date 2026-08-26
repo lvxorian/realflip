@@ -48,7 +48,7 @@ const navItems = [
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/vykupy", label: "Výkupy", icon: Gavel },
   { href: "/deska", label: "Deska", icon: ClipboardText },
-  { href: "/isir", label: "Insolvence", icon: Scale },
+  { href: "/isir", label: "Insolvence", icon: Scales },
   { href: "/market", label: "Trh", icon: ChartBar },
   { href: "/radar", label: "Radar", icon: ChartLineUp },
   { href: "/alerts", label: "Alerty", icon: Bell },
