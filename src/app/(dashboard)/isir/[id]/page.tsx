@@ -83,7 +83,15 @@ export default function InsolvencyDetailPage() {
     lvNumber: string | null;
     estimatedPrice: number | null;
     rawText: string;
-  }>(event.apartmentData, {});
+  }>(event.apartmentData, {
+    address: null,
+    disposition: null,
+    area: null,
+    cadastralArea: null,
+    lvNumber: null,
+    estimatedPrice: null,
+    rawText: "",
+  });
 
   const isirUrl = `https://isir.justice.cz/isir/verejle/${event.spisovaZnacka.replace(/\s+/g, "-")}`;
 

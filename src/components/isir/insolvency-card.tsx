@@ -23,7 +23,14 @@ export function InsolvencyCard({ event }: { event: InsolvencyEvent }) {
     cadastralArea: string | null;
     lvNumber: string | null;
     estimatedPrice: number | null;
-  }>(event.apartmentData, {});
+  }>(event.apartmentData, {
+    address: null,
+    disposition: null,
+    area: null,
+    cadastralArea: null,
+    lvNumber: null,
+    estimatedPrice: null,
+  });
 
   const statusConfig = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.new;
   const isHigh = event.score >= 70;

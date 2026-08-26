@@ -89,10 +89,11 @@ export async function parsePdfFromUrl(url: string): Promise<{ text: string; succ
     if (!res.ok) throw new Error(`PDF download failed: ${res.status}`);
 
     const buffer = Buffer.from(await res.arrayBuffer());
-    const pdfParse = (await import("pdf-parse")).default;
-    const data = await pdfParse(buffer);
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    const result = await parser.getText();
 
-    return { text: data.text, success: true };
+    return { text: result.text, success: true };
   } catch (err) {
     console.warn("[ISIR] PDF parse failed:", err);
     return { text: "", success: false };
