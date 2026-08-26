@@ -17,3 +17,5 @@ export { crawlProgress } from "./crawl-progress";
 export { calculatorPresets } from "./presets";
 export { tasks } from "./tasks";
 export { vykupyLeads, vykupyRegions } from "./vykupy";
+export { deskaDocuments, deskaWatches } from "./deska";
+export { insolvencyEvents, isirPolls } from "./isir";

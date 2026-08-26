@@ -3,6 +3,14 @@
     {
       "path": "/api/scraping/trigger",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/deska/poll",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/isir/cron",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
