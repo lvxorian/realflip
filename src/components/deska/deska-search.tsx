@@ -1,16 +1,33 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { MagnifyingGlass, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, Plus, Check } from "@phosphor-icons/react";
 import { CategoryBadge, RelevanceBadge } from "./category-badge";
-import type { DeskaDoc } from "./deska-card";
+import { cn } from "@/lib/utils";
 
-export function DeskaSearch({ onSelect }: { onSelect?: (doc: DeskaDoc) => void }) {
+export interface EdeskySearchDoc {
+  edesky_id: string;
+  name: string;
+  dashboard_name?: string | null;
+  dashboard_id?: string | null;
+  created_at?: string | null;
+  edesky_url?: string | null;
+  orig_url?: string | null;
+  edesky_text_url?: string | null;
+}
+
+export function DeskaSearch({
+  onSelect,
+}: {
+  onSelect?: (doc: EdeskySearchDoc) => void;
+}) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<DeskaDoc[]>([]);
+  const [results, setResults] = useState<EdeskySearchDoc[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [searched, setSearched] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const doSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -18,7 +35,7 @@ export function DeskaSearch({ onSelect }: { onSelect?: (doc: DeskaDoc) => void }
     setSearched(true);
     try {
       const res = await fetch(
-        `/api/deska/search?keywords=${encodeURIComponent(query.trim())}&order=date`,
+        `/api/deska/search?keywords=${encodeURIComponent(query.trim())}&order=date&includeTexts=1`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -29,6 +46,23 @@ export function DeskaSearch({ onSelect }: { onSelect?: (doc: DeskaDoc) => void }
       setLoading(false);
     }
   }, [query]);
+
+  const saveDocument = async (doc: EdeskySearchDoc) => {
+    setSavingId(doc.edesky_id);
+    try {
+      const res = await fetch("/api/deska/documents/from-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ document: doc }),
+      });
+      if (res.ok) {
+        setSavedIds((prev) => new Set(prev).add(doc.edesky_id));
+        onSelect?.(doc);
+      }
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
@@ -73,21 +107,50 @@ export function DeskaSearch({ onSelect }: { onSelect?: (doc: DeskaDoc) => void }
 
       {results.length > 0 && (
         <div className="mt-4 max-h-96 space-y-2 overflow-y-auto">
-          {results.map((doc: any) => (
-            <button
-              key={doc.edesky_id}
-              onClick={() => onSelect?.(doc as unknown as DeskaDoc)}
-              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-left transition-colors hover:border-zinc-700"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <CategoryBadge category={classifyFromSearch(doc.name)} />
-                <RelevanceBadge relevance="MEDIUM" />
+          {results.map((doc) => {
+            const isSaved = savedIds.has(doc.edesky_id);
+            return (
+              <div
+                key={doc.edesky_id}
+                className="flex items-start justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 transition-colors hover:border-zinc-700"
+              >
+                <button
+                  onClick={() => onSelect?.(doc)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="mb-1 flex items-center gap-2">
+                    <CategoryBadge category={classifyFromSearch(doc.name)} />
+                    <RelevanceBadge relevance="MEDIUM" />
+                  </div>
+                  <p className="text-sm font-medium text-zinc-200">{doc.name}</p>
+                  <p className="text-xs text-zinc-500">{doc.dashboard_name}</p>
+                  <p className="mt-1 text-xs text-zinc-600">{doc.created_at}</p>
+                </button>
+                <button
+                  onClick={() => saveDocument(doc)}
+                  disabled={isSaved || savingId === doc.edesky_id}
+                  className={cn(
+                    "mt-1 inline-flex shrink-0 items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:cursor-default",
+                    isSaved
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : "border-zinc-700 text-zinc-300 hover:border-emerald-500/40 hover:text-emerald-400",
+                  )}
+                >
+                  {isSaved ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" /> Uloženo
+                    </>
+                  ) : savingId === doc.edesky_id ? (
+                    "Ukládám..."
+                  ) : (
+                    <>
+                      <Plus className="h-3.5 w-3.5" /> Uložit
+                    </>
+                  )}
+                </button>
               </div>
-              <p className="text-sm font-medium text-zinc-200">{doc.name}</p>
-              <p className="text-xs text-zinc-500">{doc.dashboard_name}</p>
-              <p className="mt-1 text-xs text-zinc-600">{doc.created_at}</p>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

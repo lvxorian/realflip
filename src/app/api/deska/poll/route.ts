@@ -42,6 +42,7 @@ export async function GET(req: Request) {
             keywords: kw,
             dashboardId: dashboardIds.length === 1 ? dashboardIds[0] : undefined,
             createdFrom: lastChecked,
+            includeTexts: false,
             order: "date",
             page: 1,
           });

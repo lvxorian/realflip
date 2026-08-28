@@ -1,3 +1,4 @@
+import zlib from "zlib";
 import type { ApartmentData } from "./types";
 
 const APARTMENT_REGEX =
@@ -89,15 +90,76 @@ export async function parsePdfFromUrl(url: string): Promise<{ text: string; succ
     if (!res.ok) throw new Error(`PDF download failed: ${res.status}`);
 
     const buffer = Buffer.from(await res.arrayBuffer());
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    const result = await parser.getText();
 
-    return { text: result.text, success: true };
+    // ISIR document URLs are PDF *portfolios*: the visible page only contains
+    // a short "open in a full reader" boilerplate. The real content (databox
+    // delivery receipts, internal "referát" notes, decision metadata) lives in
+    // embedded files inside the container. Parse those so we surface something
+    // meaningful instead of the boilerplate.
+    const raw = buffer.toString("latin1");
+    const embedded = extractEmbeddedPdfs(raw);
+
+    let text = "";
+    if (embedded.length > 0) {
+      const parts: string[] = [];
+      for (const pdf of embedded) {
+        try {
+          const t = await parseBufferText(pdf);
+          if (t) parts.push(t);
+        } catch {
+          // skip unparseable embedded pdf
+        }
+      }
+      text = parts.join("\n\n---\n\n").trim();
+    }
+
+    if (!text) {
+      try {
+        text = await parseBufferText(buffer);
+      } catch {
+        text = "";
+      }
+    }
+
+    return { text, success: true };
   } catch (err) {
     console.warn("[ISIR] PDF parse failed:", err);
     return { text: "", success: false };
   }
+}
+
+async function parseBufferText(buf: Buffer): Promise<string> {
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: new Uint8Array(buf) });
+  const result = await parser.getText();
+  return result.text;
+}
+
+function inflateStream(data: Buffer): Buffer {
+  if (data[0] === 0x0d && data[1] === 0x0a) data = data.slice(2);
+  else if (data[0] === 0x0a) data = data.slice(1);
+  try {
+    return zlib.inflateSync(data);
+  } catch {
+    return data;
+  }
+}
+
+function extractEmbeddedPdfs(raw: string): Buffer[] {
+  const out: Buffer[] = [];
+  let idx = -1;
+  while ((idx = raw.indexOf("/Type/EmbeddedFile", idx + 1)) !== -1) {
+    const dictStart = raw.lastIndexOf("<<", idx);
+    const dictEnd = raw.indexOf(">>", idx);
+    if (dictStart < 0 || dictEnd < 0) continue;
+    const si = raw.indexOf("stream\n", dictEnd + 2);
+    if (si === -1) continue;
+    const es = raw.indexOf("endstream", si + 7);
+    if (es === -1) continue;
+    const data = inflateStream(Buffer.from(raw.slice(si + 7, es), "latin1"));
+    if (data.slice(0, 4).toString("hex") === "25504446") out.push(data);
+  }
+  return out;
 }
 
 export function extractApartmentFromPdf(pdfText: string): ApartmentData | null {

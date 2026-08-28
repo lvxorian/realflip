@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Funnel, ArrowClockwise, Scales } from "@phosphor-icons/react";
+import { Funnel, ArrowClockwise, Scales, Play } from "@phosphor-icons/react";
 import { InsolvencyCard } from "@/components/isir/insolvency-card";
-import { cn } from "@/lib/utils";
+import { cn, formatRelative } from "@/lib/utils";
 import type { InsolvencyEvent } from "@/lib/isir/types";
+
+export interface IsirPollInfo {
+  id: string;
+  status: string;
+  startedAt: number;
+  finishedAt: number | null;
+  eventsFound: number;
+  apartmentsFound: number;
+  lastPodnetId: number | null;
+  error: string | null;
+}
 
 const SECTION_FILTERS = [
   { value: "", label: "Vše" },
@@ -36,10 +47,11 @@ export default function InsolvencePage() {
   const [status, setStatus] = useState("");
   const [minScore, setMinScore] = useState(0);
   const [page, setPage] = useState(1);
+  const [lastPoll, setLastPoll] = useState<IsirPollInfo | null>(null);
+  const [scanning, setScanning] = useState(false);
   const limit = 50;
 
   useEffect(() => {
-    setLoading(true);
     const params = new URLSearchParams();
     if (section) params.set("section", section);
     if (status) params.set("status", status);
@@ -56,6 +68,27 @@ export default function InsolvencePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [section, status, minScore, page]);
+
+  useEffect(() => {
+    fetch("/api/isir/polls")
+      .then((r) => r.json())
+      .then((data) => setLastPoll(data.polls?.[0] ?? null))
+      .catch(() => {});
+  }, []);
+
+  const triggerScan = async () => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      await fetch("/api/isir/trigger", { method: "POST" });
+      const res = await fetch("/api/isir/polls");
+      const data = await res.json();
+      setLastPoll(data.polls?.[0] ?? null);
+      refresh();
+    } finally {
+      setScanning(false);
+    }
+  };
 
   function refresh() {
     setLoading(true);
@@ -90,8 +123,19 @@ export default function InsolvencePage() {
           <p className="mt-1 text-sm text-zinc-500">
             Insolvenční rejstřík — {total} příležitostí
           </p>
+          <div className="mt-1 text-xs text-zinc-600">
+            {lastPoll ? PollStatusLine(lastPoll) : "Zatím žádný záznam o skenování"}
+          </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={triggerScan}
+            disabled={scanning}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          >
+            <Play className={cn("h-3.5 w-3.5", scanning && "animate-pulse")} />
+            {scanning ? "Skenuji..." : "Spustit sken"}
+          </button>
           <button
             onClick={refresh}
             disabled={loading}
@@ -206,5 +250,31 @@ export default function InsolvencePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function PollStatusLine(poll: IsirPollInfo): React.ReactNode {
+  const when = poll.finishedAt
+    ? `Poslední sken ${formatRelative(poll.finishedAt)}`
+    : `Sken běží od ${new Date(poll.startedAt).toLocaleTimeString("cs-CZ")}`;
+
+  const state =
+    poll.status === "running" ? (
+      <span className="text-amber-400">probíhá</span>
+    ) : poll.status === "failed" ? (
+      <span className="text-rose-400">selhal</span>
+    ) : (
+      <span className="text-emerald-400">dokončeno</span>
+    );
+
+  const summary = poll.lastPodnetId
+    ? ` · ${poll.eventsFound} událostí, ${poll.apartmentsFound} bytů, do ID ${poll.lastPodnetId}`
+    : "";
+
+  return (
+    <>
+      {when} · stav {state}
+      {summary}
+    </>
   );
 }

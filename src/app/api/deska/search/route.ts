@@ -30,7 +30,7 @@ export async function GET(req: Request) {
       searchWith,
       order,
       page,
-      includeTexts: false,
+      includeTexts: true,
     });
 
     return NextResponse.json(result);

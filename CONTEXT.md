@@ -55,7 +55,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Python script: `scripts/drazby_hunter.py` — fetches auctions → POST to API.
 - GitHub Actions: `.github/workflows/drazby-hunter.yml` — daily cron.
 - UI: `/vykupy` table with filters (status, region, category), detail page with status management, letter template modal. Region management modal.
-- ISIR Hunter removed (ISIR SOAP API not publicly accessible).
+- ISIR Hunter removed in Phase 10 (written off as "not publicly accessible") — **POZNÁMKA**: znovu vybudovaný v Phase 81, ISIR SOAP API je dostupné na `isir.justice.cz:8443/isir_public_ws/`.
 
 ### Phase 11 — Scraper Revize (Done)
 - `crawlAll`: parallelized with `Promise.allSettled` (was sequential).
@@ -180,6 +180,8 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Neon nemá `__drizzle_migrations` — nové migrace aplikovat ručně SQL (`drizzle-kit push` blokuje interactive prompts).
 - hyperreality (doména = GitLab login), century21 (429 bot protection) — bez adapteru, `enabled: false`.
 - Remax detail (kontakt/plocha) je Vue-renderovaný — data se berou ze search stránky (data-* atributy); případně doplnit kontakt přes API.
+- **Vercel Hobby**: cron limity — MAX 1×/den (scraping 6:00, deska 8:00, isir 6:00 sdílené... pozor: `0 */6 * * *` blokuje deploy → všechny crony musí být 1×/den nebo odstraněné). ISIR běží jen 1×/den (feed iterace je pomalá, 2,5 s/ID).
+- **ISIR cron MANUÁLNÍ spuštění**: `GET /api/isir/cron` s `Authorization: Bearer {CRON_SECRET}`.
 - AI guard: při 503 (Gemini high demand) tichý fallback na null (bez badge) — chování zachováno, retry neuvedeno.
 - `realflip animace 2.mov` (13,6 MB zdroj splash videa) je untracked — finální `public/realflip-animation.mp4` (1,8 MB) je v repu; zdroj případně přidat do `.gitignore`.
 
@@ -547,6 +549,29 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Testy 714 → **727 / 59 souborů** (+4 radar delta), typecheck čistý, build OK, žádné nové lint chyby. Odhad dopadu: scraping+radar ~75–94 % méně zápisů, market/radar stránky bez full scanů, polling neodsává na pozadí.
 - Po upgradu je login ověřen (DB OK, `password match: true`).
 
+### Phase 80 — Deska modul: edesky.cz portál (Done)
+- **Cíl**: sledovat české úřední desky (edesky.cz) pro realitní příležitosti (dražby, exekuce, prodeje pozemků, stavební řízení).
+- **Scraper** (`src/lib/deska/edesky-client.ts`): `edesky.cz/api/v1/` — XML přes `fast-xml-parser` (`npm install fast-xml-parser`). **VOP riziko**: edesky.cz zakazuje redistribuci surových dat (100k CZK pokuta) → **klientská klasifikace**, raději agregace než full-text copy.
+- **Klasifikace** (`src/lib/deska/classify.ts`): `normalizeText()` stripuje diakritiku před porovnáním; rozšířený `STAVEBNI_RIZENI` keyword set → 173 dokumentů klasifikuje správně (901 prodej pozemku, 17 dražba, 4 exekuce, 173 stavební řízení).
+- **DB**: `deska_documents` + `deska_watches` (SQLite `src/db/schema/deska.ts` + PG `src/db/pg/deska.ts`), migrace `0025_deska.sql` **aplikovaná na Neon**.
+- **API** (`src/app/api/deska/`): 7 route — search, documents, documents/[id], watches, poll, create-property, by-locality.
+- **UI** (`src/app/(dashboard)/deska/`): page + [id]; komponenty `category-badge`, `deska-card`, `deska-search`, `watch-manager`.
+- **Cron**: `/api/deska/poll` (0 8 * * *) v `vercel.json`. Skripty: `scripts/migrate-deska.ts`, `scripts/test-deska-api.ts`, `scripts/verify-deska.ts`.
+- Nav položka „Deska" (ikona `ClipboardText`).
+
+### Phase 81 — Insolvence modul: ISIR rejstřík (Done)
+- **Cíl**: monitorovat český insolvenční rejstřík (ISIR) pro bankroty, kde správce zpeněžuje byty dlužníků.
+- **SOAP client** (`src/lib/isir/isir-client.ts`): endpoint `https://isir.justice.cz:8443/isir_public_ws/IsirWsPublicService` (NE `/isir_ws/`), **bez autentizace**, namespace `http://isirpublicws.cca.cz/types/`. Jen 2 operace: `getIsirWsPublicPosledniIdDataRequest` (prázdné tělo → `cisloPosledniId`) + `getIsirWsPublicIdDataRequest` (`idPodnetu` → víc `data` elementů). **Quirks**: ŽÁDNÝ SOAPAction header (způsobuje chybu), body element = request type name; response má `ns2:` prefix (stripnout před fast-xml-parser), Czech znaky občas mangled (server). Sekce A (podnět), B (rozhodnutí/bankrot — relevantní), C (pohledávky), D (zpeněžení — relevantní), E (platby). `poznamka` = embedded XML s `<druhStavRizeni>` (KONKURS/ODDLUZENI) + `<idOsobyPuvodce>` (soud). 1 Podnet ID → mnoho eventů (např. 53 pro ID 80115400); ID jsou sekvenční.
+- **PDF parsing** (`src/lib/isir/apartment-parser.ts`): `pdf-parse` **v2 API** (`new PDFParse({ data })` + `.getText()`, ne staré `pdfParse(buffer)` default), regex na dispozici/plochu/adresu/LV/katastr/cenu. **Ověřeno**: 4/4 sample texty.
+- **Scoring** (`src/lib/isir/scorer.ts`): `scoreInsolvencyLead()` 0–100 (sekce B/D, typ řízení, lokalita, časový útlum).
+- **DB**: `insolvency_events` (19+ sloupců) + `isir_polls` (8), migrace `0026_isir.sql` **aplikovaná na Neon** (2 tabulky + 8 indexů).
+- **Cron** (`src/app/api/isir/cron/route.ts`): Bearer `CRON_SECRET`, fetch feed → filtrace sekcí B/D + apartment candidates → PDF → skóre → uložit; dedup dle `spisovaZnacka`; skóre ≥70 → in-app notifikace. `MAX_IDS_PER_RUN = 50`, 2,5 s delay/ID, `maxDuration = 300`.
+- **API**: `/api/isir/documents` (GET, filtry status/score/section/pagination), `/api/isir/documents/[id]` (GET + PATCH status/notesUser/score/contactedAt), `/api/isir/polls` (GET posledních 20).
+- **UI**: `/isir` (filtry skóre/sekce/stav, pagination) + `/isir/[id]` (apartment info, řízení, poznámky/stav, odkaz na isir.justice.cz). Komponenty `insolvency-card`, `score-badge`, `section-badge`.
+- **Nav** „Insolvence" (ikona `Scales`).
+- **Build fixes nutné k deployi**: `Scale` → `Scales` (phosphor-icons nemá `Scale`), `safeJsonParse` s kompletním fallbackem (ne `{}`), `pdf-parse` v2 API. **Vercel Hobby limit**: cron MAX 1×/den → `0 */6 * * *` blokoval deploy 402 → změněno na `0 6 * * *`.
+- Ověřeno: `getLastPodnetId()` → 80115480, `getEventData(80115400)` → 53 eventů s korektním dekódováním ČZ.
+
 ## Key Files
 
 ### Core
@@ -583,6 +608,28 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/auctions/parse-auction.ts` — DD pipeline kostra (HTML → PDF → Gemini)
 - `src/components/vykupy/letter-modal.tsx`
 - `src/components/vykupy/region-manager-modal.tsx`
+
+### Deska (edesky.cz portál) — Phase 80
+- `src/lib/deska/edesky-client.ts` — edesky.cz API klient (XML → fast-xml-parser)
+- `src/lib/deska/classify.ts` — klientská klasifikace kategorií (normalizeText bez diakritiky)
+- `src/db/schema/deska.ts` + `src/db/pg/deska.ts` — `deska_documents` + `deska_watches`
+- `src/db/migrations-pg/0025_deska.sql`
+- `src/app/api/deska/` — 7 route (search, documents, documents/[id], watches, poll, create-property, by-locality)
+- `src/app/(dashboard)/deska/` — page + [id]
+- `src/components/deska/` — category-badge, deska-card, deska-search, watch-manager
+- `scripts/migrate-deska.ts`, `scripts/test-deska-api.ts`, `scripts/verify-deska.ts`
+
+### Insolvence (ISIR rejstřík) — Phase 81
+- `src/lib/isir/types.ts` — typy (IsirEventData, ApartmentData, InsolvencyScore)
+- `src/lib/isir/isir-client.ts` — SOAP klient (getLastPodnetId, getEventData, fetchNewEvents, isApartmentCandidate, cleanXmlNamespaces, extractCourtFromSpis, extractDruhStavRizeni)
+- `src/lib/isir/apartment-parser.ts` — PDF parsing (pdf-parse v2) + regex bytů (dispozice/plocha/adresa/LV/katastr/cena)
+- `src/lib/isir/scorer.ts` — `scoreInsolvencyLead()`
+- `src/db/schema/isir.ts` + `src/db/pg/isir.ts` — `insolvency_events` + `isir_polls`
+- `src/db/migrations-pg/0026_isir.sql`
+- `src/app/api/isir/` — cron, documents, documents/[id], polls
+- `src/app/(dashboard)/isir/` — page + [id]
+- `src/components/isir/` — insolvency-card, score-badge, section-badge
+- `scripts/migrate-isir.ts`, `scripts/test-isir.ts`
 
 ### Market Data
 - `src/lib/scraping/market-price-service.ts` — kaskáda Tier 1-5

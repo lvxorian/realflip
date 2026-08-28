@@ -19,7 +19,6 @@ const sql = neon(url);
   console.log(`deska_watches rows: ${r4[0].n}`);
 
   const r5 = await sql`SELECT indexname FROM pg_indexes WHERE tablename IN ('deska_documents', 'deska_watches') ORDER BY indexname`;
-  console.log(`\nIndexes (${r5.length}):`);
-  for (const r of r5) console.log(`  ${r.indexname}`);
-})();
+  console.log("\nIndexes: " + r5.length);
+  for (const r of r5) console.log("  " + r.indexname);
 })();

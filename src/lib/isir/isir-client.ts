@@ -65,8 +65,8 @@ async function soapRequest(bodyXml: string): Promise<string> {
   throw new Error("ISIR: unreachable");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseSoapBody(xml: string): any {
+function parseSoapBody(xml: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parsed: any = parser.parse(xml);
   const body = parsed?.["soap:Envelope"]?.["soap:Body"];
   if (!body) throw new Error("ISIR: empty SOAP body");
@@ -166,7 +166,10 @@ export function extractDruhStavRizeni(poznamka: string): string | null {
 export function isSectionRelevant(section: string | null): boolean {
   if (!section) return false;
   const s = section.toUpperCase();
-  return s === "B" || s === "D";
+  // Substantive procedural sections: A (úpadek/řízení), B (rozhodnutí),
+  // D (zpeněžení majetku). The high-volume P* sections are oddlužení/
+  // přihlášky ticker entries that add little signal, so they are excluded.
+  return s === "A" || s === "B" || s === "D";
 }
 
 export function isApartmentCandidate(event: IsirEventData): boolean {

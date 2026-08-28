@@ -19,6 +19,7 @@ export interface EdeskyDocument {
   edesky_url: string;
   orig_url: string;
   created_at: string;
+  edesky_text_url?: string;
   attachments: {
     name: string;
     orig_url: string;
@@ -104,6 +105,21 @@ export async function searchAllPages(params: {
   }
 
   return allDocs;
+}
+
+// Fetches the OCR plain-text body that the edesky API exposes via
+// `edesky_text_url` (returned when including texts). Returns null if the
+// document has no text endpoint or the fetch fails.
+export async function fetchDocumentText(textUrl?: string | null): Promise<string | null> {
+  if (!textUrl) return null;
+  try {
+    const res = await fetch(textUrl);
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text && text.trim().length > 0 ? text : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function listDashboards(params?: {

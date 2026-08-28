@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { deskaDocuments } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { fetchDocumentText } from "@/lib/deska/edesky-client";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const doc = await db
+  let doc = await db
     .select()
     .from(deskaDocuments)
     .where(eq(deskaDocuments.id, id))
@@ -25,6 +26,27 @@ export async function GET(
 
   if (!doc) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Lazily pull and cache the OCR text so the detail view can show it.
+  if (!doc.textContent) {
+    let textUrl: string | undefined;
+    try {
+      const raw = JSON.parse(doc.rawData ?? "{}");
+      textUrl = raw.edesky_text_url;
+    } catch {
+      // ignore malformed rawData
+    }
+    if (textUrl) {
+      const text = await fetchDocumentText(textUrl);
+      if (text) {
+        await db
+          .update(deskaDocuments)
+          .set({ textContent: text })
+          .where(eq(deskaDocuments.id, id));
+        doc = { ...doc, textContent: text };
+      }
+    }
   }
 
   // Mark as read

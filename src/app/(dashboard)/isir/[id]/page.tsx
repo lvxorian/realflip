@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowSquareOut, Scales } from "@phosphor-icons/react";
 import { ScoreBadge } from "@/components/isir/score-badge";
 import { SectionBadge } from "@/components/isir/section-badge";
-import { cn, formatDate, formatRelative, safeJsonParse, investmentScoreColor } from "@/lib/utils";
+import { cn, formatDate, safeJsonParse } from "@/lib/utils";
 import type { InsolvencyEvent } from "@/lib/isir/types";
 
 const STATUS_OPTIONS = [
@@ -24,6 +24,9 @@ export default function InsolvencyDetailPage() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [docText, setDocText] = useState("");
+  const [loadingDoc, setLoadingDoc] = useState(false);
+  const [docFetched, setDocFetched] = useState(false);
 
   useEffect(() => {
     fetch(`/api/isir/documents/${id}`)
@@ -32,10 +35,30 @@ export default function InsolvencyDetailPage() {
         setEvent(data);
         setNotes(data.notesUser ?? "");
         setStatus(data.status ?? "new");
+        const ap = safeJsonParse<{ rawText?: string }>(data.apartmentData, {});
+        if (ap.rawText) {
+          setDocText(ap.rawText);
+          setDocFetched(true);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function loadDocument() {
+    if (!event) return;
+    setLoadingDoc(true);
+    setDocFetched(true);
+    try {
+      const res = await fetch(`/api/isir/documents/${event.id}/document`);
+      const data = await res.json();
+      if (data?.text) setDocText(data.text);
+    } catch {
+      // ignore fetch errors
+    } finally {
+      setLoadingDoc(false);
+    }
+  }
 
   async function save() {
     if (!event) return;
@@ -93,7 +116,7 @@ export default function InsolvencyDetailPage() {
     rawText: "",
   });
 
-  const isirUrl = `https://isir.justice.cz/isir/verejle/${event.spisovaZnacka.replace(/\s+/g, "-")}`;
+  const isirUrl = `https://isir.justice.cz/isir/verejne/${event.spisovaZnacka.replace(/\s+/g, "-")}`;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8">
@@ -161,6 +184,11 @@ export default function InsolvencyDetailPage() {
             </span>
           </div>
         </div>
+        {!apartment.address && !apartment.disposition && (
+          <p className="mt-3 text-[11px] text-zinc-600">
+            Z ISIR veřejných dokumentů nelze byt automaticky extrahovat — doplň údaje ručně dle ISIR spisu.
+          </p>
+        )}
       </div>
 
       {/* Proceeding Info */}
@@ -180,7 +208,7 @@ export default function InsolvencyDetailPage() {
             <span className="ml-2 text-zinc-100">{formatDate(event.publishedAt)}</span>
           </div>
           <div>
-            <span className="text-zinc-500">Stav:</span>
+            <span className="text-zinc-500">Stav řízení (ISIR):</span>
             <span className="ml-2 text-zinc-100">{event.notes ?? "—"}</span>
           </div>
         </div>
@@ -196,6 +224,40 @@ export default function InsolvencyDetailPage() {
           </a>
         )}
       </div>
+
+      {/* Document Extrakt */}
+      {event.documentUrl && (
+        <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-300">Dokument (extrakt)</h2>
+            {!docText && !loadingDoc && !docFetched && (
+              <button
+                onClick={loadDocument}
+                className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-700"
+              >
+                Načíst obsah dokumentu
+              </button>
+            )}
+          </div>
+
+          {loadingDoc && <p className="text-xs text-zinc-500">Načítám obsah dokumentu...</p>}
+
+          {!loadingDoc && docText && (
+            <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-800 bg-black/30 p-3 text-xs leading-relaxed text-zinc-300">
+              {docText}
+            </pre>
+          )}
+
+          {!loadingDoc && !docText && docFetched && (
+            <p className="text-xs text-zinc-500">Obsah dokumentu není k dispozici k extrakci.</p>
+          )}
+
+          <p className="mt-3 text-[11px] leading-relaxed text-zinc-600">
+            ISIR vystavuje u dokumentů především potvrzení o doručení a interní referáty. Údaje o bytě
+            (dispozice, adresa, výměra) je nutné dohledat v oddílu B/C/D přímo v ISIRu a doplnit ručně.
+          </p>
+        </div>
+      )}
 
       {/* Notes + Status */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
