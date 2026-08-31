@@ -11,6 +11,10 @@
     {
       "path": "/api/isir/cron",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/ares/cron",
+      "schedule": "0 9 * * *"
     }
   ]
 }

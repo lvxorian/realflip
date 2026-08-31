@@ -19,3 +19,4 @@ export { tasks } from "./tasks";
 export { vykupyLeads, vykupyRegions } from "./vykupy";
 export { deskaDocuments, deskaWatches } from "./deska";
 export { insolvencyEvents, isirPolls } from "./isir";
+export { aresCompanies, aresPolls } from "./ares";

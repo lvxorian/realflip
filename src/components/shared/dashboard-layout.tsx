@@ -31,6 +31,7 @@ import {
   X,
   GridFour,
   ClipboardText,
+  Warning,
   type Icon,
 } from "@phosphor-icons/react";
 
@@ -49,6 +50,7 @@ const navItems = [
   { href: "/vykupy", label: "Výkupy", icon: Gavel },
   { href: "/deska", label: "Deska", icon: ClipboardText },
   { href: "/isir", label: "Insolvence", icon: Scales },
+  { href: "/ares", label: "Likvidace", icon: Warning },
   { href: "/market", label: "Trh", icon: ChartBar },
   { href: "/radar", label: "Radar", icon: ChartLineUp },
   { href: "/alerts", label: "Alerty", icon: Bell },
