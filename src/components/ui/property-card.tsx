@@ -29,7 +29,17 @@ interface PropertyCardProps {
   undervaluationPct?: number;
   isAuction?: boolean;
   removed?: boolean;
+  priceRating?: string;
+  earlyOffer?: boolean;
 }
+
+const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
+  "Velmi dobrá cena": "success",
+  "Dobrá cena": "default",
+  "Férová cena": "default",
+  "Vyšší cena": "warning",
+  "Vysoká cena": "danger",
+};
 
 export function PropertyCard({
   id,
@@ -50,6 +60,8 @@ export function PropertyCard({
   undervaluationPct,
   isAuction = false,
   removed = false,
+  priceRating,
+  earlyOffer = false,
 }: PropertyCardProps) {
   const statusVariant =
     status === "Nový" ? "success" :
@@ -111,6 +123,12 @@ export function PropertyCard({
             )}
             {isUndervalued && (
               <Badge variant="success" size="sm">Podhodnoceno {Math.round(undervaluationPct!)}%</Badge>
+            )}
+            {priceRating && (
+              <Badge variant={RATING_VARIANT[priceRating] ?? "default"} size="sm">{priceRating}</Badge>
+            )}
+            {earlyOffer && (
+              <Badge variant="default" size="sm">Předstih</Badge>
             )}
           </div>
           {hasCarousel && !removed && (

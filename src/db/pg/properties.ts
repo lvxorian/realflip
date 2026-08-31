@@ -35,6 +35,14 @@ export const properties = pgTable("properties", {
   auctionDataJson: text("auction_data_json"),
   /** Sekundární portály, kde je tatáž nemovitost inzerovaná: [{ portalName, url }]. */
   altPortals: jsonb("alt_portals").default([]).notNull(),
+
+  // Realingo integrace (zdroj + cenový rating Valuo + předstih)
+  realingoId: text("realingo_id"),
+  priceRating: text("price_rating"),
+  priceTier: text("price_tier"),
+  priceRatingJson: jsonb("price_rating_json"),
+  isEarlyOffer: integer("is_early_offer").default(0),
+  realingoSyncedAt: bigint("realingo_synced_at", { mode: "number" }),
 });
 
 export const priceHistory = pgTable("price_history", {

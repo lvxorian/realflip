@@ -35,6 +35,14 @@ export const properties = sqliteTable("properties", {
   auctionDataJson: text("auction_data_json"),
   /** Sekundární portály, kde je tatáž nemovitost inzerovaná: JSON [{ portalName, url }]. */
   altPortals: text("alt_portals").default("[]"),
+
+  // Realingo integrace (zdroj + cenový rating Valuo + předstih)
+  realingoId: text("realingo_id"),
+  priceRating: text("price_rating"),
+  priceTier: text("price_tier"),
+  priceRatingJson: text("price_rating_json"),
+  isEarlyOffer: integer("is_early_offer").default(0),
+  realingoSyncedAt: integer("realingo_synced_at"),
 });
 
 export const priceHistory = sqliteTable("price_history", {

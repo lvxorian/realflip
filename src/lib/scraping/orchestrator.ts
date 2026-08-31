@@ -55,6 +55,31 @@ export class ScrapingOrchestrator {
     this.adapters.set(portalName, adapter);
   }
 
+  /**
+   * Zapracuje seznam inzerátů (RawListing[]) přes kompletní saveListing pipeline
+   * (dedup, cenová historie, re-listace, alerty, analýza). Používá se pro
+   * externí zdroje, které nejdou skrz klasické portálové adaptéry — např. Realingo.
+   */
+  async ingestListings(
+    listings: RawListing[],
+    searchId?: string
+  ): Promise<{ total: number; errors: string[] }> {
+    let total = 0;
+    const errors: string[] = [];
+    for (const listing of listings) {
+      if (this.deduplicator.isDuplicate(listing.url, listing.title)) continue;
+      if (!isValidPrice(listing.price)) continue;
+      if (!isSaleListing(listing)) continue;
+      try {
+        const propertyId = await this.saveListing(listing, searchId);
+        if (propertyId) total++;
+      } catch (err) {
+        errors.push(`Failed to save listing ${listing.url}: ${err}`);
+      }
+    }
+    return { total, errors };
+  }
+
   async crawlAll(): Promise<{ total: number; errors: string[] }> {
     const portals = Object.keys(PORTAL_CONFIGS) as PortalName[];
     let total = 0;
@@ -743,6 +768,12 @@ export class ScrapingOrchestrator {
           isActive: 1,
           status: PROPERTY_STATUS.ACTIVE,
           removedAt: null,
+          realingoId: listing.realingoId ?? existing.realingoId ?? null,
+          priceRating: listing.priceRating ?? existing.priceRating ?? null,
+          priceTier: listing.priceTier ?? existing.priceTier ?? null,
+          priceRatingJson: listing.priceRatingJson ?? existing.priceRatingJson ?? null,
+          isEarlyOffer: listing.isEarlyOffer != null ? (listing.isEarlyOffer ? 1 : 0) : (existing.isEarlyOffer ?? 0),
+          realingoSyncedAt: listing.realingoId != null ? ts() : (existing.realingoSyncedAt ?? null),
         })
         .where(eq(properties.id, existing.id));
 
@@ -865,6 +896,12 @@ export class ScrapingOrchestrator {
         firstSeen: listing.publishedAt ? new Date(listing.publishedAt).getTime() : ts(),
         lastSeen: ts(),
         isActive: 1,
+        realingoId: listing.realingoId ?? null,
+        priceRating: listing.priceRating ?? null,
+        priceTier: listing.priceTier ?? null,
+        priceRatingJson: listing.priceRatingJson ?? null,
+        isEarlyOffer: listing.isEarlyOffer ? 1 : 0,
+        realingoSyncedAt: listing.realingoId != null ? ts() : null,
       });
 
       // Initial price record

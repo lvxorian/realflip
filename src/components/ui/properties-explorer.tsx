@@ -46,6 +46,8 @@ export interface PropertyListItem {
   overpricingPct?: number | null;
   marketPriceMin?: number | null;
   marketPriceMax?: number | null;
+  priceRating?: string | null;
+  isEarlyOffer?: boolean;
   isAuction?: boolean;
 }
 
@@ -585,6 +587,8 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     undervaluationPct={p.undervaluationPct ?? undefined}
                     isAuction={p.portalName === "portaldrazeb"}
                     removed={p.removed}
+                    priceRating={p.priceRating ?? undefined}
+                    earlyOffer={p.isEarlyOffer}
                   />
                 ))}
               </motion.div>

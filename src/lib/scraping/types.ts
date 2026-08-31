@@ -14,6 +14,7 @@ export const PortalNameSchema = z.enum([
   "mmreality",
   "realitymat",
   "realitymix",
+  "realingo",
 ]);
 
 export type PortalName = z.infer<typeof PortalNameSchema>;
@@ -146,6 +147,15 @@ export const PORTAL_CONFIGS: Record<PortalName, PortalConfig> = {
     respectRobotsTxt: true,
     requiresJs: false,
   },
+  realingo: {
+    name: "realingo",
+    enabled: false,
+    baseUrl: "https://www.realingo.cz",
+    searchPath: "/graphql",
+    rateLimitMs: 500,
+    respectRobotsTxt: false,
+    requiresJs: false,
+  },
 };
 
 export interface SearchFilters {
@@ -180,6 +190,7 @@ const PORTAL_BASE_URLS: Record<string, string> = {
   "idnes-reality": "https://reality.idnes.cz",
   realitymat: "https://www.realitymat.cz",
   realitymix: "https://www.realitymix.cz",
+  realingo: "https://www.realingo.cz",
 };
 
 export function normalizeImageUrl(url: string | null | undefined, portalName?: string): string {
@@ -312,4 +323,10 @@ export interface RawListing {
   gardenArea?: number | null;
   /** Sklep v m². */
   cellarArea?: number | null;
+  /* Realingo integrace */
+  realingoId?: string | null;
+  priceRating?: string | null;
+  priceTier?: string | null;
+  priceRatingJson?: string | null;
+  isEarlyOffer?: boolean | null;
 }

@@ -63,6 +63,20 @@ export default function SettingsPage() {
   const [portalLoaded, setPortalLoaded] = useState(false);
   const [savingPortal, setSavingPortal] = useState(false);
 
+  const [rlingEnabled, setRlingEnabled] = useState(false);
+  const [rlingAddress, setRlingAddress] = useState("");
+  const [rlingStatuses, setRlingStatuses] = useState("");
+  const [rlingLoaded, setRlingLoaded] = useState(false);
+  const [savingRling, setSavingRling] = useState(false);
+  const [rlingSyncing, setRlingSyncing] = useState(false);
+  const [rlingSyncState, setRlingSyncState] = useState<{
+    lastSyncAt: string | number | null;
+    lastTotal: number | null;
+    lastError: string | null;
+  } | null>(null);
+  const [rlingHasCreds, setRlingHasCreds] = useState(false);
+  const [rlingUser, setRlingUser] = useState<{ email?: string | null; premiumPlan?: string | null } | null>(null);
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
@@ -182,6 +196,84 @@ export default function SettingsPage() {
     setPrefs((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
+  useEffect(() => {
+    if (status !== "authenticated" || activeTab !== "scraping") return;
+    let cancelled = false;
+    fetch("/api/realingo/config")
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled || !d || typeof d !== "object" || d.error) return;
+        const cfg = d.config ?? {};
+        setRlingEnabled(!!cfg.enabled);
+        setRlingAddress(cfg.address ?? "");
+        setRlingStatuses(Array.isArray(cfg.buildingStatuses) ? cfg.buildingStatuses.join(", ") : "");
+        setRlingSyncState(d.syncState ?? null);
+        setRlingHasCreds(!!d.hasCredentials);
+        setRlingUser(d.user ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setRlingLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, activeTab]);
+
+  async function saveRealingo() {
+    setSavingRling(true);
+    try {
+      const res = await fetch("/api/realingo/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enabled: rlingEnabled,
+          address: rlingAddress.trim() || undefined,
+          buildingStatuses: rlingStatuses
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Uložení se nezdařilo");
+        return;
+      }
+      const cfg = data?.config ?? {};
+      setRlingEnabled(!!cfg.enabled);
+      toast.success("Nastavení Realingo uloženo");
+    } catch {
+      toast.error("Chyba sítě");
+    } finally {
+      setSavingRling(false);
+    }
+  }
+
+  async function runRealingoSync() {
+    setRlingSyncing(true);
+    try {
+      const res = await fetch("/api/realingo/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error ?? "Sync Realingo se nezdařil");
+        return;
+      }
+      toast.success(`Sync hotov: ${data.saved ?? 0} nabídek`);
+      const cfgRes = await fetch("/api/realingo/config");
+      const cfgData = await cfgRes.json().catch(() => null);
+      if (cfgData?.syncState) setRlingSyncState(cfgData.syncState);
+    } catch {
+      toast.error("Chyba sítě");
+    } finally {
+      setRlingSyncing(false);
+    }
+  }
+
   if (status !== "authenticated") {
     return (
       <div className="space-y-6">
@@ -290,6 +382,104 @@ export default function SettingsPage() {
                   >
                     Spravovat hledání
                   </Link>
+                </div>
+                <hr className="border-border/50" />
+                <div className="pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold tracking-tight text-sm">Realingo.cz premium</h3>
+                      <p className="text-xs text-muted mt-0.5">
+                        Načítá nabídky přes Realingo GraphQL s cenovým ratingem Valuo a předstihem.
+                      </p>
+                    </div>
+                    {rlingUser?.email ? (
+                      <Badge variant="success">{rlingUser.email}</Badge>
+                    ) : rlingHasCreds ? (
+                      <Badge>Připojeno</Badge>
+                    ) : (
+                      <Badge variant="warning">Chybí přihlašovací údaje</Badge>
+                    )}
+                  </div>
+
+                  {!rlingLoaded ? (
+                    <div className="mt-4 space-y-3">
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4 space-y-3">
+                        <label className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/50 hover:bg-card-hover transition-colors cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={rlingEnabled}
+                            onChange={(e) => setRlingEnabled(e.target.checked)}
+                            className="rounded border-border text-accent focus:ring-accent/20"
+                          />
+                          <span className="text-sm">Aktivní automatická synchronizace</span>
+                        </label>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground/80">Lokalita / adresa</label>
+                          <Input
+                            value={rlingAddress}
+                            onChange={(e) => setRlingAddress(e.target.value)}
+                            placeholder="např. Praha"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground/80">Stav nemovitostí</label>
+                          <Input
+                            value={rlingStatuses}
+                            onChange={(e) => setRlingStatuses(e.target.value)}
+                            placeholder="např. BEFORE_RECONSTRUCTION (čárkou odděleno)"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 mt-4">
+                        <Button onClick={saveRealingo} disabled={savingRling}>
+                          {savingRling ? "Ukládám..." : "Uložit nastavení"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={runRealingoSync}
+                          disabled={rlingSyncing || !rlingHasCreds}
+                        >
+                          {rlingSyncing ? "Synchronizuji..." : "Spustit sync"}
+                        </Button>
+                      </div>
+
+                      {!rlingHasCreds && (
+                        <p className="text-xs text-muted mt-3">
+                          Pro sync je potřeba nastavit <code className="text-accent">REALINGO_EMAIL</code> a{" "}
+                          <code className="text-accent">REALINGO_PASSWORD</code> v environment proměnných.
+                        </p>
+                      )}
+
+                      {rlingSyncState && (
+                        <div className="mt-4 rounded-lg border border-border/50 bg-card-hover/50 px-3 py-2.5 text-xs">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted">
+                            <span>
+                              Poslední sync:{" "}
+                              <span className="text-foreground font-medium">
+                                {rlingSyncState.lastSyncAt
+                                  ? new Date(Number(rlingSyncState.lastSyncAt)).toLocaleString("cs-CZ")
+                                  : "nikdy"}
+                              </span>
+                            </span>
+                            {rlingSyncState.lastTotal != null && (
+                              <span>
+                                Nabídek: <span className="text-foreground font-medium">{rlingSyncState.lastTotal}</span>
+                              </span>
+                            )}
+                          </div>
+                          {rlingSyncState.lastError && (
+                            <p className="text-red-400 mt-1">{rlingSyncState.lastError}</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </>
             )}

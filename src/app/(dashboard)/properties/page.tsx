@@ -80,6 +80,8 @@ export default async function PropertiesPage({
       marketPriceMax: propertyAnalysis.marketPriceMax,
       undervaluationPct: propertyAnalysis.undervaluationPct,
       overpricingPct: propertyAnalysis.overpricingPct,
+      priceRating: properties.priceRating,
+      isEarlyOffer: properties.isEarlyOffer,
     })
     .from(properties)
     .leftJoin(propertyAnalysis, eq(propertyAnalysis.propertyId, properties.id))
@@ -128,6 +130,8 @@ export default async function PropertiesPage({
     overpricingPct: r.overpricingPct,
     marketPriceMin: r.marketPriceMin,
     marketPriceMax: r.marketPriceMax,
+    priceRating: r.priceRating,
+    isEarlyOffer: (r.isEarlyOffer ?? 0) === 1,
     daysOnMarket: r.firstSeen
       ? Math.max(0, Math.floor((now - Number(r.firstSeen)) / 86400000))
       : 0,
