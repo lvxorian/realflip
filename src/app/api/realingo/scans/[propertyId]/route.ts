@@ -28,17 +28,18 @@ function parseJson(value: string | unknown | null, fallback: unknown): unknown {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { propertyId: string } }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { propertyId } = await params;
 
   const scans = await db
     .select()
     .from(realingoScans)
-    .where(eq(realingoScans.propertyId, params.propertyId))
+    .where(eq(realingoScans.propertyId, propertyId))
     .orderBy(desc(realingoScans.createdAt))
     .limit(20);
 
@@ -57,17 +58,18 @@ export async function GET(
 
 export async function POST(
   _req: Request,
-  { params }: { params: { propertyId: string } }
+  { params }: { params: Promise<{ propertyId: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const { propertyId } = await params;
 
   const prop = await db
     .select({ id: properties.id, realingoId: properties.realingoId, title: properties.title })
     .from(properties)
-    .where(eq(properties.id, params.propertyId))
+    .where(eq(properties.id, propertyId))
     .limit(1)
     .then((r) => r[0]);
 
