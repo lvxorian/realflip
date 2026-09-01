@@ -1,39 +1,24 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { runAresPoll } from "@/lib/ares/run-poll";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-// Manual trigger that re-runs the ARES scan on demand, forwarding to the cron
-// handler server-side so the client never sees CRON_SECRET.
+// Manual trigger — runs the ARES scan in-process (same work as the cron)
+// so the client never needs CRON_SECRET and no self-fetch is required.
 export async function POST() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
   try {
-    const res = await fetch(`${baseUrl}/api/ares/cron`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${secret}` },
-      signal: AbortSignal.timeout(120_000),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      return NextResponse.json({ error: `Scan failed: ${res.status} ${text}` }, { status: 502 });
-    }
-
-    const data = await res.json();
-    return NextResponse.json(data);
+    const result = await runAresPoll();
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("ARES manual scan error:", error);
-    return NextResponse.json({ error: "Scan error" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("ARES manual scan error:", msg);
+    return NextResponse.json({ error: `Scan error: ${msg}` }, { status: 500 });
   }
 }
