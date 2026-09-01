@@ -126,6 +126,23 @@ export function extractSlug(url: string): string | null {
 }
 
 /**
+ * Host musí být přesně portaldrazeb.cz nebo jeho subdoména — substring regex
+ * `/[^/]*portaldrazeb\.cz/` by propustil i útočníkův `myportaldrazeb.cz`.
+ */
+export function isPortaldrazebUrl(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  const host = url.hostname.toLowerCase();
+  if (host !== "portaldrazeb.cz" && !host.endsWith(".portaldrazeb.cz")) return false;
+  return /^\/(drazba|detail)\//.test(url.pathname);
+}
+
+/**
  * 1. Stáhne JSON detailu dražby z portaldrazeb.cz.
  */
 export async function fetchAuctionData(url: string): Promise<RawAuctionJson> {

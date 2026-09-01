@@ -52,6 +52,7 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
@@ -113,7 +114,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/settings/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, currentPassword }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -122,6 +123,7 @@ export default function SettingsPage() {
       }
       toast.success("Profil uložen");
       setPassword("");
+      setCurrentPassword("");
       router.refresh();
     } catch {
       toast.error("Chyba sítě");
@@ -341,6 +343,7 @@ export default function SettingsPage() {
                   <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input label="Aktuální heslo (jen při změně)" type="password" placeholder="••••••••" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} helper="Vyplňte, pokud měníte heslo" />
                   <Input label="Nové heslo (volitelné)" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} helper="Minimálně 8 znaků" />
                 </div>
                 <Button size="sm" onClick={saveProfile} loading={savingProfile}>

@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const lead = await db
         .select({ propertyId: leads.propertyId })
         .from(leads)
-        .where(eq(leads.id, id))
+        .where(and(eq(leads.id, id), eq(leads.userId, session.user.id)))
         .limit(1)
         .then((r) => r[0]);
       if (lead?.propertyId) {
@@ -111,6 +111,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         patch.portalExpiresAt = body.portalExpiresAt;
         if (patch.portalReservedAt === undefined) patch.portalReservedAt = Date.now();
       }
+    }
+
+    // IDOR ochrana: lead musí vlastnit přihlášený uživatel (stejný scoping
+    // jako leads/[id] a leads/[id]/events).
+    const owned = await db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(eq(leads.id, id), eq(leads.userId, session.user.id)))
+      .limit(1);
+    if (owned.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     await db.update(leads).set(patch).where(eq(leads.id, id));

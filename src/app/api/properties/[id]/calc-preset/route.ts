@@ -69,6 +69,23 @@ export async function POST(
       .limit(1)
       .then((r) => r[0]);
 
+    // Jedna definice configu pro update i insert — dříve dwie kopie a v obou
+    // chyběly rentalRenovation* klíče, které GET-restore očekává (F-23).
+    const config = JSON.stringify({
+      ...(body.costConfig || {}),
+      flipStrategy: body.flipStrategy ?? "both",
+      rental: body.rental ?? null,
+      renovationMode: body.renovationMode ?? null,
+      renovationLevel: body.renovationLevel ?? null,
+      renovationPerSqm: body.renovationPerSqm ?? null,
+      renovationItems: body.renovationItems ?? null,
+      rentalRenovationMode: body.rentalRenovationMode ?? null,
+      rentalRenovationLevel: body.rentalRenovationLevel ?? null,
+      rentalRenovationPerSqm: body.rentalRenovationPerSqm ?? null,
+      rentalRenovationTotal: body.rentalRenovationTotal ?? null,
+      manualFlipPrice: typeof body.manualFlipPrice === "number" ? body.manualFlipPrice : null,
+    });
+
     if (existing) {
       await db
         .update(calculatorPresets)
@@ -77,7 +94,7 @@ export async function POST(
           renovationCost: body.renovationCost ?? null,
           targetRoi: body.targetRoi ?? 15,
           mode: body.mode === "rental" ? "rental" : "flip",
-          config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null, manualFlipPrice: typeof body.manualFlipPrice === "number" ? body.manualFlipPrice : null }),
+          config,
           updatedAt: now,
         })
         .where(eq(calculatorPresets.id, existing.id));
@@ -90,7 +107,7 @@ export async function POST(
         renovationCost: body.renovationCost ?? null,
         targetRoi: body.targetRoi ?? 15,
         mode: body.mode === "rental" ? "rental" : "flip",
-        config: JSON.stringify({ ...(body.costConfig || {}), flipStrategy: body.flipStrategy ?? "both", rental: body.rental ?? null, renovationMode: body.renovationMode ?? null, renovationLevel: body.renovationLevel ?? null, renovationPerSqm: body.renovationPerSqm ?? null, renovationItems: body.renovationItems ?? null, manualFlipPrice: typeof body.manualFlipPrice === "number" ? body.manualFlipPrice : null }),
+        config,
         createdAt: now,
         updatedAt: now,
       });
@@ -172,6 +189,8 @@ export async function POST(
         marketingPhoto: typeof body.flipMarketingPhoto === "number" ? Math.round(body.flipMarketingPhoto) : null,
         mortgageCost: typeof body.flipMortgageCost === "number" ? Math.round(body.flipMortgageCost) : null,
         sourcingFee: typeof body.flipSourcingFee === "number" ? Math.round(body.flipSourcingFee) : null,
+        sourcingFeeIsPct: typeof body.flipSourcingFeeIsPct === "boolean" ? body.flipSourcingFeeIsPct : null,
+        sourcingFeeRate: typeof body.flipSourcingFeeRate === "number" ? body.flipSourcingFeeRate : null,
         incomeTax: typeof body.flipIncomeTax === "number" ? Math.round(body.flipIncomeTax) : null,
         cooperation: {
           availability:

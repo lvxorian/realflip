@@ -63,8 +63,11 @@ export interface CalcSnapshotFlip {
   marketingPhoto: number | null;
   mortgageCost: number | null;
   sourcingFee: number | null;
+  /** Sourcing fee jako % z kupní ceny? + sazba v % (pro přesný přepočet na jinou cenu). */
+  sourcingFeeIsPct?: boolean | null;
+  sourcingFeeRate?: number | null;
   incomeTax: number | null;
-  /** Způsob spolupráce (flip): čísla pro 50/50 i sourcing fee přímo z kalkulačky. */
+  /** Způsob spoluprce (flip): sla pro 50/50 i sourcing fee pmo z kalkulaky. */
   cooperation?: FlipCooperationSnapshot | null;
 }
 
@@ -304,7 +307,11 @@ export function recalcFlipAtPrice(
     snap.contingency == null ||
     snap.holdingCosts == null
   ) return null;
-  const fee = snap.sourcingFee ?? 0;
+  // pct fee se přepočítává na cílovou cenu (absolutní zůstává fixní) — jinak
+  // by kalkulačka (pct × vyjednaná) a portál (zmrazená absolutní částka) lišily
+  const fee = snap.sourcingFeeIsPct && snap.sourcingFeeRate != null
+    ? Math.round(atPrice * (snap.sourcingFeeRate / 100))
+    : snap.sourcingFee ?? 0;
   const months = snap.holdingMonths ?? 6;
   const fixed =
     snap.legalFees +
@@ -333,7 +340,9 @@ export function recalcFlipAtPrice(
   const netProfitNoFee = noFee.netProfit;
   const investorProfitFiftyFifty = Math.round(netProfitNoFee / 2);
   const investorProfitSourcing = withFee.netProfit;
-  const fundingFiftyFifty = withFee.totalCost - fee;
+  // 50/50 basis = celkové náklady BEZ fee (včetně daně počítané z bez-fee
+  // zisku) — dřív `withFee.totalCost − fee` míchal daňové základny (skew 0,21×fee)
+  const fundingFiftyFifty = noFee.totalCost;
   const fundingSourcing = withFee.totalCost;
   return {
     netProfit: withFee.netProfit,

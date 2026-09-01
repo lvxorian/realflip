@@ -839,8 +839,17 @@ function MobileLeadRow({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Otevřít lead ${lead.propertyTitle ?? ""}`}
       onClick={() => onOpen(lead)}
-      className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 cursor-pointer hover:bg-card-hover active:bg-card-hover transition-colors"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(lead);
+        }
+      }}
+      className="flex items-center gap-3 rounded-xl border border-border/50 bg-card p-3 cursor-pointer hover:bg-card-hover active:bg-card-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
     >
       {lead.propertyImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element

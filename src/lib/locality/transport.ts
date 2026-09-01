@@ -71,7 +71,7 @@ export function transportPricePremium(samples: TransportSample[]): { premiumPct:
 
   const withScore = samples
     .map((s) => ({ ...s, score: transportScore(s.metroDistance, s.trainDistance, s.busDistance) }))
-    .filter((s) => s.score > 0);
+    .filter((s): s is typeof s & { score: number } => s.score != null && s.score > 0);
 
   if (withScore.length < 5) return { premiumPct: null, correlation: null, count: withScore.length };
 
@@ -210,7 +210,12 @@ export async function getTransportDistancesForValuation(input: {
   }
 
   // ---------- 2) Cache segment ----------
-  const segment = quarterId != null ? `transport:dist:quarter:${quarterId}` : "transport:dist:city";
+  // Pozor: segment se POČÍTÁ až po případném fallbacku čtvrť→město (dřív se
+  // fallbackená městská data zapsala pod čtvrťový klíč → další čtení je vydávalo
+  // za čtvrť s bad source/quarterLabel).
+  const segFor = (qid: number | null): string =>
+    qid != null ? `transport:dist:quarter:${qid}` : "transport:dist:city";
+  let segment = segFor(quarterId);
   const row = await db
     .select()
     .from(rents)
@@ -225,9 +230,17 @@ export async function getTransportDistancesForValuation(input: {
         trainDistance: number | null;
         busDistance: number | null;
         sampleSize: number;
+        source?: "quarter" | "city" | null;
+        quarterLabel?: string | null;
       };
       if (parsed && typeof parsed.sampleSize === "number") {
+        // invarianta Phase 38: chybějící data → null, nikdy ne skóre 0
+        // (0 by přes transportMultiplier sebral odhad −6 %)
+        if (parsed.metroDistance == null && parsed.trainDistance == null && parsed.busDistance == null) {
+          return null;
+        }
         const score = transportScore(parsed.metroDistance, parsed.trainDistance, parsed.busDistance);
+        if (score == null) return null;
         const metrics = await getTransportMetrics(cityKey);
         return {
           metroDistance: parsed.metroDistance,
@@ -235,8 +248,8 @@ export async function getTransportDistancesForValuation(input: {
           busDistance: parsed.busDistance,
           score,
           sampleSize: parsed.sampleSize,
-          source,
-          quarterLabel,
+          source: parsed.source ?? source,
+          quarterLabel: parsed.quarterLabel !== undefined ? parsed.quarterLabel : quarterLabel,
           premiumPct: metrics?.premiumPct ?? null,
         };
       }
@@ -261,10 +274,17 @@ export async function getTransportDistancesForValuation(input: {
         distances = cityDist;
         source = "city";
         quarterLabel = null;
+        // městská data patří pod městský segment, ne pod čtvrť (F-11)
+        segment = segFor(null);
       }
     }
     if (!distances) return null;
 
+    const payload = JSON.stringify({
+      ...distances,
+      source,
+      quarterLabel: quarterLabel ?? null,
+    });
     await db
       .insert(rents)
       .values({
@@ -273,20 +293,22 @@ export async function getTransportDistancesForValuation(input: {
         rentPerSqm: null,
         medianRent: null,
         walkability: null,
-        countsJson: JSON.stringify(distances),
+        countsJson: payload,
         sampleSize: distances.sampleSize,
         fetchedAt: ts(),
       })
       .onConflictDoUpdate({
         target: [rents.cityKey, rents.segment],
         set: {
-          countsJson: JSON.stringify(distances),
+          countsJson: payload,
           sampleSize: distances.sampleSize,
           fetchedAt: ts(),
         },
       });
 
     const score = transportScore(distances.metroDistance, distances.trainDistance, distances.busDistance);
+    // ≥3 vzorky, ale žádné POI vzdálenosti → null, ne penalizující nula (F-12)
+    if (score === null) return null;
     const metrics = await getTransportMetrics(cityKey);
     return {
       metroDistance: distances.metroDistance,

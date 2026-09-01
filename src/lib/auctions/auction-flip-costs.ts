@@ -71,7 +71,8 @@ function buildFlipConfig(cfg: AuctionCostConfig) {
   return {
     sellCommission: cfg.sellCommission,
     appraisal: false,
-    sourcingFee: cfg.sourcingFee,
+    // vypnutý sourcing = žádný fee v nákladech (stejný gate jako kalkulačka)
+    sourcingFee: cfg.sourcingEnabled ? cfg.sourcingFee : 0,
     sourcingFeeIsPct: cfg.sourcingFeeIsPct,
     holdingMonths: cfg.holdingMonths,
     hasMortgage: false,

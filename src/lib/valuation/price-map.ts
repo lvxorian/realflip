@@ -12,7 +12,8 @@
  *     Stejný princip jako SSR: veřejné rozhraní stránky, zdarma, bez přihlášení.
  *
  * Cache: market_cache (segment price_map / price_map_district / price_map_municipality)
- * na 7 dní (transakce se aktualizují ~měsíčně) + memory cache.
+ * na 24 h (DB_TTL_MS — regionální cache byla dříve 7 dní, zkrácena kvůli stabilitě
+ * Odhadu, Phase 36) + memory cache.
  */
 
 import { db } from "@/db";
@@ -21,7 +22,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { RateLimiter } from "@/lib/scraping/rate-limiter";
 import { CITY_TO_REGION } from "@/lib/locality/crime";
 import { cityNamesFor } from "@/lib/analysis/location";
-import type { AddressTransaction, PriceMapData, PriceMapRegion, RealizedLevel, RealizedLocality, RegionKey, TrendPoint } from "./types";
+import type { AddressTransaction, PriceMapData, PriceMapRegion, RealizedLocality, TrendPoint } from "./types";
 
 const PAGE_URL = "https://www.sreality.cz/cenova-mapa";
 const API_LIST = "https://www.sreality.cz/api/v1/price_map/list";
@@ -411,27 +412,31 @@ async function fetchDrill(
           numTransactions: it.num_transactions ?? 0,
         }))
         .filter((it) => it.entityId > 0);
-      drillMem.set(`${locality}|${segKey}`, { items, fetchedAt: Date.now() });
-      try {
-        await db
-          .insert(marketCache)
-          .values({
-            city: locality,
-            segment: segKey,
-            low: 0,
-            high: 0,
-            median: 0,
-            sampleSize: items.length,
-            source: "price_map",
-            fetchedAt: Date.now(),
-            payload: JSON.stringify(items),
-          })
-          .onConflictDoUpdate({
-            target: [marketCache.city, marketCache.segment],
-            set: { sampleSize: items.length, source: "price_map", fetchedAt: Date.now(), payload: JSON.stringify(items) },
-          });
-      } catch {
-        // best-effort
+      // prázdný list se NEcachuje (memory ani DB) — jediná špatná odpověď
+      // by zamkla čtvrť/město na regionální úroveň po dobu TTL (regrese F-6)
+      if (items.length > 0) {
+        drillMem.set(`${locality}|${segKey}`, { items, fetchedAt: Date.now() });
+        try {
+          await db
+            .insert(marketCache)
+            .values({
+              city: locality,
+              segment: segKey,
+              low: 0,
+              high: 0,
+              median: 0,
+              sampleSize: items.length,
+              source: "price_map",
+              fetchedAt: Date.now(),
+              payload: JSON.stringify(items),
+            })
+            .onConflictDoUpdate({
+              target: [marketCache.city, marketCache.segment],
+              set: { sampleSize: items.length, source: "price_map", fetchedAt: Date.now(), payload: JSON.stringify(items) },
+            });
+        } catch {
+          // best-effort
+        }
       }
       return items;
     } catch (e) {
@@ -765,12 +770,16 @@ interface EstateApiItem {
   } | null;
 }
 
-/** Převod surových estate položek na naše AddressTransaction + plausibility filtr. */
+/** Převod surových estate položek na naše AddressTransaction + plausibility filtr + dedup. */
 export function parseEstateList(raw: EstateApiItem[]): AddressTransaction[] {
   const out: AddressTransaction[] = [];
+  const seen = new Set<number>();
   for (const e of raw) {
     // transakce bez ID neexistují — 0 by kolidovalo v dedup/identifikaci komparací
     if (!e.transaction_id) continue;
+    // dedup podle transaction_id (stránkování API umí vrátit stejnou transakci znovu)
+    if (seen.has(e.transaction_id)) continue;
+    seen.add(e.transaction_id);
     const loc = e.locality ?? {};
     const lat = typeof loc.gps_lat === "number" ? loc.gps_lat : null;
     const lng = typeof loc.gps_lon === "number" ? loc.gps_lon : null;

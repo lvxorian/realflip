@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, X } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ export function NotificationBell({
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const loadNotifications = async () => {
     try {
@@ -73,7 +75,17 @@ export function NotificationBell({
   }, []);
 
   const markRead = async (id: string) => {
-    await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+    try {
+      const res = await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+      if (!res.ok) {
+        // optimistic UI by jinak lhala — vrátíme skutečný stav ze serveru
+        loadNotifications();
+        return;
+      }
+    } catch {
+      loadNotifications();
+      return;
+    }
     setItems((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -132,7 +144,8 @@ export function NotificationBell({
                     onClick={() => {
                       markRead(item.id);
                       if (item.data?.propertyId) {
-                        window.location.href = `/properties/${item.data.propertyId}`;
+                        // SPA navigace místo window.location.href (full reload zabíjel přechod)
+                        router.push(`/properties/${item.data.propertyId}`);
                       }
                       setOpen(false);
                     }}

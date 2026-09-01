@@ -14,12 +14,21 @@ function parse(req: Request): { regionKey: string; range: string; force: boolean
 }
 
 export async function GET(req: Request) {
-  const { regionKey, range } = parse(req);
-  const report = await getCachedReport(regionKey, range);
-  if (!report) {
-    return NextResponse.json({ error: "Zpráva není k dispozici" }, { status: 404 });
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(report);
+  try {
+    const { regionKey, range } = parse(req);
+    const report = await getCachedReport(regionKey, range);
+    if (!report) {
+      return NextResponse.json({ error: "Zpráva není k dispozici" }, { status: 404 });
+    }
+    return NextResponse.json(report);
+  } catch (e) {
+    console.error("Market report GET error:", e);
+    return NextResponse.json({ error: "Zpráva se nepodařilo načíst" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
@@ -31,10 +40,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
-  const { regionKey, range } = parse(req);
-  const report = await getOrGenerateReport(regionKey, range, true);
-  if (!report) {
-    return NextResponse.json({ error: "Zpráva není k dispozici" }, { status: 404 });
+  try {
+    const { regionKey, range } = parse(req);
+    const report = await getOrGenerateReport(regionKey, range, true);
+    if (!report) {
+      return NextResponse.json({ error: "Zpráva není k dispozici" }, { status: 404 });
+    }
+    return NextResponse.json(report);
+  } catch (e) {
+    console.error("Market report POST error:", e);
+    return NextResponse.json({ error: "Zprávu se nepodařilo vygenerovat" }, { status: 500 });
   }
-  return NextResponse.json(report);
 }

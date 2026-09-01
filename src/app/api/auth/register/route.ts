@@ -8,7 +8,9 @@ import { generateId, ts } from "@/lib/utils";
 
 const registerSchema = z.object({
   name: z.string().min(1, "Jméno je povinné"),
-  email: z.string().email("Neplatný email"),
+  // email normalizovaný na lowercase — jinak `Foo@x` a `foo@x` projdou
+  // case-sensitive unique kontrolou jako dva účty
+  email: z.string().email("Neplatný email").transform((e) => e.trim().toLowerCase()),
   password: z.string().min(8, "Heslo musí mít alespoň 8 znaků"),
 });
 

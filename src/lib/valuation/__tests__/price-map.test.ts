@@ -398,4 +398,13 @@ describe("parseEstateList — pure funkce", () => {
     expect(items.length).toBe(1);
     expect(items[0].housenumber).toBe("2");
   });
+
+  it("dedupuje duplicity transaction_id (stránkování API) — regrese F-7", () => {
+    const items = parseEstateList([
+      { transaction_id: 7, title: "Byt", locality: { gps_lat: 50.08, gps_lon: 14.55, housenumber: "A" } },
+      { transaction_id: 7, title: "Byt", locality: { gps_lat: 50.08, gps_lon: 14.55, housenumber: "A" } },
+      { transaction_id: 8, title: "Byt", locality: { gps_lat: 50.09, gps_lon: 14.56, housenumber: "B" } },
+    ]);
+    expect(items.map((i) => i.transactionId)).toEqual([7, 8]);
+  });
 });

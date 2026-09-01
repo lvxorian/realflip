@@ -40,6 +40,31 @@ describe("calculateRentalResults — base case", () => {
     svjFeeMonthly: 0,
   };
 
+  it("vymazaná doba hypotéky (termYears=0) nezpůsobí Infinity (regrese F-16)", () => {
+    const r = calculateRentalResults(3_000_000, 70, 0, {
+      ...base,
+      hasMortgage: true,
+      mortgageAmount: 2_000_000,
+      mortgageRate: 5,
+      mortgageTermYears: 0,
+    });
+    expect(Number.isFinite(r.mortgageAnnual ?? 0)).toBe(true);
+    expect(Number.isFinite(r.cashFlowMonthly)).toBe(true);
+    expect(Number.isFinite(r.equityMultiple)).toBe(true);
+    expect(r.dscr === null || Number.isFinite(r.dscr)).toBe(true);
+  });
+
+  it("100% financování s nulovými akvizicemi → equityMultiple finite", () => {
+    const r = calculateRentalResults(3_000_000, 70, 0, {
+      ...base,
+      legalFee: 0,
+      hasMortgage: true,
+      mortgageAmount: 3_000_000,
+      mortgageRate: 5,
+    });
+    expect(Number.isFinite(r.equityMultiple)).toBe(true);
+  });
+
   it("computes gross and net yield correctly", () => {
     const r = calculateRentalResults(4_000_000, 70, 0, base);
     // hrubý nájem 294 000 / rok

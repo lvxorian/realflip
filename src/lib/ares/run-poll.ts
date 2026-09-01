@@ -97,6 +97,10 @@ export async function runAresPoll(): Promise<AresPollResult> {
     let liquidations = 0;
     let apartments = 0;
     let lastIndex = startIndex;
+    // Cursor nesmí přeskočit neúspěšně načtené ICO — jinak by se k němu
+    // nikdy nevrátil (trvalá ztráta záznamu). Capneme ho na první selhání,
+    // další běh (cron 1×/den) ho zkusí znovu.
+    let firstFailedIndex: number | null = null;
 
     for (let i = startIndex; i < notifsLen && scanned < MAX_ICOS_PER_RUN; i++) {
       lastIndex = i;
@@ -166,14 +170,21 @@ export async function runAresPoll(): Promise<AresPollResult> {
           }
         } catch (err) {
           console.warn(`[ARES] Failed ICO ${ico}:`, err);
+          // Zaznamenáme první selhání — cursor se neposune dál, aby se k ICO
+          // další běh vrátil (trvalá ztráta otherwise).
+          if (firstFailedIndex === null) firstFailedIndex = i;
         }
         await new Promise((r) => setTimeout(r, SCAN_DELAY_MS));
       }
     }
 
+    // Pokud něco selhalo, mažeme kurzor na poslední ÚSPĚŠNÝ index před první
+    // mezerou; jinak standardně one-past. (Batch se zkontroluje až po vyčerpání.)
+    const effectiveLast = firstFailedIndex === null ? lastIndex : Math.min(lastIndex, firstFailedIndex - 1);
+
     // Cursor now points one past the last processed entry. If we consumed the
     // whole batch, the next run moves to a newer batch automatically.
-    const indexAfter = lastIndex + 1;
+    const indexAfter = effectiveLast + 1;
     const batchDone = indexAfter >= notifsLen;
 
     await markPoll(pollId, {

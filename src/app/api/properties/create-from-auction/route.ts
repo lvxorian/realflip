@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, propertyAnalysis } from "@/db/schema";
+import { properties, propertyAnalysis, priceHistory } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { classifyLocation } from "@/lib/analysis/location";
+import { filterImages } from "@/lib/scraping/types";
 import { calculateAuctionResults } from "@/lib/auctions/auction-flip-costs";
 import type { ParsedAuction } from "@/lib/auctions/parse-auction";
 
@@ -80,7 +81,7 @@ export async function POST(req: Request) {
       lat: null,
       lng: null,
       description: parsed.description ?? null,
-      imageUrls: parsed.imageUrls ?? [],
+      imageUrls: filterImages(parsed.imageUrls ?? [], "portaldrazeb"),
       url,
       contactName: parsed.debtor?.name ?? null,
       contactPhone: null,
@@ -179,6 +180,14 @@ export async function POST(req: Request) {
       lastSeen: now,
       isActive: 1,
       auctionDataJson,
+    });
+
+    // Initial price record — cenový graf v detailu nesmí být prázdný
+    await db.insert(priceHistory).values({
+      id: generateId(),
+      propertyId,
+      price: calc.asIsTmv,
+      recordedAt: now,
     });
 
     const verdictLevel = auctionResults.feasible ? "buy" : "categoricalReject";

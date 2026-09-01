@@ -3,6 +3,8 @@ import {
   formatPrice,
   formatCompactPrice,
   formatAmountInput,
+  parseAmountInput,
+  csDays,
   formatPercent,
   formatDate,
   formatRelative,
@@ -206,6 +208,16 @@ describe("safeJsonParse", () => {
     expect(safeJsonParse(null, "x")).toBe("x");
     expect(safeJsonParse(undefined, "x")).toBe("x");
   });
+
+  it("propustí už-parsený objekt (PG jsonb vrací objekt, ne string)", () => {
+    expect(safeJsonParse({ a: 1 }, {})).toEqual({ a: 1 });
+    expect(safeJsonParse([{ url: "x" }], [])).toEqual([{ url: "x" }]);
+  });
+
+  it("vrátí fallback pro number/bool (nesmyslná hodnota)", () => {
+    expect(safeJsonParse(42, "fb")).toBe("fb");
+    expect(safeJsonParse(true, "fb")).toBe("fb");
+  });
 });
 
 describe("clamp", () => {
@@ -360,5 +372,33 @@ describe("formatAmountInput", () => {
     expect(formatAmountInput("")).toBe("");
     expect(formatAmountInput(null)).toBe("");
     expect(formatAmountInput(undefined)).toBe("");
+  });
+});
+
+describe("parseAmountInput", () => {
+  it("sčítá formátované částky (mezery i NBSP)", () => {
+    expect(parseAmountInput("2 500 000")).toBe(2_500_000);
+    expect(parseAmountInput("2\u00a0500\u00a0000")).toBe(2_500_000);
+    expect(parseAmountInput("2 500 000 Kč")).toBe(2_500_000);
+    expect(parseAmountInput("1000000")).toBe(1_000_000);
+  });
+
+  it("neplatný vstup → fallback", () => {
+    expect(parseAmountInput("")).toBe(0);
+    expect(parseAmountInput("0")).toBe(0);
+    expect(parseAmountInput("abc")).toBe(0);
+    expect(parseAmountInput("abc", 42)).toBe(42);
+    expect(parseAmountInput(null)).toBe(0);
+  });
+});
+
+describe("csDays", () => {
+  it("české tvary den/dny/dní", () => {
+    expect(csDays(0)).toBe("0 dní");
+    expect(csDays(1)).toBe("1 den");
+    expect(csDays(2)).toBe("2 dny");
+    expect(csDays(4)).toBe("4 dny");
+    expect(csDays(5)).toBe("5 dní");
+    expect(csDays(21)).toBe("21 dní");
   });
 });

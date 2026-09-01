@@ -1,25 +1,10 @@
 import { auth } from "@/lib/auth-middleware";
 import { NextResponse } from "next/server";
+import { isPublicPath, isMachinePath, isInvestorPath, isStaticAsset } from "@/lib/proxy-rules";
 
 const INVESTOR_ONLY = process.env.INVESTOR_ONLY === "1";
 const INVESTOR_PORTAL_URL = process.env.NEXT_PUBLIC_INVESTOR_PORTAL_URL?.replace(/\/+$/, "");
 
-function isInvestorPath(pathname: string): boolean {
-  return (
-    pathname === "/investor" ||
-    pathname.startsWith("/investor/") ||
-    pathname.startsWith("/api/investor-portal")
-  );
-}
-function isStaticAsset(pathname: string): boolean {
-  return (
-    pathname === "/favicon.ico" ||
-    pathname.startsWith("/_next/static") ||
-    pathname.startsWith("/_next/image") ||
-    pathname.startsWith("/public/") ||
-    /\.(?:svg|png|jpe?g|gif|webp|avif|ico|txt|xml|json|js|css|map|woff2|woff|ttf|eot)$/i.test(pathname)
-  );
-}
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
@@ -52,9 +37,11 @@ export default auth((req) => {
 
   const isLoggedIn = !!req.auth;
 
-  const publicRoutes = ["/", "/login", "/register", "/api/auth"];
-  const isPublic = publicRoutes.some((r) => pathname.startsWith(r));
+  const isPublic = isPublicPath(pathname);
   const isApiRoute = pathname.startsWith("/api");
+
+  // Cron/akce volané strojem bez cookie — route si ověří svůj secret sama.
+  if (isMachinePath(pathname)) return;
 
   if (isPublic) return;
 

@@ -3,7 +3,7 @@ import { scoreWalkability } from "./score";
 import { db } from "@/db";
 import { rents } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { ts } from "@/lib/utils";
+import { ts, safeJsonParse } from "@/lib/utils";
 
 /**
  * POI / walkability z reálných dat sreality.cz API.
@@ -14,7 +14,6 @@ import { ts } from "@/lib/utils";
 
 const BASE_API = "https://www.sreality.cz/api/v1/estates/search";
 const RESULTS_PER_PAGE = 100;
-const MAX_PAGES = 1;
 
 const HEADERS: Record<string, string> = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -40,15 +39,17 @@ interface SrealityPoiItem {
 
 const NONE = 100000;
 
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
+function median(values: number[]): number | null {
+  // null = žádný vzork (dřív 0 → distanceScore(0)=100 → chybějící kategorie
+  // dostala BEST skóre — inverze)
+  if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 
-/** Vzdálenost (m) → skóre 0-100 (blíž = lépe). */
-function distanceScore(d: number | undefined, noneValue: number, maxDistance: number): number | null {
+/** Vzdálenost (m) → skóre 0-100 (blíž = lépe). Null žádná data. */
+function distanceScore(d: number | null | undefined, noneValue: number, maxDistance: number): number | null {
   if (d == null || d >= NONE) return null;
   return Math.max(0, Math.min(100, Math.round(100 - (d / maxDistance) * 100)));
 }
@@ -88,15 +89,16 @@ function medianDistances(items: SrealityPoiItem[]): TransportPoiDistances {
  */
 export async function fetchTransportPoiDistances(
   cityKey: string,
-  opts: { districtId?: number | null; quarterName?: string | null } = {}
+  opts: { districtId?: number | null; quarterName?: string | null } = {},
+  attempt = 0
 ): Promise<TransportPoiDistances | null> {
   const districtParam = opts.districtId != null ? `&locality_district_id=${opts.districtId}` : "";
   const url = `${BASE_API}?category_main_cb=1&category_type_cb=1&limit=${RESULTS_PER_PAGE}&offset=0${districtParam}`;
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) {
-    if (res.status === 429 || res.status === 403) {
+    if ((res.status === 429 || res.status === 403) && attempt < 2) {
       await new Promise((r) => setTimeout(r, 20000));
-      return fetchTransportPoiDistances(cityKey, opts);
+      return fetchTransportPoiDistances(cityKey, opts, attempt + 1);
     }
     throw new Error(`HTTP ${res.status}: ${url}`);
   }
@@ -118,13 +120,13 @@ export async function fetchTransportPoiDistances(
 }
 
 /** Získá POI vzdálenosti pro dané město (přes sreality search + okres filter). */
-async function fetchSrealityPoi(cityKey: string, districtSeoName?: string): Promise<SrealityPoiItem[]> {
+async function fetchSrealityPoi(cityKey: string, districtSeoName?: string, attempt = 0): Promise<SrealityPoiItem[]> {
   const url = `${BASE_API}?category_main_cb=1&category_type_cb=1&limit=${RESULTS_PER_PAGE}&offset=0`;
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) {
-    if (res.status === 429 || res.status === 403) {
+    if ((res.status === 429 || res.status === 403) && attempt < 2) {
       await new Promise((r) => setTimeout(r, 20000));
-      return fetchSrealityPoi(cityKey, districtSeoName);
+      return fetchSrealityPoi(cityKey, districtSeoName, attempt + 1);
     }
     throw new Error(`HTTP ${res.status}: ${url}`);
   }
@@ -133,12 +135,6 @@ async function fetchSrealityPoi(cityKey: string, districtSeoName?: string): Prom
   return (data?.results ?? []).filter(
     (it: any) => it.locality?.city && normalizeCity(it.locality.city) === cityLower
   );
-}
-
-export async function fetchPoi(_lat: number, _lng: number): Promise<PoiResult> {
-  // POI per souřadnice není přes sreality API přímo — použijeme průměr města.
-  // Tato funkce je volána s cityKey kontextem jinde (getLocalityForProperty).
-  throw new Error("fetchPoi needs cityKey — use fetchPoiForCity");
 }
 
 /** POI walkability pro město z reálných sreality dat. */
@@ -155,7 +151,8 @@ export async function fetchPoiForQuarter(
   quarterId: number,
   cityKey: string,
   districtId?: number | null,
-  quarterName?: string | null
+  quarterName?: string | null,
+  attempt = 0
 ): Promise<PoiResult> {
   // Sreality search nefiltruje spolehlivě podle quarter_id napříč městy — kombinujeme
   // okres (district_id funguje) + filtrujeme názvy čtvrtí v kódu.
@@ -163,9 +160,9 @@ export async function fetchPoiForQuarter(
   const url = `${BASE_API}?category_main_cb=1&category_type_cb=1&limit=${RESULTS_PER_PAGE}&offset=0${districtParam}`;
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) {
-    if (res.status === 429 || res.status === 403) {
+    if ((res.status === 429 || res.status === 403) && attempt < 2) {
       await new Promise((r) => setTimeout(r, 20000));
-      return fetchPoiForQuarter(quarterId, cityKey, districtId, quarterName);
+      return fetchPoiForQuarter(quarterId, cityKey, districtId, quarterName, attempt + 1);
     }
     throw new Error(`HTTP ${res.status}: ${url}`);
   }
@@ -215,9 +212,10 @@ function buildPoiResult(items: SrealityPoiItem[]): PoiResult {
   const dist = (key: keyof SrealityPoiItem): number[] =>
     items.map((i) => i[key] ?? NONE).filter((d) => d < NONE);
 
-  const metro = distanceScore(median(dist("poi_metro_distance")), 100000, 2000);
   const train = distanceScore(median(dist("poi_train_distance")), 100000, 5000);
   const bus = distanceScore(median(dist("poi_bus_public_transport_distance")), 100000, 2000);
+  // metroDistance se do walkability počtu nepřenáší (proxy je mhd/bus) —
+  // medión metra se počítá až ve vlastní dopravni vrstvě (fetchTransportPoiDistances)
   const school = distanceScore(median(dist("poi_school_distance")), 100000, 2000);
   const kindergarten = distanceScore(median(dist("poi_kindergarten_distance")), 100000, 2000);
   const shop = distanceScore(median(dist("poi_shop_distance")), 100000, 3000);
@@ -250,7 +248,10 @@ function emptyCounts(): PoiCounts {
   };
 }
 
-const POI_CACHE_SOURCE = "sreality-poi";
+// Kanonický segment pro městskou POI cache. Čtení i zápis MUSÍ sedět na
+// jednu hodnotu — dřív zápis používal "sreality-poi" a čtení "poi",
+// takže se cache nikdy netrefila a každý request jel živě na sreality.
+const POI_CITY_SEGMENT = "poi";
 
 /** Cache POI walkability v rents tabulce (segment='poi'). */
 export async function getPoiForCityCached(cityKey: string): Promise<{ walkability: number; counts: PoiCounts; sampleSize: number } | null> {
@@ -258,16 +259,12 @@ export async function getPoiForCityCached(cityKey: string): Promise<{ walkabilit
   const row = await db
     .select()
     .from(rents)
-    .where(and(eq(rents.cityKey, cityKey), eq(rents.segment, "poi")))
+    .where(and(eq(rents.cityKey, cityKey), eq(rents.segment, POI_CITY_SEGMENT)))
     .limit(1)
     .then((r) => r[0]);
   if (row && Date.now() - Number(row.fetchedAt) < TTL_MS && row.walkability != null) {
-    try {
-      const counts = JSON.parse(row.countsJson ?? "{}") as PoiCounts;
-      return { walkability: row.walkability ?? 0, counts, sampleSize: row.sampleSize };
-    } catch {
-      // fall through
-    }
+    const counts = safeJsonParse<PoiCounts>(row.countsJson, emptyCounts());
+    return { walkability: row.walkability ?? 0, counts, sampleSize: row.sampleSize };
   }
 
   try {
@@ -277,11 +274,13 @@ export async function getPoiForCityCached(cityKey: string): Promise<{ walkabilit
         .insert(rents)
         .values({
           cityKey,
-          segment: POI_CACHE_SOURCE,
+          segment: POI_CITY_SEGMENT,
           rentPerSqm: null,
           medianRent: null,
           sampleSize: result.sampleSize,
           fetchedAt: ts(),
+          walkability: result.walkability,
+          countsJson: JSON.stringify(result.counts),
         })
         .onConflictDoUpdate({
           target: [rents.cityKey, rents.segment],
@@ -316,12 +315,8 @@ export async function getPoiForQuarterCached(
     .limit(1)
     .then((r) => r[0]);
   if (row && Date.now() - Number(row.fetchedAt) < TTL_MS && row.walkability != null) {
-    try {
-      const counts = JSON.parse(row.countsJson ?? "{}") as PoiCounts;
-      return { walkability: row.walkability ?? 0, counts, sampleSize: row.sampleSize };
-    } catch {
-      // fall through
-    }
+    const counts = safeJsonParse<PoiCounts>(row.countsJson, emptyCounts());
+    return { walkability: row.walkability ?? 0, counts, sampleSize: row.sampleSize };
   }
 
   try {
@@ -336,6 +331,8 @@ export async function getPoiForQuarterCached(
           medianRent: null,
           sampleSize: result.sampleSize,
           fetchedAt: ts(),
+          walkability: result.walkability,
+          countsJson: JSON.stringify(result.counts),
         })
         .onConflictDoUpdate({
           target: [rents.cityKey, rents.segment],

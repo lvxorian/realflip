@@ -1,5 +1,6 @@
 import { PortalAdapter, CrawlStep } from "./base";
 import { RawListing, SearchFilters, filterImages, isValidPrice } from "../types";
+import { inferConditionFromText } from "@/lib/analysis/condition";
 import * as cheerio from "cheerio";
 
 export class HyperinzerceAdapter extends PortalAdapter {
@@ -203,13 +204,10 @@ export class HyperinzerceAdapter extends PortalAdapter {
   }
 
   private inferCondition(text: string): string | null {
-    const t = text.toLowerCase();
-    if (/novostavba|nov[ýe]/.test(t) && !/(po|k)\s*rekonstrukci/.test(t)) return "new";
-    if (/po\s*rekonstrukci|zrekonstruovan[ýy]/.test(t)) return "renovated";
-    if (/velmi\s*dobr[ýy]\s*stav|udržovan[ýy]/.test(t)) return "good";
-    if (/k\s*rekonstrukci|původn[íi]|špatn[ýy]\s*stav/.test(t)) return "project";
-    if (/dobr[ýy]\s*stav/.test(t)) return "good";
-    return null;
+    // "project" byl past: je vyloučen ze needs-renov segmentace i ARV
+    // dvojího průchodu → podhadnocené ARV. Sdílený klasifikátor mapuje
+    // správně (k rekonstrukci → original, dezolátní → dilapidated).
+    return inferConditionFromText(text);
   }
 
   extractContact(_html: string): { phone: string | null; name: string | null; email: string | null } {

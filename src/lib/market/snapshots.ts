@@ -7,14 +7,12 @@
  *  - lastValue: poslední hodnota řady (KPI)
  */
 
-import { dateToPeriod, rangeMonths } from "./radar-shared";
+import { rangeMonths, periodMonthsAgo } from "./radar-shared";
 import type { SeriesPoint } from "./radar-store";
 
 /** První perioda (YYYY-MM) zahrnutá v rozsahu (lexikografické porovnání funguje). */
 function cutoffPeriod(range: string): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - (rangeMonths(range) - 1));
-  return dateToPeriod(d);
+  return periodMonthsAgo(new Date(), rangeMonths(range) - 1);
 }
 
 export interface YieldGapPoint {

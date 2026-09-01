@@ -49,7 +49,7 @@ function calculateRawROI(
 ): number {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const c = COST_CONSTANTS;
-  const months = cfg.holdingMonths ?? c.holdingPeriodMonths;
+  const months = cfg.holdingMonths || c.holdingPeriodMonths;
   const contingency = Math.round(renovationCost * c.contingencyRate);
   const legalFees = c.legalFees;
   const appraisalFee = cfg.appraisal ? c.appraisalFee : 0;
@@ -97,7 +97,7 @@ export function calculateFlipCosts(
 ): DetailedCosts {
   const cfg = { ...DEFAULT_CONFIG, ...config };
   const c = COST_CONSTANTS;
-  const months = cfg.holdingMonths ?? c.holdingPeriodMonths;
+  const months = cfg.holdingMonths || c.holdingPeriodMonths;
   const contingency = Math.round(renovationCost * c.contingencyRate);
   const legalFees = c.legalFees;
   const appraisalFee = cfg.appraisal ? c.appraisalFee : 0;
@@ -142,7 +142,7 @@ export function calculateFlipResults(
   const netProfit = arv - costs.totalCost;
   const roi = costs.totalCost > 0 ? (netProfit / costs.totalCost) * 100 : 0;
   const cfg = { ...DEFAULT_CONFIG, ...config };
-  const months = cfg.holdingMonths ?? COST_CONSTANTS.holdingPeriodMonths;
+  const months = cfg.holdingMonths || COST_CONSTANTS.holdingPeriodMonths;
   const annualizedRoi = (roi / months) * 12;
 
   const targetPrice = calculateTargetPurchasePrice(arv, renovationCost, area, targetROI, config);
@@ -168,7 +168,7 @@ export function calculateFlipResults(
 export function calculateItemizedRenovation(area: number, condition: string | null): RenovationItem[] {
   const needsFull = condition === "original" || condition === "dilapidated";
   const needsMedium = condition === "good" || !condition;
-  const needsLight = condition === "new" || condition === "renovated";
+  // (novostavba/po rekonstrukci = light větev ternárních níže)
 
   const items: RenovationItem[] = [];
   items.push({ category: "Bourání a přípravné práce", estimatedCost: Math.round(area * (needsFull ? 600 : 300)), note: needsFull ? "Plné bourání" : "Částečné úpravy" });

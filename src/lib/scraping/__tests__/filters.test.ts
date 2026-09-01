@@ -52,6 +52,16 @@ describe("detectPropertyType", () => {
     expect(detectPropertyType("Prodej 2+kk, Liberec")).toBe("flat");
   });
 
+  it("byt má precedenci i s domem/zahradou/garáží v textu (regrese P2-11)", () => {
+    expect(detectPropertyType("Prodej bytu 3+1 v rodinném domě, Praha")).toBe("flat");
+    expect(detectPropertyType("Prodej bytu 2+kk se zahradou, Brno")).toBe("flat");
+    expect(detectPropertyType("Prodej bytu 1+kk s garáží, Plzeň")).toBe("flat");
+    // URL s /byt/ má přednost i proti matoucímu titulku
+    expect(
+      detectPropertyType("Rekonstruovaný dům", "https://www.sreality.cz/detail/prodej/byt/3+1/praha/999")
+    ).toBe("flat");
+  });
+
   it("vrátí null bez textu", () => {
     expect(detectPropertyType(null)).toBeNull();
     expect(detectPropertyType("")).toBeNull();

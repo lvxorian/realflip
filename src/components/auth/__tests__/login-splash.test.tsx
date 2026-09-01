@@ -47,6 +47,29 @@ describe("LoginSplash", () => {
     expect(onPlayedOnce).toHaveBeenCalledTimes(1);
   });
 
+  it("onError neprojde dvakrát po timeupdate (sdílený guarded report)", () => {
+    const onPlayedOnce = vi.fn();
+    render(<LoginSplash show onPlayedOnce={onPlayedOnce} />);
+
+    const video = document.querySelector("video")!;
+    Object.defineProperty(video, "duration", { value: 10 });
+    Object.defineProperty(video, "currentTime", { value: 9.9 });
+    fireEvent.timeUpdate(video); // video domontovalo → hlášeno
+    fireEvent.error(video); // chyba těsně nato → už nesmí zavolat podruhé
+
+    expect(onPlayedOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("onError bez přehraného videa ohlásí průchod sám (fallback při chybě src)", () => {
+    const onPlayedOnce = vi.fn();
+    render(<LoginSplash show onPlayedOnce={onPlayedOnce} />);
+
+    const video = document.querySelector("video")!;
+    fireEvent.error(video);
+
+    expect(onPlayedOnce).toHaveBeenCalledTimes(1);
+  });
+
   it("nic nezobrazí, když je show=false", () => {
     render(<LoginSplash show={false} />);
 

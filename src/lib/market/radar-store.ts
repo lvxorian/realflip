@@ -5,7 +5,7 @@
 import { db } from "@/db";
 import { radarSeries } from "@/db/schema";
 import { sql } from "drizzle-orm";
-import { regionTypeOf } from "./radar-shared";
+import { regionTypeOf, periodMonthsAgo } from "./radar-shared";
 
 /** Jeden bod řady: [period "YYYY-MM", value]. */
 export type SeriesPoint = [string, number];
@@ -19,9 +19,7 @@ const WRITE_WINDOW_MONTHS = 60;
 
 /** Cutoff perioda (YYYY-MM) — body starší než tohle se při upsertu přeskočí. */
 export function radarWriteCutoff(now = new Date()): string {
-  const d = new Date(now);
-  d.setMonth(d.getMonth() - (WRITE_WINDOW_MONTHS - 1));
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return periodMonthsAgo(now, WRITE_WINDOW_MONTHS - 1);
 }
 
 /**

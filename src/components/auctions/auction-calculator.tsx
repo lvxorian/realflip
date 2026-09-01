@@ -133,10 +133,20 @@ interface AuctionCalculatorProps {
 
 export function AuctionCalculator({ data }: AuctionCalculatorProps) {
   const router = useRouter();
-  const [form, setForm] = useState<AuctionForm>(loadSavedForm);
+  // useState(loadSavedForm) = čtení localStorage v prvním renderu → server HTML
+  // (DEFAULT_FORM) liší od hydratace (saved) → React 19 mismatch na každém
+  // kontrolovaném poli. Vzor property-report: tvrdnout default a načíst až v efektu.
+  const [form, setForm] = useState<AuctionForm>(DEFAULT_FORM);
+  const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Načtení uloženého formuláře po hydrataci (před data efektem i autosavem)
+  useEffect(() => {
+    setForm(loadSavedForm());
+    setHydrated(true);
+  }, []);
 
   // Nová analýza z 1-Click DD vyplní formulář
   useEffect(() => {
@@ -154,10 +164,11 @@ export function AuctionCalculator({ data }: AuctionCalculatorProps) {
     }));
   }, [data]);
 
-  // Autosave do localStorage
+  // Autosave do localStorage (až po hydrataci, jinak přepíše uložený stav defaultem)
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
-  }, [form]);
+  }, [form, hydrated]);
 
   function update<K extends keyof AuctionForm>(key: K, value: AuctionForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));

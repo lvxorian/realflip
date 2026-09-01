@@ -15,6 +15,11 @@ export default function EditSearchPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  // router.push během renderu je v React 19 anti-pattern → posunuto do efektu
+  useEffect(() => {
+    if (notFound || (!loading && !initial)) router.replace("/searches");
+  }, [notFound, loading, initial, router]);
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
@@ -61,7 +66,7 @@ export default function EditSearchPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         <Skeleton className="h-8 w-48 rounded-lg" />
         <Skeleton className="h-64 rounded-2xl" />
         <Skeleton className="h-40 rounded-2xl" />
@@ -69,10 +74,7 @@ export default function EditSearchPage() {
     );
   }
 
-  if (notFound || !initial) {
-    router.push("/searches");
-    return null;
-  }
+  if (loading || notFound || !initial) return null;
 
   return (
     <div className="max-w-2xl mx-auto">

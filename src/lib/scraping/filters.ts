@@ -57,6 +57,14 @@ export function isCzechListing(
 }
 
 const PROPERTY_TYPE_PATTERNS: { type: string; patterns: RegExp[] }[] = [
+  // FLAT má přednost před house/land/garage (stejné rozhodnutí jako inferType
+  // v Odhadu, Phase 48): „Prodej bytu 3+1 v rodinném domě…", „byt se zahradou",
+  // „byt s garáží" jsou byty — dříve je house/land/garage regex strhly na sebe
+  // a saved-search s filtrem „byty" je tiše zahazoval.
+  {
+    type: "flat",
+    patterns: [/bytu\b/i, /byty\b/i, /byt\b/i, /garsonk/i, /bytov[áé]? jednotk/i, /mezon[eu]/i],
+  },
   {
     type: "garage",
     patterns: [/gar[áa]ž/i, /garage/i, /parkovac[íi] st[áa]n[ií]/i],
@@ -89,10 +97,6 @@ const PROPERTY_TYPE_PATTERNS: { type: string; patterns: RegExp[] }[] = [
       /hotel/i,
       /kav[áa]rn/i,
     ],
-  },
-  {
-    type: "flat",
-    patterns: [/bytu\b/i, /byty\b/i, /byt\b/i, /garsonk/i, /bytov[áé]? jednotk/i],
   },
 ];
 

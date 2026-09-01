@@ -62,26 +62,57 @@ function fmtPrice(v: number) {
   return `${v.toLocaleString()} Kč`;
 }
 
+interface ReportPreset {
+  arv: number;
+  renovationCost: number;
+  targetRoi: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  costConfig: any;
+  mode?: string;
+  rental?: Partial<RentalConfig>;
+  rentalRenovationMode?: "preset" | "perSqm" | "total";
+  rentalRenovationLevel?: "light" | "medium" | "full";
+  rentalRenovationPerSqm?: number;
+  rentalRenovationTotal?: number;
+  manualFlipPrice?: number | null;
+}
+
+// Dva tvary pod stejným localStorage klíčem: klientský (costConfig/rental
+// nahoře) a GET-response z calc-preset API (vše v .config). Normalizace
+// sjednotí obojí — jinak PDF po návštěvě kalkulačky četl undefined a
+// tiše fallbacknul na výchozí náklady (regrese F-24).
+function normalizePreset(raw: unknown): ReportPreset | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  if (r.costConfig || r.rental || r.rentalRenovationMode) return r as unknown as ReportPreset;
+  if (r.config && typeof r.config === "object") {
+    const cfg = r.config as Record<string, unknown>;
+    return {
+      arv: r.arv as number,
+      renovationCost: r.renovationCost as number,
+      targetRoi: r.targetRoi as number,
+      mode: r.mode as string | undefined,
+      costConfig: cfg,
+      rental: (cfg.rental as Partial<RentalConfig> | undefined) ?? undefined,
+      rentalRenovationMode: (cfg.rentalRenovationMode as ReportPreset["rentalRenovationMode"]) ?? undefined,
+      rentalRenovationLevel: (cfg.rentalRenovationLevel as ReportPreset["rentalRenovationLevel"]) ?? undefined,
+      rentalRenovationPerSqm: (cfg.rentalRenovationPerSqm as number | undefined) ?? undefined,
+      rentalRenovationTotal: (cfg.rentalRenovationTotal as number | undefined) ?? undefined,
+      manualFlipPrice: typeof cfg.manualFlipPrice === "number" ? cfg.manualFlipPrice : null,
+    };
+  }
+  return r as unknown as ReportPreset;
+}
+
 export default function PropertyReport({ property, analysis, priceHistory }: { property: PropertyData; analysis: AnalysisData | null; priceHistory: { price: number; recordedAt: number }[] }) {
   const area = property.area ?? 70;
 
-  const [stored, setStored] = useState<{
-    arv: number;
-    renovationCost: number;
-    targetRoi: number;
-    costConfig: any;
-    mode?: string;
-    rental?: Partial<RentalConfig>;
-    rentalRenovationMode?: "preset" | "perSqm" | "total";
-    rentalRenovationLevel?: "light" | "medium" | "full";
-    rentalRenovationPerSqm?: number;
-    rentalRenovationTotal?: number;
-  } | null>(null);
+  const [stored, setStored] = useState<ReportPreset | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(`report-config-${property.id}`);
-      if (raw) { setStored(JSON.parse(raw)); return; }
+      if (raw) { setStored(normalizePreset(JSON.parse(raw))); return; }
     } catch {}
 
     // Fallback: load from calc-preset API
@@ -89,8 +120,7 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
       .then((r) => r.json())
       .then((data) => {
         if (data?.preset) {
-          setStored(data.preset);
-          try { localStorage.setItem(`report-config-${property.id}`, JSON.stringify(data.preset)); } catch {}
+          setStored(normalizePreset(data.preset));
         }
       })
       .catch(() => {});
@@ -110,12 +140,15 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
   }, [property.price, arvValue, renoCost, area, targetRoi, costConfig]);
 
   // ===== TARGET: calculation at negotiated price with sourcing fee =====
+  // manualFlipPrice (Phase 62) = uživatel zadal přesnou kupní cenu — PDF pak
+  // liší od kalkulačky/Brickonu, pokud by se dál počítal z ROI-plánované ceny
+  const manualFlipPrice = stored?.manualFlipPrice ?? null;
   const targetResults = useMemo(() => {
-    const targetPrice = originalResults.targetPurchasePrice;
+    const targetPrice = manualFlipPrice && manualFlipPrice > 0 ? manualFlipPrice : originalResults.targetPurchasePrice;
     if (targetPrice <= 0) return null;
     const adjusted = { ...costConfig, sourcingFee: costConfig.sourcingEnabled ? costConfig.sourcingFee : 0 };
     return calculateFlipResults(targetPrice, arvValue, renoCost, area, targetRoi, adjusted);
-  }, [originalResults.targetPurchasePrice, arvValue, renoCost, area, targetRoi, costConfig]);
+  }, [originalResults.targetPurchasePrice, manualFlipPrice, arvValue, renoCost, area, targetRoi, costConfig]);
 
   const t = targetResults;
 
@@ -132,9 +165,10 @@ export default function PropertyReport({ property, analysis, priceHistory }: { p
     return Math.min(100, Math.round(roiPoints + scorePoints + arvBonus));
   }, [t, score, targetRoi, arvValue, property.price]);
 
+  const redFlagsJson = analysis?.redFlagsJson;
   const redFlags = useMemo(() => {
-    try { return JSON.parse(analysis?.redFlagsJson ?? "[]") as { type: string; text: string; severity: string }[]; } catch { return []; }
-  }, [analysis?.redFlagsJson]);
+    try { return JSON.parse(redFlagsJson ?? "[]") as { type: string; text: string; severity: string }[]; } catch { return []; }
+  }, [redFlagsJson]);
 
   const rentalMode = stored?.mode === "rental";
 

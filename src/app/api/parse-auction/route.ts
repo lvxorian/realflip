@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { parseAuction } from "@/lib/auctions/parse-auction";
+import { auth } from "@/lib/auth";
+import { parseAuction, isPortaldrazebUrl } from "@/lib/auctions/parse-auction";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -16,6 +17,11 @@ interface ParseAuctionRequest {
  * Pipeline: JSON API detailu → PDF dokumenty (fallback při selhání) → LLM extrakce.
  */
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: ParseAuctionRequest;
   try {
     body = await req.json();
@@ -27,7 +33,7 @@ export async function POST(req: Request) {
   if (!url) {
     return NextResponse.json({ error: "Vložte odkaz na dražbu" }, { status: 400 });
   }
-  if (!/^https?:\/\/[^/]*portaldrazeb\.cz\/(drazba|detail)\//i.test(url)) {
+  if (!isPortaldrazebUrl(url)) {
     return NextResponse.json(
       { error: "Vložte platný odkaz z portaldrazeb.cz (https://www.portaldrazeb.cz/drazba/...)" },
       { status: 400 }

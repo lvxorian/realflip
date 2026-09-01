@@ -51,10 +51,14 @@ const labelClass = "text-xs text-muted block mb-1";
 const inputClass =
   "w-full h-10 rounded-lg border border-border/50 bg-card px-3 text-sm focus:outline-none focus:border-accent/50 transition-colors";
 
-/** Česky formátovaná cena (mezery, Kč) → číslo; neplatné = null. */
+/** Česky formátovaná cena (mezery, NNBSP, Kč, tečky i čárky) → číslo. */
 function parsePriceInput(value: string): number | null {
-  const cleaned = value.replace(/\s+/g, "").replace(/Kč/gi, "");
-  const n = parseInt(cleaned, 10);
+  let s = value.replace(/[Kk][Čč]/g, "").replace(/[^\d.,]/g, "");
+  // tečka mezi trojicemi číslic = oddělovač tisíců („1.234.567"), ne desetinná
+  s = s.replace(/\.(?=\d{3}(\D|$))/g, "");
+  // závěrečná čárka/tečka s 1–2 číslicemi = desetinná oddělovačka („1234,50")
+  s = s.replace(/,(?=\d{1,2}$)/, ".");
+  const n = Number.parseFloat(s);
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 

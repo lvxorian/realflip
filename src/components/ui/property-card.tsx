@@ -8,6 +8,7 @@ import { PriceTag } from "./price-tag";
 import { Badge } from "./badge";
 import { FavoriteButton } from "./favorite-button";
 import { PropertyImage } from "./property-image";
+import { csDays } from "@/lib/utils";
 import { MapPin, Images, CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 interface PropertyCardProps {
@@ -186,7 +187,7 @@ export function PropertyCard({
                 </span>
               )}
             </div>
-            {days !== undefined && <span className="shrink-0 text-[10px] text-muted">{days} dní</span>}
+            {days !== undefined && <span className="shrink-0 text-[10px] text-muted">{csDays(days)}</span>}
           </div>
 
           <div className="mt-auto">

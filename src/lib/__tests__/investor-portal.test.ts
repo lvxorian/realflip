@@ -211,6 +211,35 @@ describe("recalcFlipAtPrice", () => {
     const legacy = { mode: "flip", purchasePriceUsed: 5_655_000, arv: 13_700_000, totalCost: 6_000_000 } as CalcSnapshotFlip;
     expect(recalcFlipAtPrice(legacy, 5_600_000)).toBeNull();
   });
+
+  it("pct fee se přepočítá na cílovou cenu (regrese F-28)", () => {
+    // 5% fee: zmrazená absolutní hodnota z staré ceny by byla 129 820;
+    // na 2 500 000 má fee být 125 000
+    const pctSnap: CalcSnapshotFlip = {
+      ...snap,
+      sourcingFee: Math.round(2_596_400 * 0.05),
+      sourcingFeeIsPct: true,
+      sourcingFeeRate: 5,
+    };
+    const recalc = recalcFlipAtPrice(pctSnap, 2_500_000);
+    expect(recalc).not.toBeNull();
+    // subTotal = 2 500 000 + fixed(924 400) + fee(125 000) = 3 549 400
+    const fixed = snap.legalFees! + snap.renovationCost! + snap.contingency! + snap.holdingCosts! + snap.marketingPhoto!;
+    const gross = snap.arv! - (2_500_000 + fixed + 125_000);
+    const tax = Math.round(gross * 0.21);
+    expect(recalc!.totalCost).toBe(2_500_000 + fixed + 125_000 + tax);
+  });
+
+  it("50/50 basis používá noFee.totalCost (konzistentní daňový základ, F-28ii)", () => {
+    const feeSnap: CalcSnapshotFlip = { ...snap, sourcingFee: 100_000 };
+    const recalc = recalcFlipAtPrice(feeSnap, 2_500_000)!;
+    // fundingFiftyFifty = náklady bez fee s daní z bez-fee zisku
+    const fixed = snap.legalFees! + snap.renovationCost! + snap.contingency! + snap.holdingCosts! + snap.marketingPhoto!;
+    const noFeeGross = snap.arv! - (2_500_000 + fixed);
+    const noFeeTotal = 2_500_000 + fixed + Math.round(noFeeGross * 0.21);
+    expect(recalc.fundingFiftyFifty).toBe(noFeeTotal);
+    expect(recalc.fundingSourcing).toBeGreaterThan(noFeeTotal);
+  });
 });
 
 describe("toPortalView", () => {

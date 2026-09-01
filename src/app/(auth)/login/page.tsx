@@ -63,11 +63,21 @@ function LoginForm() {
     signInOk.current = false;
     setSplash(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    let result: { error?: string | null } | null | undefined;
+    try {
+      result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+    } catch {
+      // síťová chyba signInu — bez catchu by splash zůstal navěky (žádná větev
+      // ani pojistný timer se nearmoval)
+      setSplash(false);
+      setLoading(false);
+      setError("Přihlášení se nezdařilo. Zkontrolujte připojení a zkuste znovu.");
+      return;
+    }
 
     if (result?.error) {
       setSplash(false);
@@ -78,10 +88,14 @@ function LoginForm() {
       // Když video už dohrálo (pomalý login), jdeme hned; jinak počkáme na onEnded.
       maybeNavigate();
       // Pojistka: kdyby video nehrálo (blokovaný autoplay, chyba), nečekáme věčně.
-      navigateTimer.current = setTimeout(() => {
-        videoEnded.current = true;
-        maybeNavigate();
-      }, MAX_SPLASH_MS);
+      // Druhou timer nesmí přepsat první — jinak by zůstal neřízený (dvě navigace).
+      if (!videoEnded.current && navigateTimer.current == null) {
+        navigateTimer.current = setTimeout(() => {
+          videoEnded.current = true;
+          navigateTimer.current = null;
+          maybeNavigate();
+        }, MAX_SPLASH_MS);
+      }
     }
   }
 

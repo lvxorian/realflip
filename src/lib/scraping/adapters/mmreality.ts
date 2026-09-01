@@ -77,7 +77,12 @@ export class MmrealityAdapter extends PortalAdapter {
 
     const cards = $("div.rds-property-list-grid > a").toArray();
 
-    cards.forEach((el, i) => {
+    // offer se páruje podle data-card-id ↔ offer.id (případně slug v href),
+    // NE podle indexu — vynechaná karta (prázdný titulek/cena) by posunula
+    // GPS/adresu/dispozici všech následujících inzerátů o jednu příčku
+    const offerById = new Map(offers.map((o) => [String(o.id), o]));
+
+    cards.forEach((el) => {
       const $el = $(el);
       const href = $el.attr("href") || "";
       const cardId = $el.attr("data-card-id") || "";
@@ -98,7 +103,11 @@ export class MmrealityAdapter extends PortalAdapter {
       });
       const filteredImages = filterImages(images, this.config.name);
 
-      const offer = offers[i];
+      // match podle cardId, jinak offer, jehož slug je součástí href;
+      // žádný → jen HTML data (bez GPS/adresy z cizího inzerátu)
+      const offer =
+        (cardId ? offerById.get(cardId) : undefined) ??
+        (href ? offers.find((o) => o.slug && href.includes(o.slug)) : undefined);
 
       const rooms = this.extractRooms(offer?.type?.name || title);
       const area = offer?.totalArea || this.extractArea(title) || 0;

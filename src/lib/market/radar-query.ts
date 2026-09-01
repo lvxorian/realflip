@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { localityMetrics, properties, propertyAnalysis, rents, radarSeries } from "@/db/schema";
 import { fetchPriceMap } from "@/lib/valuation/price-map";
-import { KRAJ_KEYS, rangeMonths } from "./radar-shared";
+import { KRAJ_KEYS, rangeMonths, periodMonthsAgo } from "./radar-shared";
 import type { SeriesPoint } from "./radar-store";
 import { cpiVsRealWages, lastValue, supplyVsPopulation, yieldGap } from "./snapshots";
 
@@ -23,9 +23,7 @@ const IND = {
 
 /** Perioda (YYYY-MM) před `months` měsíci — cutoff pro načítání řad. */
 function cutoff(months: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - (months - 1));
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return periodMonthsAgo(new Date(), months - 1);
 }
 
 /** Načte řadu z radar_series (posledních `months` měsíců, seřazeně). */
@@ -166,8 +164,14 @@ interface ListingSnapshot {
 /**
  * Jeden scan vlastních inzerátů (properties LEFT JOIN propertyAnalysis) sdílený
  * mezi `getListingFlow` a `getCityHeatmap` — dřív se tabulka projížděla 2×.
+ * In-flight dedup: souběžní volání z `getRadarData` Promise.all čekají na tutéž
+ * promise (jedna SQL), krátký TTL memo pak pokrývá i krátkodobá opakování.
  */
-async function loadListingSnapshot(): Promise<ListingSnapshot[]> {
+let snapshotInFlight: Promise<ListingSnapshot[]> | null = null;
+let snapshotMemo: { rows: ListingSnapshot[]; at: number } | null = null;
+const SNAPSHOT_TTL_MS = 60_000;
+
+async function queryListingSnapshot(): Promise<ListingSnapshot[]> {
   const rows = await db
     .select({
       firstSeen: properties.firstSeen,
@@ -180,6 +184,23 @@ async function loadListingSnapshot(): Promise<ListingSnapshot[]> {
     .from(properties)
     .leftJoin(propertyAnalysis, eq(properties.id, propertyAnalysis.propertyId));
   return rows as ListingSnapshot[];
+}
+
+function loadListingSnapshot(): Promise<ListingSnapshot[]> {
+  if (snapshotMemo && Date.now() - snapshotMemo.at < SNAPSHOT_TTL_MS) {
+    return Promise.resolve(snapshotMemo.rows);
+  }
+  if (!snapshotInFlight) {
+    snapshotInFlight = queryListingSnapshot()
+      .then((rows) => {
+        snapshotMemo = { rows, at: Date.now() };
+        return rows;
+      })
+      .finally(() => {
+        snapshotInFlight = null;
+      });
+  }
+  return snapshotInFlight;
 }
 
 /** Nové vs stažené inzeráty z vlastní databáze (posledních `months` měsíců). */

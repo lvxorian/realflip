@@ -62,7 +62,8 @@ export class AnnonceAdapter extends PortalAdapter {
         if (label.includes("dispozice")) {
           rooms = $tr.find("td a").first().text().trim() || null;
         } else if (label.includes("plocha")) {
-          area = parseFloat(value) || null;
+          // česká desetinná čárka: „62,99 m²" — parseFloat by z ní byl 62
+          area = parseFloat(value.replace(",", ".").replace(/[^\d.]/g, "")) || null;
         } else if (label.includes("podlaží") || label.includes("podlazi")) {
           floor = parseInt(value) || null;
         }

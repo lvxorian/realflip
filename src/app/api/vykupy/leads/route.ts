@@ -2,14 +2,18 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { vykupyLeads } from "@/db/schema";
-import { eq, and, or, like, desc, sql } from "drizzle-orm";
+import { type SQL, eq, and, or, like, desc, sql } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
+import { digestEquals } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
+// Fail-closed: bez nastaveného tokenu neprojde nic (dřív nechal POST projít
+// bez hlavičky, když VYKUPY_API_TOKEN není nastavené — undefined === undefined).
 async function verifyBearer(req: Request) {
+  const expected = process.env.VYKUPY_API_TOKEN;
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (token !== process.env.VYKUPY_API_TOKEN) {
+  if (!expected || !token || !digestEquals(token, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;
@@ -86,23 +90,22 @@ export async function GET(req: Request) {
     const status = searchParams.get("status");
     const region = searchParams.get("region");
     const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") ?? "1");
-    const limit = parseInt(searchParams.get("limit") ?? "50");
+    const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
+    const limit = Math.min(200, Math.max(1, Number.parseInt(searchParams.get("limit") ?? "50", 10) || 50));
     const offset = (page - 1) * limit;
 
-    const conditions: ReturnType<typeof eq>[] = [];
+    const conditions: SQL[] = [];
 
     if (status) conditions.push(eq(vykupyLeads.status, status));
     if (region) conditions.push(eq(vykupyLeads.region, region));
     if (search) {
       const q = `%${search}%`;
-      conditions.push(
-        or(
-          like(vykupyLeads.debtorName, q),
-          like(vykupyLeads.caseNumber, q),
-          like(vykupyLeads.address ?? "", q),
-        ) as any
+      const searchCond = or(
+        like(vykupyLeads.debtorName, q),
+        like(vykupyLeads.caseNumber, q),
+        like(vykupyLeads.address, q),
       );
+      if (searchCond) conditions.push(searchCond);
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;

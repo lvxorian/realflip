@@ -8,6 +8,9 @@ import { useState } from "react";
 import { ZoomLock } from "@/components/shared/zoom-lock";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // TODO(tech-debt): QueryClient zatím nikdo nevyužívá (žádný useQuery volání) —
+  // buď na react-query migrovat polling (notification-bell, dashboard-layout),
+  // nebo provider + závislost odstranit.
   const [queryClient] = useState(
     () =>
       new QueryClient({

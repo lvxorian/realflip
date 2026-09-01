@@ -8,9 +8,9 @@
  *  2. Nabídkové kompy (vlastní DB + sreality vzorky + MARKET_DATA fallback):
  *     medián Kč/m² pro město/segment z existující kaskády Tier 1–5.
  *  3. Cenovka inzerátu (kotva, jen URL flow se známou cenou): doplňkový signál 10 %
- *     — cenovka už jednou vstupuje přes cap realizované reference (110 %), proto jen 10 %.
+ *     — cenovka už jednou vstupuje přes cap realizované reference (105 %), proto jen 10 %.
  *  4. Blend = vážený průměr (realizované 45 % / nabídky 35 % / kotva 10 %, po normalizaci vah).
- *  5. Úprava plochy: menší byty mívají vyšší Kč/m² (elasticita ~0,1, clamp 0,85–1,15).
+ *  5. Úprava plochy: menší byty mívají vyšší Kč/m² (exponent 0,25, clamp 0,7–1,3).
  *  6. Rozmezí = odhad ± spread odvozený z kvality dat; confidence 0–100.
  *
  * Všechny zdroje jsou volitelné (injekce) kvůli testovatelnosti.
@@ -59,8 +59,8 @@ const VALUATION_WEIGHTS = {
   realized: 0.45,
   offers: 0.35,
   // Cenovka inzerátu = nejlokálnější aktuální tržní signál (přímo na tento byt).
-  // Jen jako doplňková kotva (10 %) — cenovka už raz vstupuje přes cap realizované
-  // reference (110 %), takže plná váha by cenovku započítala DVAKRÁT a systémově
+  // Jen jako doplňková kotva (10 %) — cenovka raz vstupuje přes cap realizované
+  // reference (105 %), takže plná váha by cenovku započítala DVAKRÁT a systémově
   // by tlačila odhad nad transakční hladinu (Valuo cenovku nezná vůbec; inzeráty
   // běžně žádají 5–15 % nad tržní hodnotou).
   asking: 0.1,
@@ -168,7 +168,11 @@ export async function estimateProperty(
     cellarMultiplier(input.cellarArea);
   const areaFactor = areaSizeFactor(area);
   // Dopravní vrstva (Vlak Index) — skóre z reálných POI vzdáleností (metro/vlak/bus).
-  const transportMult = transportMultiplier(input.transport?.score);
+  // Stejný gate jako confidence/metodika: <3 vzorky se doprava NEaplikuje
+  // (server vrací null, ale přímo vložený input by bez brány mohla tunelovat −6 %).
+  const transportMult = transportMultiplier(
+    input.transport && input.transport.sampleSize >= 3 ? input.transport.score : null
+  );
 
   // ---------- 1) Sběr zdrojů (paralelně) ----------
   // realizované prodeje dostávají adresu/GPS/hinty → drill-down až na městskou čtvrť (ward);
@@ -831,7 +835,6 @@ export function scaleToDate(
   if (factor <= 0.6 || factor >= 1.4) return result;
   const scale = (n: number) => Math.round(n * factor);
   const estimate = scale(result.estimate);
-  const askingPrice = result.askingPrice ?? null;
   return {
     ...result,
     estimate,

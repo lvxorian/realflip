@@ -152,12 +152,16 @@ export async function POST(req: Request) {
     if (alive.length >= 2) comps = alive;
     else if (dead.length > 0) { /* keep originals if too few alive */ }
 
-    // Stats
-    const prices = comps.map((p) => p.price).filter((p): p is number => p > 0);
-    const areas = comps.map((p) => p.area).filter((a): a is number => a !== null && a > 0);
-    const pricePerSqms = prices
-      .map((p, i) => (areas[i] ? Math.round(p / areas[i]) : null))
-      .filter((p): p is number => p !== null);
+    // Stats — ceny a plochy se filtrují SPOLEČNě po dvojicích (dřív se
+    // filtrovaly zvlášť a párovaly po indexu → posun a špatný Kč/m²)
+    const pairs = comps
+      .map((p) => ({ price: p.price, area: p.area }))
+      .filter(
+        (p): p is { price: number; area: number } =>
+          p.price > 0 && p.area !== null && p.area > 0
+      );
+    const prices = pairs.map((p) => p.price);
+    const pricePerSqms = pairs.map((p) => Math.round(p.price / p.area));
 
     const sorted = [...prices].sort((a, b) => a - b);
     const median = sorted.length > 0

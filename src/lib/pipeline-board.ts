@@ -8,7 +8,10 @@ export interface BoardLead {
   updatedAt: number | null;
 }
 
-const byPos = <T extends BoardLead>(a: T, b: T) => (a.position ?? 0) - (b.position ?? 0);
+// position + deterministický tie-break (id) — bez něj jsou duplicity position
+// při sortu nestabilní a UI s DB se můžou rozjíždět v pořadí
+const byPos = <T extends BoardLead>(a: T, b: T) =>
+  (a.position ?? 0) - (b.position ?? 0) || String(a.id).localeCompare(String(b.id));
 
 export interface MoveResult<T extends BoardLead = BoardLead> {
   leads: T[];
@@ -47,12 +50,16 @@ export function moveLeadToStage<T extends BoardLead>(
     if (overIndex >= 0) insertAt = overIndex;
   }
 
-  to.splice(insertAt, 0, { ...updatedLead, position: insertAt });
+  to.splice(insertAt, 0, updatedLead);
+  // reindex cílové fáze — bez toho dva leady sdílely stejnou position
+  // (dřív jen same-stage reorder hustil; cross-stage insert ne). Nové objekty,
+  // žádná mutace vstupních řádků.
+  const toRenumbered = to.map((l, i) => ({ ...l, position: i }));
 
   const from = rest.filter((l) => l.stage === lead.stage);
   const others = rest.filter((l) => l.stage !== lead.stage && l.stage !== toStage);
 
-  return { leads: [...others, ...from, ...to], newPos: insertAt };
+  return { leads: [...others, ...from, ...toRenumbered], newPos: insertAt };
 }
 
 /** Přerovnání uvnitř stejné fáze (drag na jinou kartu ve stejném sloupci). */

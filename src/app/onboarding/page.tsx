@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { House, ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
+import { toast } from "sonner";
 
 const steps = ["Profil", "Lokality", "Rozpočet"];
 
@@ -61,7 +62,7 @@ export default function OnboardingPage() {
   async function complete() {
     setLoading(true);
     try {
-      await fetch("/api/settings/onboarding", {
+      const res = await fetch("/api/settings/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,8 +73,14 @@ export default function OnboardingPage() {
           propertyTypes: selectedTypes,
         }),
       });
+      if (!res.ok) {
+        toast.error("Nepodařilo se uložit nastavení. Zkus to znovu.");
+        setLoading(false);
+        return;
+      }
       router.push("/dashboard");
     } catch {
+      toast.error("Nepodařilo se uložit nastavení. Zkus to znovu.");
       setLoading(false);
     }
   }

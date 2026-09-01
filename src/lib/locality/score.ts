@@ -99,14 +99,16 @@ export function scoreTransport(transport: number | null | undefined): number {
 const TRANSPORT_NONE = 100000;
 
 /**
- * Dopravni skore 0–100 pro konkretni vzdalenosti (m).
+ * Dopravni skore 0–100 pro konkretni vzdalenosti (m), nebo null pokud chybí
+ * VŠECHNA data. Null (ne 0) je záměr: transportMultiplier(0) = 0,94 by bez
+ * dat tichu sebral odhad −6 % — přesně proti invariantě Phase 38.
  * Metro: <300 m = 100, >2000 m = 0. Vlak: <500 m = 100, >5000 m = 0. Bus: <150 m = 100, >2000 m = 0.
  */
 export function scoreTransportDistance(
   metro: number | null,
   train: number | null,
   bus: number | null
-): number {
+): number | null {
   const metroScore = metro != null && metro !== TRANSPORT_NONE ? Math.max(0, Math.min(100, Math.round(100 - metro / 20))) : 0;
   const trainScore = train != null && train !== TRANSPORT_NONE ? Math.max(0, Math.min(100, Math.round(100 - train / 50))) : 0;
   const busScore = bus != null && bus !== TRANSPORT_NONE ? Math.max(0, Math.min(100, Math.round(100 - bus / 20))) : 0;
@@ -115,7 +117,7 @@ export function scoreTransportDistance(
   if (metro != null && metro !== TRANSPORT_NONE) { weighted += metroScore * 2; weightTotal += 2; }
   if (train != null && train !== TRANSPORT_NONE) { weighted += trainScore * 1.5; weightTotal += 1.5; }
   if (bus != null && bus !== TRANSPORT_NONE) { weighted += busScore; weightTotal += 1; }
-  return weightTotal > 0 ? Math.round(weighted / weightTotal) : 0;
+  return weightTotal > 0 ? Math.round(weighted / weightTotal) : null;
 }
 
 export function computeLocalityFactors(input: {

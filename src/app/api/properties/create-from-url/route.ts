@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { properties, propertyAnalysis } from "@/db/schema";
+import { properties, propertyAnalysis, priceHistory } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
 import { analyzeListing } from "@/lib/analysis/analyzer";
 import { classifyLocation } from "@/lib/analysis/location";
 import { isSaleListing } from "@/lib/scraping/filters";
+import { filterImages } from "@/lib/scraping/types";
 import { applyAreaResolution } from "@/lib/scraping/area-resolver";
 import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 import { analyzeLocalityAndPersist } from "@/lib/locality";
 import { findCrossPortalTarget, mergeCrossPortal } from "@/lib/scraping/property-merge";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -33,6 +37,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // centrální gatekeeper — root-rel/placeholder URL nesmí projít do DB bez
+    // normalizace (stejná brána jako orchestrator.saveListing)
+    const cleanImageUrls = filterImages(Array.isArray(imageUrls) ? imageUrls : [], portalName ?? "manual");
+
     const existing = await db
       .select({ id: properties.id })
       .from(properties)
@@ -54,7 +62,7 @@ export async function POST(req: Request) {
       rooms: rooms ?? null,
       area: area ?? null,
       description: description ?? null,
-      imageUrls: imageUrls ?? [],
+      imageUrls: cleanImageUrls,
       contactPhone: contactPhone ?? null,
       contactName: contactName ?? null,
       contactEmail: contactEmail ?? null,
@@ -69,7 +77,7 @@ export async function POST(req: Request) {
         rooms: rooms ?? null,
         area: area ?? null,
         description: description ?? null,
-        imageUrls: imageUrls ?? [],
+        imageUrls: cleanImageUrls,
         contactPhone: contactPhone ?? null,
         contactName: contactName ?? null,
         contactEmail: contactEmail ?? null,
@@ -97,7 +105,7 @@ export async function POST(req: Request) {
       lat: lat ?? null,
       lng: lng ?? null,
       description: description ?? null,
-      imageUrls: imageUrls ?? [],
+      imageUrls: cleanImageUrls,
       url,
       contactName: contactName ?? null,
       contactPhone: contactPhone ?? null,
@@ -111,6 +119,8 @@ export async function POST(req: Request) {
     const resolvedPricePerSqm = resolvedListing.pricePerSqm;
 
     const location = classifyLocation(resolvedListing.address, resolvedListing.title);
+    // live=false — Tier 3 (až 80 detail fetchů) by blokoval vložení nemovitosti;
+    // chybějící cache doplní plánovaný refreshAllMarketData / re-analýza
     const ranges = location.city !== "Neznámá"
       ? await getAnalysisRanges({
           cityKey: location.city,
@@ -120,7 +130,7 @@ export async function POST(req: Request) {
           buildingType: buildingType ?? null,
           area: resolvedArea ?? null,
           category: location.category,
-        }).catch(() => ({ dynamicRange: null, arvRange: null }))
+        }, false).catch(() => ({ dynamicRange: null, arvRange: null }))
       : { dynamicRange: null, arvRange: null };
     const analysis = analyzeListing(resolvedListing as any, ranges.dynamicRange, undefined, location, ranges.arvRange);
 
@@ -149,11 +159,20 @@ export async function POST(req: Request) {
       contactName: contactName ?? null,
       contactEmail: contactEmail ?? null,
       description: description ?? null,
-      imageUrls: JSON.stringify(imageUrls ?? []),
+      imageUrls: JSON.stringify(cleanImageUrls),
       status: "active",
       firstSeen: now,
       lastSeen: now,
       isActive: 1,
+    });
+
+    // Initial price record — bez ní je cenový graf v detailu prázdný
+    // (orchestrator ho vkládá při saveListing, manuální cesta musela taky).
+    await db.insert(priceHistory).values({
+      id: generateId(),
+      propertyId,
+      price,
+      recordedAt: now,
     });
 
     await db.insert(propertyAnalysis).values({

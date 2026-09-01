@@ -18,24 +18,24 @@ const dbState = vi.hoisted(() => ({
 const sitemapState = vi.hoisted(() => ({ ids: [] as number[] }));
 
 vi.mock("@/db", () => {
+  const makeQuery = (table: any) => {
+    const run = async () => {
+      const name = table?.[Symbol.for("drizzle:Name")];
+      const rows =
+        name === "realized_sales" ? dbState.realizedSalesRows : dbState.propertiesRows;
+      return rows.map((r) => ({ ...r }));
+    };
+    const q: Record<string, unknown> = {
+      where: () => q,
+      orderBy: () => q,
+      limit: run,
+      then: (res: (v: unknown) => unknown) => run().then(res),
+    };
+    return q;
+  };
   const db = {
     select: () => ({
-      from: (table: any) => ({
-        where: () => ({
-          limit: async () => {
-            const name = table?.[Symbol.for("drizzle:Name")];
-            const rows =
-              name === "realized_sales" ? dbState.realizedSalesRows : dbState.propertiesRows;
-            return rows.map((r) => ({ ...r }));
-          },
-        }),
-        limit: async () => {
-          const name = table?.[Symbol.for("drizzle:Name")];
-          const rows =
-            name === "realized_sales" ? dbState.realizedSalesRows : dbState.propertiesRows;
-          return rows.map((r) => ({ ...r }));
-        },
-      }),
+      from: (table: any) => makeQuery(table),
     }),
     insert: () => ({
       values: (vals: Record<string, unknown>) => {

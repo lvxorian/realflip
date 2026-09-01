@@ -98,4 +98,34 @@ describe("calc-preset round-trip manualFlipPrice", () => {
     const json = await getRes.json();
     expect(json.preset).toBeNull();
   });
+
+  it("POST uloží i rentalRenovation* klíče (regrese F-23 — GET-restore je očekává)", async () => {
+    const body = {
+      ...presetBody,
+      mode: "rental",
+      rentalRenovationMode: "perSqm",
+      rentalRenovationLevel: "medium",
+      rentalRenovationPerSqm: 12500,
+      rentalRenovationTotal: 640000,
+    };
+    const postRes = await POST(
+      new Request("http://localhost/api/properties/prop-1/calc-preset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+      { params: Promise.resolve({ id: "prop-1" }) }
+    );
+    expect(postRes.status).toBe(200);
+
+    const getRes = await GET(
+      new Request("http://localhost/api/properties/prop-1/calc-preset"),
+      { params: Promise.resolve({ id: "prop-1" }) }
+    );
+    const json = await getRes.json();
+    expect(json.preset.config.rentalRenovationPerSqm).toBe(12500);
+    expect(json.preset.config.rentalRenovationTotal).toBe(640000);
+    expect(json.preset.config.rentalRenovationMode).toBe("perSqm");
+    expect(json.preset.config.rentalRenovationLevel).toBe("medium");
+  });
 });

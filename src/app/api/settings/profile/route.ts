@@ -24,7 +24,7 @@ export async function PATCH(req: Request) {
     }
 
     if (body.email !== undefined) {
-      const email = String(body.email).trim();
+      const email = String(body.email).trim().toLowerCase();
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return NextResponse.json({ error: "Neplatný email" }, { status: 400 });
       }
@@ -44,8 +44,27 @@ export async function PATCH(req: Request) {
       if (typeof body.password !== "string" || body.password.length < 8) {
         return NextResponse.json({ error: "Heslo musí mít alespoň 8 znaků" }, { status: 400 });
       }
-      const { hash } = await import("bcryptjs");
-      update.passwordHash = await hash(body.password, 10);
+      // změna hesla vyžaduje potvrzení aktuálním heslem (ochrana při odcizení session)
+      if (typeof body.currentPassword !== "string" || !body.currentPassword) {
+        return NextResponse.json(
+          { error: "Pro změnu hesla zadejte aktuální heslo" },
+          { status: 400 }
+        );
+      }
+      const me = await db
+        .select({ passwordHash: users.passwordHash })
+        .from(users)
+        .where(eq(users.id, session.user.id))
+        .limit(1)
+        .then((r) => r[0]);
+      const { compare, hash } = await import("bcryptjs");
+      const ok = me?.passwordHash
+        ? await compare(body.currentPassword, me.passwordHash)
+        : false;
+      if (!ok) {
+        return NextResponse.json({ error: "Aktuální heslo není správně" }, { status: 403 });
+      }
+      update.passwordHash = await hash(body.password, 12); // sladěno s register (cost 12)
     }
 
     await db

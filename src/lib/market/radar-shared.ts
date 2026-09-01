@@ -72,6 +72,18 @@ export function dateToPeriod(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/**
+ * Perioda "YYYY-MM" o `months` měsíců pozpátku od `from`. Používá čistou
+ * year*12+month aritmetiku místo Date.setMonth — to přetéká na dnech 29–31
+ * (např. 31. 5. minus 59 měs. → posun o 1–2 měsíce dopředu, viz P3-17).
+ */
+export function periodMonthsAgo(from: Date, months: number): string {
+  const idx = from.getFullYear() * 12 + from.getMonth() - months;
+  const year = Math.floor(idx / 12);
+  const month = idx - year * 12; // 0-based, vždy 0..11 díky floor
+  return `${year}-${String(month + 1).padStart(2, "0")}`;
+}
+
 /** Poslední měsíc čtvrtletí: "2026-Q3" → "2026-09". */
 export function quarterToPeriod(q: string): string {
   const m = /^(\d{4})-Q([1-4])$/.exec(q);

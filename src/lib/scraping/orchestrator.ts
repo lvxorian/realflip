@@ -14,7 +14,7 @@ import { calculateFlipResults } from "@/lib/analysis/flip-costs";
 import { generateId, ts, safeJsonParse } from "@/lib/utils";
 import { checkPriceDropAlert, checkScoreThresholdAlert } from "@/lib/alert-matcher";
 import { classifyLocation, findCityKey } from "@/lib/analysis/location";
-import { getAnalysisRanges, refreshAllMarketData } from "@/lib/scraping/market-price-service";
+import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 
 /**
  * Vybere plnější titulek. bazos.cz ořezává titulky na 60 znaků (jeho limit —
@@ -362,8 +362,9 @@ export class ScrapingOrchestrator {
       }
     }
 
-    // Refresh market price cache after all searches complete
-    refreshAllMarketData().catch(() => {});
+    // Pozn.: market backfill (refreshAllMarketData) už se nespouští zde jako
+    // fire-and-forget — na Vercelu zmrazí kontejner po odeslání odpovědi a úloha
+    // by se usekla. Volá je now route přes after() (waitUntil), spolehlivě.
 
     await this.sweepRemovedListings().catch(() => {});
   }
@@ -729,10 +730,13 @@ export class ScrapingOrchestrator {
       const area = existing.area ?? listing.area ?? 70;
       const keepManualArea = existing.areaLocked === 1 && existing.area != null;
       const effectiveArea = keepManualArea ? existing.area : (listing.area ?? existing.area);
+      // list-only crawl (bez detailu) nevrací pricePerSqm → nesmí přepsat
+      // dříve obohacenou hodnotu NULLem; počítáme fallback z price/area
       const effectivePricePerSqm =
         keepManualArea && (effectiveArea ?? 0) > 0
           ? Math.round(listing.price / (effectiveArea as number))
-          : listing.pricePerSqm;
+          : listing.pricePerSqm ?? existing.pricePerSqm ??
+            ((effectiveArea && effectiveArea > 0) ? Math.round(listing.price / effectiveArea) : null);
 
       await db
         .update(properties)
@@ -1016,7 +1020,10 @@ export class ScrapingOrchestrator {
     let best: typeof properties.$inferSelect | null = null;
     for (const row of rows) {
       if (row.url === listing.url) continue;
-      if (hasAltUrl(row.altPortals, listing.url)) continue;
+      // Přesná shoda v alt_portals = TENHLE kanonický záznam už trackuje danou
+      // URL → je to merge target, ne skip. (Dřív `continue` → spád do insertu
+      // → trvalná duplicate při každém re-crawlu sloučené nemovitosti.)
+      if (hasAltUrl(row.altPortals, listing.url)) return row;
       const match = matchStrengthCrossPortal(
         {
           portalName: listing.portalName,
@@ -1124,12 +1131,18 @@ export class ScrapingOrchestrator {
   }
 
   // Znovu aktivuje deaktivované řádky, jejichž alt URL byla v tomto běhu viděna.
-  private async rescueDeactivatedByAltUrl(portal: string, foundUrls: Set<string>): Promise<void> {
+  // Cross-portal: kanonický řádek žije pod portálem A, alt URL vidí crawl
+  // portálu B → musíme prohlédnout NEAKTIVNÍ řádky bez ohledu na portalName
+  // (dřívší filtr `portalName = portal` znemožnil přesně tu záchranu, k níž
+  // je metoda určena).
+  private async rescueDeactivatedByAltUrl(_portal: string, foundUrls: Set<string>): Promise<void> {
     if (foundUrls.size === 0) return;
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
     const rows = await db
       .select({ id: properties.id, altPortals: properties.altPortals })
       .from(properties)
-      .where(and(eq(properties.portalName, portal), eq(properties.isActive, 0)))
+      .where(and(eq(properties.isActive, 0), gt(properties.lastSeen, cutoff)))
+      .orderBy(desc(properties.lastSeen))
       .limit(2000);
 
     const toRescue = rows.filter((r) => parseAltPortals(r.altPortals).some((a) => foundUrls.has(a.url)));

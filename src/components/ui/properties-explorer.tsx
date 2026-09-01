@@ -9,6 +9,7 @@ import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
 import Link from "next/link";
+import { csDays } from "@/lib/utils";
 import { X, ArrowDown, CaretLeft, CaretRight, Star } from "@phosphor-icons/react/dist/ssr";
 import {
   MagnifyingGlass,
@@ -644,7 +645,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                           {p.daysOnMarket !== undefined && (
                             <>
                               <span className="w-0.5 h-0.5 rounded-full bg-border" />
-                              <span>{p.daysOnMarket} dní</span>
+                               <span>{csDays(p.daysOnMarket)}</span>
                             </>
                           )}
                         </div>

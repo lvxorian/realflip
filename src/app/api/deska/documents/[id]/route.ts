@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { deskaDocuments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { fetchDocumentText } from "@/lib/deska/edesky-client";
+import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +31,9 @@ export async function GET(
 
   // Lazily pull and cache the OCR text so the detail view can show it.
   if (!doc.textContent) {
-    let textUrl: string | undefined;
-    try {
-      const raw = JSON.parse(doc.rawData ?? "{}");
-      textUrl = raw.edesky_text_url;
-    } catch {
-      // ignore malformed rawData
-    }
+    // rawData = SQLite text / PG jsonb (už objekt) — safeJsonParse zvládne obojí
+    const raw = safeJsonParse<{ edesky_text_url?: string }>(doc.rawData, {});
+    const textUrl = raw.edesky_text_url;
     if (textUrl) {
       const text = await fetchDocumentText(textUrl);
       if (text) {

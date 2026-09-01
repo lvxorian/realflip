@@ -16,27 +16,35 @@ export async function POST(req: Request) {
     const userId = session.user.id;
 
     const now = ts();
+    // Sloupce jsou text/JSON string — pole je třeba serializovat (stejný vzor
+    // jako settings/preferences; bez stringify SQLite i PG zápis rozbijí).
+    const targetLocalities = JSON.stringify(
+      Array.isArray(body.targetLocalities) ? body.targetLocalities : []
+    );
+    const propertyTypes = JSON.stringify(
+      Array.isArray(body.propertyTypes) ? body.propertyTypes : []
+    );
     await db
       .insert(userPreferences)
       .values({
         id: crypto.randomUUID(),
         userId,
-        targetLocalities: body.targetLocalities || [],
+        targetLocalities,
         budgetMin: body.budgetMin || null,
         budgetMax: body.budgetMax || null,
         minRoi: body.minRoi || 15,
-        propertyTypes: body.propertyTypes || [],
+        propertyTypes,
         createdAt: now,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: userPreferences.userId,
         set: {
-          targetLocalities: body.targetLocalities || [],
+          targetLocalities,
           budgetMin: body.budgetMin || null,
           budgetMax: body.budgetMax || null,
           minRoi: body.minRoi || 15,
-          propertyTypes: body.propertyTypes || [],
+          propertyTypes,
           updatedAt: now,
         },
       });

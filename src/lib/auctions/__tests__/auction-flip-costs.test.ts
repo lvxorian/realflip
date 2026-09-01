@@ -76,6 +76,41 @@ describe("calculateAuctionResults", () => {
     expect(r.dealmakerProfit).toBe(Math.round(r.netProfit / 2));
   });
 
+  it("vypnutý sourcing NEúčtuje fee do nákladů (regrese phantom 100k defaultu)", () => {
+    // UI default: sourcingEnabled=false, sourcingFee=100_000 v konfiguraci
+    const r = calculateAuctionResults({
+      ...base,
+      config: { sourcingEnabled: false, sourcingFee: 100_000, sourcingFeeIsPct: false },
+    });
+    expect(r.costs.sourcingFee).toBe(0);
+    expect(r.sourcingFee).toBe(0);
+    // položkové náklady musí souhlasit s celkem (bez skrytých 100k)
+    const c = r.costs;
+    const subTotal =
+      c.purchasePrice + c.legalFees + c.appraisalFee + c.renovationCost +
+      c.contingency + c.holdingCosts + c.mortgageCost + c.sellingCommission +
+      c.marketingPhoto + c.sourcingFee;
+    expect(c.totalCost).toBe(subTotal + c.incomeTax);
+    expect(subTotal).toBeLessThan(base.arv); // sanace: daň z kladného hrubého zisku
+  });
+
+  it("zapnutý sourcing naopak fee účtuje", () => {
+    const off = calculateAuctionResults({
+      ...base,
+      config: { sourcingEnabled: false, sourcingFee: 100_000, sourcingFeeIsPct: false },
+    });
+    const on = calculateAuctionResults({
+      ...base,
+      config: { sourcingEnabled: true, sourcingFee: 100_000, sourcingFeeIsPct: false },
+    });
+    expect(on.costs.sourcingFee).toBe(100_000);
+    // +100k fee sníží hrubý zisk → daň 21 % klesne, celkový přírůstek ≈ 79 k
+    const diff = on.costs.totalCost - off.costs.totalCost;
+    expect(diff).toBeGreaterThanOrEqual(78_000);
+    expect(diff).toBeLessThanOrEqual(80_000);
+    expect(on.netProfit).toBeLessThan(off.netProfit);
+  });
+
   it("sourcing fee strategy keeps all profit for investor + fee for dealmaker", () => {
     const rSf = calculateAuctionResults({
       ...base,
@@ -98,8 +133,10 @@ describe("calculateAuctionResults", () => {
 
   it("annualized ROI scales with holding months", () => {
     const r = calculateAuctionResults(base, 15);
+    // obě čísla se zaokrouhlují zvlášť (z nezaokrouhleného ROI) — porovnání
+    // z publikovaného r.roi má inherentní ±0.1 chybou zaokrouhlení
     const expected = (r.roi / AUCTION_DEFAULTS.holdingMonths) * 12;
-    expect(r.annualizedRoi).toBe(Math.round(expected * 10) / 10);
+    expect(Math.abs(r.annualizedRoi - expected)).toBeLessThanOrEqual(0.15);
   });
 });
 

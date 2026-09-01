@@ -48,6 +48,17 @@ describe("moveLeadToStage", () => {
     expect(newIds).toEqual(["a", "b"]);
   });
 
+  it("cross-stage insert nepřiduluje position (regrese — obě karty nemají stejný index)", () => {
+    // "b" na pozici 1 "new" se před "c" (v "offer") má dostat pozici 0 —
+    // zbytek cílové fáze musí být reindexován, ať žádné dvě karty nesdílí position
+    const res = moveLeadToStage(board, "b", "offer", "c");
+    expect(res!.newPos).toBe(0);
+    const offers = res!.leads.filter((l) => l.stage === "offer");
+    const positions = offers.map((l) => l.position);
+    expect(new Set(positions).size).toBe(positions.length);
+    expect(positions).toEqual([0, 1]);
+  });
+
   it("positionOverride nad délku → konec (clamp)", () => {
     const res = moveLeadToStage(board, "a", "closed", null, 99);
     expect(res!.newPos).toBe(1);

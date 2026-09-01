@@ -8,24 +8,12 @@ import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
 import { AmountInput } from "@/components/ui/amount-input";
-import { formatPrice, formatCompactPrice, portalLabel, splitAddress, formatAmountInput } from "@/lib/utils";
+import { formatPrice, formatCompactPrice, portalLabel, splitAddress, formatAmountInput, parseAmountInput, csDays } from "@/lib/utils";
 import { timeInStageDays } from "@/lib/leads";
 import { currentTime } from "@/lib/clock";
 import { cn } from "@/lib/utils";
 import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
 import type { LeadItem } from "./types";
-
-/**
- * Převod textu ceny z promptu na číslo (stejně jako zbytek aplikace —
- * kalkulačka, dražby, investor modal). type="number" vrací pro česky
- * formátované ceny („2 500 000") prázdný řetězec, takže by se potvrzení
- * tiše neprovedlo — proto se mezery/mezery NBSP/Kč odfiltrují.
- */
-function parseAmountInput(value: string): number {
-  const cleaned = value.replace(/\s+/g, "").replace(/Kč/gi, "");
-  const n = parseInt(cleaned, 10);
-  return Number.isFinite(n) && n > 0 ? n : 0;
-}
 
 function AgingBadge({ lead }: { lead: LeadItem }) {
   if (lead.stage === "closed" || lead.stage === "lost") return null;
@@ -40,10 +28,10 @@ function AgingBadge({ lead }: { lead: LeadItem }) {
           ? "bg-red-500/10 border border-red-500/20 text-red-400"
           : "bg-amber-500/10 border border-amber-500/20 text-amber-400"
       )}
-      title={`Ve fázi ${days} dní${danger ? " — bez pokroku hrozí chladnutí leadu" : ""}`}
+      title={`Ve fázi ${csDays(days)}${danger ? " — bez pokroku hrozí chladnutí leadu" : ""}`}
     >
       <Clock size={10} weight="fill" />
-      {days} dní
+      {csDays(days)}
     </span>
   );
 }

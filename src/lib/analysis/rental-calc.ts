@@ -188,7 +188,9 @@ export interface RentalResults {
 
 function monthlyPayment(principal: number, annualRatePct: number, termYears: number): number {
   if (principal <= 0) return 0;
-  if (annualRatePct <= 0) return termYears > 0 ? principal / (termYears * 12) : 0;
+  // neplatná doba → 0 (nesmí projít dělení nulou v anuitním vzorci)
+  if (!(termYears > 0)) return 0;
+  if (annualRatePct <= 0) return principal / (termYears * 12);
   const r = annualRatePct / 100 / 12;
   const n = termYears * 12;
   return (principal * r) / (1 - Math.pow(1 + r, -n));
@@ -277,7 +279,11 @@ export function calculateRentalResults(
   const downPayment = purchasePrice - loan;
   const totalInvested = downPayment + acquisitionCosts;
 
-  const pmtMonthly = monthlyPayment(loan, cfg.mortgageRate, cfg.mortgageTermYears);
+  // termYears≤0 (vymazané pole „Doba let" v UI) by v monthlyPayment dělila
+  // nulovým jmenovatelem → +Infinity splátka → kaskáda NaN do všech metrik
+  const termYears = Math.max(1, cfg.mortgageTermYears || 1);
+
+  const pmtMonthly = monthlyPayment(loan, cfg.mortgageRate, termYears);
   const mortgageAnnual = pmtMonthly * 12;
   const cashFlowAnnual = noiAnnual - mortgageAnnual - incomeTaxAnnual;
 
@@ -288,7 +294,7 @@ export function calculateRentalResults(
   const yieldOnInvestment = purchasePrice + acquisitionCosts > 0 ? (noiAnnual / (purchasePrice + acquisitionCosts)) * 100 : 0;
   const dscr = mortgageAnnual > 0 ? noiAnnual / mortgageAnnual : null;
   const maxAffordableDebtMonthly = Math.max(0, Math.round((noiAnnual - incomeTaxAnnual) / 12));
-  const maxAffordableLoan = Math.round(loanForPayment(maxAffordableDebtMonthly, cfg.mortgageRate, cfg.mortgageTermYears));
+  const maxAffordableLoan = Math.round(loanForPayment(maxAffordableDebtMonthly, cfg.mortgageRate, termYears));
   const cashOnCash = totalInvested > 0 ? (cashFlowAnnual / totalInvested) * 100 : 0;
   const paybackYears = cashFlowAnnual > 0 ? totalInvested / cashFlowAnnual : null;
   const ltv = cfg.hasMortgage && purchasePrice > 0 ? Math.round((loan / purchasePrice) * 100) : 0;
@@ -329,13 +335,13 @@ export function calculateRentalResults(
       mortgagePayment: Math.round(mortgageAnnual),
       cashFlow,
       cumulativeCashFlow,
-      mortgageBalance: Math.round(remainingBalance(loan, cfg.mortgageRate, cfg.mortgageTermYears, y * 12)),
+      mortgageBalance: Math.round(remainingBalance(loan, cfg.mortgageRate, termYears, y * 12)),
     });
   }
 
   const exitPrice = purchasePrice * Math.pow(1 + cfg.appreciationPct / 100, years);
   const sellingCost = Math.round(exitPrice * c.sellingCommissionRate);
-  const mortgageBalance = remainingBalance(loan, cfg.mortgageRate, cfg.mortgageTermYears, months);
+  const mortgageBalance = remainingBalance(loan, cfg.mortgageRate, termYears, months);
   const equity = exitPrice - sellingCost - mortgageBalance;
   const gain = exitPrice - sellingCost - purchasePrice - acquisitionCosts;
   const exitTax = years < c.taxExemptionYears && gain > 0 ? Math.round(gain * c.incomeTaxRate) : 0;
@@ -388,7 +394,9 @@ export function calculateRentalResults(
     totalRoi: Math.round(totalRoi * 10) / 10,
     annualizedRoi: annualizedRoi !== null ? Math.round(annualizedRoi * 10) / 10 : null,
     irr,
-    equityMultiple: Math.round((totalProfit / totalInvested + 1) * 10) / 10,
+    // guard jako totalRoi — 100% financování s nulovými akvizičními náklady
+    // by dalo Infinity/NaN (regrese F-16)
+    equityMultiple: totalInvested > 0 ? Math.round((totalProfit / totalInvested + 1) * 10) / 10 : 0,
     verdict: rentalVerdict(netYield, cfg.targetYield),
     rows,
   };

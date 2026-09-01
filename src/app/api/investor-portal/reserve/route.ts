@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { investors, leads, notifications, properties, propertyAnalysis } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, lt, ne, or } from "drizzle-orm";
+import { cityDisplayName } from "@/lib/analysis/location";
 import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
 import { PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       stage: leads.stage,
       portalVisible: leads.portalVisible,
       portalStatus: leads.portalStatus,
+      portalExpiresAt: leads.portalExpiresAt,
       reservedById: leads.portalReservedInvestorId,
       preferredModel: investors.preferredModel,
       calcMode: propertyAnalysis.calcMode,
@@ -49,6 +51,8 @@ export async function POST(req: NextRequest) {
       propertyId: leads.propertyId,
       propertyTitle: properties.title,
       propertyAddress: properties.address,
+      city: propertyAnalysis.locationCity,
+      district: propertyAnalysis.locationDistrict,
     })
     .from(leads)
     .leftJoin(properties, eq(leads.propertyId, properties.id))
@@ -56,6 +60,13 @@ export async function POST(req: NextRequest) {
     .leftJoin(investors, eq(investors.id, session.sub))
     .where(eq(leads.id, leadId))
     .limit(1);
+
+  // Investorům se nikdy neukazuje přesná adresa (whitelist portálu) —
+  // jen makrolokalita městská část/město, jako v seznamu.
+  const maskedLocation =
+    [cityDisplayName(lead?.city ?? null) ?? lead?.city, lead?.district]
+      .filter(Boolean)
+      .join(" · ") || null;
 
   if (!lead || lead.stage !== PORTAL_STAGE || (lead.portalVisible ?? 1) !== 1) {
     return NextResponse.json({ error: "Nemovitost není v portálu k dispozici." }, { status: 404 });
@@ -70,7 +81,12 @@ export async function POST(req: NextRequest) {
       : [];
 
   if (action === "reserve") {
-    if (lead.portalStatus === "reserved" && lead.reservedById !== session.sub) {
+    if (
+      lead.portalStatus === "reserved" &&
+      lead.reservedById !== session.sub &&
+      lead.portalExpiresAt != null &&
+      lead.portalExpiresAt > Date.now()
+    ) {
       return NextResponse.json({ error: "Nemovitost je rezervovaná jiným investorem." }, { status: 409 });
     }
     let strategy: string | null = null;
@@ -87,7 +103,9 @@ export async function POST(req: NextRequest) {
       strategy = body.strategy;
     }
     const now = Date.now();
-    await db
+    // Atomický rezerv ať dva souběžné kliknutí nerozhodne last-write-wins:
+    // UPDATE proběhne jen pokud nikdo (nebo jen/self/expired) nedrží rezervaci.
+    const reserved = await db
       .update(leads)
       .set({
         portalStatus: "reserved",
@@ -98,7 +116,24 @@ export async function POST(req: NextRequest) {
         portalExpiresAt: now + PORTAL_RESERVATION_MS,
         updatedAt: now,
       })
-      .where(eq(leads.id, leadId));
+      .where(
+        and(
+          eq(leads.id, leadId),
+          or(
+            ne(leads.portalStatus, "reserved"),
+            isNull(leads.portalStatus),
+            eq(leads.portalReservedInvestorId, session.sub),
+            lt(leads.portalExpiresAt, now)
+          )
+        )
+      )
+      .returning({ id: leads.id });
+    if (reserved.length === 0) {
+      return NextResponse.json(
+        { error: "Nemovitost právě rezervoval jiný investor. Načtěte znovu." },
+        { status: 409 }
+      );
+    }
 
     try {
       const strategyLabel =
@@ -136,11 +171,11 @@ export async function POST(req: NextRequest) {
         const html = buildReservationEmailHtml({
           investorName: session.name,
           propertyTitle: lead.propertyTitle ?? null,
-          propertyAddress: lead.propertyAddress ?? null,
+          propertyAddress: maskedLocation, // whitelist portálu — přesná adresa nikdy investorům
           strategy: strategy as "fifty-fifty" | "sourcing-fee" | null,
           baseUrl,
         });
-        const location = [lead.propertyTitle, lead.propertyAddress].filter(Boolean).join(" · ") || "nemovitost";
+        const location = [lead.propertyTitle, maskedLocation].filter(Boolean).join(" · ") || "nemovitost";
         const subject = `${INVESTOR_BRAND} · Potvrzení rezervace — ${location}`;
         await sendEmail({ to: investorEmail, subject, html });
       }
@@ -190,7 +225,8 @@ export async function POST(req: NextRequest) {
       status: "reserved",
       reservation: {
         propertyTitle: lead.propertyTitle ?? null,
-        propertyAddress: lead.propertyAddress ?? null,
+        // maskovaná lokace (město · čtvrť) — přesná adresa do portálu nikdy
+        propertyAddress: maskedLocation,
         strategy: strategy as string | null,
         strategyLabel:
           strategy && strategy in COOPERATION_STRATEGIES
@@ -229,10 +265,10 @@ export async function POST(req: NextRequest) {
       const html = buildCancelReservationInvestorHtml({
         investorName: session.name,
         propertyTitle: lead.propertyTitle ?? null,
-        propertyAddress: lead.propertyAddress ?? null,
+        propertyAddress: maskedLocation, // whitelist portálu — investorovi přesnou adresu neposíláme
         baseUrl: cancelBaseUrl,
       });
-      const subject = `${INVESTOR_BRAND} · Rezervace zrušena — ${cancelLocation}`;
+      const subject = `${INVESTOR_BRAND} · Rezervace zrušena — ${[lead.propertyTitle, maskedLocation].filter(Boolean).join(" · ") || "nemovitost"}`;
       await sendEmail({ to: investorEmail, subject, html });
     }
   } catch {

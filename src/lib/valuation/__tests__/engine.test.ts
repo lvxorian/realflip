@@ -789,6 +789,31 @@ describe("estimateProperty — kotva na cenovku inzerátu", () => {
     expect(offers.note).toContain("omezeno na něj");
   });
 
+  it("nabídky pod 0,80× realizované reference se clampnou na spodní hranu (regrese F-2)", async () => {
+    mockedRealized.mockResolvedValue({
+      avgPricePerSqm: 100000,
+      numTransactions: 12000,
+      regionName: "Hlavní město Praha",
+      regionAvgPricePerSqm: 100000,
+      regionTransactions: 12672,
+      entityType: "region",
+      period: "2025-08 – 2026-07",
+      totalTransactions: 50469,
+    });
+    // nabídky 50k jsou pod pásmem [80k, 115k] — bez spodní cloupy by táhly blend dolů
+    mockedRange.mockResolvedValue(rangeResult(50000));
+    mockedComps.mockResolvedValue([]);
+
+    const r = await estimateProperty(
+      { cityKey: "praha", type: "flat", area: 60 },
+      { getRealized: mockedRealized, getRange: mockedRange, getComps: mockedComps, now: 1_000 }
+    );
+
+    const offers = r.sources.find((s) => s.key === "offers")!;
+    expect(offers.pricePerSqm).toBe(80000); // 100 000 × 0,80
+    expect(offers.note).toContain("omezeno na něj");
+  });
+
   it("čtvrť s malým vzorkem (<100 tx) má širší rozmezí než velká čtvrť", async () => {
     const small = {
       avgPricePerSqm: 100000,

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { marketCache, properties, realizedSales } from "@/db/schema";
 import { REALIZED_SALE_TTL_MS } from "./sold-pairing";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, desc } from "drizzle-orm";
 import { RateLimiter } from "./rate-limiter";
 import { getSrealitySitemapIds, pickSrealitySampleIds } from "./sreality-sitemap";
 import {
@@ -130,16 +130,43 @@ function fromCacheEntry(e: CachedEntry): MarketRangeResult {
  * a umožnil, aby se do odhadu dostal cizí medián, např. 204 598 Kč/m².)
  */
 function cacheSegment(ctx: PropertyMarketContext, segment: string): string {
+  let out = segment;
   if (ctx.lat != null && ctx.lng != null) {
     const latB = Math.round(ctx.lat * 10) / 10;
     const lngB = Math.round(ctx.lng * 10) / 10;
-    return `${segment}__g${latB}x${lngB}`;
+    out += `__g${latB}x${lngB}`;
   }
-  return segment;
+  // Plocha mění Tier-1 podmnožinu (filtr ±30 %) i-multiplikátor v segmentu
+  // „any" — bez ní ve key by si deux nemovitosti se stejným GPS/segmentem,
+  // ale různou plochou, navzájem kontaminovaly medián.
+  if (ctx.area != null && ctx.area > 0) {
+    const areaB = Math.round(ctx.area / 25) * 25;
+    out += `__a${areaB}`;
+  }
+  // Multiplikátorový kontext se v segmentu „any" aplikuje na medián — kódujeme
+  // HOLOUBITOU hodnotu adj (ne surová pole), aby si ji se stejným adj sdílely
+  // i městské warm-up volby (getMarketPriceRange/refreshMarketData mají adj=1).
+  if (segment === "any") {
+    const adj = anyContextAdj(ctx);
+    if (Math.abs(adj - 1) > 0.001) out += `__x${adj.toFixed(2)}`;
+  }
+  return out;
 }
 
 function cacheKey(city: string, segment: string): string {
   return `${city}__${segment}`;
+}
+
+/**
+ * Multiplikátor aplikovaný na medián v segmentu „any" (Tier-1 i Tier-3 ho počítá
+ * stejně — jedna definice, aby cache key a výsledek nemohly rozjet).
+ */
+function anyContextAdj(ctx: PropertyMarketContext): number {
+  return (
+    conditionMultiplier(ctx.condition ?? null) *
+    buildingTypeMultiplier(ctx.buildingType ?? null) *
+    categoryMultiplier(ctx.category ?? null)
+  );
 }
 
 async function persistCache(entry: CachedEntry): Promise<void> {
@@ -234,6 +261,9 @@ export async function fetchComparableSamples(ctx: PropertyMarketContext): Promis
     })
     .from(properties)
     .where(and(eq(properties.isActive, 1), gte(properties.lastSeen, ninetyDaysAgo)))
+    // deterministický výběr — bez ORDER BY by limit(1000) vzal libovolných
+    // 1000 řádků (po growth DB by se do JS filtru nikdy nedostaly čerstvé)
+    .orderBy(desc(properties.lastSeen))
     .limit(1000);
 
   const samples: CompSample[] = [];
@@ -270,6 +300,9 @@ export async function fetchComparableSamples(ctx: PropertyMarketContext): Promis
         soldAt: realizedSales.soldAt,
       })
       .from(realizedSales)
+      // nejnovější prodeje první — bez ORDER BY by limit(500) mohl po růstu
+      // historie minout všechna prodeje v TTL okně
+      .orderBy(desc(realizedSales.soldAt))
       .limit(500);
 
     for (const row of soldRows) {
@@ -309,12 +342,7 @@ async function fetchCompsForContext(ctx: PropertyMarketContext): Promise<MarketR
 
   // Pro segment „any" aplikujeme multiplikátory stavu/typu/kategorie — medián
   // smíšeného vzorku je nad úrovní konkrétní nemovitosti (konzistence s Tier sreality).
-  const adj =
-    seg === "any"
-      ? conditionMultiplier(ctx.condition ?? null) *
-        buildingTypeMultiplier(ctx.buildingType ?? null) *
-        categoryMultiplier(ctx.category ?? null)
-      : 1;
+  const adj = seg === "any" ? anyContextAdj(ctx) : 1;
 
   /** Ořez extrémů — mikro-byty (≤30 m²) a luxusní jednotky nesmí táhnout medián. */
   const areaOk = (s: CompSample): boolean =>
@@ -470,10 +498,7 @@ function statsFromSamples(
   const stats = computeStats(allPrices);
   if (!stats) return null;
 
-  const adj =
-    conditionMultiplier(ctx.condition ?? null) *
-    buildingTypeMultiplier(ctx.buildingType ?? null) *
-    categoryMultiplier(ctx.category ?? null);
+  const adj = anyContextAdj(ctx);
   return {
     low: Math.round(stats.p25 * adj),
     high: Math.round(stats.p75 * adj),
@@ -528,9 +553,12 @@ function cacheResult(result: MarketRangeResult, cityKey: string, segment: string
     fetchedAt: Date.now(),
   };
   memCache.set(cacheKey(cityKey, segment), entry);
-  // GPS-okruhové výsledky se nepersistují do DB (24 h) — DB kompy se počítají z lokální
-  // tabulky levně a perzistence sdíleného klíče mezi nemovitostmi kazila medián.
-  if (!segment.includes("__g")) persistCache(entry).catch(() => {});
+  // Do 24h DB cache patří JEN městské statistiky bez per-property kontextu.
+  // GPS-okruh (__g), plocha (__a) ani multiplikátor (__m) nesmí být persistovány —
+  // jinak by jedna nemovitost kontaminovala sdílený medián dalším (Tier-1 kompy
+  // se počítají levně z lokální tabulky, stačí 15min memory cache).
+  const propertySpecific = segment.includes("__g") || segment.includes("__a") || segment.includes("__m");
+  if (!propertySpecific) persistCache(entry).catch(() => {});
 }
 
 export async function getPropertyMarketRange(ctx: PropertyMarketContext, force = false, live = true): Promise<MarketRangeResult | null> {
@@ -542,9 +570,11 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
     const mem = memCache.get(key);
     if (mem && Date.now() - mem.fetchedAt < MEMORY_TTL_MS) return fromCacheEntry(mem);
 
-    // GPS-okruhové klíče se v DB nikdy nepersistují (viz cacheResult) — staré záznamy
-    // z doby hrubých bucketů by jinak vracely cizí mediány ještě 24 h.
-    if (!seg.includes("__g")) {
+    // Per-property klíče (__g GPS / __a plocha / __x multiplikátor) se v DB
+    // nikdy nepersistují (viz cacheResult) — čtení i zápis musí používat stejný
+    // predikát, jinak by property-specific klíč trefil cizí sdílený medián.
+    const dbPersistable = !seg.includes("__g") && !seg.includes("__a") && !seg.includes("__x");
+    if (dbPersistable) {
       const dbCached = await readFromDbCache(ctx.cityKey, seg);
       if (dbCached && Date.now() - dbCached.fetchedAt < DB_TTL_MS) {
         memCache.set(key, dbCached);
@@ -576,9 +606,15 @@ export async function getPropertyMarketRange(ctx: PropertyMarketContext, force =
     try {
       const samples = await fetchSrealitySamples(ctx.cityKey);
       if (samples) {
+        const adj = anyContextAdj(ctx);
         for (const seg of SEGMENT_KEYS) {
           const st = statsFromSamples(samples, seg, ctx);
-          if (st) cacheResult(st, ctx.cityKey, seg);
+          if (st) {
+            // „any" nese ctx-multiplikátor → persistej ho pod __x tagem jen když
+            // adj≠1 (městské warm-up volání s adj=1 zůstávají na sdíleném klíči).
+            const cacheSeg = seg === "any" && Math.abs(adj - 1) > 0.001 ? `any__x${adj.toFixed(2)}` : seg;
+            cacheResult(st, ctx.cityKey, cacheSeg);
+          }
         }
         const own = statsFromSamples(samples, segment, ctx);
         if (own) return own;

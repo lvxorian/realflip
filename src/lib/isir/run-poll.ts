@@ -72,19 +72,24 @@ export async function runIsirPoll(): Promise<IsirPollResult> {
     const events: IsirEventData[] = [];
     const upper = Math.min(currentMax, fromId + MAX_IDS_PER_RUN);
 
+    // Cursor smí poskočit jen na NEJDELŠÍ SOUVISLÝ úspěšný prefix — při
+    // mezilehlém selhání getEventData by posun na `upper` ztratil dané ID
+    // navždy (feed je sekvenční, dedup podle spisové značky snáší re-processing).
+    let firstFailedId: number | null = null;
     for (let id = fromId + 1; id <= upper; id++) {
       try {
         const data = await getEventData(id);
         events.push(...data);
       } catch (err) {
         console.warn(`[ISIR] Failed to fetch ID ${id}:`, err);
+        if (firstFailedId === null) firstFailedId = id;
       }
       if (id < upper) {
         await new Promise((r) => setTimeout(r, SCAN_DELAY_MS));
       }
     }
 
-    const lastId = upper;
+    const lastId = firstFailedId === null ? upper : firstFailedId - 1;
 
     let apartmentsFound = 0;
     const groupedBySpis = new Map<string, IsirEventData[]>();
@@ -132,7 +137,9 @@ export async function runIsirPoll(): Promise<IsirPollResult> {
         apartmentData.rawText = docText.slice(0, 4000);
       }
 
-      const publishedAt = new Date(bestEvent.datumZverejneniUdalosti || bestEvent.datumZalozeniUdalosti).getTime();
+      const publishedAtRaw = new Date(bestEvent.datumZverejneniUdalosti || bestEvent.datumZalozeniUdalosti).getTime();
+      // obě data prázdná/neplatná → Date("undefined") = NaN (lepí se do DB)
+      const publishedAt = Number.isFinite(publishedAtRaw) ? publishedAtRaw : now;
       const { score } = scoreInsolvencyLead(bestEvent, apartmentData, publishedAt);
       const court = extractCourtFromSpis(spisovaZnacka);
       const druhaStavu = extractDruhStavRizeni(bestEvent.poznamka);
@@ -158,7 +165,8 @@ export async function runIsirPoll(): Promise<IsirPollResult> {
         updatedAt: now,
       });
 
-      apartmentsFound++;
+      // počítáme nálezy BYTŮ (address/dispozice), ne nový insolvenční případ
+      if (apartmentData.address || apartmentData.disposition) apartmentsFound++;
 
       if (score >= 70) {
         const users = await db.query.users?.findMany?.();

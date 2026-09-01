@@ -95,7 +95,8 @@ describe("locality scoring", () => {
     // bez metra (null) => jen vlak+bus
     const noMetro = scoreTransportDistance(null, 1000, 200);
     expect(noMetro).toBeGreaterThan(0);
-    // nic => 0
-    expect(scoreTransportDistance(null, null, null)).toBe(0);
+    // žádná data => null, ne 0 (nula by v Odhadu = tichá −6 % srážka, F-12)
+    expect(scoreTransportDistance(null, null, null)).toBeNull();
+    expect(scoreTransportDistance(100000, 100000, 100000)).toBeNull();
   });
 });

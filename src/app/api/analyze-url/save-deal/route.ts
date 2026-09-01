@@ -142,7 +142,7 @@ export async function POST(req: Request) {
         .set({
           purchasePrice: price,
           renovationBudget: renovationCost ?? null,
-          status: status ?? "new",
+          status: status ?? "purchased",
           notes: notes ?? null,
           updatedAt: now,
         })
@@ -158,7 +158,7 @@ export async function POST(req: Request) {
       purchasePrice: price,
       purchaseDate: now,
       renovationBudget: renovationCost ?? null,
-      status: status ?? "new",
+      status: status ?? "purchased",
       notes: notes ?? null,
       createdAt: now,
       updatedAt: now,

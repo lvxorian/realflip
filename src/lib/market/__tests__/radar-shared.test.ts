@@ -5,6 +5,7 @@ import {
   czDecimal,
   quarterToPeriod,
   dateToPeriod,
+  periodMonthsAgo,
   regionTypeOf,
   regionLabel,
 } from "../radar-shared";
@@ -57,6 +58,22 @@ describe("quarterToPeriod", () => {
 describe("dateToPeriod", () => {
   it("formátuje datum na YYYY-MM", () => {
     expect(dateToPeriod(new Date(2026, 0, 15))).toBe("2026-01");
+  });
+});
+
+describe("periodMonthsAgo", () => {
+  it("čistý month-index posun bez přetečení dní (regrese setMonth bugu)", () => {
+    // 31. 5. 2026 − 59 měsíců = 6/2021 (prostý start), NE 7/2021 jak dělá setMonth
+    expect(periodMonthsAgo(new Date(2026, 4, 31), 59)).toBe("2021-06");
+    // leden − 1 měsíc = předchozí prosinec (cross-year)
+    expect(periodMonthsAgo(new Date(2026, 0, 31), 1)).toBe("2025-12");
+    // 0 měsíců = aktuální perioda
+    expect(periodMonthsAgo(new Date(2026, 7, 15), 0)).toBe("2026-08");
+  });
+
+  it("31. 3. − 1 měsíc je únor (28/29 dnů), ne březen", () => {
+    // setMonth by z 2026-02-31 přetekl na 2026-03-03
+    expect(periodMonthsAgo(new Date(2026, 2, 31), 1)).toBe("2026-02");
   });
 });
 

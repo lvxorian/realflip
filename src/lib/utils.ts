@@ -52,6 +52,19 @@ export function formatAmountInput(value: number | string | null | undefined): st
   return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "";
 }
 
+/**
+ * Kanonický tolerantní parser částek (dříve 4× duplikován: lead-card,
+ * lead-drawer, kalkulačka, aukce). type="number" vrací pro česky formátované
+ * ceny („2 500 000") prázdný řetězec → odfiltrujeme mezery/NBSP/Kč.
+ * @returns kladné číslo, nebo fallback (default 0).
+ */
+export function parseAmountInput(value: string | null | undefined, invalid: number = 0): number {
+  if (!value) return invalid;
+  const cleaned = value.replace(/[\s\u00a0\u202f]/g, "").replace(/Kč/gi, "");
+  const n = Number.parseInt(cleaned, 10);
+  return Number.isFinite(n) && n > 0 ? n : invalid;
+}
+
 export function formatPercent(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
@@ -104,9 +117,21 @@ export function ts(): number {
   return Date.now();
 }
 
-export function safeJsonParse<T>(json: string | null | undefined, fallback: T): T {
-  if (!json) return fallback;
-  try { return JSON.parse(json) as T; } catch { return fallback; }
+/**
+ * Odolný JSON parser pro sloupce, které jsou v SQLite `text` (řetězec), ale
+ * v PG `jsonb` (node-postgres vrací už parseutý objekt). Dřívější verze
+ * expecting-only-string z objektu udělala "[object Object]" → throw → tichý
+ * fallback. Prijímá obojí: string i hotový objekt/pole.
+ */
+export function safeJsonParse<T>(value: unknown, fallback: T): T {
+  if (value == null) return fallback;
+  if (typeof value === "object") return value as T;
+  if (typeof value !== "string") return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 export function clamp(value: number, min: number, max: number): number {
@@ -242,4 +267,11 @@ export function formatPhone(phone: string | null): string {
   const localMatch = cleaned.match(/^(\d{3})(\d{3})(\d{3})$/);
   if (localMatch) return `${localMatch[1]} ${localMatch[2]} ${localMatch[3]}`;
   return phone;
+}
+
+/** Český plurál „den": 1 den · 2–4 dny · 5+ dní. */
+export function csDays(n: number): string {
+  if (n === 1) return "1 den";
+  if (n >= 2 && n <= 4) return `${n} dny`;
+  return `${n} dní`;
 }

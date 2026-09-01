@@ -16,7 +16,7 @@ export default function NewSearchPage() {
 
   if (status === "loading") {
     return (
-      <div className="p-6 max-w-2xl mx-auto space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         <Skeleton className="h-8 w-48 rounded-lg" />
         <Skeleton className="h-64 rounded-2xl" />
         <Skeleton className="h-40 rounded-2xl" />

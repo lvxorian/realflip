@@ -20,13 +20,20 @@ interface LoginSplashProps {
 export function LoginSplash({ show, onPlayedOnce }: LoginSplashProps) {
   const reported = useRef(false);
 
-  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+  // Jediná guarded cesta ke hlášení — onError i timeupdate musí projít přes
+  // referenci, jinak by kombinace (video hraje → chyba) zavolala onPlayedOnce 2×.
+  const report = () => {
     if (reported.current || !onPlayedOnce) return;
+    reported.current = true;
+    onPlayedOnce();
+  };
+
+  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    if (reported.current) return;
     const v = e.currentTarget;
     // Konec prvního průchodu (s malou tolerancí kvůli zaokrouhlení časů).
     if (v.duration > 0 && v.currentTime >= v.duration - 0.25) {
-      reported.current = true;
-      onPlayedOnce();
+      report();
     }
   };
 
@@ -54,7 +61,7 @@ export function LoginSplash({ show, onPlayedOnce }: LoginSplashProps) {
               preload="auto"
               className="h-full w-full object-contain"
               onTimeUpdate={handleTimeUpdate}
-              onError={onPlayedOnce}
+              onError={report}
             />
           </div>
 

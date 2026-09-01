@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractAreaFromDescription, extractPdfLinks, extractSlug } from "../parse-auction";
+import { extractAreaFromDescription, extractPdfLinks, extractSlug, isPortaldrazebUrl } from "../parse-auction";
 
 describe("extractAreaFromDescription", () => {
   it("extracts area from 'užitná plocha ... X m²'", () => {
@@ -121,5 +121,26 @@ describe("extractPdfLinks", () => {
   it("returns empty array when no documents", () => {
     expect(extractPdfLinks({} as never)).toEqual([]);
     expect(extractPdfLinks({ documents: {} } as never)).toEqual([]);
+  });
+});
+
+describe("isPortaldrazebUrl", () => {
+  it("povolí canonical i subdoménu", () => {
+    expect(isPortaldrazebUrl("https://www.portaldrazeb.cz/drazba/praha-1-abc")).toBe(true);
+    expect(isPortaldrazebUrl("https://portaldrazeb.cz/detail/x")).toBe(true);
+    expect(isPortaldrazebUrl("https://portaldrazeb.cz/drazba/x?fbclid=1")).toBe(true);
+  });
+
+  it("odmítne subdomain-suffix útok a jiné hosty", () => {
+    expect(isPortaldrazebUrl("https://myportaldrazeb.cz/drazba/x")).toBe(false);
+    expect(isPortaldrazebUrl("https://evil.com/https://www.portaldrazeb.cz/drazba/x")).toBe(false);
+    expect(isPortaldrazebUrl("https://portaldrazeb.cz.evil.org/drazba/x")).toBe(false);
+    expect(isPortaldrazebUrl("ftp://portaldrazeb.cz/drazba/x")).toBe(false);
+    expect(isPortaldrazebUrl("nesmysl")).toBe(false);
+  });
+
+  it("vyžaduje cestu /drazba/ nebo /detail/", () => {
+    expect(isPortaldrazebUrl("https://www.portaldrazeb.cz/")).toBe(false);
+    expect(isPortaldrazebUrl("https://www.portaldrazeb.cz/drazby/x")).toBe(false);
   });
 });

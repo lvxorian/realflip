@@ -440,20 +440,19 @@ function InteractiveCard({
           setCostConfig({
             ...costConfig,
             ...cfg,
-            // Legacy presety neměly fee checkbox UI — false se starým fee > 0
-            // znamenalo „fee je aktivní", takže se při načtení zapne.
+            // Explicitní boolean z novějších presetů VŽDY respektujeme —
+            // dřívější `|| fee > 0` znovu zaplo fee, které uživatel záměrně vypnul
+            // (s hodnotou 100 000 v poli). Legacy heuristic jen při absenci pole.
             sourcingEnabled:
               typeof cfg.sourcingEnabled === "boolean"
-                ? cfg.sourcingEnabled || (typeof cfg.sourcingFee === "number" && cfg.sourcingFee > 0)
-                : true,
+                ? cfg.sourcingEnabled
+                : typeof cfg.sourcingFee === "number" && cfg.sourcingFee > 0,
           });
           if (cfg.flipStrategy === "fifty-fifty" || cfg.flipStrategy === "sourcing-fee" || cfg.flipStrategy === "both") {
             setFlipStrategy(cfg.flipStrategy);
-            // Pravidlo kalkulačky: fee za zprostředkování platí vždy kromě 50/50.
+            // Pravidlo kalkulačky: při 50/50 fee nikdo neplatí.
             if (cfg.flipStrategy === "fifty-fifty") {
               setCostConfig((prev) => ({ ...prev, sourcingEnabled: false }));
-            } else if (!(typeof cfg.sourcingEnabled === "boolean" && !cfg.sourcingEnabled && cfg.sourcingFee === 0)) {
-              setCostConfig((prev) => ({ ...prev, sourcingEnabled: true }));
             }
           }
           if (cfg.rental) setRentalConfig((prev) => ({ ...RENTAL_DEFAULTS, ...prev, ...cfg.rental, buildingType: cfg.rental.buildingType ?? prev.buildingType }));
@@ -527,6 +526,10 @@ function InteractiveCard({
           flipMarketingPhoto: mode === "flip" ? targetFlip.costs.marketingPhoto : null,
           flipMortgageCost: mode === "flip" ? targetFlip.costs.mortgageCost : null,
           flipSourcingFee: mode === "flip" ? targetFlip.costs.sourcingFee : null,
+          // fee model jako % + sazba — portál díky tomu přepočítá fee na
+          // vyjednanou cenu stejně jako kalkulačka (regrese F-28)
+          flipSourcingFeeIsPct: mode === "flip" ? costConfig.sourcingFeeIsPct : null,
+          flipSourcingFeeRate: mode === "flip" && costConfig.sourcingFeeIsPct ? costConfig.sourcingFee : null,
           flipStrategy: mode === "flip" ? flipStrategy : null,
           flipProfitTotal: mode === "flip" && targetFlipNoFee ? targetFlipNoFee.netProfit : null,
           flipProfitFiftyFifty: mode === "flip" && targetFlipNoFee ? Math.round(targetFlipNoFee.netProfit / 2) : null,
@@ -574,11 +577,6 @@ function InteractiveCard({
   const handleRenovationTotalChange = (value: string) => {
     const num = parseInt(value.replace(/\s/g, "").replace(/Kč/g, "")) || 0;
     setRenovationTotal(num);
-  };
-
-  const handleRoiChange = (value: string) => {
-    const num = parseInt(value) || 0;
-    setTargetRoi(Math.max(5, Math.min(100, num)));
   };
 
   const handleItemCostChange = (index: number, value: string) => {

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { vykupyRegions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { generateId, ts } from "@/lib/utils";
+import { digestEquals } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ const SECRET_TOKEN = process.env.VYKUPY_API_TOKEN;
 
 async function verifyBearerOrSession(req: Request) {
   const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (bearer && bearer === SECRET_TOKEN) return null;
+  if (bearer && SECRET_TOKEN && digestEquals(bearer, SECRET_TOKEN)) return null;
   const session = await auth();
   if (session?.user?.id) return null;
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

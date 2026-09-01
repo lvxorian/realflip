@@ -106,8 +106,11 @@ export async function getEventData(podnetId: number): Promise<IsirEventData[]> {
   if (!resp) return [];
 
   if (resp.status?.stav !== "OK") {
-    const msg = resp.status?.popisChyby ?? resp.status?.kodChyby ?? "unknown";
-    if (String(msg).includes("N") || String(msg).includes("nenalezen")) return [];
+    const msg = String(resp.status?.popisChyby ?? resp.status?.kodChyby ?? "unknown");
+    // "nenalezeno/not found" = ID zatím neexistuje → prázdno (ne error).
+    // Pozor: dřív `includes("N")` spolklo každou chybu obsahující large-N.
+    const lower = msg.toLowerCase();
+    if (lower.includes("nenalezen") || lower.includes("not found") || lower.includes("neexistuj")) return [];
     throw new Error(`ISIR API error for ID ${podnetId}: ${msg}`);
   }
 
