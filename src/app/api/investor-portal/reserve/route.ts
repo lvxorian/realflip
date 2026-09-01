@@ -7,7 +7,7 @@ import { getInvestorSession } from "@/lib/investor-session";
 import { PORTAL_STAGE } from "@/lib/investor-portal";
 import { PORTAL_RESERVATION_MS } from "@/lib/portal-reservation";
 import { touchInvestorActivity } from "@/lib/investor-activity-actions";
-import { generateId, ts } from "@/lib/utils";
+import { generateId, ts, formatPhone } from "@/lib/utils";
 import { flipCooperationFromSnapshot, parseCalcSnapshot } from "@/lib/investor-portal-view";
 import { getPortalConfig } from "@/lib/portal-config";
 import { COOPERATION_STRATEGIES } from "@/lib/cooperation-models";
@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
       propertyId: leads.propertyId,
       propertyTitle: properties.title,
       propertyAddress: properties.address,
+      contactName: properties.contactName,
+      contactPhone: properties.contactPhone,
+      contactEmail: properties.contactEmail,
       city: propertyAnalysis.locationCity,
       district: propertyAnalysis.locationDistrict,
     })
@@ -61,8 +64,9 @@ export async function POST(req: NextRequest) {
     .where(eq(leads.id, leadId))
     .limit(1);
 
-  // Investorům se nikdy neukazuje přesná adresa (whitelist portálu) —
-  // jen makrolokalita městská část/město, jako v seznamu.
+  // Portálové UI (seznam i confirmation modal) ukazuje jen makrolokalitu
+  // město/čtvrť — viz investor-portal-view whitelist. PLNOU adresu + kontakt
+  // investor dostane až v e-mailu po rezervaci (níže).
   const maskedLocation =
     [cityDisplayName(lead?.city ?? null) ?? lead?.city, lead?.district]
       .filter(Boolean)
@@ -171,11 +175,17 @@ export async function POST(req: NextRequest) {
         const html = buildReservationEmailHtml({
           investorName: session.name,
           propertyTitle: lead.propertyTitle ?? null,
-          propertyAddress: maskedLocation, // whitelist portálu — přesná adresa nikdy investorům
+          // po rezervaci už adresa PATŘÍ investorovi (obchod je jeho) — UI zůstává maskované
+          propertyAddress: lead.propertyAddress ?? null,
+          contact: {
+            name: lead.contactName ?? null,
+            phone: lead.contactPhone ? formatPhone(lead.contactPhone) : null,
+            email: lead.contactEmail ?? null,
+          },
           strategy: strategy as "fifty-fifty" | "sourcing-fee" | null,
           baseUrl,
         });
-        const location = [lead.propertyTitle, maskedLocation].filter(Boolean).join(" · ") || "nemovitost";
+        const location = [lead.propertyTitle, lead.propertyAddress].filter(Boolean).join(" · ") || "nemovitost";
         const subject = `${INVESTOR_BRAND} · Potvrzení rezervace — ${location}`;
         await sendEmail({ to: investorEmail, subject, html });
       }
@@ -265,10 +275,10 @@ export async function POST(req: NextRequest) {
       const html = buildCancelReservationInvestorHtml({
         investorName: session.name,
         propertyTitle: lead.propertyTitle ?? null,
-        propertyAddress: maskedLocation, // whitelist portálu — investorovi přesnou adresu neposíláme
+        propertyAddress: lead.propertyAddress ?? null, // šlo o jeho rezervaci — adresa patří investorovi
         baseUrl: cancelBaseUrl,
       });
-      const subject = `${INVESTOR_BRAND} · Rezervace zrušena — ${[lead.propertyTitle, maskedLocation].filter(Boolean).join(" · ") || "nemovitost"}`;
+      const subject = `${INVESTOR_BRAND} · Rezervace zrušena — ${cancelLocation}`;
       await sendEmail({ to: investorEmail, subject, html });
     }
   } catch {

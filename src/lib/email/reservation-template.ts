@@ -23,13 +23,31 @@ export function buildReservationEmailHtml(
   opts: {
     investorName: string;
     propertyTitle: string | null;
+    /**
+     * Po rezervaci záměrně plná adresa (investorovu obchodu už byla přiřazena) —
+     * portálové UI ani e-mail o NOVÉ nabídce adresu nikdy neukazují.
+     */
     propertyAddress: string | null;
+    /** Kompletní kontakt na prodávajícího — posíláme stejně jako adresu až po rezervaci. */
+    contact?: { name?: string | null; phone?: string | null; email?: string | null } | null;
     strategy: CooperationStrategy | null;
     baseUrl: string;
   },
 ): string {
   const location = [opts.propertyTitle, opts.propertyAddress].filter(Boolean).join(" · ") || "Nemovitost";
   const strategyLabel = opts.strategy ? COOPERATION_STRATEGIES[opts.strategy] : null;
+  const c = opts.contact ?? null;
+  const hasContact = !!(c && (c.name || c.phone || c.email));
+  const contactRows = hasContact
+    ? `<tr>
+                  <td style="padding:14px 0 0 0;border-top:1px solid ${T.border};">
+                    <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:${T.mutedForeground};">Kontakt na prodávajícího</p>
+                    ${c?.name ? `<p style="margin:0 0 2px;font-size:14px;color:${T.foreground};">${escapeHtml(c.name)}</p>` : ""}
+                    ${c?.phone ? `<p style="margin:0 0 2px;font-size:14px;"><a href="tel:${escapeHtml(c.phone.replace(/\s+/g, ""))}" style="color:${T.accent};text-decoration:none;font-family:'Geist Mono',ui-monospace,monospace;">${escapeHtml(c.phone)}</a></p>` : ""}
+                    ${c?.email ? `<p style="margin:0;font-size:14px;"><a href="mailto:${escapeHtml(c.email)}" style="color:${T.accent};text-decoration:none;">${escapeHtml(c.email)}</a></p>` : ""}
+                  </td>
+                </tr>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="cs">
@@ -67,10 +85,11 @@ export function buildReservationEmailHtml(
                   <td style="padding:8px 0;font-size:13px;color:${T.muted};">Model spolupráce</td>
                   <td style="padding:8px 0;font-size:14px;font-weight:600;text-align:right;color:${T.foreground};font-family:'Geist Mono',ui-monospace,monospace;">${escapeHtml(strategyLabel)}</td>
                 </tr>` : ""}
+                ${contactRows}
               </table>
 
               <p style="margin:16px 0 0;font-size:13px;color:${T.muted};line-height:1.6;">
-                Rezervace je platná <strong style="color:${T.foreground};">po dobu 3 dnů</strong>. Během této doby se vám ozveme a domluvíme další postup, ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
+                Rezervace je platná <strong style="color:${T.foreground};">po dobu 3 dnů</strong>. Během této doby se vám ozveme a domluvíme další postup${hasContact ? ", nebo můžete ozvat rovnou podle kontaktu výše" : ""} — ať už jde o dokončení rezervace, výkup nemovitosti s vyplacením provize, nebo spolupráci na bázi 50/50.
               </p>
 
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
