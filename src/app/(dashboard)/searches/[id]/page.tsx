@@ -40,6 +40,8 @@ interface SearchResult {
     url: string;
     isActive: number;
     firstSeen: number;
+    priceRating: string | null;
+    isEarlyOffer: number | null;
   };
   analysis: {
     investmentScore: number | null;
@@ -260,6 +262,8 @@ export default function SearchDetailPage() {
                       : undefined
                   }
                   status={r.analysis?.verdictLevel ?? undefined}
+                  priceRating={r.property.priceRating ?? undefined}
+                  earlyOffer={(r.property.isEarlyOffer ?? 0) === 1}
                 />
               </motion.div>
             );

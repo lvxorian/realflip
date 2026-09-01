@@ -46,6 +46,8 @@ interface DashboardData {
     area: number;
     imageUrls: string[];
     verdictLevel: string | null;
+    priceRating: string | null;
+    isEarlyOffer: number | null;
   }[];
   recentProperties: {
     id: string;
@@ -57,6 +59,8 @@ interface DashboardData {
     status: string;
     days: number;
     imageUrls: string[];
+    priceRating: string | null;
+    isEarlyOffer: number | null;
   }[];
   activities: {
     id: string;
@@ -83,6 +87,14 @@ const itemVariants = {
     y: 0,
     transition: { type: "spring" as const, stiffness: 100, damping: 20 },
   },
+};
+
+const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
+  "Velmi dobrá cena": "success",
+  "Dobrá cena": "default",
+  "Férová cena": "default",
+  "Vyšší cena": "warning",
+  "Vysoká cena": "danger",
 };
 
 export default function DashboardPage() {
@@ -473,6 +485,18 @@ export default function DashboardPage() {
                       <span className="w-0.5 h-0.5 rounded-full bg-border" />
                       <span>{p.rooms}</span>
                     </div>
+                    {(p.priceRating || p.isEarlyOffer) && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        {p.priceRating && (
+                          <Badge variant={RATING_VARIANT[p.priceRating] ?? "default"} size="sm">
+                            {p.priceRating}
+                          </Badge>
+                        )}
+                        {p.isEarlyOffer === 1 && (
+                          <Badge variant="info" size="sm">Předstih</Badge>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-xs font-mono font-semibold text-price">
                         {new Intl.NumberFormat("cs-CZ", {
@@ -540,6 +564,18 @@ export default function DashboardPage() {
                       <span className="w-0.5 h-0.5 rounded-full bg-border" />
                       <span>{p.days} dní</span>
                     </div>
+                    {(p.priceRating || p.isEarlyOffer) && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        {p.priceRating && (
+                          <Badge variant={RATING_VARIANT[p.priceRating] ?? "default"} size="sm">
+                            {p.priceRating}
+                          </Badge>
+                        )}
+                        {p.isEarlyOffer === 1 && (
+                          <Badge variant="info" size="sm">Předstih</Badge>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-xs font-mono font-semibold text-price">
                         {new Intl.NumberFormat("cs-CZ", {

@@ -48,6 +48,8 @@ export interface LeadItem {
   propertyRemoved: boolean;
   propertyIsActive: boolean;
   propertyRemovedAt: number | null;
+  propertyPriceRating: string | null;
+  propertyIsEarlyOffer: number | null;
   contactId: string | null;
   contactName: string | null;
   contactPhone: string | null;

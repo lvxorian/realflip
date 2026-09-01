@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { StatusDot } from "@/components/ui/status-dot";
 import { PriceTag } from "@/components/ui/price-tag";
+import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { conditionLabel, safeJsonParse, formatCompactPrice, formatRelative, parseDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +36,8 @@ interface CallItem {
   propertyPortal: string | null;
   propertyRemoved: boolean;
   propertyRemovedAt: number | null;
+  propertyPriceRating: string | null;
+  propertyIsEarlyOffer: number | null;
   analysisScore: number | null;
   analysisNetProfit: number | null;
   analysisRoi: number | null;
@@ -111,6 +114,14 @@ const VERDICT_COLORS: Record<string, string> = {
   consider: "text-amber-400 border-amber-500/20 bg-amber-500/10",
   dontBuy: "text-red-400 border-red-500/20 bg-red-500/10",
   categoricalReject: "text-red-400 border-red-500/20 bg-red-500/10",
+};
+
+const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
+  "Velmi dobrá cena": "success",
+  "Dobrá cena": "default",
+  "Férová cena": "default",
+  "Vyšší cena": "warning",
+  "Vysoká cena": "danger",
 };
 
 function Stat({
@@ -381,6 +392,18 @@ export default function CallModePage() {
                   </div>
                 )}
                 {call.propertyPrice != null && <PriceTag price={call.propertyPrice} perSqm={call.propertyPricePerSqm ?? undefined} size="sm" />}
+                {(call.propertyPriceRating || call.propertyIsEarlyOffer) && (
+                  <div className="flex items-center gap-1.5">
+                    {call.propertyPriceRating && (
+                      <Badge variant={RATING_VARIANT[call.propertyPriceRating] ?? "default"} size="sm">
+                        {call.propertyPriceRating}
+                      </Badge>
+                    )}
+                    {call.propertyIsEarlyOffer === 1 && (
+                      <Badge variant="info" size="sm">Předstih</Badge>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="rounded-lg bg-foreground/[0.02] border border-foreground/5 p-2.5">
                     <span className="text-[10px] text-muted">Plocha</span>

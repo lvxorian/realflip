@@ -42,6 +42,8 @@ export async function GET() {
         propertyStatus: properties.status,
         propertyIsActive: properties.isActive,
         propertyRemovedAt: properties.removedAt,
+        propertyPriceRating: properties.priceRating,
+        propertyIsEarlyOffer: properties.isEarlyOffer,
         propertyContactName: properties.contactName,
         propertyContactPhone: properties.contactPhone,
         propertyContactEmail: properties.contactEmail,

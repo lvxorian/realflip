@@ -38,6 +38,8 @@ export async function GET() {
         propertyPortal: properties.portalName,
         propertyRemoved: properties.isActive,
         propertyRemovedAt: properties.removedAt,
+        propertyPriceRating: properties.priceRating,
+        propertyIsEarlyOffer: properties.isEarlyOffer,
         analysisScore: propertyAnalysis.investmentScore,
         analysisNetProfit: propertyAnalysis.netProfit,
         analysisRoi: propertyAnalysis.roi,

@@ -16,22 +16,27 @@ export async function POST() {
     return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") || "http://localhost:3000";
 
   try {
     const res = await fetch(`${baseUrl}/api/realingo/cron`, {
       method: "GET",
       headers: { Authorization: `Bearer ${secret}` },
-      signal: AbortSignal.timeout(120_000),
+      signal: AbortSignal.timeout(180_000),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      return NextResponse.json({ error: `Sync failed: ${res.status} ${text}` }, { status: 502 });
+      return NextResponse.json(
+        { error: `Sync selhalo (${res.status}): ${text.slice(0, 500)}` },
+        { status: 502 }
+      );
     }
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Realingo manual sync error:", error);
-    return NextResponse.json({ error: "Sync error" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Realingo manual sync error:", msg);
+    return NextResponse.json({ error: `Sync error: ${msg}` }, { status: 500 });
   }
 }

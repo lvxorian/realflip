@@ -55,6 +55,8 @@ function makeLead(overrides: Partial<LeadItem> = {}): LeadItem {
     propertyRemoved: false,
     propertyIsActive: true,
     propertyRemovedAt: null,
+    propertyPriceRating: null,
+    propertyIsEarlyOffer: null,
     contactId: null,
     contactName: null,
     contactPhone: null,

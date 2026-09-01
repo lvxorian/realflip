@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PropertyCard } from "@/components/ui/property-card";
+import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,14 @@ import {
 } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 48;
+
+const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
+  "Velmi dobrá cena": "success",
+  "Dobrá cena": "default",
+  "Férová cena": "default",
+  "Vyšší cena": "warning",
+  "Vysoká cena": "danger",
+};
 
 export interface PropertyListItem {
   id: string;
@@ -643,6 +652,16 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
+                        <div className="flex items-center gap-1.5 justify-end mb-1">
+                          {p.priceRating && (
+                            <Badge variant={RATING_VARIANT[p.priceRating] ?? "default"} size="sm">
+                              {p.priceRating}
+                            </Badge>
+                          )}
+                          {p.isEarlyOffer && (
+                            <Badge variant="info" size="sm">Předstih</Badge>
+                          )}
+                        </div>
                         <p className="text-sm font-semibold font-mono text-price">
                           {fmtPrice(p.price)}{" "}
                           Kč

@@ -168,6 +168,27 @@ export function LeadCardView({
       )}
 
       <div className="flex flex-wrap items-center gap-1 mb-1">
+        {lead.propertyPriceRating && (
+          <span
+            className={cn(
+              "inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium",
+              lead.propertyPriceRating === "Velmi dobrá cena" || lead.propertyPriceRating === "Dobrá cena"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                : lead.propertyPriceRating === "Vyšší cena"
+                ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                : lead.propertyPriceRating === "Vysoká cena"
+                ? "bg-red-500/10 border-red-500/20 text-red-400"
+                : "bg-card border-border/50 text-muted"
+            )}
+          >
+            {lead.propertyPriceRating}
+          </span>
+        )}
+        {lead.propertyIsEarlyOffer === 1 && (
+          <span className="inline-flex items-center rounded border border-blue-500/25 bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-400">
+            Předstih
+          </span>
+        )}
         {lead.stage === "meeting" && lead.stageData?.meeting?.date && (
           <span className="inline-flex items-center gap-1 rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[10px] font-mono text-blue-400">
             <CalendarBlank size={10} weight="bold" />

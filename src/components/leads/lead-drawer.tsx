@@ -457,6 +457,25 @@ function LeadDrawerContent({
           {lead.propertyPricePerSqm != null && (
             <span className="text-xs text-muted font-mono">{formatPrice(lead.propertyPricePerSqm)}/m²</span>
           )}
+          {lead.propertyPriceRating && (
+            <Badge
+              variant={
+                lead.propertyPriceRating === "Velmi dobrá cena" || lead.propertyPriceRating === "Dobrá cena"
+                  ? "success"
+                  : lead.propertyPriceRating === "Vyšší cena"
+                  ? "warning"
+                  : lead.propertyPriceRating === "Vysoká cena"
+                  ? "danger"
+                  : "default"
+              }
+              size="sm"
+            >
+              {lead.propertyPriceRating}
+            </Badge>
+          )}
+          {lead.propertyIsEarlyOffer === 1 && (
+            <Badge variant="info" size="sm">Předstih</Badge>
+          )}
           <Badge variant="outline" size="sm" className="ml-auto gap-1.5">
             <span className={`h-1.5 w-1.5 rounded-full ${stageMeta?.dot ?? "bg-border"}`} />
             {stageMeta?.label ?? stage}

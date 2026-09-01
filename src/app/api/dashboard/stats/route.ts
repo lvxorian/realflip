@@ -59,6 +59,8 @@ export async function GET() {
           area: properties.area,
           lat: properties.lat,
           isActive: properties.isActive,
+          priceRating: properties.priceRating,
+          isEarlyOffer: properties.isEarlyOffer,
         })
         .from(properties)
         .where(eq(properties.isActive, 1)),
@@ -161,6 +163,8 @@ export async function GET() {
           status: statusLabel(daysOnMarket, analysis?.investmentScore ?? null),
           days: daysOnMarket,
           imageUrls: safeJsonParse<string[]>(p.imageUrls, []),
+          priceRating: p.priceRating,
+          isEarlyOffer: p.isEarlyOffer,
         };
       });
 
@@ -181,6 +185,8 @@ export async function GET() {
           area: p.area ?? 0,
           imageUrls: safeJsonParse<string[]>(p.imageUrls, []),
           verdictLevel: a.verdictLevel,
+          priceRating: p.priceRating,
+          isEarlyOffer: p.isEarlyOffer,
         };
       })
       .filter(Boolean);
