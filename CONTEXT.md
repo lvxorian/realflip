@@ -12,14 +12,14 @@ Full-stack SaaS platform for Czech real estate flipping: scraping 10+ portals, A
 - **DB**: Neon PostgreSQL (cloud) / SQLite (local) via Drizzle ORM
 - **Auth**: NextAuth v5 (credentials + Google OAuth, JWT strategy)
 - **Mapping**: Leaflet + OpenStreetMap
-- **Testing**: Vitest v4 + jsdom + @testing-library/react (698 tests, 54 files)
+- **Testing**: Vitest v4 + jsdom + @testing-library/react (738 tests, 60 files)
 
 ## Infrastructure
 - **DB**: Neon PostgreSQL + `data.db` (SQLite fallback)
 - **Test account**: `cakmak@tuta.com` / `realflip2026`
 - **Deploy**: Vercel + Neon (Hobby plan, 1 cron/day)
-- **Cron**: 6:00 UTC daily via Vercel Cron → `/api/scraping/trigger`
-- **GitHub Actions**: `drazby-hunter.yml` — daily at 6:00 UTC, scrapes Portál dražeb
+- **Cron (vše 1×/den, Vercel Hobby limit)**: `vercel.json` — scraping 6:00 (`/api/scraping/trigger`), deska 8:00 (`/api/deska/poll`), isir 6:00 (`/api/isir/cron`), ares 9:00 (`/api/ares/cron`), realingo 11:00 (`/api/realingo/cron`). Cron route auth: `Authorization: Bearer CRON_SECRET`.
+- **GitHub Actions 6:00 UTC**: `daily-scraper.yml` (Radar Refresh → `/api/market/radar-refresh`, `x-cron-secret`) + `drazby-hunter.yml` (Portál dražeb)
 
 ## Key Decisions
 - JSON stored as text columns (SQLite compatible)
@@ -572,6 +572,32 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Build fixes nutné k deployi**: `Scale` → `Scales` (phosphor-icons nemá `Scale`), `safeJsonParse` s kompletním fallbackem (ne `{}`), `pdf-parse` v2 API. **Vercel Hobby limit**: cron MAX 1×/den → `0 */6 * * *` blokoval deploy 402 → změněno na `0 6 * * *`.
 - Ověřeno: `getLastPodnetId()` → 80115480, `getEventData(80115400)` → 53 eventů s korektním dekódováním ČZ.
 
+### Phase 82 — Realingo premium integrace: Valuo rating + nabídky s předstihem (Done)
+- **Zdroj**: Realingo.cz GraphQL (creds `REALINGO_EMAIL`/`REALINGO_PASSWORD` na Vercelu) → `src/lib/realingo/` (`graphql-client.ts`, `sync.ts`, `realscan.ts`, `offers.ts`, `types.ts`). Bez creds je sync disabled (`{ scanned:0, saved:0, errors:["Realingo disabled"] }`).
+- **DB**: `properties.priceRating` (Velmi dobrá/Dobrá/Férová/Vyšší/Vysoká cena), `priceRatingJson` (PG jsonb / SQLite text), `isEarlyOffer` (0/1 = „Předstih").
+- **Settings**: Realingo config panel (creds, enable/disable, `syncState`, tlačítko „Spustit sync" → `POST /api/realingo/trigger`).
+- **UI badge/tag**: `RATING_VARIANT` mapa (success/default/warning/danger) + Badge „Předstih" (info) napříč plochami — grid i list `properties-explorer`, detail `properties/[id]`, `searches/[id]`, dashboard (Nejpodhodnocenější + Nejnovější), `call-mode`, `lead-card`/`lead-drawer`. API vrací pole v `dashboard/stats`, `leads` (`propertyPriceRating`/`propertyIsEarlyOffer`), `call-mode`; full row v `searches/[id]`. Vynecháno: investor portál + `interactive-analysis` (data tam nejsou).
+- Testy 727 → 738 / 60 souborů, typecheck čistý, build OK.
+
+### Phase 83 — Fix „Sync error: fetch failed": manuální triggery in-process (Done)
+- **Příčina**: `/api/{ares,isir,realingo}/trigger` dělaly self-fetch na `${NEXT_PUBLIC_APP_URL}/api/.../cron` s `Authorization: Bearer CRON_SECRET`. Na Vercelu nebyla APP_URL validní (Fallback/example `http://localhost:3000`) → fetch ze serverless funkce na localhost → undici „fetch failed". Vercel cron (scheduler) tím netrpěl — volá cron route přímo.
+- **Fix**: trigger routes volají sdílenou in-process logiku místo self-fetchu: `syncRealingo()` (Realingo), `runAresPoll()` (`src/lib/ares/run-poll.ts`), `runIsirPoll()` (`src/lib/isir/run-poll.ts`). Logika ares/isir byla natvrdo v cron route — vytažena do lib, cron i trigger ji sdílejí. Auth triggerů = jen session; CRON_SECRET se nikam neposílá. `maxDuration` shodné s crony: realingo 60, ares 60, isir 300. Chyba: `{ error: "Sync error: <msg>" }` (Settings čte `data.error`/`data.saved`).
+- `NEXT_PUBLIC_APP_URL` zůstává pro absolutní e-mailové odkazy (`notify-offers.ts`, `investor-portal/reserve`) — na Vercelu nastavit na produkční doménu.
+- Testy 738/738, typecheck čistý, build OK.
+
+### Phase 84 — Kompletní code audit + vlna oprav (Done)
+- **Revize všech vrstev** (4 paralelní audity: API/auth/DB, scraping/market, valuation/kalkulace, frontend). Testy 738 zelené, ale kritické chyby NEODHALY → doplněno +29 regrese testů.
+- **P0 #1 — mrtvý auth gate**: `src/proxy.ts` (Next 16 middleware) `publicRoutes.some(r => pathname.startsWith(r))` → `"/"` matchne vše, 401/redirect nikdy neběžel. Fix: čistě testovatelná pravidla `src/lib/proxy-rules.ts` (`isPublicPath` přesné matchy + prefix segmenty `/login /register /api/auth /report`; `isMachinePath` — cron/API bez cookie, které si hlídají secret samy: scraping/trigger, deska/poll, isir|ares|realingo cron, radar-refresh, vykupy/leads). Regresní test `proxy-rules.test.ts`. Navíc `(dashboard)/layout.tsx` `auth()`+`redirect` (defense-in-depth — server pages dříve renderovaly data anonymům).
+- **P0 #2 — scraping cron 405**: Vercel cron posílá GET, route jen POST+x-cron-secret → denní scraping nikdy neběžel. Fix: `GET`+`POST` přes `runScraping`, auth `Bearer CRON_SECRET` NEBO `x-cron-secret` NEBO session (fail-closed bez env), `maxDuration 300`. Market backfill `refreshAllMarketData()` přes `after()` (fire-and-forget se na Vercelu usekl po response).
+- **P1 bezpečnost**: `parse-auction` session auth + `isPortaldrazebUrl` hostname guard (substring regex propustil myportaldrazeb.cz); `market/radar` GET + `market/report` GET auth + try/catch; secret guardy ares/isir/realingo/deska fail-closed přes `src/lib/cron-auth.ts` (`hasCronBearer`/`digestEquals` sha256 timingSafe — „Bearer undefined" už neprojde); `vykupy/leads` POST fail-closed; `leads/[id]/portal` userId scoping (IDOR); `investor-portal/reserve` atomický podmíněný UPDATE `.returning()` + expired-reservation steal + adresa VYMAZÁNA z response a investor e-mailů (maskováno `město · čtvrť` přes `locationCity/locationDistrict` — admin e-maily/adresa v dashboardu neměněny).
+- **P1 logika**: onboarding array→`JSON.stringify` (SQLite i PG zápis byl rozbitý, klient silent-fail) + klient kontroluje `res.ok`; **aukce `buildFlipConfig`: sourcing fee i při `sourcingEnabled:false`** → phantom −100k v `costs` (ROI/strop/break-even zkreslené, default flow!), fix `enabled ? fee : 0` + 2 testy; `analyze-url/comps` spárované filtrování price+area (dřív index mismatch → špatný medianPricePerSqm).
+- **P2 data**: `safeJsonParse` nyní přijímá `unknown` — PG jsonb (už-parse object) i SQLite string (fixuje deska OCR a isir PDF re-parsing v prod); localita: `poi.ts` read/write segment sjednocen na `"poi"` (městská cache nikdy netrefila) + walkability v insert values + retry cap 2 na 429/403, `median([])` null (ne 0 → inverted best-score), `transport.ts` fallback write pod městský segment + `source/quarterLabel` v countsJson, `scoreTransportDistance` all-null → **null** (ne 0; `transportMultiplier(null)=1` — konec tiše −6 %), engine transport gate `sampleSize>=3`; market cache: klíč + `__a{area bucket}` + `__x{adj}` pro per-property výsledky (DB persist jen pro city-level), `fetchComparableSamples` ORDER BY lastSeen/soldAt DESC před limitem; orchestrator: `hasAltUrl` merge target (fix duplicate při re-crawlu), `rescueDeactivatedByAltUrl` cross-portal (bez portalName filtru, 30d window), `pricePerSqm` NULL overwrite fix; hyperinzerce condition `project` → sdílený `inferConditionFromText`; `filters.detectPropertyType` **flat precedence** před garage/land/house (saved-search zahozy „byt v rodinném domě"); annonce desetinná čárka; mmreality SSR↔DOM párování přes `cardId`/slug match (ne index); radar `setMonth` overflow → `periodMonthsAgo` (year*12+month aritmetika, testy na 29.–31.); `loadListingSnapshot` in-flight dedup + 60s memo (1 scan místo 2); isir/ares cursor jen na nejdelší success prefix (žádné permanentní ztráty), `apartmentsFound` počítá byty ne případy, publishedAt NaN guard, ISIR „N" substring → explicitní nenalezen/not found; create-from-url/auction: `filterImages` gatekeeper, initial `priceHistory` row, create-from-url `live=false`+maxDuration 60.
+- **P2 kalkulace/portal**: preset roundtrip (`rentalRenovation*` do POST configu; `sourcingEnabled` boolean se už nepřepracovává); PDF report normalizuje oba tvary `report-config-<id>` + `manualFlipPrice` jako target báze; `recalcFlipAtPrice` pct fee přepočet (`sourcingFeeIsPct`/`sourcingFeeRate` ve snapshotu) + 50/50 basis na `noFee.totalCost`; rental `termYears` clamp + `equityMultiple` guard; flip `holdingMonths||default` (0 → ±Infinity dřív).
+- **Frontend**: login `signIn` try/catch (network error uvěznil splash) + timer se nepřepisujech, `LoginSplash.onError` přes guarded `report()`; `auction-calculator` localStorage hydration fix (default + effect, autosave gated); `router.push` v render → effect (searches/[id]/edit); loading `p-6` duplicity pryč (vykupy/[id], searches/new, searches/[id]/edit); `MobileLeadRow` role/tabIndex/keydown; notification click `router.push` (ne full reload) + `markRead` error handling.
+- **Úklid**: mrtvý kód pryč (`engine askingPrice`, `handleRoiChange`, `needsLight`, `fetchPoi`, `MAX_PAGES`, mrtvý `like(address ?? "")`); sdílený `parseAmountInput` + `csDays` v utils (lead-card/property-card/properties-explorer plurály den/dny/dní); lead-drawer parser odolný na NNBSP+desetinnou; `save-deal` default status `"purchased"` (ne mrtvé „new"); email normalizace lowercase register+login+profile (+ legacy fallback při authorize), `profile` PATCH vyžaduje `currentPassword` při změně hesla, bcrypt cost sjednocen na 12; `pipeline-board` reindex position při cross-stage insertu + deterministický `byPos` tie-break; `parseEstateList` dedup transaction_id; price-map prázdný drill list se necachuje do memory; `create-from-auction` filterImages. Doc drift opraven v CLAUDE.md (11 adaptérů, clamp [0,80×;1,15×], price-map TTL 24 h, cron GET+Bearer, proxy/auth sekce).
+- **Známé debt (neresolved záměrně)**: investor heslo odvozené od příjmení + in-memory rate limit (MVP Brickon); dual-schema `as`-cast sjednocení; Vercel cron vyžaduje GET (hotovo) — GH `drazby-hunter` GET na /api/vykupy/leads (machine path); god-component refaktory (interactive-analysis, portal page, leads-board); react-query provider bez useQuery (TODO v providers).
+- Verifikace: `tsc --noEmit` čistý, **764/764 testů (61 souborů)**, `next build` OK, eslint bez nových chyb.
+
 ## Key Files
 
 ### Core
@@ -584,7 +610,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/types.ts`
 - `src/lib/scraping/realitymat-parser.ts` — sdílený detail parser realitymat.cz (vč. telefonu z modalu)
 - `src/lib/scraping/bezrealitky-parser.ts` — sdílený parser bezrealitky (NEXT_DATA Apollo cache: advert/detail/search)
-- `src/lib/scraping/adapters/` — 10 adapters (sreality, idnes-reality, realitymat, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce, remax)
+- `src/lib/scraping/adapters/` — 11 adapters (sreality, idnes-reality, realitymat, realitymix, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce, remax)
 
 ### Analysis / Calculator
 - `src/lib/analysis/flip-costs.ts`
@@ -630,6 +656,17 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/app/(dashboard)/isir/` — page + [id]
 - `src/components/isir/` — insolvency-card, score-badge, section-badge
 - `scripts/migrate-isir.ts`, `scripts/test-isir.ts`
+
+### Realingo (premium feed) — Phase 82
+- `src/lib/realingo/sync.ts` — `syncRealingo()` (hostněný sken + upsert; in-process volané cronem i triggerem)
+- `src/lib/realingo/graphql-client.ts` — GraphQL klient (auth `REALINGO_EMAIL`/`REALINGO_PASSWORD`)
+- `src/lib/realingo/realscan.ts`, `offers.ts`, `types.ts` — RealScan + nabídky s předstihem + typy
+- `src/app/api/realingo/` — cron (Bearer), trigger (session, in-process), config (GET/POST + syncState), scans/[propertyId]
+- UI badge: `RATING_VARIANT` + „Předstih" v `properties-explorer`, `properties/[id]`, `searches/[id]`, `dashboard`, `call-mode`, `leads` (lead-card/lead-drawer), settings
+
+### Sdílené cron/trigger liby (Phase 83)
+- `src/lib/ares/run-poll.ts` — `runAresPoll()` (sdílí ares cron + trigger)
+- `src/lib/isir/run-poll.ts` — `runIsirPoll()` (sdílí isir cron + trigger)
 
 ### Market Data
 - `src/lib/scraping/market-price-service.ts` — kaskáda Tier 1-5
