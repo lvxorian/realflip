@@ -16,6 +16,14 @@ import { checkPriceDropAlert, checkScoreThresholdAlert } from "@/lib/alert-match
 import { classifyLocation, findCityKey } from "@/lib/analysis/location";
 import { getAnalysisRanges } from "@/lib/scraping/market-price-service";
 
+/** Úplný text chyby včetně PG `cause` — bez něj se z insertu ztratí skutečná příčina. */
+function describeError(err: unknown): string {
+  const e = err as { message?: string; cause?: { message?: string }; error?: { message?: string } };
+  const base = e?.message ?? String(err);
+  const cause = e?.cause?.message ?? e?.error?.message;
+  return cause ? `${base} — cause: ${cause}` : base;
+}
+
 /**
  * Vybere plnější titulek. bazos.cz ořezává titulky na 60 znaků (jeho limit —
  * plný text na jeho stránkách neexistuje), proto při sloučení se stejným
@@ -79,7 +87,7 @@ export class ScrapingOrchestrator {
         const propertyId = await this.saveListing(listing, searchId);
         if (propertyId) total++;
       } catch (err) {
-        errors.push(`Failed to save listing ${listing.url}: ${err}`);
+        errors.push(`Failed to save listing ${listing.url}: ${describeError(err)}`);
       }
     }
     return { total, errors };
@@ -133,7 +141,7 @@ export class ScrapingOrchestrator {
             await this.saveListing(listing);
             total++;
           } catch (err) {
-            errors.push(`Failed to save listing ${listing.url}: ${err}`);
+            errors.push(`Failed to save listing ${listing.url}: ${describeError(err)}`);
           }
         }
 
@@ -262,7 +270,7 @@ export class ScrapingOrchestrator {
               found++;
             }
           } catch (err) {
-            errors.push(`Failed to save listing ${listing.url}: ${err}`);
+            errors.push(`Failed to save listing ${listing.url}: ${describeError(err)}`);
           }
         }
       } catch (err) {
@@ -626,7 +634,7 @@ export class ScrapingOrchestrator {
                 searchTotals.set(search.id, (searchTotals.get(search.id) ?? 0) + 1);
               }
             } catch (err) {
-              portalErrors.push(`Failed to save listing ${listing.url}: ${err}`);
+              portalErrors.push(`Failed to save listing ${listing.url}: ${describeError(err)}`);
             }
           }
 
