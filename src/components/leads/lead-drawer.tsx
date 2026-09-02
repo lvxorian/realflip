@@ -17,6 +17,7 @@ import { formatPrice, formatDate, conditionLabel, buildingTypeLabel, portalLabel
 import { PropertyImage } from "@/components/ui/property-image";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
+import { PriceRatingMeter } from "@/components/ui/price-rating-meter";
 import { LEAD_STAGES, LOST_REASONS } from "@/lib/leads";
 import { toast } from "sonner";
 import type { LeadEvent } from "@/lib/lead-events";
@@ -462,20 +463,7 @@ function LeadDrawerContent({
             <span className="text-xs text-muted font-mono">{formatPrice(lead.propertyPricePerSqm)}/m²</span>
           )}
           {lead.propertyPriceRating && (
-            <Badge
-              variant={
-                lead.propertyPriceRating === "Velmi dobrá cena" || lead.propertyPriceRating === "Dobrá cena"
-                  ? "success"
-                  : lead.propertyPriceRating === "Vyšší cena"
-                  ? "warning"
-                  : lead.propertyPriceRating === "Vysoká cena"
-                  ? "danger"
-                  : "default"
-              }
-              size="sm"
-            >
-              {lead.propertyPriceRating}
-            </Badge>
+            <PriceRatingMeter label={lead.propertyPriceRating} variant="bar" />
           )}
           {lead.propertyIsEarlyOffer === 1 && (
             <Badge variant="info" size="sm">Předstih</Badge>

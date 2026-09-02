@@ -5,7 +5,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ScoreGauge } from "./score-gauge";
 import { PriceTag } from "./price-tag";
-import { PriceRatingStrip } from "./price-rating-strip";
+import { PriceRatingMeter } from "./price-rating-meter";
 import { Badge } from "./badge";
 import { FavoriteButton } from "./favorite-button";
 import { PropertyImage } from "./property-image";
@@ -182,7 +182,7 @@ export function PropertyCard({
 
           <div className="mt-auto">
             <PriceTag price={price} perSqm={pricePerSqm} size="sm" />
-            {priceRating && <PriceRatingStrip label={priceRating} className="mt-1.5" />}
+            {priceRating && <PriceRatingMeter label={priceRating} className="mt-1.5" />}
           </div>
         </div>
       </motion.div>

@@ -7,6 +7,7 @@ import { Star, MapPin, Clock, CalendarBlank, ArrowRight, XCircle, CheckCircle, H
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { RemovedListingBadge } from "@/components/ui/removed-listing-badge";
+import { PriceRatingMeter } from "@/components/ui/price-rating-meter";
 import { AmountInput } from "@/components/ui/amount-input";
 import { formatPrice, formatCompactPrice, portalLabel, splitAddress, formatAmountInput, parseAmountInput, csDays } from "@/lib/utils";
 import { timeInStageDays } from "@/lib/leads";
@@ -157,20 +158,7 @@ export function LeadCardView({
 
       <div className="flex flex-wrap items-center gap-1 mb-1">
         {lead.propertyPriceRating && (
-          <span
-            className={cn(
-              "inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium",
-              lead.propertyPriceRating === "Velmi dobrá cena" || lead.propertyPriceRating === "Dobrá cena"
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : lead.propertyPriceRating === "Vyšší cena"
-                ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-                : lead.propertyPriceRating === "Vysoká cena"
-                ? "bg-red-500/10 border-red-500/20 text-red-400"
-                : "bg-card border-border/50 text-muted"
-            )}
-          >
-            {lead.propertyPriceRating}
-          </span>
+          <PriceRatingMeter label={lead.propertyPriceRating} variant="bar" />
         )}
         {lead.propertyIsEarlyOffer === 1 && (
           <span className="inline-flex items-center rounded border border-blue-500/25 bg-blue-500/10 px-1.5 py-0.5 text-[10px] text-blue-400">

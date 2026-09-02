@@ -611,6 +611,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Pozor data**: Vercel cron `/api/realingo/cron` (0 11 * * * UTC) za poslední 2 dny **neměl jediný request v logech** → prod data byla freeze od 31.8. do dnešního ručního triggeru (81 řádků touched). Současně burst 40×500 na `/api/ares/cron` a `crime.ts` 404 na policie.cz měsíční XLSX (další issue).
 - Testy +5 (800/800, 65 souborů), `tsc`+eslint+build čisté.
 
+### Phase 87 — Valuo rating jako segmentový ukazatel (Realingo meter) (Done)
+- **Podnět**: badge byly jednobarevné (duplicitní lokální mapy `RATING_VARIANT` na dashboardu/call-mode měly Dobrá i Férová → `default` accent a po Phase 86 novelizaci slovníku padalo vše na default; lead-card/lead-drawer měly tvrdé porovnání starých řetězců).
+- `rating.ts`: `RatingMeta` místo `strip` nese `meter { bar, text, filled }` — barvy dle Realinga (emerald→green→lime→amber→red), `filled` 5..1 (tier 1 = plný bar); „Velmi dobrá cena" zůstává tichý alias tier 1 pro stará data.
+- Nové `src/components/ui/price-rating-meter.tsx` (smazeno `price-rating-strip.tsx`): 5 dílků `grid-cols-5 gap-[2px]` (`h-1`/`h-1.5` dle size), prázdné `bg-white/[0.07]`, plné barvou úrovně; varianty `bar` (jen ukazatel + `title`/`sr-only`, husté seznamy: dashboard ×2, call-mode, lead-card, lead-drawer) a `full` (bar + barevný popisek: karta grid, list explorer, detail `size=md`). Badge „Předstih" ponechán.
+- Lokální `RATING_VARIANT` mapy VYMAZÁNY (dashboard, call-mode), tvrdé string srovnání v lead-* pryč — jediný zdroj `RATING_META`.
+- Testy +2 (802/802), `tsc`+eslint (0 errors v dotčených souborech)+build čisté.
+
 ## Key Files
 
 ### Core

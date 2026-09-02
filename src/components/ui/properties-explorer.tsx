@@ -8,7 +8,7 @@ import { PropertyImage } from "@/components/ui/property-image";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
-import { PriceRatingStrip } from "@/components/ui/price-rating-strip";
+import { PriceRatingMeter } from "@/components/ui/price-rating-meter";
 import Link from "next/link";
 import { csDays } from "@/lib/utils";
 import { X, ArrowDown, CaretLeft, CaretRight, Star } from "@phosphor-icons/react/dist/ssr";
@@ -661,7 +661,7 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                           </p>
                         )}
                         <div className="flex justify-end mt-1">
-                          <PriceRatingStrip label={p.priceRating} />
+                          <PriceRatingMeter label={p.priceRating} />
                         </div>
                         <div className="flex items-center gap-2 justify-end text-[11px] mt-0.5">
                           {p.roi != null && (

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { StatusDot } from "@/components/ui/status-dot";
 import { PriceTag } from "@/components/ui/price-tag";
+import { PriceRatingMeter } from "@/components/ui/price-rating-meter";
 import { Badge } from "@/components/ui/badge";
 import { PropertyImage } from "@/components/ui/property-image";
 import { conditionLabel, safeJsonParse, formatCompactPrice, formatRelative, parseDate } from "@/lib/utils";
@@ -114,14 +115,6 @@ const VERDICT_COLORS: Record<string, string> = {
   consider: "text-amber-400 border-amber-500/20 bg-amber-500/10",
   dontBuy: "text-red-400 border-red-500/20 bg-red-500/10",
   categoricalReject: "text-red-400 border-red-500/20 bg-red-500/10",
-};
-
-const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
-  "Velmi dobrá cena": "success",
-  "Dobrá cena": "default",
-  "Férová cena": "default",
-  "Vyšší cena": "warning",
-  "Vysoká cena": "danger",
 };
 
 function Stat({
@@ -395,9 +388,7 @@ export default function CallModePage() {
                 {(call.propertyPriceRating || call.propertyIsEarlyOffer) && (
                   <div className="flex items-center gap-1.5">
                     {call.propertyPriceRating && (
-                      <Badge variant={RATING_VARIANT[call.propertyPriceRating] ?? "default"} size="sm">
-                        {call.propertyPriceRating}
-                      </Badge>
+                      <PriceRatingMeter label={call.propertyPriceRating} variant="bar" />
                     )}
                     {call.propertyIsEarlyOffer === 1 && (
                       <Badge variant="info" size="sm">Předstih</Badge>

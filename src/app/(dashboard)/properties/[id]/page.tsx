@@ -10,7 +10,7 @@ import { parseStageData, negotiationAmountOf } from "@/lib/investor-portal-view"
 import { LEAD_STAGES } from "@/lib/leads";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
-import { PriceRatingStrip } from "@/components/ui/price-rating-strip";
+import { PriceRatingMeter } from "@/components/ui/price-rating-meter";
 import { Badge } from "@/components/ui/badge";
 import { RealingoScanPanel } from "@/components/realingo/realingo-scan-panel";
 import { PropertyMap } from "@/components/ui/property-map";
@@ -305,7 +305,7 @@ export default async function PropertyDetailPage({
               />
 
               {property.priceRating && (
-                <PriceRatingStrip label={property.priceRating} size="md" className="mt-1.5" />
+                <PriceRatingMeter label={property.priceRating} variant="full" size="md" className="mt-1.5" />
               )}
 
               {property.isEarlyOffer === 1 && (

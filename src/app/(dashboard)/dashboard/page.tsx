@@ -13,6 +13,7 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PropertyImage } from "@/components/ui/property-image";
+import { PriceRatingMeter } from "@/components/ui/price-rating-meter";
 import {
   House,
   MagnifyingGlass,
@@ -87,14 +88,6 @@ const itemVariants = {
     y: 0,
     transition: { type: "spring" as const, stiffness: 100, damping: 20 },
   },
-};
-
-const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
-  "Velmi dobrá cena": "success",
-  "Dobrá cena": "default",
-  "Férová cena": "default",
-  "Vyšší cena": "warning",
-  "Vysoká cena": "danger",
 };
 
 export default function DashboardPage() {
@@ -488,9 +481,7 @@ export default function DashboardPage() {
                     {(p.priceRating || p.isEarlyOffer) && (
                       <div className="flex items-center gap-1.5 mt-1.5">
                         {p.priceRating && (
-                          <Badge variant={RATING_VARIANT[p.priceRating] ?? "default"} size="sm">
-                            {p.priceRating}
-                          </Badge>
+                          <PriceRatingMeter label={p.priceRating} variant="bar" />
                         )}
                         {p.isEarlyOffer === 1 && (
                           <Badge variant="info" size="sm">Předstih</Badge>
@@ -567,9 +558,7 @@ export default function DashboardPage() {
                     {(p.priceRating || p.isEarlyOffer) && (
                       <div className="flex items-center gap-1.5 mt-1.5">
                         {p.priceRating && (
-                          <Badge variant={RATING_VARIANT[p.priceRating] ?? "default"} size="sm">
-                            {p.priceRating}
-                          </Badge>
+                          <PriceRatingMeter label={p.priceRating} variant="bar" />
                         )}
                         {p.isEarlyOffer === 1 && (
                           <Badge variant="info" size="sm">Předstih</Badge>

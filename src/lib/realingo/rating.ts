@@ -11,10 +11,17 @@ export type RatingBadge = "success" | "default" | "warning" | "danger";
 
 export interface RatingMeta {
   badge: RatingBadge;
-  /** Třída pro barevný strip pod cenou (PriceRatingStrip). */
-  strip: string;
   /** Pořadí tier 1..5 = barva od "nejlepší cena" po "nejdražší". */
   tier: number;
+  /** Segmentový ukazatel (PriceRatingMeter): plné dílky 1..5 a barva úrovně. */
+  meter: {
+    /** Solidní barva plných dílků (souvázané s Realingo #00A368→#E30000). */
+    bar: string;
+    /** Barva popisku/kontextu. */
+    text: string;
+    /** Počet plných dílků z 5 (tier 1 = 5 = nejlepší). */
+    filled: number;
+  };
 }
 
 /** Mapa tier → popisek přesně podle frontendu Realinga (chunk _app, mapa `u`). */
@@ -39,32 +46,33 @@ export const RATING_META: Record<string, RatingMeta> = {
   "Vynikající cena": {
     badge: "success",
     tier: 1,
-    strip: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+    meter: { bar: "bg-emerald-500", text: "text-emerald-400", filled: 5 },
   },
+  // legacy slovník API (staré řádky v DB / neznormalizované zdroje) — alias tier 1
   "Velmi dobrá cena": {
     badge: "success",
     tier: 1,
-    strip: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+    meter: { bar: "bg-emerald-500", text: "text-emerald-400", filled: 5 },
   },
   "Dobrá cena": {
     badge: "success",
     tier: 2,
-    strip: "bg-green-500/10 text-green-500/90 border border-green-500/25",
+    meter: { bar: "bg-green-500", text: "text-green-400", filled: 4 },
   },
   "Férová cena": {
     badge: "default",
     tier: 3,
-    strip: "bg-slate-400/10 text-slate-300 border border-slate-400/25",
+    meter: { bar: "bg-lime-500", text: "text-lime-400", filled: 3 },
   },
   "Vyšší cena": {
     badge: "warning",
     tier: 4,
-    strip: "bg-amber-500/15 text-amber-400 border border-amber-500/30",
+    meter: { bar: "bg-amber-500", text: "text-amber-400", filled: 2 },
   },
   "Vysoká cena": {
     badge: "danger",
     tier: 5,
-    strip: "bg-red-500/15 text-red-400 border border-red-500/30",
+    meter: { bar: "bg-red-500", text: "text-red-400", filled: 1 },
   },
 };
 
