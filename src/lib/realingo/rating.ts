@@ -1,7 +1,10 @@
 /**
  * Cenový rating Realingo/Valuo — JEDINÝ zdroj pravdy pro barvy i popisky.
- * Label přichází z API verbatim (`loadPriceStats.stats.label`); hodnoty se
- * nikde nepřepočítávají — co ukazuje Realingo, to ukazujeme my.
+ *
+ * Pozor na drift: `loadPriceStats.stats.label` vrací STARŠÍ slovník
+ * (tier 1 = „Velmi dobrá cena"), ale web Realinga si tier mapuje sám
+ * (tier 1 = „Vynikající cena"). Ukládáme i zobrazujeme slovník WEBU
+ * (`normalizeRatingLabel`) — co ukazuje Realingo, to ukazujeme my.
  */
 
 export type RatingBadge = "success" | "default" | "warning" | "danger";
@@ -14,7 +17,30 @@ export interface RatingMeta {
   tier: number;
 }
 
+/** Mapa tier → popisek přesně podle frontendu Realinga (chunk _app, mapa `u`). */
+export const TIER_LABEL: Record<string, string> = {
+  "1": "Vynikající cena",
+  "2": "Dobrá cena",
+  "3": "Férová cena",
+  "4": "Vyšší cena",
+  "5": "Vysoká cena",
+};
+
+/** Znormalizuje API label na slovník webu; neznámý tier → originální label. */
+export function normalizeRatingLabel(
+  label: string | null | undefined,
+  tier: string | number | null | undefined
+): string | null {
+  const t = tier == null ? null : String(tier);
+  return (t && TIER_LABEL[t]) || label?.trim() || null;
+}
+
 export const RATING_META: Record<string, RatingMeta> = {
+  "Vynikající cena": {
+    badge: "success",
+    tier: 1,
+    strip: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
+  },
   "Velmi dobrá cena": {
     badge: "success",
     tier: 1,

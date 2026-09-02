@@ -80,11 +80,29 @@ describe("toRawListing — titulek a fotky", () => {
     expect(l.priceRating).toBeNull();
   });
 
-  it("rating label putuje verbatim (shoda s Realingem)", () => {
+  it("rating se normalizuje na slovnik webu (API tier 1 -> web Vynikajici)", () => {
     const l = toRawListing(offer(), statsOk, false);
-    expect(l.priceRating).toBe("Velmi dobrá cena");
+    expect(l.priceRating).toBe("Vynikající cena");
     expect(l.priceTier).toBe("1");
     expect(l.isEarlyOffer).toBe(false);
+  });
+
+  it("tier 2 + legacy label -> webove Dobra cena (rozhoduje tier)", () => {
+    const l = toRawListing(
+      offer(),
+      { ...statsOk, stats: { ...statsOk.stats!, tier: "2", label: "Velmi dobrá cena" } },
+      false
+    );
+    expect(l.priceRating).toBe("Dobrá cena");
+  });
+
+  it("bez tieru → originální label se ponechá", () => {
+    const l = toRawListing(
+      offer(),
+      { ...statsOk, stats: { ...statsOk.stats!, tier: null as never, label: "Férová cena" } },
+      false
+    );
+    expect(l.priceRating).toBe("Férová cena");
   });
 });
 

@@ -9,6 +9,7 @@ import {
   getScan,
   getScanComparables,
   waitForScan,
+  RealingoScanError,
   type RealingoComparable,
 } from "@/lib/realingo/realscan";
 import type { RealingoScanStatus } from "@/lib/realingo/types";
@@ -162,10 +163,8 @@ export async function POST(
     }
 
     // 2) Nový scan: vytvořit a dočkat se dokončení (Realingo počítá ~10-60 s).
+    // createScanFromOffer hází RealingoScanError s kontextem, pokud API odmítne.
     const created = await createScanFromOffer(prop.realingoId);
-    if (!created?.id) {
-      return NextResponse.json({ error: "RealScan se nepodařilo vytvořit." }, { status: 502 });
-    }
 
     let comparables: RealingoComparable[] = [];
     let final: RealingoScanStatus = created;
@@ -206,9 +205,29 @@ export async function POST(
       failed: FAILED_STATUSES.has((final.status ?? "").toUpperCase()),
     });
   } catch (error) {
-    console.error("[Realingo] Scan error:", error);
+    // Kontext GraphQL odpovědi musí do logu — bez něj je „null od Realinga" nevyšetřitelný.
+    console.error(
+      "[Realingo] Scan error:",
+      error instanceof RealingoScanError ? `${error.message} detail=${JSON.stringify(error.detail)}` : error
+    );
+    const msg = error instanceof Error ? error.message : String(error);
+    if (/not authenticated|login/i.test(msg)) {
+      return NextResponse.json(
+        { error: "Realingo účet není přihlášen — zkontrolujte REALINGO_EMAIL/REALINGO_PASSWORD na Vercelu." },
+        { status: 502 }
+      );
+    }
+    if (/offer not found/i.test(msg)) {
+      return NextResponse.json(
+        { error: "Nabídka už na Realingu neexistuje (zanikla nebo byla stáhnutá) — RealScan pro ni nelze zadat." },
+        { status: 502 }
+      );
+    }
     return NextResponse.json(
-      { error: "RealScan se nepodařilo zpracovat. Zkuste to prosím později." },
+      {
+        error: `RealScan se nepodařilo vytvořit: ${msg}`,
+        hint: "Pokud je hláška o odmítnutí bez detailu, účtu pravděpodobně došly RealScan kredity nebo vypršel plán Valuo.",
+      },
       { status: 502 }
     );
   }

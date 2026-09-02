@@ -90,7 +90,7 @@ export class RealingoClient {
     query: string,
     operationName: string,
     variables: Record<string, unknown> = {}
-  ): Promise<{ data?: T; errors?: { message?: string }[] }> {
+  ): Promise<{ data?: T; errors?: { message?: string; extensions?: { code?: string } }[] }> {
     const token = await this.getToken();
     const res = await fetch(REALINGO_GRAPHQL, {
       method: "POST",

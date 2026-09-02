@@ -84,7 +84,8 @@ export function RealingoScanPanel({ propertyId }: { propertyId: string }) {
       const res = await fetch(`/api/realingo/scans/${propertyId}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "RealScan se nepodařilo spustit.");
+        const detail = [data.error ?? "RealScan se nepodařilo spustit.", data.hint].filter(Boolean).join(" ");
+        setError(detail);
         return;
       }
       await load();

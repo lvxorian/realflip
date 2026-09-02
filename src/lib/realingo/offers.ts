@@ -1,4 +1,5 @@
 import { getRealingoClient } from "./graphql-client";
+import { normalizeRatingLabel } from "./rating";
 import type { RealingoOffer, RealingoPriceStats, RealingoUser } from "./types";
 import type { RawListing } from "@/lib/scraping/types";
 
@@ -171,7 +172,9 @@ export function toRawListing(
     publishedAt: o.createdAt ? Date.parse(o.createdAt) : Date.now(),
     updatedAt: Date.now(),
     realingoId: o.id,
-    priceRating: s?.label ?? null,
+    // Label normalizujeme na slovník webu Realinga (API vrací starší slova,
+    // např. tier 1 = „Velmi dobrá" vs web „Vynikající") — viz rating.ts.
+    priceRating: normalizeRatingLabel(s?.label ?? null, s?.tier ?? null),
     priceTier: s?.tier ?? null,
     priceRatingJson: s ? JSON.stringify(s) : null,
     isEarlyOffer: earlyOffer,

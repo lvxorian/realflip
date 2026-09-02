@@ -605,6 +605,12 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Backfill**: `scripts/backfill-realingo-photos.ts` — 78/81 prod řádků doplněno po 10 fotkách; 3 bez fotek = zemřelé nabídky (SSR fallback stránka, generic title). `realingo-verify.ts` fixnut na PG `jsonb_array_length("image_urls"::jsonb)` (SQLite-only funkce).
 - Testy +6 (795/795), `tsc`+eslint čisté. K otestování end-to-end v prod: nastavit reálné `REALINGO_EMAIL`/`REALINGO_PASSWORD` na Vercelu (přítomné, ale prázdné hodnoty → pull vrací `""`).
 
+### Phase 86 — Rating normalizace dle tier mapy webu + RealScan diagnostika (Done)
+- **Root cause driftu ratingu**: Realingo web **nepoužívá** `loadPriceStats.label` — mapuje tier sám (frontend chunk `_app`, mapa `u`: 1=„Vynikající cena",2=„Dobrá",3=„Férová",4=„Vyšší",5=„Vysoká"). API vrací starší slovník (tier 1=„Velmi dobrá cena") → badge se lišil systematicky. **Fix**: `rating.ts` `TIER_LABEL` + `normalizeRatingLabel(label, tier)` (rozhoduje tier, label jen fallback); `toRawListing` ukládá web slovník; `RATING_META` má „Vynikající cena" (tier 1 success) i legacy „Velmi dobrá cena" alias. Jednorázový přepočet prod dat: `scripts/normalize-realingo-ratings.ts` (81 zkontrolováno, 45 přepsáno). Druhý faktor rozdílu = stáří (web počítá live; sync denně — viz cron níže).
+- **RealScan „nepodařilo vytvořit"**: GraphQL mutace vrací prázdný výsledek bez chyby (ověřeno probingem: tvar `createValuationScanFromOffer → ValuationScan` sedí, `Query.valuationScans` existuje bez offer filtru) → business odmítnutí účtu (kredity/plán, dedup, nebo nevalidní offer). `createScanFromOffer/getScan/getScanComparables` nyní hází `RealingoScanError` s `detail` (celý GraphQL response), route loguje `detail` do Vercel logs a vrací rozlišené hlášky: auth→„creds na Vercelu", „Offer not found"→„nabídka zanikla", jinak message+hint o kreditech; panel showuje error+hint. Příští odmítnutí tudíž ponese skutečnou příčinu.
+- **Pozor data**: Vercel cron `/api/realingo/cron` (0 11 * * * UTC) za poslední 2 dny **neměl jediný request v logech** → prod data byla freeze od 31.8. do dnešního ručního triggeru (81 řádků touched). Současně burst 40×500 na `/api/ares/cron` a `crime.ts` 404 na policie.cz měsíční XLSX (další issue).
+- Testy +5 (800/800, 65 souborů), `tsc`+eslint+build čisté.
+
 ## Key Files
 
 ### Core

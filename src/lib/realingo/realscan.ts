@@ -48,6 +48,20 @@ export interface RealingoComparable {
   longitude: number | null;
 }
 
+/** Chyba od Realingo API s surovým GraphQL kontextem (pro log + uživatelskou hlášku). */
+export class RealingoScanError extends Error {
+  constructor(message: string, readonly detail?: unknown) {
+    super(message);
+    this.name = "RealingoScanError";
+  }
+}
+
+function graphQlErrorText(errors: { message?: string; extensions?: { code?: string } }[]): string {
+  return errors
+    .map((e) => `${e.message ?? "GraphQL error"}${e.extensions?.code ? ` [${e.extensions.code}]` : ""}`)
+    .join("; ");
+}
+
 function toScanStatus(raw: {
   id: string;
   address?: string | null;
@@ -84,15 +98,24 @@ function toScanStatus(raw: {
 /** Vytvoří RealScan odhad z existující nabídky (offerId = Realingo id). */
 export async function createScanFromOffer(
   offerId: string
-): Promise<RealingoScanStatus | null> {
+): Promise<RealingoScanStatus> {
   const client = getRealingoClient();
   const res = await client.gql<{
     createValuationScanFromOffer: RealingoScanStatus | null;
   }>(CREATE_FROM_OFFER, "ValuationDialogCreateValuationScanFromOffer", { offerId });
   if (res.errors?.length) {
-    throw new Error(res.errors.map((e) => e.message).join("; "));
+    throw new RealingoScanError(graphQlErrorText(res.errors), res);
   }
-  return res.data?.createValuationScanFromOffer ? toScanStatus(res.data.createValuationScanFromOffer as never) : null;
+  const raw = res.data?.createValuationScanFromOffer;
+  if (!raw?.id) {
+    // Žádná GraphQL chyba, ale null → business odmítnutí účtu (kredity/plán,
+    // dedup existujícího scanu, nekalitní offer). Bez kontextu bychom hadali.
+    throw new RealingoScanError(
+      `Realingo odmítl vytvořit scan (offer ${offerId}) — prázdný výsledek`,
+      res.data ?? null
+    );
+  }
+  return toScanStatus(raw as never);
 }
 
 /** Získá aktuální stav vybraného scanu. */
@@ -103,7 +126,7 @@ export async function getScan(id: string): Promise<RealingoScanStatus | null> {
     "ValuationDialogGetValuationScan",
     { id }
   );
-  if (res.errors?.length) throw new Error(res.errors.map((e) => e.message).join("; "));
+  if (res.errors?.length) throw new RealingoScanError(graphQlErrorText(res.errors), res);
   return res.data?.valuationScan ? toScanStatus(res.data.valuationScan as never) : null;
 }
 
@@ -122,7 +145,7 @@ export async function getScanComparables(
       photos?: { main?: string | null };
     }[];
   }>(GET_COMPARABLES, "ValuationDialogGetValuationScanComparableOffers", { scanId });
-  if (res.errors?.length) throw new Error(res.errors.map((e) => e.message).join("; "));
+  if (res.errors?.length) throw new RealingoScanError(graphQlErrorText(res.errors), res);
   const raw = res.data?.valuationScanComparableOffers ?? [];
   return raw.map((c) => ({
     id: c.id,
