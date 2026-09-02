@@ -1,5 +1,11 @@
 import { ScrapingOrchestrator } from "@/lib/scraping/orchestrator";
-import { fetchRealingoOffers, toRawListing, DEFAULT_REALINGO_SEARCH, type RealingoSearchConfig } from "./offers";
+import {
+  fetchAllRealingoOffers,
+  fetchPriceStatsByIds,
+  toRawListing,
+  DEFAULT_REALINGO_SEARCH,
+  type RealingoSearchConfig,
+} from "./offers";
 import { db } from "@/db";
 import { realingoAccount, properties } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -95,22 +101,47 @@ export interface RealingoSyncResult {
   total: number;
   locked: number;
   errors: string[];
+  /** false = vyčerpán časový budget, další cron pokračuje kde skončil (NEWEST řazení). */
+  complete: boolean;
 }
 
 /**
- * Proveďte jeden sync pass z Realingo: vytáhne nabídky podle uložené konfigurace,
- * dodá cenový rating (Valuo) a zapracuje je přes stávající saveListing pipeline.
+ * Proveďte jeden sync pass z Realingo: vytáhne nabídky podle uložené konfigurace
+ * (paginovaně, strop = config.first dříve jedné stránce 40), dodá cenový rating
+ * (Valuo — pending stats se zkusí doplnit druhým collectem) a zapracuje je přes
+ * stávající saveListing pipeline.
  */
 export async function syncRealingo(): Promise<RealingoSyncResult> {
   const cfg = (await getRealingoAccountConfig()) ?? { ...DEFAULT_REALINGO_SEARCH, enabled: true };
   if (!cfg.enabled) {
-    return { scanned: 0, saved: 0, total: 0, locked: 0, errors: ["Realingo disabled"] };
+    return { scanned: 0, saved: 0, total: 0, locked: 0, errors: ["Realingo disabled"], complete: true };
   }
 
   const errors: string[] = [];
-  const { items, stats, total, lockedOffersCount } = await fetchRealingoOffers(cfg).catch((e) => {
-    throw e;
+  const started = Date.now();
+  const fetched = await fetchAllRealingoOffers(cfg, {
+    maxItems: cfg.first ?? DEFAULT_REALINGO_SEARCH.first,
+    timeBudgetMs: 40_000,
   });
+  const { items, total, lockedOffersCount, complete } = fetched;
+  const stats = fetched.stats;
+
+  // Valuo stats jsou za během asynchronní — nabídky bez labelu zkusí jeden
+  // additional pass (denní cron to dotáhne i bez něj, update path rating
+  // osvěží když přijde).
+  const pendingIds = items
+    .filter((i) => !stats.get(i.id)?.stats?.label)
+    .map((i) => i.id);
+  if (pendingIds.length > 0 && Date.now() - started < 50_000) {
+    try {
+      const refetch = await fetchPriceStatsByIds(pendingIds);
+      for (const [k, v] of refetch) {
+        if (v.stats?.label) stats.set(k, v);
+      }
+    } catch (e) {
+      console.warn("[Realingo] stats refetch failed:", e);
+    }
+  }
 
   const listings = items.map((item) => {
     const stat = stats.get(item.id) ?? null;
@@ -125,7 +156,9 @@ export async function syncRealingo(): Promise<RealingoSyncResult> {
   const freshRealingoIds = new Set(items.map((i) => i.id));
 
   // Mark nabídky, které z Realingo zmizely, jako ne "předstih" (stale).
-  if (freshRealingoIds.size > 0) {
+  // Jen při kompletním odběru — při časovém budgetu vidíme jen část feedu
+  // a „neviděné" neznamená „zmizelé".
+  if (complete && freshRealingoIds.size > 0) {
     const rows = await db
       .select({ id: properties.id, realingoId: properties.realingoId })
       .from(properties)
@@ -158,5 +191,6 @@ export async function syncRealingo(): Promise<RealingoSyncResult> {
     total,
     locked: lockedOffersCount,
     errors,
+    complete,
   };
 }

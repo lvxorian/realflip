@@ -28,6 +28,11 @@ function pickBetterTitle(
 ): string | undefined {
   if (!incoming) return current ?? undefined;
   if (!current) return incoming;
+  // Legacy formát titulků z Realinga („SELL — adresa — X m²") přepisujeme
+  // vždy novým („Prodej bytu 3+1 · 71 m²") — delší starý by jinak vyhrál.
+  if (/^(SELL|RENT)\s+—\s/.test(current) && !/^(SELL|RENT)\s+—\s/.test(incoming)) {
+    return incoming;
+  }
   // Preferujeme delší (plnější) titulek — bazos.cz ořezává na 60 znaků,
   // plný text se objeví až při sloučení se stejným inzerátem z jiného portálu.
   return incoming.length > current.length ? incoming : current;

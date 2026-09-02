@@ -5,6 +5,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ScoreGauge } from "./score-gauge";
 import { PriceTag } from "./price-tag";
+import { PriceRatingStrip } from "./price-rating-strip";
 import { Badge } from "./badge";
 import { FavoriteButton } from "./favorite-button";
 import { PropertyImage } from "./property-image";
@@ -33,14 +34,6 @@ interface PropertyCardProps {
   priceRating?: string;
   earlyOffer?: boolean;
 }
-
-const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
-  "Velmi dobrá cena": "success",
-  "Dobrá cena": "default",
-  "Férová cena": "default",
-  "Vyšší cena": "warning",
-  "Vysoká cena": "danger",
-};
 
 export function PropertyCard({
   id,
@@ -125,9 +118,6 @@ export function PropertyCard({
             {isUndervalued && (
               <Badge variant="success" size="sm">Podhodnoceno {Math.round(undervaluationPct!)}%</Badge>
             )}
-            {priceRating && (
-              <Badge variant={RATING_VARIANT[priceRating] ?? "default"} size="sm">{priceRating}</Badge>
-            )}
             {earlyOffer && (
               <Badge variant="default" size="sm">Předstih</Badge>
             )}
@@ -192,6 +182,7 @@ export function PropertyCard({
 
           <div className="mt-auto">
             <PriceTag price={price} perSqm={pricePerSqm} size="sm" />
+            {priceRating && <PriceRatingStrip label={priceRating} className="mt-1.5" />}
           </div>
         </div>
       </motion.div>

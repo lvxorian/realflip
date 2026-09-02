@@ -67,6 +67,10 @@ export default function SettingsPage() {
   const [rlingEnabled, setRlingEnabled] = useState(false);
   const [rlingAddress, setRlingAddress] = useState("");
   const [rlingStatuses, setRlingStatuses] = useState("");
+  const [rlingPurpose, setRlingPurpose] = useState("SELL");
+  const [rlingProperty, setRlingProperty] = useState("FLAT");
+  const [rlingFirst, setRlingFirst] = useState(300);
+  const [rlingMaxAge, setRlingMaxAge] = useState<string>("");
   const [rlingLoaded, setRlingLoaded] = useState(false);
   const [savingRling, setSavingRling] = useState(false);
   const [rlingSyncing, setRlingSyncing] = useState(false);
@@ -209,6 +213,10 @@ export default function SettingsPage() {
         setRlingEnabled(!!cfg.enabled);
         setRlingAddress(cfg.address ?? "");
         setRlingStatuses(Array.isArray(cfg.buildingStatuses) ? cfg.buildingStatuses.join(", ") : "");
+        setRlingPurpose(cfg.purpose ?? "SELL");
+        setRlingProperty(cfg.property ?? "FLAT");
+        setRlingFirst(typeof cfg.first === "number" ? cfg.first : 300);
+        setRlingMaxAge(cfg.maxAge != null ? String(cfg.maxAge) : "");
         setRlingSyncState(d.syncState ?? null);
         setRlingHasCreds(!!d.hasCredentials);
         setRlingUser(d.user ?? null);
@@ -231,6 +239,10 @@ export default function SettingsPage() {
         body: JSON.stringify({
           enabled: rlingEnabled,
           address: rlingAddress.trim() || undefined,
+          purpose: rlingPurpose,
+          property: rlingProperty,
+          first: Number(rlingFirst) || undefined,
+          maxAge: rlingMaxAge.trim() !== "" ? Number(rlingMaxAge) : undefined,
           buildingStatuses: rlingStatuses
             .split(",")
             .map((s) => s.trim())
@@ -244,6 +256,9 @@ export default function SettingsPage() {
       }
       const cfg = data?.config ?? {};
       setRlingEnabled(!!cfg.enabled);
+      setRlingPurpose(cfg.purpose ?? rlingPurpose);
+      setRlingProperty(cfg.property ?? rlingProperty);
+      if (typeof cfg.first === "number") setRlingFirst(cfg.first);
       toast.success("Nastavení Realingo uloženo");
     } catch {
       toast.error("Chyba sítě");
@@ -428,6 +443,57 @@ export default function SettingsPage() {
                             onChange={(e) => setRlingAddress(e.target.value)}
                             placeholder="např. Praha"
                           />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground/80">Účel</label>
+                            <select
+                              className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50"
+                              value={rlingPurpose}
+                              onChange={(e) => setRlingPurpose(e.target.value)}
+                            >
+                              <option value="SELL">Prodej</option>
+                              <option value="RENT">Pronájem</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground/80">Typ nemovitosti</label>
+                            <select
+                              className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent/50"
+                              value={rlingProperty}
+                              onChange={(e) => setRlingProperty(e.target.value)}
+                            >
+                              <option value="FLAT">Byt</option>
+                              <option value="HOUSE">Dům</option>
+                              <option value="LAND">Pozemek</option>
+                              <option value="GARAGE">Garáž</option>
+                              <option value="OFFICE">Kancelář</option>
+                              <option value="COMMERCIAL">Komerce</option>
+                              <option value="OTHER">Ostatní</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground/80">Max nabídek na sync</label>
+                            <Input
+                              type="number"
+                              min={10}
+                              max={1000}
+                              value={rlingFirst}
+                              onChange={(e) => setRlingFirst(Number(e.target.value) || 0)}
+                              helper="10–1000; novější nabídky mají přednost, zbytek doručí další denní sync"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground/80">Stáří nabídek (dny)</label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={365}
+                              value={rlingMaxAge}
+                              onChange={(e) => setRlingMaxAge(e.target.value)}
+                              placeholder="bez omezení"
+                            />
+                          </div>
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-sm font-medium text-foreground/80">Stav nemovitostí</label>

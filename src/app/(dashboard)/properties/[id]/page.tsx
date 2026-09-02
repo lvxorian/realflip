@@ -10,6 +10,7 @@ import { parseStageData, negotiationAmountOf } from "@/lib/investor-portal-view"
 import { LEAD_STAGES } from "@/lib/leads";
 import { ScoreGauge } from "@/components/ui/score-gauge";
 import { PriceTag } from "@/components/ui/price-tag";
+import { PriceRatingStrip } from "@/components/ui/price-rating-strip";
 import { Badge } from "@/components/ui/badge";
 import { RealingoScanPanel } from "@/components/realingo/realingo-scan-panel";
 import { PropertyMap } from "@/components/ui/property-map";
@@ -63,20 +64,6 @@ function daysToAuction(auctionData: Record<string, unknown> | null): number | nu
   const d = new Date(String(auctionData.auctionDate));
   if (isNaN(d.getTime())) return null;
   return Math.max(0, Math.ceil((d.getTime() - Date.now()) / 86400000));
-}
-
-function priceRatingVariant(rating: string): "default" | "success" | "warning" | "danger" {
-  switch (rating) {
-    case "Velmi dobrá cena":
-    case "Dobrá cena":
-      return "success";
-    case "Vyšší cena":
-      return "warning";
-    case "Vysoká cena":
-      return "danger";
-    default:
-      return "default";
-  }
 }
 
 const PORTAL_LABELS: Record<string, string> = {
@@ -317,16 +304,13 @@ export default async function PropertyDetailPage({
                 size="lg"
               />
 
-              {(property.priceRating || property.isEarlyOffer === 1) && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {property.priceRating && (
-                    <Badge variant={priceRatingVariant(property.priceRating)}>
-                      {property.priceRating}
-                    </Badge>
-                  )}
-                  {property.isEarlyOffer === 1 && (
-                    <Badge variant="warning">Předstih</Badge>
-                  )}
+              {property.priceRating && (
+                <PriceRatingStrip label={property.priceRating} size="md" className="mt-1.5" />
+              )}
+
+              {property.isEarlyOffer === 1 && (
+                <div className="flex flex-wrap items-center gap-2 mt-2">
+                  <Badge variant="warning">Předstih</Badge>
                 </div>
               )}
 

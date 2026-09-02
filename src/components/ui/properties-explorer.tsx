@@ -8,6 +8,7 @@ import { PropertyImage } from "@/components/ui/property-image";
 import { FavoriteButton } from "@/components/ui/favorite-button";
 import { Input } from "@/components/ui/input";
 import { AmountInput } from "@/components/ui/amount-input";
+import { PriceRatingStrip } from "@/components/ui/price-rating-strip";
 import Link from "next/link";
 import { csDays } from "@/lib/utils";
 import { X, ArrowDown, CaretLeft, CaretRight, Star } from "@phosphor-icons/react/dist/ssr";
@@ -20,14 +21,6 @@ import {
 } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 48;
-
-const RATING_VARIANT: Record<string, "success" | "default" | "warning" | "danger"> = {
-  "Velmi dobrá cena": "success",
-  "Dobrá cena": "default",
-  "Férová cena": "default",
-  "Vyšší cena": "warning",
-  "Vysoká cena": "danger",
-};
 
 export interface PropertyListItem {
   id: string;
@@ -653,16 +646,11 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                     </div>
                     <div className="flex items-center gap-4 shrink-0">
                       <div className="text-right">
-                        <div className="flex items-center gap-1.5 justify-end mb-1">
-                          {p.priceRating && (
-                            <Badge variant={RATING_VARIANT[p.priceRating] ?? "default"} size="sm">
-                              {p.priceRating}
-                            </Badge>
-                          )}
-                          {p.isEarlyOffer && (
+                        {p.isEarlyOffer && (
+                          <div className="flex items-center gap-1.5 justify-end mb-1">
                             <Badge variant="info" size="sm">Předstih</Badge>
-                          )}
-                        </div>
+                          </div>
+                        )}
                         <p className="text-sm font-semibold font-mono text-price">
                           {fmtPrice(p.price)}{" "}
                           Kč
@@ -672,6 +660,9 @@ export function PropertiesExplorer({ items, favoritedIds = [] }: { items: Proper
                             {fmtPrice(p.pricePerSqm)} Kč/m²
                           </p>
                         )}
+                        <div className="flex justify-end mt-1">
+                          <PriceRatingStrip label={p.priceRating} />
+                        </div>
                         <div className="flex items-center gap-2 justify-end text-[11px] mt-0.5">
                           {p.roi != null && (
                             <span className={`font-mono font-semibold ${p.roi >= 15 ? "text-emerald-400" : p.roi >= 10 ? "text-amber-400" : "text-red-400"}`}>

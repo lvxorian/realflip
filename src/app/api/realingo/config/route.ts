@@ -53,15 +53,33 @@ export async function POST(req: Request) {
     ? body.buildingStatuses.map(String)
     : undefined;
 
+  // whitelist proti rozbitému filtru — neznámá enum hodnota by shodila celý sync
+  const PURPOSES = new Set(["SELL", "RENT"]);
+  const PROPERTIES = new Set(["FLAT", "HOUSE", "LAND", "GARAGE", "OFFICE", "COMMERCIAL", "OTHER"]);
+  const purpose = typeof body.purpose === "string" && PURPOSES.has(body.purpose.toUpperCase())
+    ? body.purpose.toUpperCase()
+    : undefined;
+  const property = typeof body.property === "string" && PROPERTIES.has(body.property.toUpperCase())
+    ? body.property.toUpperCase()
+    : undefined;
+  const first =
+    typeof body.first === "number" && Number.isFinite(body.first)
+      ? Math.min(1000, Math.max(10, Math.round(body.first))) // strop na sync: 10–1000
+      : undefined;
+  const maxAge =
+    typeof body.maxAge === "number" && Number.isFinite(body.maxAge)
+      ? Math.min(365, Math.max(0, Math.round(body.maxAge)))
+      : undefined;
+
   await saveRealingoAccountConfig({
     enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
     address: typeof body.address === "string" ? body.address : undefined,
-    purpose: typeof body.purpose === "string" ? body.purpose : undefined,
-    property: typeof body.property === "string" ? body.property : undefined,
+    purpose,
+    property,
     buildingStatuses,
     sort: typeof body.sort === "string" ? body.sort : undefined,
-    first: typeof body.first === "number" ? body.first : undefined,
-    maxAge: typeof body.maxAge === "number" ? body.maxAge : undefined,
+    first,
+    maxAge,
   });
 
   const cfg = await getRealingoAccountConfig();

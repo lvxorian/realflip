@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
-import { ChartLineUp, SpinnerGap, Lightning } from "@phosphor-icons/react";
+import { ChartLineUp, SpinnerGap, Lightning, WarningCircle } from "@phosphor-icons/react";
 
 interface ScanRecord {
   id: string;
-  scanId: string;
+  scanId: string | null;
   status: string | null;
   result: {
     avgPrice?: number | null;
@@ -24,41 +24,58 @@ interface ScanRecord {
   createdAt: number;
 }
 
+const RUNNING = new Set(["PENDING", "RUNNING", "QUEUED", "PROCESSING", "CREATED"]);
+const FAILED = new Set(["FAILED", "ERROR", "CANCELED", "CANCELLED"]);
+const POLL_MS = 6_000;
+const MAX_POLL_MS = 5 * 60_000;
+
+function isRunning(s: string | null | undefined): boolean {
+  return !!s && RUNNING.has(s.toUpperCase());
+}
+
 export function RealingoScanPanel({ propertyId }: { propertyId: string }) {
   const [scans, setScans] = useState<ScanRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (): Promise<ScanRecord[]> => {
     try {
       const res = await fetch(`/api/realingo/scans/${propertyId}`);
       const data = await res.json();
-      setScans(data.scans ?? []);
+      const list = (data.scans ?? []) as ScanRecord[];
+      setScans(list);
+      return list;
     } catch {
-      setScans([]);
+      return [];
     } finally {
       setLoading(false);
     }
   }, [propertyId]);
 
+  // Dokončování scanu: Realingo počítá minuty → dokud je PENDING, dotahujeme
+  // GET (serverní strana lazy-refreshne stav z Realinga do DB).
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch(`/api/realingo/scans/${propertyId}`);
-        const data = await res.json();
-        if (active) setScans(data.scans ?? []);
-      } catch {
-        if (active) setScans([]);
-      } finally {
-        if (active) setLoading(false);
-      }
+      const list = await load();
+      if (cancelled || !list.some((s) => isRunning(s.status))) return;
+      const startedAt = Date.now();
+      pollRef.current = setInterval(async () => {
+        const fresh = await load();
+        const stillPending = fresh.some((s) => isRunning(s.status));
+        if (!stillPending || Date.now() - startedAt > MAX_POLL_MS) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      }, POLL_MS);
     })();
     return () => {
-      active = false;
+      cancelled = true;
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [propertyId]);
+  }, [load]);
 
   const runScan = async () => {
     setRunning(true);
@@ -67,18 +84,31 @@ export function RealingoScanPanel({ propertyId }: { propertyId: string }) {
       const res = await fetch(`/api/realingo/scans/${propertyId}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "RealScan selhal");
-      } else {
-        await load();
+        setError(data.error ?? "RealScan se nepodařilo spustit.");
+        return;
+      }
+      await load();
+      if (data.running && !pollRef.current) {
+        const startedAt = Date.now();
+        pollRef.current = setInterval(async () => {
+          const fresh = await load();
+          if (!fresh.some((s) => isRunning(s.status)) || Date.now() - startedAt > MAX_POLL_MS) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        }, POLL_MS);
       }
     } catch {
-      setError("RealScan selhal — zkuste znovu");
+      setError("RealScan selhal — zkontrolujte připojení a zkuste znovu.");
     } finally {
       setRunning(false);
     }
   };
 
   const latest = scans[0];
+  const pending = latest && isRunning(latest.status);
+  const failed = latest && FAILED.has((latest.status ?? "").toUpperCase());
+  const hasResult = latest?.result?.avgPrice != null;
 
   return (
     <Card className="p-4 sm:p-6">
@@ -87,12 +117,14 @@ export function RealingoScanPanel({ propertyId }: { propertyId: string }) {
           <ChartLineUp size={18} weight="fill" className="text-accent" />
           <h2 className="font-semibold tracking-tight text-sm">RealScan — tržní odhad</h2>
         </div>
-        <Button size="sm" onClick={runScan} disabled={running}>
-          {running ? (
+        <Button size="sm" onClick={runScan} disabled={running || !!pending}>
+          {running || pending ? (
             <>
               <SpinnerGap size={14} className="animate-spin" />
-              Odhaduji...
+              {pending ? "Probíhá…" : "Spouštím…"}
             </>
+          ) : hasResult ? (
+            "Spustit znovu"
           ) : (
             "Spustit RealScan"
           )}
@@ -107,7 +139,22 @@ export function RealingoScanPanel({ propertyId }: { propertyId: string }) {
 
       {loading ? (
         <p className="h-16 animate-pulse rounded-lg bg-card-hover" />
-      ) : latest?.status === "DONE" || latest?.status === "COMPLETED" || latest?.result ? (
+      ) : pending ? (
+        <div className="flex items-center gap-2 text-sm text-muted">
+          <SpinnerGap size={16} className="animate-spin text-accent" />
+          Počítáme tržní odhad — první výsledek je obvykle do minuty, panel se obnoví automaticky.
+        </div>
+      ) : failed ? (
+        <div className="flex items-start gap-2 text-sm">
+          <WarningCircle size={16} weight="fill" className="text-amber-400 mt-0.5" />
+          <div>
+            <p className="text-amber-400 font-medium">Odhad se nepovedl.</p>
+            <p className="text-xs text-muted mt-0.5">
+              Zkuste RealScan spustit znovu. Pokud problém přetrvá, ověřte předplacený plán Realingo.
+            </p>
+          </div>
+        </div>
+      ) : hasResult ? (
         <div className="space-y-4">
           <div>
             <p className="text-[11px] text-muted mb-1">Odhad tržní hodnoty</p>
@@ -133,7 +180,7 @@ export function RealingoScanPanel({ propertyId }: { propertyId: string }) {
           {latest.hasComparables && (
             <div className="flex items-center gap-1.5 text-xs text-accent">
               <Lightning size={13} weight="fill" />
-              Srovnávače nabídek v okolí k dispozici
+              Srovnávací nabídky v okolí k dispozici
             </div>
           )}
         </div>
