@@ -6,6 +6,7 @@ import {
   DEFAULT_REALINGO_SEARCH,
   type RealingoSearchConfig,
 } from "./offers";
+import { fetchRealingoPagePhotos } from "./page-photos";
 import { db } from "@/db";
 import { realingoAccount, properties } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -148,6 +149,23 @@ export async function syncRealingo(): Promise<RealingoSyncResult> {
     return toRawListing(item, stat, item.isLocked);
   });
 
+  // Locked/předstih nabídky mají v searchOffer photos = null — fotky doplnit ze
+  // veřejné HTML stránky nabídky (bez authu). Přísný budget: ingest i refetch
+  // musí stihnout 60s serverless limit; řádky bez fotek dotáhne další cron
+  // (saveListing update path fotky sloučí, když je feed nakonec vrátí).
+  let photosBudget = 8;
+  for (const listing of listings) {
+    if (photosBudget <= 0 || Date.now() - started > 30_000) break;
+    if (listing.imageUrls.length > 0) continue;
+    photosBudget--;
+    try {
+      const imgs = await fetchRealingoPagePhotos(listing.url);
+      if (imgs.length > 0) listing.imageUrls = imgs;
+    } catch (e) {
+      console.warn(`[Realingo] page photos failed (${listing.url}):`, e);
+    }
+  }
+
   const orchestrator = new ScrapingOrchestrator();
   const result = await orchestrator.ingestListings(listings);
   errors.push(...result.errors);
@@ -173,17 +191,40 @@ export async function syncRealingo(): Promise<RealingoSyncResult> {
   }
 
   const now = ts();
-  await db
-    .update(realingoAccount)
-    .set({
-      lastSyncAt: now,
-      lastTotal: total,
-      lastLocked: lockedOffersCount,
-      lastError: errors.length ? errors.join("; ").slice(0, 500) : null,
-      updatedAt: now,
-    })
+  const status = {
+    lastSyncAt: now,
+    lastTotal: total,
+    lastLocked: lockedOffersCount,
+    lastError: errors.length ? errors.join("; ").slice(0, 500) : null,
+    updatedAt: now,
+  };
+  // Row může neexistovat (setup nikdy nedokončen z UI) — bez insertu by se
+  // stav/lastError ztratil v no-op UPDATE. Vytvořit ho s defaultami, se kterými sync běžel.
+  const row = await db
+    .select({ id: realingoAccount.id })
+    .from(realingoAccount)
     .where(eq(realingoAccount.id, ACCOUNT_ID))
-    .catch(() => {});
+    .limit(1)
+    .then((r) => r[0]);
+  if (row) {
+    await db.update(realingoAccount).set(status).where(eq(realingoAccount.id, ACCOUNT_ID)).catch(() => {});
+  } else {
+    await db
+      .insert(realingoAccount)
+      .values({
+        id: ACCOUNT_ID,
+        enabled: 1,
+        address: cfg.address,
+        purpose: cfg.purpose,
+        property: cfg.property,
+        buildingStatuses: JSON.stringify(cfg.buildingStatuses ?? []),
+        sort: cfg.sort,
+        first: cfg.first,
+        maxAge: cfg.maxAge ?? null,
+        ...status,
+      } as never)
+      .catch(() => {});
+  }
 
   return {
     scanned: items.length,

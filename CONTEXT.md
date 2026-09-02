@@ -598,6 +598,13 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - **Známé debt (neresolved záměrně)**: investor heslo odvozené od příjmení + in-memory rate limit (MVP Brickon); dual-schema `as`-cast sjednocení; Vercel cron vyžaduje GET (hotovo) — GH `drazby-hunter` GET na /api/vykupy/leads (machine path); god-component refaktory (interactive-analysis, portal page, leads-board); react-query provider bez useQuery (TODO v providers).
 - Verifikace: `tsc --noEmit` čistý, **764/764 testů (61 souborů)**, `next build` OK, eslint bez nových chyb.
 
+### Phase 85 — Realingo fotky: fallback z veřejné stránky nabídky (Done)
+- **Diagnóza** (skripty `repro-realingo-save.ts`/`realingo-verify.ts`): titulky i Valuo rating se do prod DB dostávají (81/81), ale `image_urls` bylo `[]` u všech řádků — `searchOffer` vrací `photos: null` (locked/předstih i ostatní). UTF8 teze (em-dash/smart quotes) vyvrácena — insert padal jen na testovacím NOT NULL/FK, ne na encodování. Introspece API blocked (Apollo), `Query.offer` je wrapper `OfferResult` (bez fotek) → GraphQL detail nedostupný.
+- **Řešení**: fotky jsou veřejně v SSR HTML stránky nabídky (`/static/images/offer/…jpg`, ~27 URL, bez authu). Nové `src/lib/realingo/page-photos.ts` — `parseRealingoPagePhotos` (dedup webp+jpg na jpg, zachování gallery order, cap 10) + `fetchRealingoPagePhotos`. `syncRealingo()` po mapingu listings dotahuje fotky pro řádky s `imageUrls: []` — budget 8 dotazů / elapsed < 30 s (kvůli 60s limitu na ingest), nestížené dotáhne další cron (saveListing update path sloučí fotky `newImgs>=oldImgs`).
+- **Účet-row fix**: `realingo_account` v prod neexistovala (setup nedokončen z UI) → status/`lastError` se ztrácely v no-op UPDATE. `syncRealingo()` nyní upsertuje řádek (defaultami + sync proběhl `enabled:1`), chyby syncu jsou vidět v Settings.
+- **Backfill**: `scripts/backfill-realingo-photos.ts` — 78/81 prod řádků doplněno po 10 fotkách; 3 bez fotek = zemřelé nabídky (SSR fallback stránka, generic title). `realingo-verify.ts` fixnut na PG `jsonb_array_length("image_urls"::jsonb)` (SQLite-only funkce).
+- Testy +6 (795/795), `tsc`+eslint čisté. K otestování end-to-end v prod: nastavit reálné `REALINGO_EMAIL`/`REALINGO_PASSWORD` na Vercelu (přítomné, ale prázdné hodnoty → pull vrací `""`).
+
 ## Key Files
 
 ### Core
@@ -660,7 +667,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 ### Realingo (premium feed) — Phase 82
 - `src/lib/realingo/sync.ts` — `syncRealingo()` (hostněný sken + upsert; in-process volané cronem i triggerem)
 - `src/lib/realingo/graphql-client.ts` — GraphQL klient (auth `REALINGO_EMAIL`/`REALINGO_PASSWORD`)
-- `src/lib/realingo/realscan.ts`, `offers.ts`, `types.ts` — RealScan + nabídky s předstihem + typy
+- `src/lib/realingo/realscan.ts`, `offers.ts`, `page-photos.ts`, `types.ts` — RealScan + nabídky s předstihem + fotky z veřejné HTML (fallback)
 - `src/app/api/realingo/` — cron (Bearer), trigger (session, in-process), config (GET/POST + syncState), scans/[propertyId]
 - UI badge: `RATING_VARIANT` + „Předstih" v `properties-explorer`, `properties/[id]`, `searches/[id]`, `dashboard`, `call-mode`, `leads` (lead-card/lead-drawer), settings
 
