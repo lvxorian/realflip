@@ -28,7 +28,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 
 ## Key Rules
 - **VAT**: Pure flip (FO→FO) = VAT-exempt without deduction (§51). `isVatPayer` removed.
-- **Tax**: Income tax fixed at 21% in calculation (not editable in UI).
+- **Tax**: Income tax fixed at 21% in calculation (not editable in UI). **Ověřeno 09/2026 (není bug)**: daň je vždy 21 % z **hrubého zisku celého obchodu** (`arv − subTotal`); přepínač modelu spolupráce v kalkulačce při 50/50 vypíná sourcing fee (`sourcingEnabled:false`, `interactive-analysis.tsx`), takže hrubý zisk vzroste o výši fee a daň o 21 % × fee (např. fee 100k → daň +21 000). U 50/50 se fee reálně neplatí (odměna = polovina zisku), u sourcing-fee/Obojí je daňově uznatelný náklad.
 - **Sell commission**: 5% default, configurable.
 - **Phone**: `formatPhone()` → `+420 608 033 397`.
 - **Cron (všechno 1×/den, Hobby limit)**: Vercel Cron posílá **GET** (`vercel.json`) — scraping 6:00 (`/api/scraping/trigger`, GET i POST, `Authorization: Bearer CRON_SECRET` + `x-cron-secret` pro GH), deska 8:00 (`/api/deska/poll`), isir 6:00 (`/api/isir/cron`), ares 9:00 (`/api/ares/cron`), realingo 11:00 (`/api/realingo/cron`). GH Actions 6:00: „Radar Refresh" (radar-refresh) + „Dražby Hunter" (`drazby_hunter.py`). Auth: cron route běží s `Authorization: Bearer CRON_SECRET`; GH akce s `x-cron-secret`. **Secret guards fail-closed** (`src/lib/cron-auth.ts` — bez CRON_SECRET nepromůže nic). Strojem volané cesty jsou whitelisted na hraně (`src/lib/proxy-rules.ts` isMachinePath).
@@ -37,7 +37,7 @@ All `<img>`: `referrerPolicy="no-referrer"` + `loading="lazy"` + `decoding="asyn
 - **Částkové vstupy**: všude používat `AmountInput` (`src/components/ui/amount-input.tsx`) nebo `Input type="amount"` — `type="text"` + `inputMode="numeric"`, živě formátuje mezery („5000000" → „5 000 000"), `onChange` předává jen číslice (stávající `Number`/`parseInt` parsování funguje beze změny). Sdílené formátování: `formatAmountInput()` v `src/lib/utils.ts`. Procenta/m²/plochy/roky = obyčejná číselná pole bez formátování.
 
 ## Test Stack
-Vitest v4 + jsdom + @testing-library/react. **764 tests across 61 files**.
+Vitest v4 + jsdom + @testing-library/react. **802 tests across 65 files**.
 `npm test` or `npx vitest run`.
 
 ## Radar (`/radar`, Phase 70)
@@ -49,11 +49,13 @@ Vitest v4 + jsdom + @testing-library/react. **764 tests across 61 files**.
 - Smoke/verify: `scripts/verify-radar.ts` (řady), `scripts/migrate-radar.ts` (DDL).
 
 ## Realingo (premium feed — cenová analytika)
-- Modul `src/lib/realingo/`: `graphql-client.ts` (GraphQL klient, auth `REALINGO_EMAIL`/`REALINGO_PASSWORD`), `sync.ts` (`syncRealingo()` — hostněný sken + upsert do `properties`; bez creds = disabled, `{ scanned:0, saved:0, errors:["Realingo disabled"] }`), `realscan.ts` (RealScan), `offers.ts` (nabídky s předstihem), `types.ts`.
-- DB (properties): `priceRating` (text: "Velmi dobrá cena"/"Dobrá cena"/"Férová cena"/"Vyšší cena"/"Vysoká cena"), `priceRatingJson` (PG jsonb / SQLite text), `isEarlyOffer` (0/1 = „Předstih"). API vrací pole v selectech (`dashboard/stats`, `leads` (jako `propertyPriceRating`/`propertyIsEarlyOffer`), `call-mode`, `searches/[id]` full row).
-- API: `realingo/cron` (Bearer CRON_SECRET, `maxDuration 60`), `realingo/trigger` (session, in-process → `syncRealingo()`), `realingo/config` (GET/POST nastavení + `syncState`), `realingo/scans/[propertyId]` (RealScan v detailu).
-- **UI badge/tag**: `RATING_VARIANT` mapa („Velmi dobrá cena"→success, „Dobrá"/„Férová"→default, „Vyšší cena"→warning, „Vysoká cena"→danger) + Badge „Předstih" (info) napříč: `properties-explorer` (grid+list), detail `properties/[id]`, `searches/[id]`, dashboard (2 gridy), `call-mode`, `lead-card`/`lead-drawer`, Settings sync. Vynecháno: investor portál, `interactive-analysis` (data tam nejsou).
-- Config/creds na Vercelu; `NEXT_PUBLIC_APP_URL` triggers **nepoužívají** (jen e-mailové absolutní odkazy).
+- Modul `src/lib/realingo/`: `graphql-client.ts` (GraphQL klient, auth `REALINGO_EMAIL`/`REALINGO_PASSWORD`), `sync.ts` (`syncRealingo()` — hostněný sken + upsert do `properties`; paginace `skip`+časový budget; bez creds = disabled; na konci **upsert** řádku `realingo_account` včetně `lastError` — ten je vidět v Settings), `offers.ts` (searchOffer + loadPriceStats + `toRawListing`), `realscan.ts` (RealScan; chyby házejí `RealingoScanError` s GraphQL `detail` → log + rozlišené hlášky v UI), `page-photos.ts` (fotky z **veřejné SSR HTML** stránky nabídky — searchOffer u locked/Předstih `photos:null`; fallback v syncu s budgetem 8 dotazů/30 s), `rating.ts` (source of truth labelů/barev), `types.ts`.
+- Slovník ratingu: web Realinga mapuje tier sám (chunk `_app`: 1=„Vynikající cena",2=„Dobrá",3=„Férová",4=„Vyšší",5=„Vysoká"); API `label` má starší slova (tier 1=„Velmi dobrá"). Ukládá se **normalizované** `TIER_LABEL[tier]` (`normalizeRatingLabel`) = shoda s webem; „Velmi dobrá cena" zůstává alias v `RATING_META`.
+- DB (properties): `priceRating` (text — viz slovník výše), `priceRatingJson` (tier/label/iqrDeviation/bands), `isEarlyOffer` (0/1 = „Předstih"). API vrací pole v selectech (`dashboard/stats`, `leads` jako `propertyPriceRating`/`propertyIsEarlyOffer`, `call-mode`, `searches/[id]` full row).
+- API: `realingo/cron` (Bearer CRON_SECRET, `maxDuration 60`), `realingo/trigger` (session, in-process → `syncRealingo()`), `realingo/config` (GET/POST nastavení + `syncState`), `realingo/scans/[propertyId]` (RealScan v detailu). **Known issue 09/2026**: v logu nejsou žádné requesty na `/api/realingo/cron` (cron nejspíš nespustil; data se aktualizují jen ručním triggerem) + burst 40×500 na `ares/cron`.
+- **UI rating**: `PriceRatingMeter` (`src/components/ui/price-rating-meter.tsx`) — 5dílkový segmentový ukazatel v barvách Realinga (plný zelený=Vynikající → 1 červený=Vysoká); `variant="bar"` (husté seznamy: dashboard, call-mode, lead-card/lead-drawer) / `variant="full"` (bar+popisek: property-card, list exploreru, detail). Jediný zdroj `RATING_META` + `ratingMeta()` (žádné lokální RATING_VARIANT mapy!). Badge „Předstih" (info) vedle. Vynecháno: investor portál, `interactive-analysis` (data tam nejsou).
+- Skripty: `scripts/realingo-verify.ts` (stav fotek/ratingů v DB), `scripts/backfill-realingo-photos.ts` (dosyncení fotek z HTML), `scripts/normalize-realingo-ratings.ts` (přepočet labelu z tieru).
+- Config/creds na Vercelu; `NEXT_PUBLIC_APP_URL` triggers **nepoužívají** (jen e-mailové absolutní odkazy). Sensitive env (`REALINGO_*`) se přes `vercel env pull` nevyčtou (vrátí prázdné) — hodnoty ověřuj jen na Vercelu.
 
 ## Portals (11 adapters, 6 url-scrapers)
 sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idnes-reality, realitymat, remax, realitymix (+ hyperreality, century21 disabled — hyperreality.cz je teď GitLab login, century21 má 429 bot protection)
@@ -118,9 +120,10 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - Diagnostika: `scripts/valuation-check.ts` (determinismus), `scripts/valuation-verify-tx.ts` (adresní transakce), `scripts/valuation-debug.ts` / `scripts/valuation-debug-zizkov.ts` (krok-za-krokem replika engine pro konkrétní lokalitu).
 
 ## Key Files
-- `src/lib/analysis/flip-costs.ts` — flip calculator (no VAT, tax fixed 21%)
+- `src/lib/analysis/flip-costs.ts` — flip calculator (no VAT, tax fixed 21 %; daň = 21 % z hrubého zisku PODEČTENÉHO o sourcing fee)
+- `src/lib/cooperation-models.ts` — modely spolupráce (50/50 vs sourcing fee, availability „Obojí"), sdílené UI/API
 - `src/lib/analysis/rental-calc.ts` — rental calculator (cap rate = NOI ÷ price, yield on investment = NOI ÷ (price+acq), daň 15 % s paušálem 30 % cap 600k, geometric annualized ROI, DSCR, verdict relativní k `targetYield`: +1.5/+0/−1; **LTV** (úvěr ÷ cena, cap), **`cumulativePaybackYear`** (první rok, kdy kumulativní CF ≥ celková investice), **`mortgageRateSensitivity`** 3,5–7,5 % → splátka/CF/CoC; **„Celková investice" = součet nákladů akvizice** (kupní + právní + posudek + sourcing + reko), úvěr capnutý na kupní cenu, vlastní vklad = rozdíl — metriky CoC/IRR/návratnost se počítají z vlastního vkladu; **fond oprav SVJ**: `svjFeeMonthly` Kč/měs (null = odhad z plochy × `svjEstimatePerSqm` dle `buildingType` — novostavba 20, panel 40, smíšená 45, cihla 50, fallback 35 Kč/m²; 0 = žádný) → OPEX/fixedCosts (s růstem)/break-even; `svjMonthly`/`svjIsEstimate` ve výsledcích, v snapshotu i PDF)
-- `src/components/calculator/interactive-analysis.tsx` — main calculator (editable target price, ROI slider step 0.1)
+- `src/components/calculator/interactive-analysis.tsx` — main calculator (editable target price, ROI slider step 0.1; selector „Způsob spolupráce" přepíná sourcing fee — 50/50 = fee OFF, viz Key Rules → Tax)
 - `src/components/report/property-report.tsx` — PDF report (scoring box removed, sourcing fee matched with calc)
 - `src/lib/scraping/orchestrator.ts` — scraping engine
 - `src/lib/scraping/url-scraper.ts` — single URL scraper
@@ -150,6 +153,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - `src/components/auth/login-splash.tsx` — splash animace při přihlášení
 - `src/components/ui/properties-explorer.tsx` — řazení 9 režimů + odnímatelné filtry
 - `src/components/ui/property-card.tsx` — mini-carousel fotek na kartách
+- `src/components/ui/price-rating-meter.tsx` — 5dílkový Valuo rating ukazatel (barva dle `RATING_META`, varianty `bar`/`full`)
 - `src/components/ui/image-gallery.tsx` — galerie s klávesovými šipkami + velkými klikacími zónami (detail + lead drawer)
 
 ## Scraper Architecture
@@ -202,7 +206,7 @@ sreality, bezrealitky, bazos, reality-cz, hyperinzerce, annonce, mmreality, idne
 - **Nezaměstnanost** (`czso.ts`): ČSÚ NKOD DCAT, dataset **2023** (Iri `b5c4d539...`), `cityKeyForMunicipality` = přesná shoda názvu (ne substring — "Plzeň-sever" se nemapuje na plzen). URL se řeší dynamicky přes NKOD.
 - **Migrace/obyvatel** (`czso.ts`): ČSÚ 2024 (`DEM0001` migrace, `DEM0026B` obyvatel), největší obec s názvem = skutečné město.
 - **SLDB 2021 + firmy** (`sldb.ts`): ČSÚ věková struktura per ORP (podíl 65+, SLDB 2021) + počet ekonomických subjektů per obec (RES, Q4 2025). Cache 24 h v `locality_metrics` (source `czso-sldb`/`czso-firms`). ZIP EOCD parser (data descriptors), detekce UTF-8/cp1250.
-- **Kriminalita** (`crime.ts`): **PČR XLSX statistiky** (prosinec 2025), per kraj → index TČ/100k, cache 30 dní v `locality_metrics` (source `pcr-crime`). NIKDY statická mapa. **Auto-refresh**: `discoverLatestCrimeSource()` najde nejnovější měsíční XLSX ze stránky aktuálního roku (`soubor/{rok}-{měsíc}-*-sest-01a-xlsx.aspx`), fallback 3 roky zpět + hardcoded.
+- **Kriminalita** (`crime.ts`): **PČR XLSX statistiky** (prosinec 2025), per kraj → index TČ/100k, cache 30 dní v `locality_metrics` (source `pcr-crime`). NIKDY statická mapa. **Auto-refresh**: `discoverLatestCrimeSource()` najde nejnovější měsíční XLSX ze stránky aktuálního roku (`soubor/{rok}-{měsíc}-*-sest-01a-xlsx.aspx`), fallback 3 roky zpět + hardcoded. **Known issue 09/2026**: discovery vygenerovalo 404 URL (`2026-06-cerven-...`), v logu opakovaně „Crime fetch failed HTTP 404" — nutná oprava vzoru/fallbacku.
 - **POI/Walkability** (`poi.ts`): **sreality API** medián vzdáleností k POI (`poi_*_distance`) — NE Overpass (nestabilní 406/timeout). Cache v `rents` (segment `poi:quarter:{id}` per čtvrť, nebo `poi` per město), sloupce `walkability`+`counts_json`, min 3 vzorky.
   - **Priorita POI**: 1) sreality detail (`sreality-detail.ts` z `properties.url` hash_id) → `quarter_id`+`district_id`+GPS ulice → POI per čtvrť; 2) Nominatim reverse-geocode GPS → `quarter-map.ts` (čtvrť → quarter_id) → POI per čtvrť; 3) městský průměr.
   - `locality_quarter_id` v sreality search je nespolehlivý napříč městy → kombinace `locality_district_id` (okres) + filtr názvu čtvrti v kódu. Diakritika normalizovaná (`normalizeCity`).

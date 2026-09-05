@@ -618,6 +618,12 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - Lokální `RATING_VARIANT` mapy VYMAZÁNY (dashboard, call-mode), tvrdé string srovnání v lead-* pryč — jediný zdroj `RATING_META`.
 - Testy +2 (802/802), `tsc`+eslint (0 errors v dotčených souborech)+build čisté.
 
+### Phase 88 — Ověření daně z příjmu × modely spolupráce (bez změny kódu)
+- **Dotaz**: u bytu s ruční ideální cenou 2 000 000 ukazuje kalkulačka daň 186 228 pod modelem „Obojí" a 207 228 pod „50/50" — zda nejde o chybu.
+- **Ověřeno: počty jsou správně.** `flip-costs.ts` počítá `incomeTax = 21 % × (arv − subTotal)` a selector spolupráce (`interactive-analysis.tsx` ~1020) při 50/50 vypne sourcing fee (`sourcingEnabled:false`) → fee 100 000 zmizí z nákladů → hrubý zisk +100k → **daň přesně +21 000** (207 228 − 186 228). Semantika sedí: pod 50/50 se fee neplatí (odměna = polovina zisku celého obchodu), pod sourcing-fee/Obojí je fee daňově uznatelným nákladem. Dělení zisku 50/50 po dani je matematicky ekvivalentní dani z polovičního podílu (lineární 21 %).
+- Rule zdokumentována do CLAUDE.md Key Rules (→ Tax) + CONTEXT Key Files, aby se při dalším dotazu nevyšetřovalo od nuly. Drobné UX vylepšení (řádek „Zisk před zdaněním" v tabulce) navržena, **záměrně nerealizována** na přání uživatele.
+- Součástí aktualizace kontextových souborů: doplněn drift z Phase 85–87 (slovník ratingu, `PriceRatingMeter`, known issues cron/ares/crime 404, testy 802/65).
+
 ## Key Files
 
 ### Core
@@ -633,13 +639,15 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/adapters/` — 11 adapters (sreality, idnes-reality, realitymat, realitymix, bezrealitky, bazos, mmreality, annonce, reality-cz, hyperinzerce, remax)
 
 ### Analysis / Calculator
-- `src/lib/analysis/flip-costs.ts`
+- `src/lib/analysis/flip-costs.ts` — `incomeTax = round(max(0, arv − subTotal) × 0.21)` (daň z příjmu pevně 21 %, fixováno v Key Rules); `subTotal` obsahuje sourcing fee když je zapnutý → fee snižuje hrubý zisk a tím i daň
+- `src/lib/cooperation-models.ts` — `COOPERATION_STRATEGIES` (fifty-fifty / sourcing-fee), `COOPERATION_AVAILABILITY` (both/fifty-fifty/sourcing-fee), `strategiesFromAvailability`
+- `src/components/calculator/interactive-analysis.tsx` — přepínač „Způsob spolupráce": 50/50 vypíná sourcing fee (`sourcingEnabled:false`) → daň se přepočítá z vyššího hrubého zisku (fee 100k → daň +21 000); u 50/50 se daň počítá z celku a zisk dělí 2 (ekvivalent daně z polovinu). Ověřeno 2026-09 (není bug).
 - `src/lib/analysis/rental-calc.ts` — výnosový engine (LTV, citlivost na sazbu, kumulativní návratnost, fond oprav SVJ dle konstrukce, IRR, verdikt) + `src/lib/analysis/__tests__/rental-calc.test.ts`
 - `src/lib/analysis/types.ts`
 - `src/lib/investor-portal-view.ts` — snapshot ↔ Brickon view (Celková investice, LTV, financování, spolupráce)
-- `src/components/calculator/interactive-analysis.tsx`
-- `src/components/report/property-report.tsx`
 - `src/components/calculator/property-detail-analysis.tsx`
+- `src/components/ui/price-rating-meter.tsx` — 5dílkový Valuo ukazatel (viz Phase 87), varianty `bar`/`full`, jediná mapa `src/lib/realingo/rating.ts`
+- `src/components/report/property-report.tsx`
 
 ### Off-Market / Výkupy
 - `scripts/drazby_hunter.py`
@@ -682,7 +690,7 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/realingo/graphql-client.ts` — GraphQL klient (auth `REALINGO_EMAIL`/`REALINGO_PASSWORD`)
 - `src/lib/realingo/realscan.ts`, `offers.ts`, `page-photos.ts`, `types.ts` — RealScan + nabídky s předstihem + fotky z veřejné HTML (fallback)
 - `src/app/api/realingo/` — cron (Bearer), trigger (session, in-process), config (GET/POST + syncState), scans/[propertyId]
-- UI badge: `RATING_VARIANT` + „Předstih" v `properties-explorer`, `properties/[id]`, `searches/[id]`, `dashboard`, `call-mode`, `leads` (lead-card/lead-drawer), settings
+- UI rating: `PriceRatingMeter` (5dílkový bar + popisek, viz Phase 87) + „Předstih" v `properties-explorer`, `properties/[id]`, `searches/[id]`, `dashboard`, `call-mode`, `leads` (lead-card/lead-drawer), settings — jediná mapa `RATING_META`/`ratingMeta()` (lokální `RATING_VARIANT` smazány)
 
 ### Sdílené cron/trigger liby (Phase 83)
 - `src/lib/ares/run-poll.ts` — `runAresPoll()` (sdílí ares cron + trigger)
@@ -768,3 +776,4 @@ Favorites table, FavoriteButton component, integration in grid/list/detail. Tax 
 - `src/lib/scraping/__tests__/market-price-service.test.ts`
 - `src/lib/scraping/__tests__/bazos-pagination.test.ts` — offset paginace URL
 - `src/lib/scraping/__tests__/bezrealitky-parser.test.ts` — advert konverze + search parsing
+- `src/lib/realingo/__tests__/offers.test.ts`, `rating.test.ts`, `page-photos.test.ts` — mapování nabídek (titulky/fotky/tier normalize), meter metadata, HTML extractor fotek
